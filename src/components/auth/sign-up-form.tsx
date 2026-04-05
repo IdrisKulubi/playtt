@@ -18,9 +18,15 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CircleNotch, Eye, EyeSlash } from "@phosphor-icons/react";
+import {
+    CircleNotch,
+    Eye,
+    EyeSlash,
+    GoogleLogoIcon,
+} from "@phosphor-icons/react";
 import { PasswordStrengthIndicator } from "@/components/ui/password-strength";
 import { sendVerificationEmailAction } from "@/actions/auth-actions";
+import Link from "next/link";
 
 const signUpSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
@@ -49,6 +55,25 @@ export function SignUpForm() {
             confirmPassword: "",
         },
     });
+
+    async function handleGoogleSignIn() {
+        setIsLoading(true);
+        await authClient.signIn.social(
+            {
+                provider: "google",
+                callbackURL: "/dashboard",
+            },
+            {
+                onSuccess: () => {
+                    // Redirect happens automatically
+                },
+                onError: (ctx: any) => {
+                    toast.error(ctx.error.message || "Google sign in failed");
+                    setIsLoading(false);
+                },
+            }
+        );
+    }
 
     async function onSubmit(values: z.infer<typeof signUpSchema>) {
         setIsLoading(true);
@@ -90,6 +115,27 @@ export function SignUpForm() {
                 </CardDescription>
             </CardHeader>
             <CardContent>
+                <div className="mb-4 grid gap-4">
+                    <Button
+                        variant="outline"
+                        onClick={handleGoogleSignIn}
+                        disabled={isLoading}
+                        type="button"
+                    >
+                        <GoogleLogoIcon className="mr-2 h-4 w-4" weight="bold" />
+                        Continue with Google
+                    </Button>
+                    <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-background px-2 text-muted-foreground">
+                                Or continue with email
+                            </span>
+                        </div>
+                    </div>
+                </div>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         <FormField
@@ -203,7 +249,12 @@ export function SignUpForm() {
                 </Form>
             </CardContent>
             <CardFooter className="justify-center">
-                <p className="text-sm text-muted-foreground">Already have an account? <a href="/sign-in" className="underline">Sign in</a></p>
+                <p className="text-sm text-muted-foreground">
+                    Already have an account?{" "}
+                    <Link href="/sign-in" className="underline">
+                        Sign in
+                    </Link>
+                </p>
             </CardFooter>
         </Card>
     );
