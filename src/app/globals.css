@@ -60,7 +60,7 @@
     --popover-foreground: #FFFFFF;
     
     /* Hero Color: Electric Azure */
-    --primary: #0058FF;
+    --primary: #00b7ff;
     --primary-foreground: #FFFFFF;
     
     /* Interactive States */
@@ -69,7 +69,7 @@
     --muted: #2A2A2A;
     --muted-foreground: #A1A1AA;
     --accent: #1E1E1E;
-    --accent-foreground: #0058FF;
+    --accent-foreground: #00b7ff;
     
     /* System Status */
     --destructive: #FF3B30;
@@ -77,10 +77,10 @@
     /* Borders & Inputs */
     --border: #2A2A2A;
     --input: #2A2A2A;
-    --ring: #0058FF;
+    --ring: #00b7ff;
     
     /* Analytics & Dashboards (Complementary Tech Colors) */
-    --chart-1: #0058FF; /* Electric Azure */
+    --chart-1: #00b7ff; /* Electric Azure */
     --chart-2: #00FF66; /* Success Neon Green */
     --chart-3: #FFB800; /* Warning Amber */
     --chart-4: #00BFFF; /* Cyan */
@@ -91,12 +91,12 @@
     /* Sidebar specific */
     --sidebar: #121212;
     --sidebar-foreground: #FFFFFF;
-    --sidebar-primary: #0058FF;
+    --sidebar-primary: #00b7ff;
     --sidebar-primary-foreground: #FFFFFF;
     --sidebar-accent: #1E1E1E;
-    --sidebar-accent-foreground: #0058FF;
+    --sidebar-accent-foreground: #00b7ff;
     --sidebar-border: #2A2A2A;
-    --sidebar-ring: #0058FF;
+    --sidebar-ring: #00b7ff;
 }
 
 @layer base {

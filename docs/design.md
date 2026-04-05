@@ -12,7 +12,7 @@
 ## 2. Color Palette
 PlayTT operates on a "Dark Mode" aesthetic both digitally and physically. The primary color acts as a beacon.
 
-* **Primary Hero (Electric Azure): `#0058FF`** * *Usage:* Primary call-to-action buttons ("Unlock Door"), the PlayTT logo, physical LED strip lighting, and storefront branding.
+* **Primary Hero (Electric Azure): `##00b7ff`** * *Usage:* Primary call-to-action buttons ("Unlock Door"), the PlayTT logo, physical LED strip lighting, and storefront branding.
 * **Background Base (Charcoal Black): `#121212`**
     * *Usage:* Digital app backgrounds, physical pod walls, ceiling paint, and hardware casing (smart locks/cameras).
 * **Surface / Card Base (Dark Grey): `#1E1E1E`**
