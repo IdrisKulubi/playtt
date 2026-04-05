@@ -236,7 +236,12 @@ export function SignInForm() {
                 </div>
             </CardContent>
             <CardFooter className="justify-center">
-                <p className="text-sm text-muted-foreground">Don&apos;t have an account? <a href="/sign-up" className="underline">Sign up</a></p>
+                <p className="text-sm text-muted-foreground">
+                    Don&apos;t have an account?{" "}
+                    <Link href="/sign-up" className="underline">
+                        Sign up
+                    </Link>
+                </p>
             </CardFooter>
         </Card>
     );

@@ -37,6 +37,34 @@ async function postToAuth(path: string, payload: Record<string, unknown>) {
   return data;
 }
 
+async function postToAuthWithFallbacks(
+  paths: string[],
+  payload: Record<string, unknown>,
+) {
+  let lastError: Error | null = null;
+
+  for (const path of paths) {
+    try {
+      return await postToAuth(path, payload);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes("status 404")
+      ) {
+        lastError = error;
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw (
+    lastError ||
+    new Error("Auth request failed because no matching endpoint was found.")
+  );
+}
+
 function safeJsonParse(value: string) {
   try {
     return JSON.parse(value) as Record<string, unknown>;
@@ -83,6 +111,67 @@ export async function sendVerificationEmailAction(
         error instanceof Error
           ? error.message
           : "Failed to send verification email.",
+    };
+  }
+}
+
+export async function requestPasswordResetAction(
+  email: string,
+): Promise<ActionResult> {
+  if (!email) {
+    return { success: false, message: "Email is required." };
+  }
+
+  try {
+    await postToAuthWithFallbacks(
+      ["forget-password", "forgot-password", "request-password-reset"],
+      {
+      email,
+      redirectTo: `${authBaseUrl}/reset-password/confirm`,
+      },
+    );
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Failed to send password reset email.",
+    };
+  }
+}
+
+export async function resetPasswordAction(input: {
+  token: string;
+  newPassword: string;
+}): Promise<ActionResult> {
+  if (!input.token) {
+    return { success: false, message: "Reset token is required." };
+  }
+
+  if (!input.newPassword) {
+    return { success: false, message: "New password is required." };
+  }
+
+  try {
+    await postToAuthWithFallbacks(
+      ["reset-password", "change-password", "confirm-password-reset"],
+      {
+        token: input.token,
+        newPassword: input.newPassword,
+      },
+    );
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Failed to reset password.",
     };
   }
 }
