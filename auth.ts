@@ -3,13 +3,40 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { twoFactor, emailOTP } from "better-auth/plugins";
 import { Resend } from "resend";
 import db from "./db/drizzle";
-import { render } from "@react-email/render";
-import OtpEmail from "@/emails/otp-email";
-import ResetPasswordEmail from "@/emails/reset-password-email";
-import { user } from "@/db/schema";
+import { render } from "@react-email/components";
+import OtpEmail from "./src/emails/otp-email";
+import ResetPasswordEmail from "./src/emails/reset-password-email";
+import { user } from "./db/schema";
 import { eq } from "drizzle-orm";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY ?? "re_placeholder");
+const resendFromEmail =
+  process.env.RESEND_FROM_EMAIL?.trim().toLowerCase() ||
+  "onboarding@resend.dev";
+
+async function sendEmailOrThrow(input: {
+  to: string;
+  subject: string;
+  html: string;
+}) {
+  const result = await resend.emails.send({
+    from: resendFromEmail,
+    to: input.to,
+    subject: input.subject,
+    html: input.html,
+  });
+
+  if (result.error) {
+    console.error("[RESEND] Email send failed:", result.error);
+
+    const fromDomain = resendFromEmail.split("@")[1] || resendFromEmail;
+    throw new Error(
+      `Failed to send email from ${resendFromEmail}. Check that the sender/domain is verified in Resend (domain: ${fromDomain}).`,
+    );
+  }
+
+  return result;
+}
 
 export const auth = betterAuth({
     database: drizzleAdapter(db, {
@@ -58,10 +85,9 @@ export const auth = betterAuth({
                 userName: user.name || "User"
             }));
 
-            await resend.emails.send({
-                from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+            await sendEmailOrThrow({
                 to: user.email,
-                subject: "Reset your Infradyn password",
+                subject: "Reset your PlayTT password",
                 html: emailHtml,
             });
         },
@@ -80,8 +106,7 @@ export const auth = betterAuth({
                     // Reuse existing OtpEmail template
                     const emailHtml = await render(OtpEmail({ otp }));
 
-                    const result = await resend.emails.send({
-                        from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+                    await sendEmailOrThrow({
                         to: email,
                         subject: "Verify your email address",
                         html: emailHtml,
@@ -93,14 +118,13 @@ export const auth = betterAuth({
             },
         }),
         twoFactor({
-            issuer: "Infradyn Materials Tracker",
+            issuer: "PlayTT",
             otpOptions: {
                 async sendOTP({ user, otp }: { user: { email: string; name: string }; otp: string }) {
                     const emailHtml = await render(OtpEmail({ otp }));
-                    await resend.emails.send({
-                        from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+                    await sendEmailOrThrow({
                         to: user.email,
-                        subject: "Your Infradyn Security Code",
+                        subject: "Your PlayTT Security Code",
                         html: emailHtml,
                     });
                 },

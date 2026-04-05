@@ -1,9 +1,14 @@
 import { SignUpForm } from "@/components/auth/sign-up-form";
+import { AuthShell } from "@/components/auth/auth-shell";
 
 export default function SignUpPage() {
-    return (
-        <main className="flex min-h-screen flex-col items-center justify-center p-8">
-            <SignUpForm />
-        </main>
-    );
+  return (
+    <AuthShell
+      eyebrow="Create account"
+      title="Create your PlayTT identity"
+      description="We’re setting up the first user journey now so booking, payment, and access later hang off a real authenticated player account."
+    >
+      <SignUpForm />
+    </AuthShell>
+  );
 }

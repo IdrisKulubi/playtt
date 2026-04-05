@@ -19,6 +19,7 @@ import { CircleNotchIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { sendVerificationEmailAction } from "@/actions/auth-actions";
 
 // Define schema for OTP (6 digits)
 const verifyEmailSchema = z.object({
@@ -65,11 +66,17 @@ export function VerifyEmailForm() {
     async function handleResend() {
         if (!email) return;
 
-        await authClient.emailOtp.sendVerificationOtp({
-            email,
-            type: "email-verification"
-        });
+        setIsLoading(true);
+        const result = await sendVerificationEmailAction(email);
+
+        if (!result.success) {
+            toast.error(result.message);
+            setIsLoading(false);
+            return;
+        }
+
         toast.info("Verification code resent.");
+        setIsLoading(false);
     }
 
     if (!email) {
@@ -140,7 +147,12 @@ export function VerifyEmailForm() {
                 </Form>
             </CardContent>
             <CardFooter className="flex-col gap-2">
-                <Button variant="link" onClick={handleResend} className="text-sm text-muted-foreground p-0 h-auto">
+                <Button
+                    variant="link"
+                    onClick={handleResend}
+                    className="h-auto p-0 text-sm text-muted-foreground"
+                    disabled={isLoading}
+                >
                     Resend Code
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">

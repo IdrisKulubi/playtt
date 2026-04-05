@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CircleNotch, Eye, EyeSlash } from "@phosphor-icons/react";
 import { PasswordStrengthIndicator } from "@/components/ui/password-strength";
+import { sendVerificationEmailAction } from "@/actions/auth-actions";
 
 const signUpSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
@@ -60,15 +61,13 @@ export function SignUpForm() {
             },
             {
                 onSuccess: async () => {
-                    try {
-                        await authClient.emailOtp.sendVerificationOtp({
-                            email: values.email,
-                            type: "email-verification",
-                        });
+                    const result = await sendVerificationEmailAction(values.email);
+
+                    if (result.success) {
                         toast.success("Account created! Check your email for verification code.");
-                    } catch (error) {
-                        console.error("[SIGN UP] Error sending OTP:", error);
-                        toast.error("Account created but failed to send verification email. Please use 'Resend Code' on the next page.");
+                    } else {
+                        console.error("[SIGN UP] Error sending OTP:", result.message);
+                        toast.error(result.message);
                     }
 
                     router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
