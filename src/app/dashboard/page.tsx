@@ -22,6 +22,12 @@ export default function DashboardPage() {
           </Button>
         </div>
 
+        <div className="flex gap-3">
+          <Button asChild>
+            <Link href="/book">Open booking workspace</Link>
+          </Button>
+        </div>
+
         <SessionPanel />
       </div>
     </main>

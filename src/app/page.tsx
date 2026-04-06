@@ -64,6 +64,9 @@ export default function Page() {
               <Button asChild size="lg" variant="outline" className="min-w-48">
                 <Link href="/sign-in">Already have an account</Link>
               </Button>
+              <Button asChild size="lg" variant="ghost" className="min-w-48">
+                <Link href="/book">View booking workspace</Link>
+              </Button>
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
