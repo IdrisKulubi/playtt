@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LightningIcon, SignOutIcon, TableIcon } from "@phosphor-icons/react";
+import {
+  ArrowRightIcon,
+  LightningIcon,
+  MapPinIcon,
+  ShieldCheckIcon,
+  SignOutIcon,
+  TableIcon,
+} from "@phosphor-icons/react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
@@ -29,9 +36,9 @@ export function SessionPanel() {
 
   if (isPending) {
     return (
-      <Card className="border-white/10 bg-white/[0.04]">
+      <Card className="glass-panel-strong border-white/10">
         <CardHeader>
-          <CardTitle>Checking session</CardTitle>
+          <CardTitle className="text-xl text-white">Checking session</CardTitle>
           <CardDescription>
             Verifying your PlayTT account and loading the app shell.
           </CardDescription>
@@ -42,9 +49,9 @@ export function SessionPanel() {
 
   if (error) {
     return (
-      <Card className="border-red-500/30 bg-red-500/10">
+      <Card className="glass-panel border-red-500/30 bg-red-500/10">
         <CardHeader>
-          <CardTitle>Session unavailable</CardTitle>
+          <CardTitle className="text-xl text-white">Session unavailable</CardTitle>
           <CardDescription>
             The auth client could not load your session. Check the API route and env
             values, then try again.
@@ -56,20 +63,42 @@ export function SessionPanel() {
 
   if (!session?.user) {
     return (
-      <Card className="border-white/10 bg-white/[0.04]">
-        <CardHeader>
-          <CardTitle>Authentication setup ready</CardTitle>
+      <Card className="glass-panel-strong border-white/10">
+        <CardHeader className="space-y-4">
+          <Badge className="w-fit border border-primary/20 bg-primary/10 text-primary">
+            Ready for sign-in
+          </Badge>
+          <CardTitle className="text-2xl text-white">Authentication setup ready</CardTitle>
           <CardDescription>
-            The UI is connected. Create an account or sign in to verify the full
-            flow.
+            The entry experience is wired. Create an account or sign in to move from landing to booking with a real session.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3 sm:flex-row">
-          <Button asChild className="flex-1">
-            <Link href="/sign-up">Create account</Link>
-          </Button>
-          <Button asChild variant="outline" className="flex-1">
-            <Link href="/sign-in">Sign in</Link>
+        <CardContent className="space-y-5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
+              <p className="text-sm text-white/50">Flow state</p>
+              <p className="mt-2 text-base font-medium text-white">Guest browsing</p>
+            </div>
+            <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
+              <p className="text-sm text-white/50">Next action</p>
+              <p className="mt-2 text-base font-medium text-white">Create a player account</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button asChild className="flex-1">
+              <Link href="/sign-up">Create account</Link>
+            </Button>
+            <Button asChild variant="outline" className="flex-1">
+              <Link href="/sign-in">Sign in</Link>
+            </Button>
+          </div>
+
+          <Button asChild variant="ghost" className="w-full justify-between border border-white/10 bg-white/[0.03]">
+            <Link href="/book">
+              Preview booking experience
+              <ArrowRightIcon className="size-4" />
+            </Link>
           </Button>
         </CardContent>
       </Card>
@@ -77,54 +106,76 @@ export function SessionPanel() {
   }
 
   return (
-    <Card className="border-primary/20 bg-white/[0.04] shadow-[0_24px_70px_rgba(0,0,0,0.35)]">
-      <CardHeader className="space-y-4">
+    <Card className="glass-panel-strong border-primary/15">
+      <CardHeader className="space-y-5">
         <div className="flex items-center justify-between gap-3">
           <Badge className="border border-primary/20 bg-primary/10 text-primary">
-            Auth connected
+            Session active
           </Badge>
           <Button variant="ghost" size="sm" onClick={handleSignOut}>
             <SignOutIcon className="mr-2 size-4" />
             Sign out
           </Button>
         </div>
-        <div>
-          <CardTitle className="text-2xl text-white">
-            Welcome, {session.user.name || "Player"}
+        <div className="space-y-3">
+          <CardTitle className="text-3xl leading-tight text-white">
+            Welcome back, {session.user.name || "Player"}.
           </CardTitle>
-          <CardDescription className="mt-2 text-white/65">
-            Your account is active and the initial app shell is working.
+          <CardDescription className="max-w-xl text-sm leading-7 text-white/64">
+            Your account is ready for production booking flows. The session is connected,
+            the booking journey can attach reservations to your identity, and the next layer
+            is payment plus access automation.
           </CardDescription>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-3xl border border-white/8 bg-black/20 p-4">
+          <div className="rounded-[1.6rem] border border-white/10 bg-black/20 p-5">
             <LightningIcon className="size-5 text-primary" weight="fill" />
-            <p className="mt-4 text-sm text-white/55">Signed in email</p>
-            <p className="mt-1 break-all text-sm font-medium text-white">
+            <p className="mt-4 text-sm text-white/50">Signed in email</p>
+            <p className="mt-2 break-all text-sm font-medium text-white">
               {session.user.email}
             </p>
           </div>
-          <div className="rounded-3xl border border-white/8 bg-black/20 p-4">
+          <div className="rounded-[1.6rem] border border-white/10 bg-black/20 p-5">
             <TableIcon className="size-5 text-primary" weight="fill" />
-            <p className="mt-4 text-sm text-white/55">User id</p>
-            <p className="mt-1 break-all text-sm font-medium text-white">
+            <p className="mt-4 text-sm text-white/50">Player identity</p>
+            <p className="mt-2 break-all text-sm font-medium text-white">
               {session.user.id}
             </p>
           </div>
-          <div className="rounded-3xl border border-white/8 bg-black/20 p-4">
-            <p className="text-sm text-white/55">Next build target</p>
-            <p className="mt-4 text-lg font-semibold text-white">
-              Booking availability
+          <div className="rounded-[1.6rem] border border-white/10 bg-black/20 p-5">
+            <ShieldCheckIcon className="size-5 text-primary" weight="fill" />
+            <p className="mt-4 text-sm text-white/50">Flow status</p>
+            <p className="mt-2 text-sm font-medium text-white">
+              Account verified for booking
             </p>
           </div>
         </div>
 
-        <div className="rounded-[1.5rem] border border-primary/15 bg-primary/6 p-5 text-sm leading-7 text-white/72">
-          Authentication is now the verified entry point into PlayTT. Once you can
-          create an account, verify email, sign in, and sign out here, we can safely
-          layer booking flows on top.
+        <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-[1.75rem] border border-primary/15 bg-primary/10 p-5 text-sm leading-7 text-white/76">
+            The premium booking path is ready to use: pick a venue, choose an open slot,
+            adjust the group size, and review the final summary before reserving.
+          </div>
+          <div className="rounded-[1.75rem] border border-white/10 bg-black/20 p-5">
+            <div className="flex items-start gap-3">
+              <MapPinIcon className="mt-1 size-5 text-primary" />
+              <div>
+                <p className="text-sm text-white/50">Best next move</p>
+                <p className="mt-2 text-base font-medium text-white">
+                  Go straight into the booking journey
+                </p>
+              </div>
+            </div>
+
+            <Button asChild className="mt-5 w-full justify-between">
+              <Link href="/book">
+                Open booking flow
+                <ArrowRightIcon className="size-4" />
+              </Link>
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
