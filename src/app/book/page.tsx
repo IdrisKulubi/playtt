@@ -11,14 +11,11 @@ export default async function BookPage() {
       <div className="hero-orb right-[-9rem] top-48 h-80 w-80 bg-sky-500/10" />
       <div className="playtt-grid absolute inset-0 opacity-25" />
 
-      <div className="app-shell min-h-screen gap-8">
+      <div className="app-shell min-h-screen gap-5 sm:gap-6">
         <BookPageShell />
 
         {locations.length === 0 ? (
-          <div className="glass-panel p-8 text-sm text-white/60">
-            No active locations or resources were found. Run the Phase 1 seed or add
-            a location and resource first.
-          </div>
+          <p className="max-w-md text-sm text-white/50">No venues available yet.</p>
         ) : (
           <BookingConsole locations={locations} />
         )}
