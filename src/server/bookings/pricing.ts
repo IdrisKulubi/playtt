@@ -59,7 +59,7 @@ function resolvePricingWindow(start: Date) {
   const peakWindow =
     PEAK_PRICING_WINDOWS.find(
       (window) =>
-        window.days.includes(day as (typeof window.days)[number]) &&
+        window.days.some((allowedDay) => allowedDay === day) &&
         hour >= window.startHour &&
         hour < window.endHour,
     ) ?? null;

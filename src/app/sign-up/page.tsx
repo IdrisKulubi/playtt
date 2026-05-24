@@ -6,7 +6,7 @@ export default function SignUpPage() {
     <AuthShell
       eyebrow="Create account"
       title="Create your PlayTT identity"
-      description="We’re setting up the first user journey now so booking, payment, and access later hang off a real authenticated player account."
+      description="Set up the player account that booking, payment, and future pod access will all attach to."
     >
       <SignUpForm />
     </AuthShell>

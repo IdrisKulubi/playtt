@@ -50,6 +50,10 @@ export async function getBookingQuote(input: unknown): Promise<BookingQuote> {
     parsed.durationMinutes,
   );
 
+  if (start <= new Date()) {
+    throw new Error("Bookings must be made for a future time.");
+  }
+
   return calculateBookingQuote({
     locationId: parsed.locationId,
     resourceId: parsed.resourceId,
@@ -83,18 +87,24 @@ export async function getLocationAvailability(
     end: slots.at(-1)?.endsAt ?? day,
   });
 
+  const now = new Date();
+
   return slots.map((slot) => {
-    const availableResourceIds = activeResources
-      .filter(
-        (resource) =>
-          !blockingBookings.some(
-            (booking) =>
-              booking.resourceId === resource.id &&
-              booking.startTime < slot.endsAt &&
-              booking.endTime > slot.startsAt,
-          ),
-      )
-      .map((resource) => resource.id);
+    const slotInPast = slot.startsAt <= now;
+
+    const availableResourceIds = slotInPast
+      ? []
+      : activeResources
+          .filter(
+            (resource) =>
+              !blockingBookings.some(
+                (booking) =>
+                  booking.resourceId === resource.id &&
+                  booking.startTime < slot.endsAt &&
+                  booking.endTime > slot.startsAt,
+              ),
+          )
+          .map((resource) => resource.id);
 
     const isAvailable = availableResourceIds.length > 0;
     const quote = calculateBookingQuote({

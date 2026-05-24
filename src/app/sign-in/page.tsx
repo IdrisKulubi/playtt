@@ -6,7 +6,7 @@ export default function SignInPage() {
     <AuthShell
       eyebrow="Sign in"
       title="Welcome back"
-      description="Use your PlayTT account to access the booking app shell and verify that sessions are being created correctly."
+      description="Use your PlayTT account to move back into booking, pricing, and future pod access without friction."
     >
       <SignInForm />
     </AuthShell>

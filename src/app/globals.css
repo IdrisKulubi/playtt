@@ -5,104 +5,135 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: var(--font-sans);
-    --color-sidebar-ring: var(--sidebar-ring);
-    --color-sidebar-border: var(--sidebar-border);
-    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-    --color-sidebar-accent: var(--sidebar-accent);
-    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-    --color-sidebar-primary: var(--sidebar-primary);
-    --color-sidebar-foreground: var(--sidebar-foreground);
-    --color-sidebar: var(--sidebar);
-    --color-chart-5: var(--chart-5);
-    --color-chart-4: var(--chart-4);
-    --color-chart-3: var(--chart-3);
-    --color-chart-2: var(--chart-2);
-    --color-chart-1: var(--chart-1);
-    --color-ring: var(--ring);
-    --color-input: var(--input);
-    --color-border: var(--border);
-    --color-destructive: var(--destructive);
-    --color-accent-foreground: var(--accent-foreground);
-    --color-accent: var(--accent);
-    --color-muted-foreground: var(--muted-foreground);
-    --color-muted: var(--muted);
-    --color-secondary-foreground: var(--secondary-foreground);
-    --color-secondary: var(--secondary);
-    --color-primary-foreground: var(--primary-foreground);
-    --color-primary: var(--primary);
-    --color-popover-foreground: var(--popover-foreground);
-    --color-popover: var(--popover);
-    --color-card-foreground: var(--card-foreground);
-    --color-card: var(--card);
-    --color-foreground: var(--foreground);
-    --color-background: var(--background);
-    --radius-sm: calc(var(--radius) * 0.6);
-    --radius-md: calc(var(--radius) * 0.8);
-    --radius-lg: var(--radius);
-    --radius-xl: calc(var(--radius) * 1.4);
-    --radius-2xl: calc(var(--radius) * 1.8);
-    --radius-3xl: calc(var(--radius) * 2.2);
-    --radius-4xl: calc(var(--radius) * 2.6);
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* PlayTT - Dark Mode Only Theme */
-:root, .dark {
-    /* Base Colors: Midnight carbon with electric cyan */
-    --background: #07111d;
-    --foreground: #FFFFFF;
-    
-    /* Surface Colors */
-    --card: #101b2b;
-    --card-foreground: #FFFFFF;
-    --popover: #101b2b;
-    --popover-foreground: #FFFFFF;
-    
-    /* Hero Color */
-    --primary: #00b7ff;
-    --primary-foreground: #041019;
-    
-    /* Interactive States */
-    --secondary: #162336;
-    --secondary-foreground: #FFFFFF;
-    --muted: #142033;
-    --muted-foreground: #92a6bf;
-    --accent: #101b2b;
-    --accent-foreground: #00b7ff;
-    
-    /* System Status */
-    --destructive: #FF3B30;
-    
-    /* Borders & Inputs */
-    --border: #203149;
-    --input: #162336;
-    --ring: #00b7ff;
-    
-    /* Analytics & Dashboards (Complementary Tech Colors) */
-    --chart-1: #00b7ff; /* Electric Azure */
-    --chart-2: #00FF66; /* Success Neon Green */
-    --chart-3: #FFB800; /* Warning Amber */
-    --chart-4: #00BFFF; /* Cyan */
-    --chart-5: #8A2BE2; /* Deep Purple */
-    
-    --radius: 0.625rem;
-    
-    /* Sidebar specific */
-    --sidebar: #07111d;
-    --sidebar-foreground: #FFFFFF;
-    --sidebar-primary: #00b7ff;
-    --sidebar-primary-foreground: #041019;
-    --sidebar-accent: #101b2b;
-    --sidebar-accent-foreground: #00b7ff;
-    --sidebar-border: #203149;
-    --sidebar-ring: #00b7ff;
+:root,
+.dark {
+  --background: #07111d;
+  --foreground: #ffffff;
+  --background-elevated: #0b1627;
+
+  --card: #101b2b;
+  --card-foreground: #ffffff;
+  --popover: #101b2b;
+  --popover-foreground: #ffffff;
+  --surface-soft: rgba(255, 255, 255, 0.045);
+  --surface-strong: rgba(255, 255, 255, 0.08);
+
+  --primary: #00b7ff;
+  --primary-foreground: #041019;
+  --primary-glow: rgba(0, 183, 255, 0.26);
+
+  --secondary: #162336;
+  --secondary-foreground: #ffffff;
+  --muted: #142033;
+  --muted-foreground: #92a6bf;
+  --accent: #101b2b;
+  --accent-foreground: #00b7ff;
+
+  --destructive: #ff3b30;
+
+  --border: #203149;
+  --input: #162336;
+  --ring: #00b7ff;
+
+  --chart-1: #00b7ff;
+  --chart-2: #00ff66;
+  --chart-3: #ffb800;
+  --chart-4: #00bfff;
+  --chart-5: #8a2be2;
+
+  --radius: 0.625rem;
+  --radius-card: 1.75rem;
+  --radius-panel: 2rem;
+  --radius-field: 1.25rem;
+  --radius-pill: 9999px;
+
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+
+  --motion-fast: 160ms;
+  --motion-base: 220ms;
+  --motion-slow: 320ms;
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --elevation-soft: 0 18px 48px rgba(0, 0, 0, 0.22);
+  --elevation-panel: 0 28px 90px rgba(0, 0, 0, 0.32);
+  --elevation-strong: 0 34px 120px rgba(0, 0, 0, 0.45);
+  --blur-panel: 24px;
+
+  --icon-size-sm: 1rem;
+  --icon-size-md: 1.25rem;
+  --icon-size-lg: 1.5rem;
+
+  --breakpoint-mobile: 40rem;
+  --breakpoint-tablet: 64rem;
+  --breakpoint-desktop: 80rem;
+
+  --sidebar: #07111d;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #00b7ff;
+  --sidebar-primary-foreground: #041019;
+  --sidebar-accent: #101b2b;
+  --sidebar-accent-foreground: #00b7ff;
+  --sidebar-border: #203149;
+  --sidebar-ring: #00b7ff;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    @apply font-sans;
+  }
+
   body {
     @apply bg-background text-foreground;
     background-image:
@@ -111,9 +142,6 @@
       linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 26rem),
       linear-gradient(180deg, #07111d 0%, #081320 45%, #060d18 100%);
     background-attachment: fixed;
-  }
-  html {
-    @apply font-sans;
   }
 
   ::selection {
@@ -129,10 +157,10 @@
 
   .playtt-grid {
     background-image:
-      linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+      linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
     background-size: 96px 96px;
-    mask-image: linear-gradient(180deg, rgba(0,0,0,0.75), transparent 92%);
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.75), transparent 92%);
   }
 
   .glass-panel {
@@ -162,7 +190,47 @@
     @apply rounded-[1.75rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] shadow-[0_18px_40px_rgba(0,0,0,0.16)];
   }
 
-  /* Booking flow — calmer, app-like surfaces */
+  .shell-nav-link {
+    @apply text-sm text-white/60 transition hover:text-white focus-visible:text-white;
+  }
+
+  .shell-divider {
+    @apply border-t border-white/10;
+  }
+
+  .metric-tile {
+    @apply rounded-[1.4rem] border border-white/10 bg-black/20 px-4 py-4;
+  }
+
+  .auth-form-card {
+    @apply w-full rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(17,27,43,0.94),rgba(9,17,29,0.98))] shadow-[0_24px_80px_rgba(0,0,0,0.34)];
+  }
+
+  .auth-support-note {
+    @apply rounded-[1.5rem] border border-white/10 bg-black/20 px-4 py-4 text-sm leading-6 text-white/60;
+  }
+
+  .auth-inline-link {
+    @apply text-primary underline-offset-4 transition hover:text-white hover:underline;
+  }
+
+  .form-divider {
+    @apply relative my-1 flex items-center;
+  }
+
+  .form-divider::before {
+    content: "";
+    @apply absolute inset-x-0 border-t border-white/10;
+  }
+
+  .form-divider > span {
+    @apply relative mx-auto bg-card px-3 text-[11px] font-medium uppercase tracking-[0.18em] text-white/40;
+  }
+
+  .field-cluster {
+    @apply space-y-4;
+  }
+
   .booking-tier-badge {
     @apply inline-flex items-center rounded-md border border-sky-400/25 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-200/90;
   }
@@ -185,5 +253,16 @@
 
   .booking-mobile-bar {
     @apply fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-[#0a1524]/95 px-4 py-3 shadow-[0_-20px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl supports-[padding:max(0px)]:pb-[max(0.75rem,env(safe-area-inset-bottom))];
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }

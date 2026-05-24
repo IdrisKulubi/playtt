@@ -1,164 +1,178 @@
 "use client";
 
 import { useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod/v3";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { authClient } from "@/lib/auth-client";
-import { Button } from "@/components/ui/button";
-import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormMessage,
-} from "@/components/ui/form";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { CircleNotchIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
-import Link from "next/link";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { sendVerificationEmailAction } from "@/actions/auth-actions";
 
-// Define schema for OTP (6 digits)
+import { authClient } from "@/lib/auth-client";
+import { sendVerificationEmailAction } from "@/actions/auth-actions";
+import { AuthFormCard } from "@/components/auth/auth-form-card";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+
 const verifyEmailSchema = z.object({
-    otp: z.string().min(6, "OTP must be 6 digits"),
+  otp: z.string().min(6, "OTP must be 6 digits"),
 });
 
 export function VerifyEmailForm() {
-    const router = useRouter();
-    const searchParams = useSearchParams();
-    const email = searchParams.get("email");
-    const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const email = searchParams.get("email");
+  const [isLoading, setIsLoading] = useState(false);
 
-    const form = useForm<z.infer<typeof verifyEmailSchema>>({
-        resolver: zodResolver(verifyEmailSchema),
-        defaultValues: {
-            otp: "",
-        },
+  const form = useForm<z.infer<typeof verifyEmailSchema>>({
+    resolver: zodResolver(verifyEmailSchema),
+    defaultValues: {
+      otp: "",
+    },
+  });
+
+  async function onSubmit(values: z.infer<typeof verifyEmailSchema>) {
+    if (!email) {
+      toast.error("Email is missing. Please restart sign-up.");
+      return;
+    }
+
+    setIsLoading(true);
+
+    const { error } = await authClient.emailOtp.verifyEmail({
+      email,
+      otp: values.otp,
     });
 
-    async function onSubmit(values: z.infer<typeof verifyEmailSchema>) {
-        if (!email) {
-            toast.error("Email is missing. Please restart sign-up.");
-            return;
-        }
-
-        setIsLoading(true);
-
-        const { error } = await authClient.emailOtp.verifyEmail({
-            email,
-            otp: values.otp,
-        });
-
-        if (error) {
-            toast.error(error.message || "Invalid OTP code");
-            setIsLoading(false);
-            return;
-        }
-
-        toast.success("Email verified successfully!");
-        router.push("/dashboard");
+    if (error) {
+      toast.error(error.message || "Invalid verification code.");
+      setIsLoading(false);
+      return;
     }
 
-    // Resend button handler - uses emailOtp.sendVerificationOtp
-    async function handleResend() {
-        if (!email) return;
+    toast.success("Email verified successfully.");
+    router.push("/dashboard");
+  }
 
-        setIsLoading(true);
-        const result = await sendVerificationEmailAction(email);
+  async function handleResend() {
+    if (!email) return;
 
-        if (!result.success) {
-            toast.error(result.message);
-            setIsLoading(false);
-            return;
-        }
+    setIsLoading(true);
+    const result = await sendVerificationEmailAction(email);
 
-        toast.info("Verification code resent.");
-        setIsLoading(false);
+    if (!result.success) {
+      toast.error(result.message);
+      setIsLoading(false);
+      return;
     }
 
-    if (!email) {
-        return (
-            <Card className="w-[400px]">
-                <CardHeader>
-                    <CardTitle>Verify Email</CardTitle>
-                    <CardDescription>Error: No email provided.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Button asChild className="w-full">
-                        <Link href="/sign-up">Go to Sign Up</Link>
-                    </Button>
-                </CardContent>
-            </Card>
-        )
-    }
+    toast.info("Verification code resent.");
+    setIsLoading(false);
+  }
 
+  if (!email) {
     return (
-        <Card className="w-[400px]">
-            <CardHeader>
-                <CardTitle>Verify Email</CardTitle>
-                <CardDescription>
-                    Enter the 6-digit code sent to <strong>{email}</strong>
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        <div className="flex justify-center">
-                            <FormField
-                                control={form.control}
-                                name="otp"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormControl>
-                                            <InputOTP
-                                                maxLength={6}
-                                                {...field}
-                                                onChange={(value) => {
-                                                    field.onChange(value);
-                                                    if (value.length === 6) {
-                                                        form.handleSubmit(onSubmit)();
-                                                    }
-                                                }}
-                                            >
-                                                <InputOTPGroup>
-                                                    <InputOTPSlot index={0} />
-                                                    <InputOTPSlot index={1} />
-                                                    <InputOTPSlot index={2} />
-                                                    <InputOTPSlot index={3} />
-                                                    <InputOTPSlot index={4} />
-                                                    <InputOTPSlot index={5} />
-                                                </InputOTPGroup>
-                                            </InputOTP>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
-
-                        <Button type="submit" className="w-full" disabled={isLoading}>
-                            {isLoading && <CircleNotchIcon className="mr-2 h-4 w-4 animate-spin" />}
-                            Verify Email
-                        </Button>
-                    </form>
-                </Form>
-            </CardContent>
-            <CardFooter className="flex-col gap-2">
-                <Button
-                    variant="link"
-                    onClick={handleResend}
-                    className="h-auto p-0 text-sm text-muted-foreground"
-                    disabled={isLoading}
-                >
-                    Resend Code
-                </Button>
-                <p className="text-xs text-muted-foreground text-center">
-                    Incorrect email? <Link href="/sign-up" className="underline text-primary">Change email</Link>
-                </p>
-            </CardFooter>
-        </Card>
+      <AuthFormCard
+        title="Verification link incomplete"
+        description="This screen needs the email address from the sign-up flow before we can verify the account."
+        status={<div className="section-label">Verification</div>}
+        footer={
+          <p className="mx-auto text-center">
+            Start again from{" "}
+            <Link href="/sign-up" className="auth-inline-link">
+              create account
+            </Link>
+          </p>
+        }
+      >
+        <Button asChild className="w-full">
+          <Link href="/sign-up">Go to sign up</Link>
+        </Button>
+      </AuthFormCard>
     );
+  }
+
+  return (
+    <AuthFormCard
+      title="Verify your email"
+      description={
+        <>
+          Enter the six-digit code sent to <span className="font-medium text-white">{email}</span>.
+        </>
+      }
+      status={<div className="section-label">Email confirmation</div>}
+      footer={
+        <div className="mx-auto flex flex-col items-center gap-2 text-center">
+          <Button
+            variant="link"
+            onClick={handleResend}
+            className="h-auto p-0 text-sm text-primary"
+            disabled={isLoading}
+          >
+            Resend code
+          </Button>
+          <p className="text-xs text-white/45">
+            Wrong email?{" "}
+            <Link href="/sign-up" className="auth-inline-link">
+              Change it
+            </Link>
+          </p>
+        </div>
+      }
+    >
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+          <div className="flex justify-center">
+            <FormField
+              control={form.control}
+              name="otp"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <InputOTP
+                      maxLength={6}
+                      {...field}
+                      onChange={(value) => {
+                        field.onChange(value);
+                        if (value.length === 6) {
+                          form.handleSubmit(onSubmit)();
+                        }
+                      }}
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </FormControl>
+                  <FormMessage className="mt-3 text-center" />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="auth-support-note text-center">
+            Verification completes your account setup and unlocks the booking flow.
+          </div>
+
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? <CircleNotchIcon className="size-4 animate-spin" /> : null}
+            Verify email
+          </Button>
+        </form>
+      </Form>
+    </AuthFormCard>
+  );
 }

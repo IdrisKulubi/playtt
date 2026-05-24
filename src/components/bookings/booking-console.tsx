@@ -18,6 +18,7 @@ import {
   getBookingQuoteAction,
 } from "@/actions/booking-actions";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { authClient } from "@/lib/auth-client";
 import type { BookingQuote, LocationSummary, SlotAvailability } from "@/server/bookings/types";
 
@@ -51,7 +52,12 @@ function formatPricingTierLabel(
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function availabilitySubtitle(slot: SlotAvailability): string {
+function isSlotStartInPast(startsAtIso: string): boolean {
+  return new Date(startsAtIso).getTime() <= Date.now();
+}
+
+function availabilitySubtitle(slot: SlotAvailability, startInPast: boolean): string {
+  if (startInPast) return "Past";
   if (!slot.isAvailable || slot.openTableCount <= 0) return "No tables";
   if (slot.openTableCount === 1) return "1 open table";
   return `${slot.openTableCount} open tables`;
@@ -74,6 +80,16 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
 
   useEffect(() => {
     latestSelectedSlotRef.current = selectedSlot;
+  }, [selectedSlot]);
+
+  useEffect(() => {
+    if (!selectedSlot) return;
+    if (!isSlotStartInPast(selectedSlot.startsAt)) return;
+    const t = window.setTimeout(() => {
+      setSelectedSlot(null);
+      setQuote(null);
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [selectedSlot]);
 
   const selectedLocation = useMemo(
@@ -424,23 +440,25 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
             visibleSlots.map((slot) => {
               const selected = selectedSlot?.startsAt === slot.startsAt;
               const tier = formatPricingTierLabel(slot.price.pricingRuleSnapshot);
+              const startInPast = isSlotStartInPast(slot.startsAt);
+              const rowDisabled = !slot.isAvailable || isPending || startInPast;
 
               return (
                 <li key={slot.startsAt}>
                   <button
                     type="button"
                     onClick={() => {
-                      if (!slot.isAvailable) {
+                      if (rowDisabled) {
                         return;
                       }
 
                       setQuote(null);
                       setSelectedSlot(slot);
                     }}
-                    disabled={!slot.isAvailable || isPending}
+                    disabled={rowDisabled}
                     className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition sm:gap-4 ${
-                      selected ? "bg-primary/[0.12]" : ""
-                    } ${!slot.isAvailable ? "opacity-45" : "hover:bg-white/[0.03]"}`}
+                      selected && !startInPast ? "bg-primary/[0.12]" : ""
+                    } ${rowDisabled ? "cursor-not-allowed opacity-45" : "hover:bg-white/[0.03]"}`}
                   >
                     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                       <span className="text-base font-semibold tabular-nums text-white">
@@ -452,14 +470,19 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
                     </div>
                     <p
                       className={`hidden w-24 shrink-0 text-center text-xs font-medium sm:block ${
-                        slot.isAvailable ? "text-white/55" : "text-white/35"
+                        slot.isAvailable && !startInPast ? "text-white/55" : "text-white/35"
                       }`}
                     >
-                      {availabilitySubtitle(slot)}
+                      {availabilitySubtitle(slot, startInPast)}
                     </p>
-                    <p className="text-sm font-semibold tabular-nums text-white sm:min-w-[4.5rem] sm:text-right">
-                      {slot.price.currency} {slot.price.totalAmount.toLocaleString()}
-                    </p>
+                    <div className="shrink-0 text-right sm:min-w-[4.5rem]">
+                      <p className="text-sm font-semibold tabular-nums text-white">
+                        {slot.price.currency} {slot.price.totalAmount.toLocaleString()}
+                      </p>
+                      <p className="text-[10px] text-white/40 sm:hidden">
+                        {availabilitySubtitle(slot, startInPast)}
+                      </p>
+                    </div>
                     <div className="flex size-8 shrink-0 items-center justify-center text-primary">
                       {selected ? (
                         <CheckCircleIcon className="size-6" weight="fill" />
@@ -474,7 +497,7 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
           )}
         </ul>
 
-        {selectedSlot ? (
+        {selectedSlot && !isSlotStartInPast(selectedSlot.startsAt) ? (
           <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/[0.08] pt-4">
             <p className="min-w-0 truncate text-sm tabular-nums text-white/60">
               {format(new Date(selectedSlot.startsAt), "h:mm a")} ·{" "}
@@ -628,11 +651,11 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
 
         <label className="mt-5 block">
           <span className="text-xs text-white/45">Note</span>
-          <textarea
+          <Textarea
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-            placeholder="Optional"
-            className="mt-1 min-h-16 w-full resize-y rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-sm text-white outline-none placeholder:text-white/25"
+            placeholder="Anything the team should know before this session?"
+            className="mt-1 min-h-20 bg-black/25 text-sm placeholder:text-white/25"
           />
         </label>
 
@@ -655,8 +678,11 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
     );
   }
 
+  const selectedSlotIsFuture =
+    selectedSlot && !isSlotStartInPast(selectedSlot.startsAt);
+
   const showMobileActionBar =
-    (step === "timing" && selectedSlot) || (step === "group" && displayQuote);
+    (step === "timing" && selectedSlotIsFuture) || (step === "group" && displayQuote);
 
   return (
     <div className={`space-y-6 ${showMobileActionBar ? "pb-28 lg:pb-0" : ""}`}>
@@ -692,7 +718,7 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
 
       {showMobileActionBar ? (
         <div className="booking-mobile-bar lg:hidden">
-          {step === "timing" && selectedSlot ? (
+          {step === "timing" && selectedSlotIsFuture ? (
             <div className="mx-auto flex max-w-lg items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate text-xs text-white/45">

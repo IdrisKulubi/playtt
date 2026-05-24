@@ -9,15 +9,8 @@ import { CircleNotchIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
 import { requestPasswordResetAction } from "@/actions/auth-actions";
+import { AuthFormCard } from "@/components/auth/auth-form-card";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -57,47 +50,45 @@ export function RequestPasswordResetForm() {
   }
 
   return (
-    <Card className="w-[400px]">
-      <CardHeader>
-        <CardTitle>Forgot password</CardTitle>
-        <CardDescription>
-          Enter your email and we&apos;ll send you a password reset link.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder="m@example.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading && (
-                <CircleNotchIcon className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Send reset link
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-      <CardFooter className="justify-center">
-        <p className="text-sm text-muted-foreground">
+    <AuthFormCard
+      title="Recover your account"
+      description="Enter the email tied to your PlayTT account and we will send a secure reset link."
+      status={<div className="section-label">Password recovery</div>}
+      footer={
+        <p className="mx-auto text-center">
           Remembered it?{" "}
-          <Link href="/sign-in" className="underline">
+          <Link href="/sign-in" className="auth-inline-link">
             Back to sign in
           </Link>
         </p>
-      </CardFooter>
-    </Card>
+      }
+    >
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input placeholder="name@theplaytt.com" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="auth-support-note">
+            We keep this flow intentionally simple: one trusted address, one secure link, one clear next step.
+          </div>
+
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? <CircleNotchIcon className="size-4 animate-spin" /> : null}
+            Send reset link
+          </Button>
+        </form>
+      </Form>
+    </AuthFormCard>
   );
 }

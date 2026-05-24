@@ -5,6 +5,12 @@ import {
   GROUP_SIZE_OPTIONS,
 } from "@/server/bookings/constants";
 
+const groupSizeSchema = z.union([
+  z.literal(GROUP_SIZE_OPTIONS[0]),
+  z.literal(GROUP_SIZE_OPTIONS[1]),
+  ...GROUP_SIZE_OPTIONS.slice(2).map((value) => z.literal(value)),
+] as const);
+
 export const availabilityInputSchema = z.object({
   resourceId: z.string().uuid("Resource is required."),
   date: z.string().min(1, "Date is required."),
@@ -22,12 +28,7 @@ export const bookingQuoteInputSchema = z.object({
     z.literal(BOOKING_DURATION_OPTIONS[0]),
     z.literal(BOOKING_DURATION_OPTIONS[1]),
   ]),
-  groupSize: z.union(
-    GROUP_SIZE_OPTIONS.map((value) => z.literal(value)) as [
-      z.ZodLiteral<(typeof GROUP_SIZE_OPTIONS)[number]>,
-      ...z.ZodLiteral<(typeof GROUP_SIZE_OPTIONS)[number]>[],
-    ],
-  ),
+  groupSize: groupSizeSchema,
 });
 
 export const createPendingBookingSchema = bookingQuoteInputSchema.extend({
@@ -42,10 +43,5 @@ export const locationAvailabilityInputSchema = z.object({
     z.literal(BOOKING_DURATION_OPTIONS[0]),
     z.literal(BOOKING_DURATION_OPTIONS[1]),
   ]),
-  groupSize: z.union(
-    GROUP_SIZE_OPTIONS.map((value) => z.literal(value)) as [
-      z.ZodLiteral<(typeof GROUP_SIZE_OPTIONS)[number]>,
-      ...z.ZodLiteral<(typeof GROUP_SIZE_OPTIONS)[number]>[],
-    ],
-  ),
+  groupSize: groupSizeSchema,
 });
