@@ -1,228 +1,88 @@
-"use client";
-
 import Link from "next/link";
-import {
-  ArrowRightIcon,
-  ClockCountdownIcon,
-  MapPinIcon,
-  PingPongIcon,
-  ShieldCheckIcon,
-  SparkleIcon,
-  UsersThreeIcon,
-} from "@phosphor-icons/react";
+import { ArrowRightIcon } from "@phosphor-icons/react/dist/ssr";
 
-import { SessionPanel } from "@/components/auth/session-panel";
+import { BookingJourneyTimeline } from "@/components/home/booking-journey-timeline";
+import { HomeAccountSection } from "@/components/home/home-account-section";
 import { MarketingShell } from "@/components/layout/marketing-shell";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-const highlights = [
-  {
-    title: "Instant pod booking",
-    description:
-      "Select a location, see live table availability, and lock in a slot in a few deliberate steps.",
-    icon: PingPongIcon,
-  },
-  {
-    title: "Smart group pricing",
-    description:
-      "Pricing adapts to session length, demand windows, and larger groups without making the player do extra math.",
-    icon: UsersThreeIcon,
-  },
-  {
-    title: "Account to access",
-    description:
-      "Authentication, booking ownership, and future pod access are designed as one connected product path.",
-    icon: ShieldCheckIcon,
-  },
+const journeySteps = [
+  { id: "01", title: "Pick a venue" },
+  { id: "02", title: "See availability" },
+  { id: "03", title: "Set the group" },
+  { id: "04", title: "Review and pay" },
 ] as const;
 
-const metrics = [
-  { label: "Locations-ready UX", value: "01" },
-  { label: "Steps to reserve", value: "04" },
-  { label: "Designed for mobile first", value: "100%" },
-] as const;
-
-const steps = [
-  {
-    id: "01",
-    title: "Pick a venue",
-    copy: "Start with the place, not a form. Players decide where they want to play before anything else narrows the choice.",
-  },
-  {
-    id: "02",
-    title: "See live timing availability",
-    copy: "Open-table counts stay visible in the timing stage so players can move forward with confidence.",
-  },
-  {
-    id: "03",
-    title: "Set the group",
-    copy: "Group size comes after timing, with clear surcharges for larger bookings instead of hidden price jumps.",
-  },
-  {
-    id: "04",
-    title: "Review and reserve",
-    copy: "A calm checkout summary reinforces trust before payment and access flows take over.",
-  },
-] as const;
+const trustSignals = ["Private pods", "Clear pricing", "Mobile booking"] as const;
 
 export default function Page() {
   return (
     <MarketingShell
-      navLinks={[
-        { label: "Experience", href: "#experience" },
-        { label: "Flow", href: "#flow" },
-        { label: "Account", href: "/dashboard" },
-      ]}
+      navLinks={[{ label: "Dashboard", href: "/dashboard" }]}
       actions={
         <>
-          <Button asChild variant="ghost">
-            <Link href="/sign-in">Sign in</Link>
-          </Button>
-          <Button asChild className="shadow-[0_14px_36px_rgba(0,183,255,0.28)]">
-            <Link href="/book">Book now</Link>
+          <Link href="/sign-in" className="shell-nav-link hidden sm:inline">
+            Sign in
+          </Link>
+          <Button asChild>
+            <Link href="/book">Book</Link>
           </Button>
         </>
       }
     >
-      <section className="grid gap-8 pt-4 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
-        <div className="space-y-8">
-          <div className="space-y-5">
-            <Badge className="border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-primary">
-              Premium booking experience
-            </Badge>
-
-            <div className="space-y-4">
-              <p className="section-label">Designed for speed, clarity, and confidence</p>
-              <h1 className="max-w-5xl text-5xl font-semibold tracking-[-0.04em] text-white md:text-7xl">
-                Reserve a PlayTT pod with the calm precision of a premium product.
-              </h1>
-              <p className="max-w-2xl text-base leading-8 text-white/68 md:text-lg">
-                The homepage, booking journey, and session state now follow one intentional path:
-                discover the brand, choose a venue, pick an open slot, set the group, and review a clear
-                checkout summary.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button asChild size="lg" className="min-w-52 shadow-[0_16px_44px_rgba(0,183,255,0.28)]">
-              <Link href="/book">
-                Start booking
-                <ArrowRightIcon className="size-4" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="min-w-52">
-              <Link href="/sign-up">Create account</Link>
-            </Button>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <div className="stat-chip">
-              <MapPinIcon className="size-4 text-primary" />
-              Location-first flow
-            </div>
-            <div className="stat-chip">
-              <ClockCountdownIcon className="size-4 text-primary" />
-              Live timing decisions
-            </div>
-            <div className="stat-chip">
-              <SparkleIcon className="size-4 text-primary" />
-              Transparent group pricing
-            </div>
-          </div>
-        </div>
-
-        <div className="glass-panel-strong relative overflow-hidden p-6">
-          <div className="absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_top,_rgba(0,183,255,0.22),_transparent_60%)]" />
-          <div className="relative space-y-5">
-            <div className="flex items-center justify-between">
-              <p className="section-label">Flow preview</p>
-              <Badge className="border border-white/10 bg-white/[0.05] text-white/70">
-                Production direction
-              </Badge>
-            </div>
-
-            <div className="premium-card p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-white/50">Selected journey</p>
-                  <p className="mt-2 text-2xl font-semibold text-white">Location to checkout</p>
-                </div>
-                <div className="rounded-full border border-primary/25 bg-primary/12 px-4 py-2 text-sm text-primary">
-                  4 stages
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-3">
-                {steps.map((step) => (
-                  <div
-                    key={step.id}
-                    className="flex items-start gap-4 rounded-[1.4rem] border border-white/10 bg-black/20 px-4 py-4"
-                  >
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/12 text-sm font-semibold text-primary">
-                      {step.id}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-white">{step.title}</p>
-                      <p className="mt-1 text-sm leading-6 text-white/55">{step.copy}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              {metrics.map((metric) => (
-                <div key={metric.label} className="metric-tile">
-                  <p className="text-2xl font-semibold text-white">{metric.value}</p>
-                  <p className="mt-2 text-sm text-white/50">{metric.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="experience" className="grid gap-4 md:grid-cols-3">
-        {highlights.map(({ title, description, icon: Icon }) => (
-          <article key={title} className="premium-card p-6">
-            <div className="flex size-12 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
-              <Icon className="size-6" weight="fill" />
-            </div>
-            <h2 className="mt-5 text-xl font-semibold text-white">{title}</h2>
-            <p className="mt-3 text-sm leading-7 text-white/58">{description}</p>
-          </article>
-        ))}
-      </section>
-
-      <section id="flow" className="grid gap-6 lg:grid-cols-[0.88fr_1.12fr]">
-        <div className="glass-panel p-6 sm:p-8">
-          <p className="section-label">Why this flow feels better</p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-white">
-            The product reveals decisions in the order players actually make them.
-          </h2>
-          <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
-            We removed the old workspace feeling and replaced it with a guided booking path.
-            Each stage reduces complexity: venue first, then real availability, then group configuration,
-            then a checkout summary that makes the price legible.
+      <section
+        id="journey"
+        aria-labelledby="journey-heading"
+        className="mx-auto flex w-full max-w-4xl flex-col gap-10 pt-6 lg:gap-12 lg:pt-10"
+      >
+        <header className="space-y-4 text-center lg:space-y-5">
+          <p className="section-label">Autonomous Table Tennis. Anytime.</p>
+          <h1
+            id="journey-heading"
+            className="text-4xl font-semibold tracking-[-0.03em] text-white sm:text-5xl lg:text-[3.25rem] lg:leading-[1.05]"
+          >
+            Four steps to a private session
+          </h1>
+          <p className="mx-auto max-w-xl text-base leading-7 text-muted-foreground">
+            Venue, timing, group size, then checkout.
           </p>
+        </header>
 
-          <div className="mt-8 space-y-4">
-            {steps.map((step) => (
-              <div key={step.id} className="flex gap-4 border-t border-white/10 pt-4 first:border-t-0 first:pt-0">
-                <p className="text-sm font-semibold text-primary">{step.id}</p>
-                <div>
-                  <p className="text-base font-medium text-white">{step.title}</p>
-                  <p className="mt-1 text-sm leading-6 text-white/55">{step.copy}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+        <BookingJourneyTimeline steps={journeySteps} />
+
+        <ul
+          aria-label="Trust signals"
+          className="flex flex-wrap items-center justify-center gap-x-2 gap-y-2 text-sm text-muted-foreground"
+        >
+          {trustSignals.map((signal, index) => (
+            <li key={signal} className="flex items-center gap-2">
+              {index > 0 ? (
+                <span aria-hidden className="text-white/24">
+                  ·
+                </span>
+              ) : null}
+              <span>{signal}</span>
+            </li>
+          ))}
+        </ul>
+
+        <div className="flex flex-col items-center gap-4">
+          <Button asChild size="lg" className="min-w-52">
+            <Link href="/book">
+              Book a session
+              <ArrowRightIcon className="size-4" />
+            </Link>
+          </Button>
+          <p className="text-sm text-muted-foreground">
+            New here?{" "}
+            <Link href="/sign-up" className="text-primary underline-offset-4 hover:underline">
+              Create account
+            </Link>
+          </p>
         </div>
-
-        <SessionPanel />
       </section>
+
+      <HomeAccountSection />
     </MarketingShell>
   );
 }

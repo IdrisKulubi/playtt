@@ -27,7 +27,7 @@ export function BrandMark({
     >
       <span
         className={cn(
-          "inline-flex items-center justify-center rounded-full border border-primary/30 bg-primary/12 font-semibold text-primary shadow-[0_0_0_1px_rgba(0,183,255,0.14)]",
+          "inline-flex items-center justify-center rounded-full border border-border bg-secondary font-semibold text-primary",
           compact ? "size-10 text-sm" : "size-12 text-base",
         )}
       >

@@ -52,6 +52,8 @@
   --background: #07111d;
   --foreground: #ffffff;
   --background-elevated: #0b1627;
+  --scrim: oklch(12% 0.02 250 / 0.55);
+  --surface-inset: oklch(16% 0.015 250);
 
   --card: #101b2b;
   --card-foreground: #ffffff;
@@ -136,12 +138,7 @@
 
   body {
     @apply bg-background text-foreground;
-    background-image:
-      radial-gradient(circle at 15% 20%, rgba(0, 183, 255, 0.18), transparent 24rem),
-      radial-gradient(circle at 85% 18%, rgba(0, 183, 255, 0.1), transparent 20rem),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 26rem),
-      linear-gradient(180deg, #07111d 0%, #081320 45%, #060d18 100%);
-    background-attachment: fixed;
+    background-color: var(--background);
   }
 
   ::selection {
@@ -164,11 +161,11 @@
   }
 
   .glass-panel {
-    @apply rounded-[2rem] border border-white/10 bg-white/[0.045] shadow-[0_28px_90px_rgba(0,0,0,0.32)] backdrop-blur-xl;
+    @apply rounded-[var(--radius-panel)] border border-border bg-card shadow-[var(--elevation-soft)];
   }
 
   .glass-panel-strong {
-    @apply rounded-[2rem] border border-primary/15 bg-[linear-gradient(180deg,rgba(18,29,45,0.88),rgba(10,18,30,0.96))] shadow-[0_34px_120px_rgba(0,0,0,0.45)] backdrop-blur-xl;
+    @apply rounded-[var(--radius-panel)] border border-border bg-[var(--background-elevated)] shadow-[var(--elevation-soft)];
   }
 
   .hero-orb {
@@ -179,7 +176,7 @@
   }
 
   .section-label {
-    @apply text-[11px] font-semibold uppercase tracking-[0.28em] text-primary/90;
+    @apply text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground;
   }
 
   .stat-chip {
@@ -187,7 +184,39 @@
   }
 
   .premium-card {
-    @apply rounded-[1.75rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] shadow-[0_18px_40px_rgba(0,0,0,0.16)];
+    @apply rounded-[var(--radius-card)] border border-border bg-card shadow-[var(--elevation-soft)];
+  }
+
+  .shell-header {
+    @apply rounded-[2rem] border border-border bg-[var(--background-elevated)] shadow-[var(--elevation-soft)];
+  }
+
+  .quiet-panel {
+    @apply rounded-[var(--radius-card)] border border-border bg-card shadow-[var(--elevation-soft)];
+  }
+
+  .booking-stage {
+    @apply overflow-hidden rounded-[var(--radius-card)] border border-border bg-card shadow-[var(--elevation-soft)];
+  }
+
+  .booking-summary {
+    @apply rounded-[var(--radius-field)] border border-border bg-[var(--background-elevated)] p-4 text-sm;
+  }
+
+  .venue-thumb {
+    @apply flex size-14 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary text-primary sm:size-16;
+  }
+
+  .segmented-control {
+    @apply flex gap-0 rounded-[var(--radius-field)] border border-border bg-[var(--background-elevated)] p-1;
+  }
+
+  .segmented-control__item {
+    @apply flex-1 rounded-[calc(var(--radius-field)-0.25rem)] py-2.5 text-sm font-semibold text-muted-foreground transition;
+  }
+
+  .segmented-control__item--active {
+    @apply bg-card text-foreground shadow-sm;
   }
 
   .shell-nav-link {
@@ -199,15 +228,27 @@
   }
 
   .metric-tile {
-    @apply rounded-[1.4rem] border border-white/10 bg-black/20 px-4 py-4;
+    @apply rounded-[var(--radius-field)] border border-border bg-[var(--background-elevated)] px-4 py-3;
   }
 
   .auth-form-card {
-    @apply w-full rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(17,27,43,0.94),rgba(9,17,29,0.98))] shadow-[0_24px_80px_rgba(0,0,0,0.34)];
+    @apply w-full rounded-[var(--radius-panel)] border border-border bg-card shadow-[var(--elevation-soft)];
   }
 
   .auth-support-note {
-    @apply rounded-[1.5rem] border border-white/10 bg-black/20 px-4 py-4 text-sm leading-6 text-white/60;
+    @apply rounded-[1.5rem] border border-white/10 bg-[var(--surface-inset)] px-4 py-4 text-sm leading-6 text-white/60;
+  }
+
+  .surface-inset {
+    @apply bg-[var(--surface-inset)];
+  }
+
+  .scrim-overlay {
+    background-color: var(--scrim);
+  }
+
+  .popover-surface {
+    @apply relative border border-border bg-popover shadow-lg;
   }
 
   .auth-inline-link {
@@ -248,11 +289,31 @@
   }
 
   .booking-slot-row--selected {
-    @apply border-primary/40 bg-gradient-to-br from-primary/15 via-primary/8 to-transparent shadow-[0_0_0_1px_rgba(0,183,255,0.2),0_12px_40px_rgba(0,183,255,0.12)];
+    @apply border-primary/40 bg-primary/10 ring-1 ring-primary/20;
   }
 
   .booking-mobile-bar {
-    @apply fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-[#0a1524]/95 px-4 py-3 shadow-[0_-20px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl supports-[padding:max(0px)]:pb-[max(0.75rem,env(safe-area-inset-bottom))];
+    @apply fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card px-4 py-3 supports-[padding:max(0px)]:pb-[max(0.75rem,env(safe-area-inset-bottom))];
+  }
+
+  .journey-timeline__step {
+    @apply list-none;
+  }
+
+  .journey-timeline__node {
+    @apply relative z-10 flex size-11 shrink-0 items-center justify-center rounded-full border border-white/12 bg-[#101b2b] text-sm font-semibold text-white/72;
+  }
+
+  .journey-timeline__node--active {
+    @apply border-primary/50 bg-primary/12 text-primary ring-1 ring-primary/25;
+  }
+
+  .journey-timeline__connector--vertical {
+    @apply absolute left-[1.375rem] top-11 h-[calc(100%+2rem)] w-px -translate-x-1/2 bg-border;
+  }
+
+  .journey-timeline__connector--horizontal {
+    @apply absolute left-[calc(50%+1.375rem)] top-[1.375rem] h-px w-[calc(100%-2.75rem)] bg-border;
   }
 }
 

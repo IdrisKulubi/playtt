@@ -53,7 +53,6 @@ export function RequestPasswordResetForm() {
     <AuthFormCard
       title="Recover your account"
       description="Enter the email tied to your PlayTT account and we will send a secure reset link."
-      status={<div className="section-label">Password recovery</div>}
       footer={
         <p className="mx-auto text-center">
           Remembered it?{" "}

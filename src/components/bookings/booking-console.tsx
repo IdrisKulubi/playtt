@@ -75,6 +75,8 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
   const [availability, setAvailability] = useState<SlotAvailability[]>([]);
   const [quote, setQuote] = useState<BookingQuote | null>(null);
   const [notes, setNotes] = useState("");
+  const [showExtendedDates, setShowExtendedDates] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const latestSelectedSlotRef = useRef<SlotAvailability | null>(null);
 
@@ -104,8 +106,9 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
 
   const dateStripDays = useMemo(() => {
     const start = startOfDay(new Date());
-    return Array.from({ length: 14 }, (_, i) => addDays(start, i));
-  }, []);
+    const count = showExtendedDates ? 14 : 5;
+    return Array.from({ length: count }, (_, i) => addDays(start, i));
+  }, [showExtendedDates]);
 
   const selectedDay = useMemo(
     () => new Date(`${selectedDate}T12:00:00`),
@@ -290,10 +293,10 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
               onClick={() => goToStep(item.id)}
               className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
                 isActive
-                  ? "bg-primary/20 text-primary"
+                  ? "bg-secondary text-foreground"
                   : isPast
-                    ? "text-white/55 hover:text-white/80"
-                    : "text-white/30 hover:text-white/50"
+                    ? "text-muted-foreground hover:text-foreground/80"
+                    : "text-muted-foreground/60 hover:text-muted-foreground"
               }`}
             >
               {item.title}
@@ -306,7 +309,7 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
 
   function renderLocationStep() {
     return (
-      <section className="mx-auto w-full max-w-lg glass-panel-strong overflow-hidden p-0 sm:max-w-xl">
+      <section className="booking-stage mx-auto w-full max-w-lg p-0 sm:max-w-xl">
         <ul className="divide-y divide-white/[0.08]">
           {locations.map((location) => {
             const active = location.id === selectedLocationId;
@@ -317,26 +320,26 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
                 <button
                   type="button"
                   onClick={() => handleLocationSelect(location.id)}
-                  className={`flex w-full items-center gap-3 px-4 py-4 text-left transition sm:gap-4 sm:px-5 sm:py-4 ${
-                    active ? "bg-primary/[0.08]" : "hover:bg-white/[0.03]"
+                    className={`flex w-full items-center gap-3 px-4 py-4 text-left transition sm:gap-4 sm:px-5 sm:py-4 ${
+                    active ? "bg-primary/10" : "hover:bg-white/[0.03]"
                   }`}
                 >
-                  <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-primary/30 to-white/[0.04] sm:size-16">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_40%_30%,rgba(0,183,255,0.35),transparent_65%)]" />
+                  <div className="venue-thumb" aria-hidden>
+                    <MapPinIcon className="size-6" weight="fill" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-white">{location.name}</p>
                     <div className="mt-0.5 flex items-start gap-1.5 text-sm text-white/45">
-                      <MapPinIcon className="mt-0.5 size-3.5 shrink-0 text-pink-400/90" weight="fill" />
+                      <MapPinIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" weight="fill" />
                       <span className="leading-snug">{location.address}</span>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {tableCount > 1 ? (
-                        <span className="rounded bg-primary/85 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
+                        <span className="rounded border border-border bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                           Multi table
                         </span>
                       ) : (
-                        <span className="rounded bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white/70">
+                        <span className="rounded border border-border bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                           1 table
                         </span>
                       )}
@@ -354,7 +357,7 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
 
   function renderTimingStep() {
     return (
-      <section className="mx-auto w-full max-w-lg glass-panel-strong p-4 sm:max-w-xl sm:p-5">
+      <section className="booking-stage mx-auto w-full max-w-lg p-4 sm:max-w-xl sm:p-5">
         <div className="flex items-center gap-2 border-b border-white/[0.08] pb-3">
           <Button
             variant="ghost"
@@ -372,7 +375,7 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
         </div>
 
         <div className="-mx-1 mt-4 overflow-x-auto pb-1">
-          <div className="flex min-w-max gap-0 px-1">
+          <div className="flex min-w-max items-center gap-0 px-1">
             {dateStripDays.map((d) => {
               const key = format(d, "yyyy-MM-dd");
               const sel = isSameDay(d, selectedDay);
@@ -392,44 +395,66 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
                 </button>
               );
             })}
+            {!showExtendedDates ? (
+              <button
+                type="button"
+                onClick={() => setShowExtendedDates(true)}
+                className="shrink-0 border-b-2 border-transparent px-3 py-2 text-sm font-medium text-primary hover:text-white"
+              >
+                More dates
+              </button>
+            ) : null}
           </div>
         </div>
 
-        <div className="mt-2 flex gap-0 rounded-xl bg-primary/30 p-1 ring-1 ring-primary/25">
+        <div className="mt-4 flex items-center gap-4 text-sm">
+          <span className="text-muted-foreground">Duration</span>
           <button
             type="button"
             onClick={() => handleDurationChange(30)}
-            className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${
+            className={
               durationMinutes === 30
-                ? "bg-white text-[#07111d] shadow-sm"
-                : "text-white/85 hover:text-white"
-            }`}
+                ? "font-medium text-white"
+                : "text-muted-foreground hover:text-white/80"
+            }
           >
             30 min
           </button>
           <button
             type="button"
             onClick={() => handleDurationChange(60)}
-            className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${
+            className={
               durationMinutes === 60
-                ? "bg-white text-[#07111d] shadow-sm"
-                : "text-white/85 hover:text-white"
-            }`}
+                ? "font-medium text-white"
+                : "text-muted-foreground hover:text-white/80"
+            }
           >
             60 min
           </button>
         </div>
 
-        <label className="sr-only" htmlFor="booking-date-fallback">
-          Pick a date
-        </label>
-        <input
-          id="booking-date-fallback"
-          type="date"
-          value={selectedDate}
-          onChange={(event) => handleDateChange(event.target.value)}
-          className="mt-3 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/60"
-        />
+        {showDatePicker ? (
+          <>
+            <label className="sr-only" htmlFor="booking-date-fallback">
+              Pick a date
+            </label>
+            <input
+              id="booking-date-fallback"
+              type="date"
+              value={selectedDate}
+              onChange={(event) => handleDateChange(event.target.value)}
+              className="surface-inset mt-3 w-full rounded-lg border border-white/10 px-3 py-2 text-xs text-muted-foreground"
+            />
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowDatePicker(true)}
+            className="mt-3 text-xs text-primary hover:text-white"
+          >
+            Choose another date
+          </button>
+        )}
 
         <ul className="mt-4 max-h-[min(26rem,52vh)] divide-y divide-white/[0.08] overflow-y-auto rounded-xl border border-white/[0.08] sm:max-h-[min(30rem,58vh)]">
           {visibleSlots.length === 0 ? (
@@ -515,7 +540,7 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
 
   function renderGroupStep() {
     return (
-      <section className="mx-auto w-full max-w-lg glass-panel-strong p-4 sm:max-w-xl sm:p-5">
+      <section className="booking-stage mx-auto w-full max-w-lg p-4 sm:max-w-xl sm:p-5">
         <div className="flex items-center gap-2 border-b border-white/[0.08] pb-3">
           <Button
             variant="ghost"
@@ -585,7 +610,7 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
       : null;
 
     return (
-      <section className="mx-auto w-full max-w-lg glass-panel-strong p-4 sm:max-w-xl sm:p-5">
+      <section className="booking-stage mx-auto w-full max-w-lg p-4 sm:max-w-xl sm:p-5">
         <div className="flex items-center gap-2 border-b border-white/[0.08] pb-3">
           <Button
             variant="ghost"
@@ -600,7 +625,7 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
           <span className="size-9 shrink-0" aria-hidden />
         </div>
 
-        <div className="mt-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
+        <div className="booking-summary mt-4">
           <p className="text-xs text-white/40">{selectedLocation?.name}</p>
           <p className="mt-1 text-2xl font-semibold text-white">
             {selectedSlot ? format(new Date(selectedSlot.startsAt), "h:mm a") : "—"}
@@ -655,7 +680,7 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             placeholder="Anything the team should know before this session?"
-            className="mt-1 min-h-20 bg-black/25 text-sm placeholder:text-white/25"
+            className="surface-inset mt-1 min-h-20 text-sm placeholder:text-muted-foreground"
           />
         </label>
 
@@ -697,7 +722,7 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
         </div>
 
         <aside className="hidden w-full max-w-xs space-y-3 xl:block xl:sticky xl:top-24 xl:self-start">
-          <div className="glass-panel border-white/[0.06] p-4 text-sm">
+          <div className="booking-summary">
             <p className="text-xs text-white/35">Venue</p>
             <p className="font-medium text-white">{selectedLocation?.name ?? "—"}</p>
             <p className="mt-3 text-xs text-white/35">Time</p>

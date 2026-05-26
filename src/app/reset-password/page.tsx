@@ -3,11 +3,7 @@ import { RequestPasswordResetForm } from "@/components/auth/request-password-res
 
 export default function ResetPasswordPage() {
   return (
-    <AuthShell
-      eyebrow="Reset password"
-      title="Recover your account"
-      description="Enter your email to receive a secure reset link and get back into PlayTT."
-    >
+    <AuthShell title="Reset password" description="We will email you a secure link to choose a new password.">
       <RequestPasswordResetForm />
     </AuthShell>
   );

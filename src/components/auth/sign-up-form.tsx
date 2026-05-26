@@ -111,7 +111,6 @@ export function SignUpForm() {
     <AuthFormCard
       title="Create your account"
       description="Set up the player identity that bookings, payments, and future access will attach to."
-      status={<div className="section-label">New player setup</div>}
       footer={
         <p className="mx-auto text-center">
           Already have an account?{" "}

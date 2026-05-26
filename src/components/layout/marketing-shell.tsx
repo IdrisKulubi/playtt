@@ -20,13 +20,9 @@ export function MarketingShell({
   actions,
 }: MarketingShellProps) {
   return (
-    <main className="relative min-h-screen overflow-hidden text-foreground">
-      <div className="hero-orb left-[-8rem] top-10 h-72 w-72 bg-primary/20" />
-      <div className="hero-orb right-[-7rem] top-28 h-80 w-80 bg-sky-500/12" />
-      <div className="playtt-grid absolute inset-0 opacity-30" />
-
+    <main className="relative min-h-screen text-foreground">
       <div className="app-shell min-h-screen gap-10">
-        <header className="glass-panel sticky top-4 z-20 flex items-center justify-between gap-4 px-5 py-4 sm:px-6">
+        <header className="shell-header sticky top-4 z-20 flex items-center justify-between gap-4 px-5 py-4 sm:px-6">
           <BrandMark />
 
           {navLinks.length > 0 ? (

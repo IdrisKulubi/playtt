@@ -125,7 +125,6 @@ export function SignInForm() {
       <AuthFormCard
         title="Check your verification code"
         description="Enter the six-digit code from your second factor to continue into PlayTT."
-        status={<div className="section-label">Two-factor verification</div>}
         footer={
           <p className="mx-auto text-center">
             Need a different method?{" "}
@@ -164,8 +163,7 @@ export function SignInForm() {
   return (
     <AuthFormCard
       title="Sign in"
-      description="Continue into your account to manage bookings, pricing, and access."
-      status={<div className="section-label">Account access</div>}
+      description="Use your email or Google to continue."
       footer={
         <p className="mx-auto text-center">
           Need an account?{" "}

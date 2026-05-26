@@ -71,7 +71,6 @@ export function ResetPasswordConfirmForm() {
       <AuthFormCard
         title="Reset link incomplete"
         description="This screen needs the secure token from your reset email before a new password can be saved."
-        status={<div className="section-label">Password reset</div>}
         footer={
           <p className="mx-auto text-center">
             Need a fresh link?{" "}
@@ -92,7 +91,6 @@ export function ResetPasswordConfirmForm() {
     <AuthFormCard
       title="Set a new password"
       description="Choose a strong password for your PlayTT account and confirm it once."
-      status={<div className="section-label">Secure password update</div>}
       footer={
         <p className="mx-auto text-center">
           Back to{" "}

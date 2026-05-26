@@ -83,7 +83,6 @@ export function VerifyEmailForm() {
       <AuthFormCard
         title="Verification link incomplete"
         description="This screen needs the email address from the sign-up flow before we can verify the account."
-        status={<div className="section-label">Verification</div>}
         footer={
           <p className="mx-auto text-center">
             Start again from{" "}
@@ -108,7 +107,6 @@ export function VerifyEmailForm() {
           Enter the six-digit code sent to <span className="font-medium text-white">{email}</span>.
         </>
       }
-      status={<div className="section-label">Email confirmation</div>}
       footer={
         <div className="mx-auto flex flex-col items-center gap-2 text-center">
           <Button

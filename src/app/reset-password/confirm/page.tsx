@@ -5,11 +5,7 @@ import { ResetPasswordConfirmForm } from "@/components/auth/reset-password-confi
 
 export default function ResetPasswordConfirmPage() {
   return (
-    <AuthShell
-      eyebrow="New password"
-      title="Set your new password"
-      description="Use the secure token from your email to finish resetting your PlayTT password."
-    >
+    <AuthShell title="New password" description="Choose a new password for your account.">
       <Suspense fallback={null}>
         <ResetPasswordConfirmForm />
       </Suspense>
