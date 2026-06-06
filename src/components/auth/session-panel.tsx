@@ -31,7 +31,7 @@ export function SessionPanel() {
     return (
       <Card className="quiet-panel">
         <CardHeader>
-          <CardTitle className="text-lg text-white">Checking session</CardTitle>
+          <CardTitle className="text-lg text-foreground">Checking session</CardTitle>
         </CardHeader>
       </Card>
     );
@@ -41,7 +41,7 @@ export function SessionPanel() {
     return (
       <Card className={cn("quiet-panel", "border-destructive/30 bg-destructive/10")}>
         <CardHeader>
-          <CardTitle className="text-lg text-white">Session unavailable</CardTitle>
+          <CardTitle className="text-lg text-foreground">Session unavailable</CardTitle>
           <CardDescription>
             Could not load your session. Check the API route and env values, then try again.
           </CardDescription>
@@ -54,7 +54,7 @@ export function SessionPanel() {
     return (
       <Card className="quiet-panel">
         <CardHeader className="space-y-2">
-          <CardTitle className="text-xl text-white">Sign in to book</CardTitle>
+          <CardTitle className="text-xl text-foreground">Sign in to book</CardTitle>
           <CardDescription className="text-muted-foreground">
             Create an account or sign in to reserve a session.
           </CardDescription>
@@ -84,7 +84,7 @@ export function SessionPanel() {
           </Button>
         </div>
         <div className="space-y-2">
-          <CardTitle className="text-2xl leading-tight text-white">
+          <CardTitle className="text-2xl leading-tight text-foreground">
             Welcome back, {session.user.name || "Player"}.
           </CardTitle>
           <CardDescription className="text-sm text-muted-foreground">

@@ -104,7 +104,7 @@ export function VerifyEmailForm() {
       title="Verify your email"
       description={
         <>
-          Enter the six-digit code sent to <span className="font-medium text-white">{email}</span>.
+          Enter the six-digit code sent to <span className="font-medium text-foreground">{email}</span>.
         </>
       }
       footer={
@@ -117,7 +117,7 @@ export function VerifyEmailForm() {
           >
             Resend code
           </Button>
-          <p className="text-xs text-white/45">
+          <p className="text-xs text-muted-foreground">
             Wrong email?{" "}
             <Link href="/sign-up" className="auth-inline-link">
               Change it

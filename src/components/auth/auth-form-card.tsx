@@ -29,15 +29,15 @@ export function AuthFormCard({
       <CardHeader className="space-y-4">
         {status}
         <div className="space-y-2">
-          <CardTitle className="text-2xl text-white">{title}</CardTitle>
-          <CardDescription className="max-w-lg text-sm leading-6 text-white/62">
+          <CardTitle className="text-2xl text-foreground">{title}</CardTitle>
+          <CardDescription className="max-w-lg text-sm leading-6 text-muted-foreground">
             {description}
           </CardDescription>
         </div>
       </CardHeader>
       <CardContent>{children}</CardContent>
       {footer ? (
-        <CardFooter className="border-t border-white/10 pt-5 text-sm text-white/50">
+        <CardFooter className="border-t border-border pt-5 text-sm text-muted-foreground">
           {footer}
         </CardFooter>
       ) : null}

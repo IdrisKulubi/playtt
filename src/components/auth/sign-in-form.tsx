@@ -223,7 +223,7 @@ export function SignInForm() {
                         type="button"
                         variant="ghost"
                         size="icon-sm"
-                        className="absolute right-1 top-1 rounded-full text-white/55"
+                        className="absolute right-1 top-1 rounded-full text-muted-foreground"
                         onClick={() => setShowPassword((current) => !current)}
                       >
                         {showPassword ? (

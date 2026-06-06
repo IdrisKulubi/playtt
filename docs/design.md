@@ -93,7 +93,7 @@ components:
 
 **Creative North Star: "Calm Electric Precision"**
 
-PlayTT is premium and private, designed for on-the-go mobile booking where trust must arrive fast and the next action must be obvious. The system is dark-mode only, layered through tonal surfaces rather than busy decoration, with electric azure used as a disciplined signal for focus, CTA, and state.
+PlayTT is premium and private, designed for on-the-go mobile booking where trust must arrive fast and the next action must be obvious. The system uses **two surfaces**: dark ink for marketing (`MarketingShell` with `.dark`), and a light product layer for booking, dashboard, and auth forms. Electric azure is a disciplined signal for focus, CTA, and state on both surfaces.
 
 This system explicitly rejects SaaS landing-page clichés, gamified sports UI noise, AI-dashboard glass overload, and budget booking clutter. It should feel intentional and steady, not flashy, not empty.
 
@@ -105,7 +105,13 @@ This system explicitly rejects SaaS landing-page clichés, gamified sports UI no
 
 ## 2. Colors
 
-The palette is ink-dark and high-contrast, with one electric accent that carries intent.
+### Product (light, default `:root`)
+
+Near-white backgrounds with ink-tinted text (OKLCH), soft borders, and azure for actions only. Booking uses flat lists, segmented duration controls, and an ink sticky checkout bar.
+
+### Marketing (dark, `.dark` wrapper)
+
+Ink-dark and high-contrast, with the same electric accent. Hero and home live here.
 
 ### Primary
 - **Electric Azure** (`#00b7ff`): Primary CTA, focus rings, active states, and the few moments where the interface needs to guide attention with certainty.

@@ -47,7 +47,88 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root,
+:root {
+  --background: oklch(98.5% 0.008 250);
+  --foreground: oklch(18% 0.02 250);
+  --background-elevated: oklch(96% 0.01 250);
+  --scrim: oklch(22% 0.02 250 / 0.45);
+  --surface-inset: oklch(94% 0.012 250);
+
+  --card: oklch(99% 0.006 250);
+  --card-foreground: oklch(18% 0.02 250);
+  --popover: oklch(99% 0.006 250);
+  --popover-foreground: oklch(18% 0.02 250);
+  --surface-soft: oklch(94% 0.012 250);
+  --surface-strong: oklch(90% 0.015 250);
+
+  --primary: oklch(72% 0.14 230);
+  --primary-foreground: oklch(18% 0.03 250);
+  --primary-glow: oklch(72% 0.14 230 / 0.22);
+
+  --secondary: oklch(94% 0.012 250);
+  --secondary-foreground: oklch(22% 0.02 250);
+  --muted: oklch(94% 0.01 250);
+  --muted-foreground: oklch(48% 0.025 250);
+  --accent: oklch(94% 0.012 250);
+  --accent-foreground: oklch(55% 0.12 230);
+
+  --destructive: oklch(62% 0.22 25);
+
+  --border: oklch(88% 0.018 250);
+  --input: oklch(94% 0.012 250);
+  --ring: oklch(72% 0.14 230);
+
+  --chart-1: oklch(72% 0.14 230);
+  --chart-2: oklch(72% 0.18 155);
+  --chart-3: oklch(78% 0.14 85);
+  --chart-4: oklch(68% 0.12 230);
+  --chart-5: oklch(55% 0.16 300);
+
+  --booking-bar-bg: oklch(18% 0.02 250);
+  --booking-bar-fg: oklch(98% 0.006 250);
+
+  --radius: 0.625rem;
+  --radius-card: 1rem;
+  --radius-panel: 1.25rem;
+  --radius-field: 0.75rem;
+  --radius-pill: 9999px;
+
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+
+  --motion-fast: 160ms;
+  --motion-base: 220ms;
+  --motion-slow: 320ms;
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --elevation-soft: 0 12px 32px oklch(22% 0.02 250 / 0.08);
+  --elevation-panel: 0 20px 48px oklch(22% 0.02 250 / 0.12);
+  --elevation-strong: 0 28px 64px oklch(22% 0.02 250 / 0.16);
+  --blur-panel: 24px;
+
+  --icon-size-sm: 1rem;
+  --icon-size-md: 1.25rem;
+  --icon-size-lg: 1.5rem;
+
+  --breakpoint-mobile: 40rem;
+  --breakpoint-tablet: 64rem;
+  --breakpoint-desktop: 80rem;
+
+  --sidebar: oklch(98.5% 0.008 250);
+  --sidebar-foreground: oklch(18% 0.02 250);
+  --sidebar-primary: oklch(72% 0.14 230);
+  --sidebar-primary-foreground: oklch(18% 0.03 250);
+  --sidebar-accent: oklch(94% 0.012 250);
+  --sidebar-accent-foreground: oklch(55% 0.12 230);
+  --sidebar-border: oklch(88% 0.018 250);
+  --sidebar-ring: oklch(72% 0.14 230);
+}
+
 .dark {
   --background: #07111d;
   --foreground: #ffffff;
@@ -85,37 +166,16 @@
   --chart-4: #00bfff;
   --chart-5: #8a2be2;
 
-  --radius: 0.625rem;
+  --booking-bar-bg: oklch(18% 0.02 250);
+  --booking-bar-fg: oklch(98% 0.006 250);
+
   --radius-card: 1.75rem;
   --radius-panel: 2rem;
   --radius-field: 1.25rem;
-  --radius-pill: 9999px;
-
-  --space-2xs: 0.25rem;
-  --space-xs: 0.5rem;
-  --space-sm: 0.75rem;
-  --space-md: 1rem;
-  --space-lg: 1.5rem;
-  --space-xl: 2rem;
-  --space-2xl: 3rem;
-
-  --motion-fast: 160ms;
-  --motion-base: 220ms;
-  --motion-slow: 320ms;
-  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   --elevation-soft: 0 18px 48px rgba(0, 0, 0, 0.22);
   --elevation-panel: 0 28px 90px rgba(0, 0, 0, 0.32);
   --elevation-strong: 0 34px 120px rgba(0, 0, 0, 0.45);
-  --blur-panel: 24px;
-
-  --icon-size-sm: 1rem;
-  --icon-size-md: 1.25rem;
-  --icon-size-lg: 1.5rem;
-
-  --breakpoint-mobile: 40rem;
-  --breakpoint-tablet: 64rem;
-  --breakpoint-desktop: 80rem;
 
   --sidebar: #07111d;
   --sidebar-foreground: #ffffff;
@@ -142,8 +202,8 @@
   }
 
   ::selection {
-    background: rgba(0, 183, 255, 0.24);
-    color: #ffffff;
+    background: var(--primary-glow);
+    color: var(--foreground);
   }
 }
 
@@ -196,11 +256,65 @@
   }
 
   .booking-stage {
-    @apply overflow-hidden rounded-[var(--radius-card)] border border-border bg-card shadow-[var(--elevation-soft)];
+    @apply overflow-hidden bg-background;
   }
 
   .booking-summary {
     @apply rounded-[var(--radius-field)] border border-border bg-[var(--background-elevated)] p-4 text-sm;
+  }
+
+  .booking-date-tab {
+    @apply relative flex shrink-0 flex-col items-center px-3 py-2 text-sm font-medium transition;
+  }
+
+  .booking-date-tab--active {
+    @apply text-foreground;
+  }
+
+  .booking-date-tab:not(.booking-date-tab--active) {
+    @apply text-muted-foreground hover:text-foreground/80;
+  }
+
+  .booking-date-tab__dot {
+    @apply mb-1 size-1.5 rounded-full bg-transparent;
+  }
+
+  .booking-date-tab--active .booking-date-tab__dot {
+    @apply bg-primary;
+  }
+
+  .booking-slot-list {
+    @apply divide-y divide-border border-y border-border;
+  }
+
+  .booking-slot-row {
+    @apply flex w-full items-center gap-3 px-4 py-3.5 text-left transition sm:gap-4;
+  }
+
+  .booking-slot-row:not(:disabled):hover {
+    @apply bg-[var(--surface-soft)];
+  }
+
+  .booking-slot-row:disabled {
+    @apply cursor-not-allowed opacity-45;
+  }
+
+  .booking-slot-row--selected {
+    @apply bg-primary/[0.08];
+  }
+
+  .booking-mobile-bar {
+    @apply fixed bottom-0 left-0 right-0 z-40 px-4 py-3 supports-[padding:max(0px)]:pb-[max(0.75rem,env(safe-area-inset-bottom))];
+    background-color: var(--booking-bar-bg);
+    color: var(--booking-bar-fg);
+  }
+
+  .booking-mobile-bar .text-muted-foreground {
+    color: oklch(78% 0.01 250);
+  }
+
+  .product-shell-header {
+    @apply border-b border-border bg-background;
   }
 
   .venue-thumb {
@@ -236,7 +350,7 @@
   }
 
   .auth-support-note {
-    @apply rounded-[1.5rem] border border-white/10 bg-[var(--surface-inset)] px-4 py-4 text-sm leading-6 text-white/60;
+    @apply rounded-[1.5rem] border border-border bg-[var(--surface-inset)] px-4 py-4 text-sm leading-6 text-muted-foreground;
   }
 
   .surface-inset {
@@ -252,7 +366,11 @@
   }
 
   .auth-inline-link {
-    @apply text-primary underline-offset-4 transition hover:text-white hover:underline;
+    @apply text-primary underline-offset-4 transition hover:text-foreground hover:underline;
+  }
+
+  .dark .auth-inline-link {
+    @apply hover:text-white;
   }
 
   .form-divider {
@@ -261,11 +379,11 @@
 
   .form-divider::before {
     content: "";
-    @apply absolute inset-x-0 border-t border-white/10;
+    @apply absolute inset-x-0 border-t border-border;
   }
 
   .form-divider > span {
-    @apply relative mx-auto bg-card px-3 text-[11px] font-medium uppercase tracking-[0.18em] text-white/40;
+    @apply relative mx-auto bg-card px-3 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground;
   }
 
   .field-cluster {
@@ -273,27 +391,11 @@
   }
 
   .booking-tier-badge {
-    @apply inline-flex items-center rounded-md border border-sky-400/25 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-200/90;
+    @apply inline-flex items-center rounded-md border border-primary/20 bg-primary/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary;
   }
 
-  .booking-slot-row {
-    @apply flex w-full items-stretch gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-left shadow-sm transition-all duration-200;
-  }
-
-  .booking-slot-row:not(:disabled):hover {
-    @apply border-primary/25 bg-white/[0.05];
-  }
-
-  .booking-slot-row:disabled {
-    @apply cursor-not-allowed opacity-50;
-  }
-
-  .booking-slot-row--selected {
-    @apply border-primary/40 bg-primary/10 ring-1 ring-primary/20;
-  }
-
-  .booking-mobile-bar {
-    @apply fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card px-4 py-3 supports-[padding:max(0px)]:pb-[max(0.75rem,env(safe-area-inset-bottom))];
+  .dark .booking-tier-badge {
+    @apply border-sky-400/25 bg-sky-500/10 text-sky-200/90;
   }
 
   .journey-timeline__step {
@@ -314,6 +416,38 @@
 
   .journey-timeline__connector--horizontal {
     @apply absolute left-[calc(50%+1.375rem)] top-[1.375rem] h-px w-[calc(100%-2.75rem)] bg-border;
+  }
+
+  .section-shell {
+    @apply mx-auto w-full max-w-7xl px-6 lg:px-10;
+  }
+
+  .azure-block {
+    @apply bg-primary text-primary-foreground;
+  }
+
+  .azure-block .section-label {
+    @apply text-primary-foreground/70;
+  }
+
+  .location-card {
+    @apply flex min-w-[11rem] shrink-0 snap-start flex-col items-center gap-3 rounded-[var(--radius-card)] border border-border bg-card p-5 text-center transition hover:border-primary/30 hover:bg-[var(--background-elevated)] sm:min-w-[12.5rem];
+  }
+
+  .location-card__thumb {
+    @apply relative size-24 overflow-hidden rounded-full border-2 border-border bg-[var(--background-elevated)] sm:size-28;
+  }
+
+  .marketing-accent-bar {
+    @apply mb-4 h-1 w-10 rounded-full bg-primary;
+  }
+
+  .azure-block .marketing-accent-bar {
+    @apply bg-primary-foreground;
+  }
+
+  .ghost-on-azure {
+    @apply inline-flex items-center justify-center rounded-[var(--radius-pill)] border-2 border-primary-foreground bg-transparent px-6 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-primary-foreground transition hover:bg-primary-foreground/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-primary;
   }
 }
 

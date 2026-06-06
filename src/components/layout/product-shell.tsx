@@ -28,18 +28,20 @@ export function ProductShell({
 }: ProductShellProps) {
   if (variant === "compact") {
     return (
-      <main className="relative min-h-screen text-foreground">
-        <div className="app-shell min-h-screen gap-6">
-          <header className="shell-header flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
+      <main className="relative min-h-screen bg-background text-foreground">
+        <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col">
+          <header className="product-shell-header flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
             <div className="flex min-w-0 items-center gap-2">
               {backHref ? (
-                <Button asChild variant="ghost" size="icon-sm" className="shrink-0 rounded-full text-white/70">
+                <Button asChild variant="ghost" size="icon-sm" className="shrink-0 rounded-full">
                   <Link href={backHref} aria-label={backLabel ?? "Back"}>
                     <ArrowLeftIcon className="size-4" />
                   </Link>
                 </Button>
               ) : null}
-              <h1 className="truncate text-lg font-semibold tracking-[-0.02em] text-white">{title}</h1>
+              <h1 className="truncate text-lg font-semibold tracking-[-0.02em] text-foreground">
+                {title}
+              </h1>
             </div>
             {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
           </header>
@@ -51,16 +53,16 @@ export function ProductShell({
   }
 
   return (
-    <main className="relative min-h-screen text-foreground">
+    <main className="relative min-h-screen bg-background text-foreground">
       <div className="app-shell min-h-screen gap-8">
-        <header className="shell-header flex flex-col gap-5 px-5 py-5 sm:px-6">
+        <header className="quiet-panel flex flex-col gap-5 px-5 py-5 sm:px-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-4">
-              <BrandMark size="compact" />
+              <BrandMark size="compact" tone="light" />
 
               <div className="flex items-start gap-3">
                 {backHref ? (
-                  <Button asChild variant="ghost" size="icon-sm" className="mt-1 rounded-full text-white/70">
+                  <Button asChild variant="ghost" size="icon-sm" className="mt-1 rounded-full">
                     <Link href={backHref} aria-label={backLabel ?? "Back"}>
                       <ArrowLeftIcon className="size-4" />
                     </Link>
@@ -72,8 +74,8 @@ export function ProductShell({
                   <h1
                     className={
                       eyebrow
-                        ? "mt-2 text-3xl font-semibold tracking-[-0.03em] text-white"
-                        : "text-3xl font-semibold tracking-[-0.03em] text-white"
+                        ? "mt-2 text-3xl font-semibold tracking-[-0.03em] text-foreground"
+                        : "text-3xl font-semibold tracking-[-0.03em] text-foreground"
                     }
                   >
                     {title}

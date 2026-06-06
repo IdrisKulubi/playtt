@@ -12,33 +12,46 @@ interface MarketingShellProps {
   children: ReactNode;
   navLinks?: MarketingNavLink[];
   actions?: ReactNode;
+  footer?: ReactNode;
 }
 
 export function MarketingShell({
   children,
   navLinks = [],
   actions,
+  footer,
 }: MarketingShellProps) {
   return (
-    <main className="relative min-h-screen text-foreground">
-      <div className="app-shell min-h-screen gap-10">
-        <header className="shell-header sticky top-4 z-20 flex items-center justify-between gap-4 px-5 py-4 sm:px-6">
-          <BrandMark />
+    <main className="dark relative min-h-screen text-foreground">
+      <div className="flex min-h-screen flex-col">
+        <div className="app-shell flex flex-1 flex-col gap-10">
+          <header className="shell-header sticky top-4 z-20 flex items-center justify-between gap-4 px-5 py-4 sm:px-6">
+            <BrandMark />
 
-          {navLinks.length > 0 ? (
-            <nav className="hidden items-center gap-3 md:flex">
-              {navLinks.map((link) => (
-                <Link key={link.href} className="shell-nav-link" href={link.href}>
-                  {link.label}
-                </Link>
-              ))}
-            </nav>
-          ) : null}
+            {navLinks.length > 0 ? (
+              <nav
+                aria-label="Main"
+                className="hidden items-center gap-5 lg:flex"
+              >
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    className="shell-nav-link"
+                    href={link.href}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </nav>
+            ) : null}
 
-          <div className="flex items-center gap-3">{actions}</div>
-        </header>
+            <div className="flex items-center gap-3">{actions}</div>
+          </header>
 
-        {children}
+          {children}
+        </div>
+
+        {footer}
       </div>
     </main>
   );

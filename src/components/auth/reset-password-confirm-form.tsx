@@ -115,7 +115,7 @@ export function ResetPasswordConfirmForm() {
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      className="absolute right-1 top-1 rounded-full text-white/55"
+                      className="absolute right-1 top-1 rounded-full text-muted-foreground"
                       onClick={() => setShowPassword((current) => !current)}
                     >
                       {showPassword ? (
@@ -148,7 +148,7 @@ export function ResetPasswordConfirmForm() {
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      className="absolute right-1 top-1 rounded-full text-white/55"
+                      className="absolute right-1 top-1 rounded-full text-muted-foreground"
                       onClick={() => setShowConfirmPassword((current) => !current)}
                     >
                       {showConfirmPassword ? (

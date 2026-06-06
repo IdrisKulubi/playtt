@@ -12,11 +12,11 @@ export default async function BookPage() {
   return (
     <ProductShell
       variant="compact"
-      title="Book a session"
+      title="Book"
       backHref="/"
       backLabel="Back to home"
       actions={
-        <Button asChild variant="ghost" size="sm">
+        <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
           <Link href="/">
             <HouseLineIcon className="mr-1.5 size-4" />
             Home

@@ -14,7 +14,7 @@ export function HomeAccountSection() {
     <section aria-labelledby="account-heading" className="mt-16 lg:mt-20">
       <div className="mb-6 space-y-2">
         <p className="section-label">Your account</p>
-        <h2 id="account-heading" className="text-2xl font-semibold tracking-[-0.02em] text-white">
+        <h2 id="account-heading" className="text-2xl font-semibold tracking-[-0.02em] text-foreground">
           Pick up where you left off
         </h2>
       </div>
