@@ -1,3 +1,4 @@
+import { expo } from "@better-auth/expo";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { twoFactor, emailOTP } from "better-auth/plugins";
@@ -13,6 +14,23 @@ const resend = new Resend(process.env.RESEND_API_KEY ?? "re_placeholder");
 const resendFromEmail =
   process.env.RESEND_FROM_EMAIL?.trim().toLowerCase() ||
   "onboarding@resend.dev";
+
+function getTrustedOrigins(): string[] {
+    const origins = new Set<string>(["playtt://", "playtt://*"]);
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+    if (appUrl) {
+        origins.add(appUrl);
+    }
+
+    if (process.env.NODE_ENV === "development") {
+        origins.add("exp://");
+        origins.add("exp://**");
+        origins.add("exp://192.168.*.*:*/**");
+    }
+
+    return [...origins];
+}
 
 async function sendEmailOrThrow(input: {
   to: string;
@@ -39,6 +57,7 @@ async function sendEmailOrThrow(input: {
 }
 
 export const auth = betterAuth({
+    trustedOrigins: getTrustedOrigins(),
     database: drizzleAdapter(db, {
         provider: "pg",
         // schema: {...} // Optional: Pass schema if needed, but CLI generation is preferred
@@ -100,6 +119,7 @@ export const auth = betterAuth({
         },
     },
     plugins: [
+        expo(),
         emailOTP({
             async sendVerificationOTP({ email, otp, type }: { email: string; otp: string; type: string }) {
                 try {
