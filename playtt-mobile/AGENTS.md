@@ -1,1 +1,1 @@
-See the repo-root [AGENTS.md](../../AGENTS.md) for PlayTT agent guide, skills, and subagent routing. For mobile work, use the `mobile-dev` subagent in `.cursor/agents/mobile-dev.md`.
+See the repo-root [AGENTS.md](../AGENTS.md) for PlayTT agent guide, skills, and subagent routing. For mobile work, use the `mobile-dev` subagent in [`.cursor/agents/mobile-dev.md`](../.cursor/agents/mobile-dev.md).
