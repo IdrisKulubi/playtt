@@ -1,0 +1,79 @@
+# PlayTT: System Architecture Overview
+
+## 1. System Introduction
+**PlayTT** is a fully integrated, hardware-to-software autonomous table tennis platform. The system orchestrates user bookings, processes payments, provisions physical access, and manages an interactive in-pod experience (scoring, lighting, and video replays) without any on-site human intervention.
+
+## 2. Core Technology Stack
+* **Web & Admin Portal:** Next.js (React, TypeScript, TailwindCSS)
+* **Mobile App:** React Native (Expo, TypeScript)
+* **Shared Backend:** Next.js API Routes (Serverless backend handling requests from both Web and Mobile)
+* **Database:** Neon DB (Serverless PostgreSQL)
+* **ORM:** Drizzle ORM (Type-safe database queries and migrations)
+* **Payments:** Paystack (Handling card, mobile money, and seamless webhooks)
+* **Real-Time Sync:** WebSockets (via Socket.io or a managed service like Pusher/Supabase Realtime)
+
+---
+
+## 3. Core Modules & Integrations
+
+### 3.1. Booking & Payment Module
+The financial and scheduling engine of the platform.
+* **Flow:** User selects a time slot -> Next.js API creates a `pending` booking in Neon DB -> Paystack checkout is initialized.
+* **Integration:** Paystack Webhooks.
+* **Logic:** Once Paystack confirms the payment, the webhook hits the Next.js API. Drizzle ORM updates the booking to `confirmed`, which immediately triggers the **Access Control Module**.
+
+### 3.2. Access Control Module (Door Integration)
+The bridge between the digital booking and the physical room.
+* **Hardware:** Smart Lock (e.g., TTLock Gateway).
+* **Flow:** Upon a `confirmed` booking, the Next.js backend calls the smart lock API to generate a time-bound passcode (valid only for the booking duration + a 5-minute grace period).
+* **Delivery:** The React Native app updates to display the PIN or a Bluetooth "Tap to Unlock" button.
+
+### 3.3. In-Session Scoring Module
+The interactive tracking system for players during their game.
+* **Hardware:** * Wall-mounted Tablet (Displaying the Next.js web app score UI).
+  * Bluetooth Macro Buttons (Mounted under the table on both ends).
+* **Flow:** 1. A player scores and taps the Bluetooth button under their side of the table.
+  2. The button sends a Bluetooth signal to the wall-mounted tablet.
+  3. The tablet registers the click, updates the local score UI, and sends a WebSocket event to the Next.js backend.
+  4. The backend broadcasts the new score to any connected large TV screens in the pod and saves the final match data to Neon DB via Drizzle.
+
+### 3.4. Instant Replay Mechanism
+The viral content engine of PlayTT.
+* **Hardware:** Overhead IP Camera (RTSP stream) + Local NVR or Raspberry Pi + Physical "Replay" Button on the wall.
+* **Flow:**
+  1. A player hits an amazing shot and slaps the physical "Replay" button.
+  2. A signal is sent to the Next.js backend.
+  3. The backend commands the local NVR/server to extract the last 30 seconds of the video buffer.
+  4. The video clip is uploaded to cloud storage (e.g., AWS S3).
+  5. The Next.js API writes the URL to Neon DB, linking it to the active `booking_id` and `user_id`.
+  6. The React Native app sends a push notification: *"Your replay is ready!"*
+
+### 3.5. Environment Automation Module (Lighting & HVAC)
+Saves electricity and manages the atmosphere.
+* **Hardware:** Smart Relays (e.g., Tuya, Sonoff, or Shelly).
+* **Flow:** * **Start:** 2 minutes before a booked session, a cron job triggers the Next.js API to turn on the main room and table lights.
+  * **Warning:** 5 minutes before the session ends, the API flashes the lights to signal time is running out.
+  * **End:** At the end of the session, the lights power down automatically to reduce operational costs.
+
+---
+
+## 4. High-Level Data Flow (The "Magic Loop")
+
+1. **[App/Web]** User requests booking slot $\rightarrow$ **[Next.js API]** Locks slot in **[Neon DB]**.
+2. **[Paystack]** Processes payment $\rightarrow$ Sends Webhook to **[Next.js API]**.
+3. **[Next.js API]** Confirms booking in **[Neon DB]** $\rightarrow$ Triggers **[TTLock API]** for door code.
+4. **[Cron/Worker]** Time hits session start $\rightarrow$ Triggers **[Smart Relays]** to turn on lights.
+5. **[Bluetooth Buttons]** Player scores $\rightarrow$ Updates **[Tablet UI]** $\rightarrow$ Syncs via WebSockets.
+6. **[Replay Button]** Triggered $\rightarrow$ **[Camera/NVR]** clips video $\rightarrow$ Uploads to Cloud $\rightarrow$ Saves to **[Neon DB]**.
+7. **[Cron/Worker]** Time expires $\rightarrow$ Access code dies, **[Smart Relays]** turn off lights.
+
+---
+
+## 5. Database Schema Overview (Drizzle + Neon)
+
+* `users`: Core authentication and player profiles.
+* `locations`: Physical pod locations (future-proofing for multiple branches).
+* `hardware_configs`: Securely stores API keys for locks and cameras per location.
+* `bookings`: Links `user_id`, `location_id`, time slots, and Paystack reference IDs.
+* `matches`: Stores the final scores generated by the Bluetooth buttons.
+* `replays`: Links the S3 video URLs to specific bookings and users.
