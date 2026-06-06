@@ -1,23 +1,46 @@
+import { router } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandMark } from '@/components/brand/brand-mark';
+import { Button } from '@/components/ui/button';
 import {
   PlayTTColors,
   PlayTTFontFamilies,
   PlayTTSpacing,
   PlayTTTypography,
 } from '@/constants/playtt-tokens';
+import { authClient, useSession } from '@/lib/auth-client';
 
 export default function AppHomeScreen() {
+  const { data: session } = useSession();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  async function handleSignOut() {
+    setIsSigningOut(true);
+    await authClient.signOut();
+    router.replace('/sign-in');
+    setIsSigningOut(false);
+  }
+
+  const userEmail = session?.user?.email ?? 'Signed in';
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <BrandMark size="compact" />
         <Text style={styles.title}>Dashboard</Text>
         <Text style={styles.description}>
-          Authenticated home is reserved for a future milestone.
+          You are signed in as {userEmail}. Booking and venue features will land here next.
         </Text>
+        <Button
+          label="Sign out"
+          variant="outline"
+          surface="product"
+          onPress={handleSignOut}
+          loading={isSigningOut}
+        />
       </View>
     </SafeAreaView>
   );
@@ -42,6 +65,6 @@ const styles = StyleSheet.create({
   description: {
     ...PlayTTTypography.body,
     fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.mutedText,
+    color: PlayTTColors.productMuted,
   },
 });

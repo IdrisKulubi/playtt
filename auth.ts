@@ -23,7 +23,11 @@ function getTrustedOrigins(): string[] {
         origins.add(appUrl);
     }
 
-    if (process.env.NODE_ENV === "development") {
+    const trustExpoGo =
+        process.env.NODE_ENV === "development" ||
+        process.env.BETTER_AUTH_TRUST_EXPO_GO === "true";
+
+    if (trustExpoGo) {
         origins.add("exp://");
         origins.add("exp://**");
         origins.add("exp://192.168.*.*:*/**");

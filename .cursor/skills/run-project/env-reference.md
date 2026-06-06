@@ -44,7 +44,18 @@ Copy `playtt-mobile/.env.example` to `playtt-mobile/.env` (or set in your shell)
 |----------|---------|---------|
 | `EXPO_PUBLIC_API_URL` | `playtt-mobile/lib/env.ts` | Base URL of the web/API backend (Better Auth at `/api/auth`) |
 
-Defaults to `http://localhost:3000`. Use your machine's LAN IP when testing on a physical device.
+Defaults to `https://www.theplaytt.com`. For local dev, set `http://localhost:3000` or your LAN IP in `playtt-mobile/.env`.
+
+### Production backend (web hosting)
+
+When mobile uses the hosted API, ensure these are set on the server (e.g. Vercel):
+
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_APP_URL` | `https://www.theplaytt.com` |
+| `BETTER_AUTH_URL` | `https://www.theplaytt.com` |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google sign-in |
+| `BETTER_AUTH_TRUST_EXPO_GO` | Set `true` while testing in Expo Go (allows `exp://` OAuth redirects) |
 
 ## Notes
 

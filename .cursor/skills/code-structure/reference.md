@@ -34,6 +34,8 @@
 | `src/lib/auth-client.ts` | Client-side auth helper |
 | `src/actions/auth-actions.ts` | Auth-related Server Actions |
 | `playtt-mobile/lib/auth-client.ts` | Mobile better-auth client |
+| `playtt-mobile/lib/auth-api.ts` | Direct auth HTTP calls (OTP, password reset) |
+| `playtt-mobile/lib/auth-schemas.ts` | Zod validation for auth forms |
 
 ## Database schema
 
@@ -61,9 +63,14 @@ When implementing these, update this file and the relevant skill/agent docs via 
 | Marketing landing | `playtt-mobile/app/index.tsx` |
 | Sign in | `playtt-mobile/app/sign-in.tsx` |
 | Sign up | `playtt-mobile/app/sign-up.tsx` |
+| Verify email | `playtt-mobile/app/verify-email.tsx` |
+| Forgot password | `playtt-mobile/app/reset-password/index.tsx` |
+| Reset password confirm | `playtt-mobile/app/reset-password/confirm.tsx` |
 | Book | `playtt-mobile/app/book.tsx` |
-| Home tab | `playtt-mobile/app/(app)/(tabs)/index.tsx` |
+| Home tab (sign-out) | `playtt-mobile/app/(app)/(tabs)/index.tsx` |
 | Explore tab | `playtt-mobile/app/(app)/(tabs)/explore.tsx` |
+
+Mobile auth testing guide: `playtt-mobile/docs/mobile-auth-phases.md`
 
 ## Product documentation
 

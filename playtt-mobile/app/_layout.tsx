@@ -60,6 +60,8 @@ export default function RootLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="sign-in" />
         <Stack.Screen name="sign-up" />
+        <Stack.Screen name="verify-email" />
+        <Stack.Screen name="reset-password" />
         <Stack.Screen name="book" />
         <Stack.Screen name="(app)" />
       </Stack>

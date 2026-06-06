@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AuthFormCard } from '@/components/auth/auth-form-card';
 import { Button } from '@/components/ui/button';
@@ -12,24 +12,11 @@ import {
   PlayTTFontFamilies,
   PlayTTTypography,
 } from '@/constants/playtt-tokens';
+import { formatAuthError } from '@/lib/auth-errors';
 import { authClient, refreshSession } from '@/lib/auth-client';
 import { goToAuthenticatedHome } from '@/lib/auth-navigation';
 import { otpSchema, signInSchema, type OtpValues, type SignInValues } from '@/lib/auth-schemas';
-
-type FieldErrors<T extends string> = Partial<Record<T, string>>;
-
-function mapZodErrors<T extends Record<string, unknown>>(
-  result: { success: false; error: { issues: { path: (string | number)[]; message: string }[] } },
-): FieldErrors<keyof T & string> {
-  const errors: FieldErrors<keyof T & string> = {};
-  for (const issue of result.error.issues) {
-    const field = issue.path[0];
-    if (typeof field === 'string' && !errors[field as keyof T & string]) {
-      errors[field as keyof T & string] = issue.message;
-    }
-  }
-  return errors;
-}
+import { mapZodErrors, type FieldErrors } from '@/lib/form-errors';
 
 export function SignInForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -73,7 +60,7 @@ export function SignInForm() {
           setIsLoading(false);
         },
         onError: (ctx) => {
-          setFormError(ctx.error.message || 'Failed to sign in.');
+          setFormError(formatAuthError(ctx.error.message || 'Failed to sign in.'));
           setIsLoading(false);
         },
       },
@@ -97,7 +84,7 @@ export function SignInForm() {
     });
 
     if (error) {
-      setFormError(error.message || 'Invalid verification code.');
+      setFormError(formatAuthError(error.message || 'Invalid verification code.'));
       setIsLoading(false);
       return;
     }
@@ -110,19 +97,21 @@ export function SignInForm() {
     setFormError(null);
     setIsLoading(true);
 
-    const { error } = await authClient.signIn.social({
-      provider: 'google',
-      callbackURL: '/(app)/(tabs)',
-    });
-
-    if (error) {
-      setFormError(error.message || 'Google sign in failed.');
-      setIsLoading(false);
-      return;
-    }
-
-    await completeSignIn();
-    setIsLoading(false);
+    await authClient.signIn.social(
+      {
+        provider: 'google',
+        callbackURL: '/(app)/(tabs)',
+      },
+      {
+        onSuccess: () => {
+          // OAuth redirect handles session
+        },
+        onError: (ctx) => {
+          setFormError(formatAuthError(ctx.error.message || 'Google sign in failed.'));
+          setIsLoading(false);
+        },
+      },
+    );
   }
 
   if (showTwoFactor) {
@@ -194,9 +183,14 @@ export function SignInForm() {
         label="Password"
         error={signInErrors.password}
         accessory={
-          <Pressable onPress={() => setShowPassword((current) => !current)}>
-            <Text style={styles.inlineLink}>{showPassword ? 'Hide' : 'Show'}</Text>
-          </Pressable>
+          <View style={styles.passwordAccessory}>
+            <Pressable onPress={() => router.push('/reset-password')}>
+              <Text style={styles.inlineLink}>Forgot?</Text>
+            </Pressable>
+            <Pressable onPress={() => setShowPassword((current) => !current)}>
+              <Text style={styles.inlineLink}>{showPassword ? 'Hide' : 'Show'}</Text>
+            </Pressable>
+          </View>
         }>
         <Input
           value={signInValues.password}
@@ -233,6 +227,10 @@ const styles = StyleSheet.create({
     ...PlayTTTypography.label,
     fontFamily: PlayTTFontFamilies.semiBold,
     color: PlayTTColors.primary,
+  },
+  passwordAccessory: {
+    flexDirection: 'row',
+    gap: 12,
   },
   formError: {
     ...PlayTTTypography.label,
