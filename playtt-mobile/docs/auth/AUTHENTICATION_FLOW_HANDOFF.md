@@ -27,6 +27,7 @@ Authorization: Bearer <raw-session-token>
 Backend:
 
 - `auth.ts` - Better Auth config, Expo server plugin, trusted origins.
+- `src/lib/web-cors-origins.ts` - trusted web origins for the shared backend.
 - `src/app/api/auth/[...all]/route.ts` - Better Auth Next route.
 - `src/lib/security.ts` - cookie session plus Bearer-token fallback.
 - `src/app/api/user/me/route.ts` - mobile bootstrap/profile endpoint.
@@ -49,12 +50,17 @@ Mobile:
 `auth.ts` must include:
 
 - `expo()` from `@better-auth/expo`.
+- `TRUSTED_ORIGINS = [...WEB_CORS_ORIGINS, ...MOBILE_TRUSTED_ORIGINS]`.
 - trusted origins for `playtt://`, `playtt:///`, `playtt://*`.
 - hosted web origin from `NEXT_PUBLIC_APP_URL` / `BETTER_AUTH_URL`.
 - Expo dev origins while testing, controlled by development mode or
   `BETTER_AUTH_TRUST_EXPO_GO=true`.
+- optional exact mobile callback URLs through `MOBILE_AUTH_CALLBACK_URLS`, a
+  comma-separated env var for Expo Go/dev-client callback URLs.
 - Google credentials in the hosted backend environment when Google login is
   enabled.
+- the same `TRUSTED_ORIGINS` passed both as top-level `trustedOrigins` and
+  through the `playtt-trusted-origins` Better Auth plugin.
 
 Protected APIs used by mobile must resolve auth with:
 
@@ -108,6 +114,36 @@ User signs in on mobile
 
 The mobile app should not trust an OAuth redirect alone. After social login,
 wait until `getStoredAuth()` can read a token from SecureStore.
+
+For Google social login, use a relative callback URL and let the Better Auth
+Expo plugin convert it with `Linking.createURL()`:
+
+```ts
+authClient.signIn.social({
+  provider: "google",
+  callbackURL: "/",
+})
+```
+
+The Expo root layout must also call:
+
+```ts
+WebBrowser.maybeCompleteAuthSession()
+```
+
+This lets Expo complete/dismiss the OAuth browser session after the deep-link
+handoff.
+
+If the backend returns `INVALID_CALLBACK_URL`, inspect the backend log for the
+exact rejected callback and add it to hosted backend env:
+
+```env
+MOBILE_AUTH_CALLBACK_URLS=exp://192.168.1.20:8081/--/
+BETTER_AUTH_TRUST_EXPO_GO=true
+```
+
+Then restart or redeploy the backend. Hosted backend changes are not picked up
+by the mobile app alone.
 
 ## Startup Flow
 

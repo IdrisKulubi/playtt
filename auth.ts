@@ -4,43 +4,55 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { twoFactor, emailOTP } from "better-auth/plugins"
 import { Resend } from "resend"
 import db from "./db/drizzle"
+import * as schema from "./db/schema"
 import { render } from "@react-email/components"
 import OtpEmail from "./src/emails/otp-email"
 import ResetPasswordEmail from "./src/emails/reset-password-email"
 import { user } from "./db/schema"
 import { eq } from "drizzle-orm"
+import { WEB_CORS_ORIGINS } from "./src/lib/web-cors-origins"
+
+const MOBILE_TRUSTED_ORIGINS = [
+  // Mobile app scheme. Must match app.json "expo.scheme" and expoClient.scheme.
+  "playtt://",
+  "playtt:///",
+  "playtt://*",
+  "playtt://**",
+
+  // Expo Go / dev-client callbacks. Keep exact local IPs here when testing
+  // against a hosted backend, because Better Auth validates callbackURL.
+  "exp://",
+  "exp://*",
+  "exp://**",
+  "exps://",
+  "exps://*",
+  "exps://**",
+  "exp://localhost:8081",
+  "exp://localhost:8082",
+  "exps://localhost:8081",
+  "exps://localhost:8082",
+  "exp://192.168.*.*:*/**",
+  "exps://192.168.*.*:*/**",
+  "exp://10.*.*.*:*/**",
+  "exps://10.*.*.*:*/**",
+  "exp://172.*.*.*:*/**",
+  "exps://172.*.*.*:*/**",
+  ...parseOrigins(process.env.MOBILE_AUTH_CALLBACK_URLS),
+]
+
+const TRUSTED_ORIGINS = [...WEB_CORS_ORIGINS, ...MOBILE_TRUSTED_ORIGINS]
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "re_placeholder")
 const resendFromEmail =
   process.env.RESEND_FROM_EMAIL?.trim().toLowerCase() || "onboarding@resend.dev"
 
-function getTrustedOrigins(): string[] {
-  const origins = new Set<string>(["playtt://", "playtt:///", "playtt://*"])
-
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()
-  if (appUrl) {
-    origins.add(appUrl)
-  }
-
-  const authUrl = process.env.BETTER_AUTH_URL?.trim()
-  if (authUrl) {
-    origins.add(authUrl)
-  }
-
-  const trustExpoGo =
-    process.env.NODE_ENV === "development" ||
-    process.env.BETTER_AUTH_TRUST_EXPO_GO === "true"
-
-  if (trustExpoGo) {
-    origins.add("http://localhost:3000")
-    origins.add("exp://")
-    origins.add("exp://**")
-    origins.add("exp://localhost:8081")
-    origins.add("exp://localhost:8082")
-    origins.add("exp://192.168.*.*:*/**")
-  }
-
-  return [...origins]
+function parseOrigins(value: string | undefined) {
+  return (
+    value
+      ?.split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean) ?? []
+  )
 }
 
 async function sendEmailOrThrow(input: {
@@ -68,10 +80,10 @@ async function sendEmailOrThrow(input: {
 }
 
 export const auth = betterAuth({
-  trustedOrigins: getTrustedOrigins(),
+  trustedOrigins: TRUSTED_ORIGINS,
   database: drizzleAdapter(db, {
     provider: "pg",
-    // schema: {...} // Optional: Pass schema if needed, but CLI generation is preferred
+    schema,
   }),
   user: {
     additionalFields: {
@@ -137,6 +149,14 @@ export const auth = betterAuth({
   },
   plugins: [
     expo(),
+    {
+      id: "playtt-trusted-origins",
+      init: () => ({
+        options: {
+          trustedOrigins: TRUSTED_ORIGINS,
+        },
+      }),
+    },
     emailOTP({
       async sendVerificationOTP({
         email,

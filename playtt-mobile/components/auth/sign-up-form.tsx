@@ -39,29 +39,42 @@ export function SignUpForm() {
     setFormError(null)
     setIsLoading(true)
 
-    await authClient.signIn.social(
-      {
-        provider: "google",
-        callbackURL: "/",
-      },
-      {
-        onSuccess: async () => {
-          const stored = await waitForStoredAuth()
-
-          if (stored?.token) {
-            goToAuthenticatedHome()
-          }
-
-          setIsLoading(false)
+    try {
+      console.log("[PlayTT auth] Starting Google sign-in")
+      await authClient.signIn.social(
+        {
+          provider: "google",
+          callbackURL: "/",
         },
-        onError: (ctx) => {
-          setFormError(
-            formatAuthError(ctx.error.message || "Google sign in failed.")
-          )
-          setIsLoading(false)
-        },
-      }
-    )
+        {
+          onSuccess: async () => {
+            console.log("[PlayTT auth] Google sign-in returned from provider")
+            const stored = await waitForStoredAuth()
+
+            if (stored?.token) {
+              goToAuthenticatedHome()
+            }
+
+            setIsLoading(false)
+          },
+          onError: (ctx) => {
+            console.warn("[PlayTT auth] Google sign-in error", ctx.error)
+            setFormError(
+              formatAuthError(ctx.error.message || "Google sign in failed.")
+            )
+            setIsLoading(false)
+          },
+        }
+      )
+    } catch (error) {
+      console.warn("[PlayTT auth] Google sign-in threw before request", error)
+      setFormError(
+        formatAuthError(
+          error instanceof Error ? error.message : "Google sign in failed."
+        )
+      )
+      setIsLoading(false)
+    }
   }
 
   async function handleSignUp() {

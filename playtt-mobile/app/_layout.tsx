@@ -9,6 +9,7 @@ import { DarkTheme, ThemeProvider } from "@react-navigation/native"
 import { Stack } from "expo-router"
 import * as SplashScreen from "expo-splash-screen"
 import { StatusBar } from "expo-status-bar"
+import * as WebBrowser from "expo-web-browser"
 import { useEffect } from "react"
 import "react-native-reanimated"
 
@@ -16,6 +17,7 @@ import { PlayTTColors } from "@/constants/playtt-tokens"
 import { SessionBootstrap } from "@/components/session-bootstrap"
 
 SplashScreen.preventAutoHideAsync()
+WebBrowser.maybeCompleteAuthSession()
 
 const playttDarkTheme = {
   ...DarkTheme,
