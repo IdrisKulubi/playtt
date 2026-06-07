@@ -4,17 +4,18 @@ import {
   SpaceGrotesk_600SemiBold,
   SpaceGrotesk_700Bold,
   useFonts,
-} from '@expo-google-fonts/space-grotesk';
-import { DarkTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
+} from "@expo-google-fonts/space-grotesk"
+import { DarkTheme, ThemeProvider } from "@react-navigation/native"
+import { Stack } from "expo-router"
+import * as SplashScreen from "expo-splash-screen"
+import { StatusBar } from "expo-status-bar"
+import { useEffect } from "react"
+import "react-native-reanimated"
 
-import { PlayTTColors } from '@/constants/playtt-tokens';
+import { PlayTTColors } from "@/constants/playtt-tokens"
+import { SessionBootstrap } from "@/components/session-bootstrap"
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync()
 
 const playttDarkTheme = {
   ...DarkTheme,
@@ -26,11 +27,11 @@ const playttDarkTheme = {
     text: PlayTTColors.foreground,
     border: PlayTTColors.border,
   },
-};
+}
 
 export const unstable_settings = {
-  anchor: 'index',
-};
+  anchor: "index",
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -38,25 +39,27 @@ export default function RootLayout() {
     SpaceGrotesk_500Medium,
     SpaceGrotesk_600SemiBold,
     SpaceGrotesk_700Bold,
-  });
+  })
 
   useEffect(() => {
     if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
+      SplashScreen.hideAsync()
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontsLoaded, fontError])
 
   if (!fontsLoaded && !fontError) {
-    return null;
+    return null
   }
 
   return (
     <ThemeProvider value={playttDarkTheme}>
+      <SessionBootstrap />
       <Stack
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: PlayTTColors.background },
-        }}>
+        }}
+      >
         <Stack.Screen name="index" />
         <Stack.Screen name="sign-in" />
         <Stack.Screen name="sign-up" />
@@ -67,5 +70,5 @@ export default function RootLayout() {
       </Stack>
       <StatusBar style="light" />
     </ThemeProvider>
-  );
+  )
 }

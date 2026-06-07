@@ -1,22 +1,22 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod/v3";
+import { useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod/v3"
 import {
   CircleNotchIcon,
   Eye,
   EyeSlash,
   GoogleLogoIcon,
-} from "@phosphor-icons/react";
-import { toast } from "sonner";
+} from "@phosphor-icons/react"
+import { toast } from "sonner"
 
-import { authClient } from "@/lib/auth-client";
-import { AuthFormCard } from "@/components/auth/auth-form-card";
-import { Button } from "@/components/ui/button";
+import { authClient } from "@/lib/auth-client"
+import { AuthFormCard } from "@/components/auth/auth-form-card"
+import { Button } from "@/components/ui/button"
 import {
   Form,
   FormControl,
@@ -24,23 +24,36 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
 
 const signInSchema = z.object({
   email: z.string().email("Enter a valid email address"),
   password: z.string().min(1, "Password is required"),
-});
+})
 
 const otpSchema = z.object({
   otp: z.string().length(6, "OTP must be 6 characters"),
-});
+})
+
+type AuthCallbackContext = {
+  data?: {
+    twoFactorRedirect?: boolean
+  }
+  error?: {
+    message?: string
+  }
+}
+
+function getAuthMessage(ctx: AuthCallbackContext, fallback: string) {
+  return ctx.error?.message || fallback
+}
 
 export function SignInForm() {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [showTwoFactor, setShowTwoFactor] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
+  const [showTwoFactor, setShowTwoFactor] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const form = useForm<z.infer<typeof signInSchema>>({
     resolver: zodResolver(signInSchema),
@@ -48,61 +61,61 @@ export function SignInForm() {
       email: "",
       password: "",
     },
-  });
+  })
 
   const otpForm = useForm<z.infer<typeof otpSchema>>({
     resolver: zodResolver(otpSchema),
     defaultValues: {
       otp: "",
     },
-  });
+  })
 
   async function onSubmit(values: z.infer<typeof signInSchema>) {
-    setIsLoading(true);
+    setIsLoading(true)
     await authClient.signIn.email(
       {
         email: values.email,
         password: values.password,
       },
       {
-        onSuccess: (ctx: any) => {
-          if (ctx.data.twoFactorRedirect) {
-            setShowTwoFactor(true);
-            toast.info("Two-factor verification is required.");
+        onSuccess: (ctx: AuthCallbackContext) => {
+          if (ctx.data?.twoFactorRedirect) {
+            setShowTwoFactor(true)
+            toast.info("Two-factor verification is required.")
           } else {
-            router.push("/dashboard");
-            toast.success("Signed in successfully.");
+            router.push("/dashboard")
+            toast.success("Signed in successfully.")
           }
-          setIsLoading(false);
+          setIsLoading(false)
         },
-        onError: (ctx: any) => {
-          toast.error(ctx.error.message || "Failed to sign in.");
-          setIsLoading(false);
+        onError: (ctx: AuthCallbackContext) => {
+          toast.error(getAuthMessage(ctx, "Failed to sign in."))
+          setIsLoading(false)
         },
-      },
-    );
+      }
+    )
   }
 
   async function onOTPSubmit(values: z.infer<typeof otpSchema>) {
-    setIsLoading(true);
+    setIsLoading(true)
     const { error } = await authClient.twoFactor.verifyOtp({
       code: values.otp,
       trustDevice: true,
-    });
+    })
 
     if (error) {
-      toast.error(error.message || "Invalid verification code.");
-      setIsLoading(false);
-      return;
+      toast.error(error.message || "Invalid verification code.")
+      setIsLoading(false)
+      return
     }
 
-    toast.success("Verification complete.");
-    router.push("/dashboard");
-    setIsLoading(false);
+    toast.success("Verification complete.")
+    router.push("/dashboard")
+    setIsLoading(false)
   }
 
   async function handleGoogleSignIn() {
-    setIsLoading(true);
+    setIsLoading(true)
     await authClient.signIn.social(
       {
         provider: "google",
@@ -112,12 +125,12 @@ export function SignInForm() {
         onSuccess: () => {
           // redirect handled by provider
         },
-        onError: (ctx: any) => {
-          toast.error(ctx.error.message || "Google sign in failed.");
-          setIsLoading(false);
+        onError: (ctx: AuthCallbackContext) => {
+          toast.error(getAuthMessage(ctx, "Google sign in failed."))
+          setIsLoading(false)
         },
-      },
-    );
+      }
+    )
   }
 
   if (showTwoFactor) {
@@ -135,7 +148,10 @@ export function SignInForm() {
         }
       >
         <Form {...otpForm}>
-          <form onSubmit={otpForm.handleSubmit(onOTPSubmit)} className="field-cluster">
+          <form
+            onSubmit={otpForm.handleSubmit(onOTPSubmit)}
+            className="field-cluster"
+          >
             <FormField
               control={otpForm.control}
               name="otp"
@@ -143,7 +159,11 @@ export function SignInForm() {
                 <FormItem>
                   <FormLabel>Verification code</FormLabel>
                   <FormControl>
-                    <Input placeholder="123456" inputMode="numeric" {...field} />
+                    <Input
+                      placeholder="123456"
+                      inputMode="numeric"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -151,13 +171,15 @@ export function SignInForm() {
             />
 
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? <CircleNotchIcon className="size-4 animate-spin" /> : null}
+              {isLoading ? (
+                <CircleNotchIcon className="size-4 animate-spin" />
+              ) : null}
               Verify and continue
             </Button>
           </form>
         </Form>
       </AuthFormCard>
-    );
+    )
   }
 
   return (
@@ -190,7 +212,10 @@ export function SignInForm() {
         </div>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="field-cluster">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="field-cluster"
+          >
             <FormField
               control={form.control}
               name="email"
@@ -212,18 +237,24 @@ export function SignInForm() {
                 <FormItem>
                   <div className="flex items-center justify-between gap-3">
                     <FormLabel>Password</FormLabel>
-                    <Link href="/reset-password" className="auth-inline-link text-sm">
+                    <Link
+                      href="/reset-password"
+                      className="auth-inline-link text-sm"
+                    >
                       Forgot password?
                     </Link>
                   </div>
                   <FormControl>
                     <div className="relative">
-                      <Input type={showPassword ? "text" : "password"} {...field} />
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        {...field}
+                      />
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon-sm"
-                        className="absolute right-1 top-1 rounded-full text-muted-foreground"
+                        className="absolute top-1 right-1 rounded-full text-muted-foreground"
                         onClick={() => setShowPassword((current) => !current)}
                       >
                         {showPassword ? (
@@ -243,12 +274,14 @@ export function SignInForm() {
             />
 
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? <CircleNotchIcon className="size-4 animate-spin" /> : null}
+              {isLoading ? (
+                <CircleNotchIcon className="size-4 animate-spin" />
+              ) : null}
               Sign in
             </Button>
           </form>
         </Form>
       </div>
     </AuthFormCard>
-  );
+  )
 }

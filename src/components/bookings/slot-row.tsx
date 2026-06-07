@@ -1,46 +1,57 @@
-import { format } from "date-fns";
-import { CheckCircleIcon, CircleIcon } from "@phosphor-icons/react";
+import { format } from "date-fns"
+import { CheckCircleIcon, CircleIcon } from "@phosphor-icons/react"
 
 import {
   availabilitySubtitle,
   formatPricingTierLabel,
   isSlotStartInPast,
-} from "@/components/bookings/booking-utils";
-import type { SlotAvailability } from "@/server/bookings/types";
+} from "@/components/bookings/booking-utils"
+import type { SlotAvailability } from "@/server/bookings/types"
 
 interface SlotRowProps {
-  slot: SlotAvailability;
-  selected: boolean;
-  disabled: boolean;
-  onSelect: () => void;
+  slot: SlotAvailability
+  selected: boolean
+  disabled: boolean
+  nowMs: number
+  onSelect: () => void
 }
 
-export function SlotRow({ slot, selected, disabled, onSelect }: SlotRowProps) {
-  const startInPast = isSlotStartInPast(slot.startsAt);
-  const tier = formatPricingTierLabel(slot.price.pricingRuleSnapshot);
+export function SlotRow({
+  slot,
+  selected,
+  disabled,
+  nowMs,
+  onSelect,
+}: SlotRowProps) {
+  const startInPast = isSlotStartInPast(slot.startsAt, nowMs)
+  const tier = formatPricingTierLabel(slot.price.pricingRuleSnapshot)
 
   return (
     <li>
       <button
         type="button"
         onClick={() => {
-          if (!disabled) onSelect();
+          if (!disabled) onSelect()
         }}
         disabled={disabled}
         className={`booking-slot-row ${selected && !startInPast ? "booking-slot-row--selected" : ""}`}
       >
-        <span className="min-w-[4.5rem] text-base font-semibold tabular-nums text-foreground">
+        <span className="min-w-[4.5rem] text-base font-semibold text-foreground tabular-nums">
           {format(new Date(slot.startsAt), "h:mm a")}
         </span>
         <span
           className={`hidden flex-1 text-center text-xs font-medium sm:block ${
-            slot.isAvailable && !startInPast ? "text-muted-foreground" : "text-muted-foreground/60"
+            slot.isAvailable && !startInPast
+              ? "text-muted-foreground"
+              : "text-muted-foreground/60"
           }`}
         >
           {availabilitySubtitle(slot, startInPast)}
         </span>
         {tier ? (
-          <span className="booking-tier-badge hidden sm:inline-flex">{tier}</span>
+          <span className="booking-tier-badge hidden sm:inline-flex">
+            {tier}
+          </span>
         ) : (
           <span className="hidden flex-1 sm:block" aria-hidden />
         )}
@@ -56,5 +67,5 @@ export function SlotRow({ slot, selected, disabled, onSelect }: SlotRowProps) {
         {availabilitySubtitle(slot, startInPast)}
       </p>
     </li>
-  );
+  )
 }

@@ -1,24 +1,24 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod/v3";
+import { useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod/v3"
 import {
   CircleNotchIcon,
   Eye,
   EyeSlash,
   GoogleLogoIcon,
-} from "@phosphor-icons/react";
-import { toast } from "sonner";
+} from "@phosphor-icons/react"
+import { toast } from "sonner"
 
-import { authClient } from "@/lib/auth-client";
-import { sendVerificationEmailAction } from "@/actions/auth-actions";
-import { AuthFormCard } from "@/components/auth/auth-form-card";
-import { PasswordStrengthIndicator } from "@/components/ui/password-strength";
-import { Button } from "@/components/ui/button";
+import { authClient } from "@/lib/auth-client"
+import { sendVerificationEmailAction } from "@/actions/auth-actions"
+import { AuthFormCard } from "@/components/auth/auth-form-card"
+import { PasswordStrengthIndicator } from "@/components/ui/password-strength"
+import { Button } from "@/components/ui/button"
 import {
   Form,
   FormControl,
@@ -26,8 +26,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
 
 const signUpSchema = z
   .object({
@@ -40,13 +40,23 @@ const signUpSchema = z
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
-  });
+  })
+
+type AuthCallbackContext = {
+  error?: {
+    message?: string
+  }
+}
+
+function getAuthMessage(ctx: AuthCallbackContext, fallback: string) {
+  return ctx.error?.message || fallback
+}
 
 export function SignUpForm() {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const form = useForm<z.infer<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
@@ -57,10 +67,10 @@ export function SignUpForm() {
       password: "",
       confirmPassword: "",
     },
-  });
+  })
 
   async function handleGoogleSignIn() {
-    setIsLoading(true);
+    setIsLoading(true)
     await authClient.signIn.social(
       {
         provider: "google",
@@ -70,16 +80,16 @@ export function SignUpForm() {
         onSuccess: () => {
           // handled by provider redirect
         },
-        onError: (ctx: any) => {
-          toast.error(ctx.error.message || "Google sign in failed.");
-          setIsLoading(false);
+        onError: (ctx: AuthCallbackContext) => {
+          toast.error(getAuthMessage(ctx, "Google sign in failed."))
+          setIsLoading(false)
         },
-      },
-    );
+      }
+    )
   }
 
   async function onSubmit(values: z.infer<typeof signUpSchema>) {
-    setIsLoading(true);
+    setIsLoading(true)
     await authClient.signUp.email(
       {
         email: values.email,
@@ -88,23 +98,25 @@ export function SignUpForm() {
       },
       {
         onSuccess: async () => {
-          const result = await sendVerificationEmailAction(values.email);
+          const result = await sendVerificationEmailAction(values.email)
 
           if (result.success) {
-            toast.success("Account created. Check your email for the verification code.");
+            toast.success(
+              "Account created. Check your email for the verification code."
+            )
           } else {
-            toast.error(result.message);
+            toast.error(result.message)
           }
 
-          router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
-          setIsLoading(false);
+          router.push(`/verify-email?email=${encodeURIComponent(values.email)}`)
+          setIsLoading(false)
         },
-        onError: (ctx: any) => {
-          toast.error(ctx.error.message || "Failed to sign up.");
-          setIsLoading(false);
+        onError: (ctx: AuthCallbackContext) => {
+          toast.error(getAuthMessage(ctx, "Failed to sign up."))
+          setIsLoading(false)
         },
-      },
-    );
+      }
+    )
   }
 
   return (
@@ -137,7 +149,10 @@ export function SignUpForm() {
         </div>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="field-cluster">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="field-cluster"
+          >
             <FormField
               control={form.control}
               name="name"
@@ -188,12 +203,15 @@ export function SignUpForm() {
                   <FormLabel>Password</FormLabel>
                   <FormControl>
                     <div className="relative">
-                      <Input type={showPassword ? "text" : "password"} {...field} />
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        {...field}
+                      />
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon-sm"
-                        className="absolute right-1 top-1 rounded-full text-muted-foreground"
+                        className="absolute top-1 right-1 rounded-full text-muted-foreground"
                         onClick={() => setShowPassword((current) => !current)}
                       >
                         {showPassword ? (
@@ -221,13 +239,18 @@ export function SignUpForm() {
                   <FormLabel>Confirm password</FormLabel>
                   <FormControl>
                     <div className="relative">
-                      <Input type={showConfirmPassword ? "text" : "password"} {...field} />
+                      <Input
+                        type={showConfirmPassword ? "text" : "password"}
+                        {...field}
+                      />
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon-sm"
-                        className="absolute right-1 top-1 rounded-full text-muted-foreground"
-                        onClick={() => setShowConfirmPassword((current) => !current)}
+                        className="absolute top-1 right-1 rounded-full text-muted-foreground"
+                        onClick={() =>
+                          setShowConfirmPassword((current) => !current)
+                        }
                       >
                         {showConfirmPassword ? (
                           <EyeSlash className="h-4 w-4" aria-hidden="true" />
@@ -235,7 +258,9 @@ export function SignUpForm() {
                           <Eye className="h-4 w-4" aria-hidden="true" />
                         )}
                         <span className="sr-only">
-                          {showConfirmPassword ? "Hide password" : "Show password"}
+                          {showConfirmPassword
+                            ? "Hide password"
+                            : "Show password"}
                         </span>
                       </Button>
                     </div>
@@ -246,12 +271,14 @@ export function SignUpForm() {
             />
 
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? <CircleNotchIcon className="size-4 animate-spin" /> : null}
+              {isLoading ? (
+                <CircleNotchIcon className="size-4 animate-spin" />
+              ) : null}
               Create account
             </Button>
           </form>
         </Form>
       </div>
     </AuthFormCard>
-  );
+  )
 }

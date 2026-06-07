@@ -1,48 +1,60 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { router } from "expo-router"
+import { useState } from "react"
+import { Pressable, StyleSheet, Text, View } from "react-native"
 
-import { AuthFormCard } from '@/components/auth/auth-form-card';
-import { Button } from '@/components/ui/button';
-import { FormDivider } from '@/components/ui/form-divider';
-import { FormField } from '@/components/ui/form-field';
-import { Input } from '@/components/ui/input';
+import { AuthFormCard } from "@/components/auth/auth-form-card"
+import { Button } from "@/components/ui/button"
+import { FormDivider } from "@/components/ui/form-divider"
+import { FormField } from "@/components/ui/form-field"
+import { Input } from "@/components/ui/input"
 import {
   PlayTTColors,
   PlayTTFontFamilies,
   PlayTTTypography,
-} from '@/constants/playtt-tokens';
-import { formatAuthError } from '@/lib/auth-errors';
-import { authClient, refreshSession } from '@/lib/auth-client';
-import { goToAuthenticatedHome } from '@/lib/auth-navigation';
-import { otpSchema, signInSchema, type OtpValues, type SignInValues } from '@/lib/auth-schemas';
-import { mapZodErrors, type FieldErrors } from '@/lib/form-errors';
+} from "@/constants/playtt-tokens"
+import { formatAuthError } from "@/lib/auth-errors"
+import { authClient, refreshSession } from "@/lib/auth-client"
+import { waitForStoredAuth } from "@/lib/auth-helpers"
+import { goToAuthenticatedHome, goToResetPassword } from "@/lib/auth-navigation"
+import {
+  otpSchema,
+  signInSchema,
+  type OtpValues,
+  type SignInValues,
+} from "@/lib/auth-schemas"
+import { mapZodErrors, type FieldErrors } from "@/lib/form-errors"
 
 export function SignInForm() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [showTwoFactor, setShowTwoFactor] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [signInValues, setSignInValues] = useState<SignInValues>({ email: '', password: '' });
-  const [signInErrors, setSignInErrors] = useState<FieldErrors<keyof SignInValues>>({});
-  const [otpValues, setOtpValues] = useState<OtpValues>({ otp: '' });
-  const [otpErrors, setOtpErrors] = useState<FieldErrors<keyof OtpValues>>({});
+  const [isLoading, setIsLoading] = useState(false)
+  const [showTwoFactor, setShowTwoFactor] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [signInValues, setSignInValues] = useState<SignInValues>({
+    email: "",
+    password: "",
+  })
+  const [signInErrors, setSignInErrors] = useState<
+    FieldErrors<keyof SignInValues>
+  >({})
+  const [otpValues, setOtpValues] = useState<OtpValues>({ otp: "" })
+  const [otpErrors, setOtpErrors] = useState<FieldErrors<keyof OtpValues>>({})
 
   async function completeSignIn() {
-    await refreshSession();
-    goToAuthenticatedHome();
+    await refreshSession()
+    await waitForStoredAuth()
+    goToAuthenticatedHome()
   }
 
   async function handleEmailSignIn() {
-    setFormError(null);
-    const parsed = signInSchema.safeParse(signInValues);
+    setFormError(null)
+    const parsed = signInSchema.safeParse(signInValues)
     if (!parsed.success) {
-      setSignInErrors(mapZodErrors(parsed));
-      return;
+      setSignInErrors(mapZodErrors(parsed))
+      return
     }
 
-    setSignInErrors({});
-    setIsLoading(true);
+    setSignInErrors({})
+    setIsLoading(true)
 
     await authClient.signIn.email(
       {
@@ -52,66 +64,78 @@ export function SignInForm() {
       {
         onSuccess: async (ctx) => {
           if (ctx.data.twoFactorRedirect) {
-            setShowTwoFactor(true);
-            setFormError(null);
+            setShowTwoFactor(true)
+            setFormError(null)
           } else {
-            await completeSignIn();
+            await completeSignIn()
           }
-          setIsLoading(false);
+          setIsLoading(false)
         },
         onError: (ctx) => {
-          setFormError(formatAuthError(ctx.error.message || 'Failed to sign in.'));
-          setIsLoading(false);
+          setFormError(
+            formatAuthError(ctx.error.message || "Failed to sign in.")
+          )
+          setIsLoading(false)
         },
-      },
-    );
+      }
+    )
   }
 
   async function handleOtpSubmit() {
-    setFormError(null);
-    const parsed = otpSchema.safeParse(otpValues);
+    setFormError(null)
+    const parsed = otpSchema.safeParse(otpValues)
     if (!parsed.success) {
-      setOtpErrors(mapZodErrors(parsed));
-      return;
+      setOtpErrors(mapZodErrors(parsed))
+      return
     }
 
-    setOtpErrors({});
-    setIsLoading(true);
+    setOtpErrors({})
+    setIsLoading(true)
 
     const { error } = await authClient.twoFactor.verifyOtp({
       code: parsed.data.otp,
       trustDevice: true,
-    });
+    })
 
     if (error) {
-      setFormError(formatAuthError(error.message || 'Invalid verification code.'));
-      setIsLoading(false);
-      return;
+      setFormError(
+        formatAuthError(error.message || "Invalid verification code.")
+      )
+      setIsLoading(false)
+      return
     }
 
-    await completeSignIn();
-    setIsLoading(false);
+    await completeSignIn()
+    setIsLoading(false)
   }
 
   async function handleGoogleSignIn() {
-    setFormError(null);
-    setIsLoading(true);
+    setFormError(null)
+    setIsLoading(true)
 
     await authClient.signIn.social(
       {
-        provider: 'google',
-        callbackURL: '/(app)/(tabs)',
+        provider: "google",
+        callbackURL: "/",
       },
       {
-        onSuccess: () => {
-          // OAuth redirect handles session
+        onSuccess: async () => {
+          const stored = await waitForStoredAuth()
+
+          if (stored?.token) {
+            goToAuthenticatedHome()
+          }
+
+          setIsLoading(false)
         },
         onError: (ctx) => {
-          setFormError(formatAuthError(ctx.error.message || 'Google sign in failed.'));
-          setIsLoading(false);
+          setFormError(
+            formatAuthError(ctx.error.message || "Google sign in failed.")
+          )
+          setIsLoading(false)
         },
-      },
-    );
+      }
+    )
   }
 
   if (showTwoFactor) {
@@ -123,11 +147,14 @@ export function SignInForm() {
           <Pressable onPress={() => setShowTwoFactor(false)}>
             <Text style={styles.inlineLink}>Return to sign in</Text>
           </Pressable>
-        }>
+        }
+      >
         <FormField label="Verification code" error={otpErrors.otp}>
           <Input
             value={otpValues.otp}
-            onChangeText={(otp) => setOtpValues((current) => ({ ...current, otp }))}
+            onChangeText={(otp) =>
+              setOtpValues((current) => ({ ...current, otp }))
+            }
             placeholder="123456"
             keyboardType="number-pad"
             autoComplete="one-time-code"
@@ -142,7 +169,7 @@ export function SignInForm() {
           loading={isLoading}
         />
       </AuthFormCard>
-    );
+    )
   }
 
   return (
@@ -151,12 +178,16 @@ export function SignInForm() {
       description="Use your email or Google to continue."
       footer={
         <Text style={styles.footerText}>
-          Need an account?{' '}
-          <Text style={styles.inlineLink} onPress={() => router.push('/sign-up')}>
+          Need an account?{" "}
+          <Text
+            style={styles.inlineLink}
+            onPress={() => router.push("/sign-up")}
+          >
             Create one
           </Text>
         </Text>
-      }>
+      }
+    >
       <Button
         label="Continue with Google"
         variant="outline"
@@ -170,7 +201,9 @@ export function SignInForm() {
       <FormField label="Email" error={signInErrors.email}>
         <Input
           value={signInValues.email}
-          onChangeText={(email) => setSignInValues((current) => ({ ...current, email }))}
+          onChangeText={(email) =>
+            setSignInValues((current) => ({ ...current, email }))
+          }
           placeholder="name@theplaytt.com"
           autoCapitalize="none"
           autoComplete="email"
@@ -184,17 +217,22 @@ export function SignInForm() {
         error={signInErrors.password}
         accessory={
           <View style={styles.passwordAccessory}>
-            <Pressable onPress={() => router.push('/reset-password')}>
+            <Pressable onPress={goToResetPassword}>
               <Text style={styles.inlineLink}>Forgot?</Text>
             </Pressable>
             <Pressable onPress={() => setShowPassword((current) => !current)}>
-              <Text style={styles.inlineLink}>{showPassword ? 'Hide' : 'Show'}</Text>
+              <Text style={styles.inlineLink}>
+                {showPassword ? "Hide" : "Show"}
+              </Text>
             </Pressable>
           </View>
-        }>
+        }
+      >
         <Input
           value={signInValues.password}
-          onChangeText={(password) => setSignInValues((current) => ({ ...current, password }))}
+          onChangeText={(password) =>
+            setSignInValues((current) => ({ ...current, password }))
+          }
           placeholder="Your password"
           secureTextEntry={!showPassword}
           autoComplete="password"
@@ -211,7 +249,7 @@ export function SignInForm() {
         loading={isLoading}
       />
     </AuthFormCard>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -221,7 +259,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontFamily: PlayTTFontFamilies.regular,
     color: PlayTTColors.productMuted,
-    textAlign: 'center',
+    textAlign: "center",
   },
   inlineLink: {
     ...PlayTTTypography.label,
@@ -229,13 +267,13 @@ const styles = StyleSheet.create({
     color: PlayTTColors.primary,
   },
   passwordAccessory: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   formError: {
     ...PlayTTTypography.label,
     fontFamily: PlayTTFontFamilies.regular,
     color: PlayTTColors.destructive,
-    textAlign: 'center',
+    textAlign: "center",
   },
-});
+})

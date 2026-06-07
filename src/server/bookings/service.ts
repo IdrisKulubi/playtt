@@ -1,4 +1,4 @@
-import { parseISO } from "date-fns";
+import { parseISO } from "date-fns"
 
 import {
   buildDateTimeRange,
@@ -6,8 +6,8 @@ import {
   getPendingBookingExpiry,
   roundDateToSlot,
   sameBookingDay,
-} from "@/server/bookings/utils";
-import { calculateBookingQuote } from "@/server/bookings/pricing";
+} from "@/server/bookings/utils"
+import { calculateBookingQuote } from "@/server/bookings/pricing"
 import {
   ensureUserExists,
   findBlockingBookings,
@@ -16,42 +16,41 @@ import {
   insertPendingBooking,
   listActiveResourcesByLocation,
   listActiveLocationsWithResources,
-} from "@/server/bookings/repository";
+} from "@/server/bookings/repository"
 import type {
   BookingQuote,
-  CreatePendingBookingInput,
   CreatePendingBookingResult,
   LocationSummary,
   SlotAvailability,
-} from "@/server/bookings/types";
+} from "@/server/bookings/types"
 import {
   bookingQuoteInputSchema,
   createPendingBookingSchema,
   locationAvailabilityInputSchema,
-} from "@/server/bookings/validators";
+} from "@/server/bookings/validators"
 
 export async function getBookingBootstrapData(): Promise<{
-  locations: LocationSummary[];
+  locations: LocationSummary[]
 }> {
-  const activeLocations = await listActiveLocationsWithResources();
-  return { locations: activeLocations };
+  const activeLocations = await listActiveLocationsWithResources()
+  return { locations: activeLocations }
 }
 
 export async function getBookingQuote(input: unknown): Promise<BookingQuote> {
-  const parsed = bookingQuoteInputSchema.parse(input);
-  const resourceContext = await getResourceContext(parsed);
+  const parsed = bookingQuoteInputSchema.parse(input)
+  const resourceContext = await getResourceContext(parsed)
 
   if (!resourceContext) {
-    throw new Error("The selected location or resource is unavailable.");
+    throw new Error("The selected location or resource is unavailable.")
   }
 
   const { start, end } = buildDateTimeRange(
     parsed.startTimeIso,
-    parsed.durationMinutes,
-  );
+    parsed.durationMinutes
+  )
 
   if (start <= new Date()) {
-    throw new Error("Bookings must be made for a future time.");
+    throw new Error("Bookings must be made for a future time.")
   }
 
   return calculateBookingQuote({
@@ -61,36 +60,36 @@ export async function getBookingQuote(input: unknown): Promise<BookingQuote> {
     end,
     durationMinutes: parsed.durationMinutes,
     groupSize: parsed.groupSize,
-  });
+  })
 }
 
 export async function getLocationAvailability(
-  input: unknown,
+  input: unknown
 ): Promise<SlotAvailability[]> {
-  const parsed = locationAvailabilityInputSchema.parse(input);
-  const day = parseISO(`${parsed.date}T00:00:00`);
+  const parsed = locationAvailabilityInputSchema.parse(input)
+  const day = parseISO(`${parsed.date}T00:00:00`)
 
   if (Number.isNaN(day.getTime())) {
-    throw new Error("Invalid availability date.");
+    throw new Error("Invalid availability date.")
   }
 
-  const activeResources = await listActiveResourcesByLocation(parsed.locationId);
+  const activeResources = await listActiveResourcesByLocation(parsed.locationId)
 
   if (activeResources.length === 0) {
-    return [];
+    return []
   }
 
-  const slots = buildDaySlots(day, parsed.durationMinutes);
+  const slots = buildDaySlots(day, parsed.durationMinutes)
   const blockingBookings = await findBlockingBookingsForResources({
     resourceIds: activeResources.map((resource) => resource.id),
     start: slots[0]?.startsAt ?? day,
     end: slots.at(-1)?.endsAt ?? day,
-  });
+  })
 
-  const now = new Date();
+  const now = new Date()
 
   return slots.map((slot) => {
-    const slotInPast = slot.startsAt <= now;
+    const slotInPast = slot.startsAt <= now
 
     const availableResourceIds = slotInPast
       ? []
@@ -101,12 +100,12 @@ export async function getLocationAvailability(
                 (booking) =>
                   booking.resourceId === resource.id &&
                   booking.startTime < slot.endsAt &&
-                  booking.endTime > slot.startsAt,
-              ),
+                  booking.endTime > slot.startsAt
+              )
           )
-          .map((resource) => resource.id);
+          .map((resource) => resource.id)
 
-    const isAvailable = availableResourceIds.length > 0;
+    const isAvailable = availableResourceIds.length > 0
     const quote = calculateBookingQuote({
       locationId: parsed.locationId,
       resourceId: availableResourceIds[0] ?? activeResources[0].id,
@@ -114,7 +113,7 @@ export async function getLocationAvailability(
       end: slot.endsAt,
       durationMinutes: parsed.durationMinutes,
       groupSize: parsed.groupSize,
-    });
+    })
 
     return {
       startsAt: slot.startsAt.toISOString(),
@@ -130,53 +129,53 @@ export async function getLocationAvailability(
         totalAmount: quote.totalAmount,
         pricingRuleSnapshot: quote.pricingRuleSnapshot,
       },
-    };
-  });
+    }
+  })
 }
 
 export async function createPendingBooking(
-  input: unknown,
+  input: unknown
 ): Promise<CreatePendingBookingResult> {
-  const parsed = createPendingBookingSchema.parse(input);
-  const resourceContext = await getResourceContext(parsed);
+  const parsed = createPendingBookingSchema.parse(input)
+  const resourceContext = await getResourceContext(parsed)
 
   if (!resourceContext) {
-    throw new Error("The selected location or resource is unavailable.");
+    throw new Error("The selected location or resource is unavailable.")
   }
 
-  const existingUser = await ensureUserExists(parsed.userId);
+  const existingUser = await ensureUserExists(parsed.userId)
 
   if (!existingUser) {
-    throw new Error("You must be signed in with a valid account.");
+    throw new Error("You must be signed in with a valid account.")
   }
 
   const { start, end } = buildDateTimeRange(
     parsed.startTimeIso,
-    parsed.durationMinutes,
-  );
+    parsed.durationMinutes
+  )
 
-  const roundedStart = roundDateToSlot(start);
+  const roundedStart = roundDateToSlot(start)
 
   if (roundedStart.toISOString() !== start.toISOString()) {
-    throw new Error("Bookings must start on a 30-minute boundary.");
+    throw new Error("Bookings must start on a 30-minute boundary.")
   }
 
   if (sameBookingDay(start) !== sameBookingDay(end)) {
-    throw new Error("Bookings must start and end on the same day.");
+    throw new Error("Bookings must start and end on the same day.")
   }
 
   if (start <= new Date()) {
-    throw new Error("Bookings must be made for a future time.");
+    throw new Error("Bookings must be made for a future time.")
   }
 
   const blockingBookings = await findBlockingBookings({
     resourceId: parsed.resourceId,
     start,
     end,
-  });
+  })
 
   if (blockingBookings.length > 0) {
-    throw new Error("That time slot is no longer available.");
+    throw new Error("That time slot is no longer available.")
   }
 
   const quote = calculateBookingQuote({
@@ -186,14 +185,12 @@ export async function createPendingBooking(
     end,
     durationMinutes: parsed.durationMinutes,
     groupSize: parsed.groupSize,
-  });
+  })
 
   return insertPendingBooking({
     booking: {
       ...parsed,
-      notes:
-        parsed.notes ||
-        `Group size: ${parsed.groupSize}`,
+      notes: parsed.notes || `Group size: ${parsed.groupSize}`,
       start,
       end,
       currency: quote.currency,
@@ -203,5 +200,5 @@ export async function createPendingBooking(
       pricingRuleSnapshot: quote.pricingRuleSnapshot,
       expiresAt: getPendingBookingExpiry(),
     },
-  });
+  })
 }

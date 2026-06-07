@@ -5,7 +5,9 @@ description: Documents how to install, run, lint, build, and database-manage bot
 
 # Run PlayTT
 
-PlayTT has two apps with **no root package.json**. Each app installs and runs independently.
+PlayTT has two independent apps and no root workspace orchestrator. The repo root
+`package.json` is the web/API/DB app; `playtt-mobile/package.json` is the Expo app.
+Install and run each app from its own directory.
 
 ## Prerequisites
 
@@ -20,22 +22,26 @@ pnpm install
 pnpm dev          # http://localhost:3000 (Turbopack)
 ```
 
-| Script | Command |
-|--------|---------|
-| Production build | `pnpm build` |
-| Production serve | `pnpm start` |
-| Lint | `pnpm lint` |
-| Typecheck | `pnpm typecheck` |
-| Format | `pnpm format` |
+If `pnpm` is not on PATH but Node Corepack is available, prefix commands with
+`corepack`, for example `corepack pnpm dev`, `corepack pnpm lint`, and
+`corepack pnpm typecheck`.
+
+| Script           | Command                                                            |
+| ---------------- | ------------------------------------------------------------------ |
+| Production build | `pnpm build`                                                       |
+| Production serve | `pnpm start`                                                       |
+| Lint             | `pnpm lint` (web app only; mobile lint runs from `playtt-mobile/`) |
+| Typecheck        | `pnpm typecheck`                                                   |
+| Format           | `pnpm format`                                                      |
 
 ### Database commands (repo root)
 
-| Script | Command |
-|--------|---------|
+| Script             | Command            |
+| ------------------ | ------------------ |
 | Generate migration | `pnpm db:generate` |
-| Apply migrations | `pnpm db:migrate` |
-| Drizzle Studio | `pnpm db:studio` |
-| Seed phase 1 | `pnpm db:seed` |
+| Apply migrations   | `pnpm db:migrate`  |
+| Drizzle Studio     | `pnpm db:studio`   |
+| Seed phase 1       | `pnpm db:seed`     |
 
 Database commands require `POSTGRES_URL` in `.env.local`.
 
@@ -49,12 +55,12 @@ npm start            # Expo dev server (uses local CLI via npm script)
 
 Use **`npm start`**, not `npx expo start`. On Windows, `npx expo` may resolve to the deprecated global `expo-cli` and fail with missing modules like `@expo/schema-utils`.
 
-| Script | Command |
-|--------|---------|
-| Android | `npm run android` |
-| iOS | `npm run ios` |
-| Web | `npm run web` |
-| Lint | `npm run lint` |
+| Script        | Command                 |
+| ------------- | ----------------------- |
+| Android       | `npm run android`       |
+| iOS           | `npm run ios`           |
+| Web           | `npm run web`           |
+| Lint          | `npm run lint`          |
 | Reset starter | `npm run reset-project` |
 
 ### Mobile troubleshooting

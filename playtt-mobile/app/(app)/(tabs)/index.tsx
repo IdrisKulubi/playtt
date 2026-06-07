@@ -1,30 +1,31 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from "expo-router"
+import { useState } from "react"
+import { StyleSheet, Text, View } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 
-import { BrandMark } from '@/components/brand/brand-mark';
-import { Button } from '@/components/ui/button';
+import { BrandMark } from "@/components/brand/brand-mark"
+import { Button } from "@/components/ui/button"
 import {
   PlayTTColors,
   PlayTTFontFamilies,
   PlayTTSpacing,
   PlayTTTypography,
-} from '@/constants/playtt-tokens';
-import { authClient, useSession } from '@/lib/auth-client';
+} from "@/constants/playtt-tokens"
+import { useSession } from "@/lib/auth-client"
+import { clearSession } from "@/lib/auth-helpers"
 
 export default function AppHomeScreen() {
-  const { data: session } = useSession();
-  const [isSigningOut, setIsSigningOut] = useState(false);
+  const { data: session } = useSession()
+  const [isSigningOut, setIsSigningOut] = useState(false)
 
   async function handleSignOut() {
-    setIsSigningOut(true);
-    await authClient.signOut();
-    router.replace('/sign-in');
-    setIsSigningOut(false);
+    setIsSigningOut(true)
+    await clearSession()
+    router.replace("/sign-in")
+    setIsSigningOut(false)
   }
 
-  const userEmail = session?.user?.email ?? 'Signed in';
+  const userEmail = session?.user?.email ?? "Signed in"
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -32,7 +33,8 @@ export default function AppHomeScreen() {
         <BrandMark size="compact" />
         <Text style={styles.title}>Dashboard</Text>
         <Text style={styles.description}>
-          You are signed in as {userEmail}. Booking and venue features will land here next.
+          You are signed in as {userEmail}. Booking and venue features will land
+          here next.
         </Text>
         <Button
           label="Sign out"
@@ -43,7 +45,7 @@ export default function AppHomeScreen() {
         />
       </View>
     </SafeAreaView>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -67,4 +69,4 @@ const styles = StyleSheet.create({
     fontFamily: PlayTTFontFamilies.regular,
     color: PlayTTColors.productMuted,
   },
-});
+})

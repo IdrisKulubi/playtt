@@ -1,36 +1,51 @@
-import { Redirect, Stack } from 'expo-router';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { Redirect, Stack } from "expo-router"
+import { ActivityIndicator, StyleSheet, View } from "react-native"
+import { useEffect, useState } from "react"
 
-import { PlayTTColors } from '@/constants/playtt-tokens';
-import { useSession } from '@/lib/auth-client';
+import { PlayTTColors } from "@/constants/playtt-tokens"
+import { getStoredAuth } from "@/lib/auth-helpers"
 
 export default function AppLayout() {
-  const { data: session, isPending } = useSession();
+  const [hasStoredAuth, setHasStoredAuth] = useState<boolean | null>(null)
 
-  if (isPending) {
+  useEffect(() => {
+    let mounted = true
+
+    getStoredAuth().then((stored) => {
+      if (mounted) {
+        setHasStoredAuth(Boolean(stored?.token))
+      }
+    })
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  if (hasStoredAuth === null) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={PlayTTColors.primary} />
       </View>
-    );
+    )
   }
 
-  if (!session) {
-    return <Redirect href="/sign-in" />;
+  if (!hasStoredAuth) {
+    return <Redirect href="/sign-in" />
   }
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
     </Stack>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
   loading: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: PlayTTColors.background,
   },
-});
+})

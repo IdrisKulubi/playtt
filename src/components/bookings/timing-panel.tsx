@@ -1,29 +1,30 @@
-"use client";
+"use client"
 
-import { addDays, format, isSameDay, isToday, startOfDay } from "date-fns";
-import { ArrowLeftIcon } from "@phosphor-icons/react";
+import { format, isSameDay, isToday } from "date-fns"
+import { ArrowLeftIcon } from "@phosphor-icons/react"
 
-import { SlotRow } from "@/components/bookings/slot-row";
-import { Button } from "@/components/ui/button";
-import type { LocationSummary, SlotAvailability } from "@/server/bookings/types";
+import { SlotRow } from "@/components/bookings/slot-row"
+import { Button } from "@/components/ui/button"
+import type { LocationSummary, SlotAvailability } from "@/server/bookings/types"
 
 interface TimingPanelProps {
-  location: LocationSummary | null;
-  selectedDate: string;
-  selectedDay: Date;
-  dateStripDays: Date[];
-  showExtendedDates: boolean;
-  showDatePicker: boolean;
-  durationMinutes: 30 | 60;
-  slots: SlotAvailability[];
-  selectedSlot: SlotAvailability | null;
-  isPending: boolean;
-  onBack: () => void;
-  onDateChange: (value: string) => void;
-  onShowExtendedDates: () => void;
-  onShowDatePicker: () => void;
-  onDurationChange: (value: 30 | 60) => void;
-  onSlotSelect: (slot: SlotAvailability) => void;
+  location: LocationSummary | null
+  selectedDate: string
+  selectedDay: Date
+  dateStripDays: Date[]
+  showExtendedDates: boolean
+  showDatePicker: boolean
+  durationMinutes: 30 | 60
+  slots: SlotAvailability[]
+  selectedSlot: SlotAvailability | null
+  isPending: boolean
+  nowMs: number
+  onBack: () => void
+  onDateChange: (value: string) => void
+  onShowExtendedDates: () => void
+  onShowDatePicker: () => void
+  onDurationChange: (value: 30 | 60) => void
+  onSlotSelect: (slot: SlotAvailability) => void
 }
 
 export function TimingPanel({
@@ -37,6 +38,7 @@ export function TimingPanel({
   slots,
   selectedSlot,
   isPending,
+  nowMs,
   onBack,
   onDateChange,
   onShowExtendedDates,
@@ -65,8 +67,8 @@ export function TimingPanel({
       <div className="-mx-1 mt-2 overflow-x-auto px-4 pb-1">
         <div className="flex min-w-max items-end gap-0">
           {dateStripDays.map((d) => {
-            const key = format(d, "yyyy-MM-dd");
-            const sel = isSameDay(d, selectedDay);
+            const key = format(d, "yyyy-MM-dd")
+            const sel = isSameDay(d, selectedDay)
 
             return (
               <button
@@ -78,7 +80,7 @@ export function TimingPanel({
                 <span className="booking-date-tab__dot" aria-hidden />
                 {isToday(d) ? "Today" : format(d, "EEE, M/d")}
               </button>
-            );
+            )
           })}
           {!showExtendedDates ? (
             <button
@@ -94,7 +96,11 @@ export function TimingPanel({
       </div>
 
       <div className="px-4 pt-4">
-        <div className="segmented-control" role="group" aria-label="Session duration">
+        <div
+          className="segmented-control"
+          role="group"
+          aria-label="Session duration"
+        >
           <button
             type="button"
             onClick={() => onDurationChange(30)}
@@ -142,10 +148,9 @@ export function TimingPanel({
           </li>
         ) : (
           slots.map((slot) => {
-            const selected = selectedSlot?.startsAt === slot.startsAt;
-            const startInPast =
-              new Date(slot.startsAt).getTime() <= Date.now();
-            const rowDisabled = !slot.isAvailable || isPending || startInPast;
+            const selected = selectedSlot?.startsAt === slot.startsAt
+            const startInPast = new Date(slot.startsAt).getTime() <= nowMs
+            const rowDisabled = !slot.isAvailable || isPending || startInPast
 
             return (
               <SlotRow
@@ -153,12 +158,13 @@ export function TimingPanel({
                 slot={slot}
                 selected={selected}
                 disabled={rowDisabled}
+                nowMs={nowMs}
                 onSelect={() => onSlotSelect(slot)}
               />
-            );
+            )
           })
         )}
       </ul>
     </section>
-  );
+  )
 }
