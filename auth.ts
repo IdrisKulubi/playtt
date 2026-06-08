@@ -174,7 +174,7 @@ export const auth = betterAuth({
           otp: string
         }) {
           const emailHtml = await render(
-            OtpEmail({ otp, purpose: "two-factor" })
+            OtpEmail({ otp, purpose: "two-factor", name: user.name })
           )
           await sendEmailOrThrow({
             to: user.email,
