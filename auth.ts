@@ -6,10 +6,18 @@ import { Resend } from "resend"
 import db from "./db/drizzle"
 import * as schema from "./db/schema"
 import { user } from "./db/schema"
-import { resolveAppleClientSecret } from "./src/lib/apple-client-secret"
 import { renderOtpEmailHtml } from "./src/lib/email/render-otp-email"
 import { eq } from "drizzle-orm"
 import { WEB_CORS_ORIGINS } from "./src/lib/web-cors-origins"
+
+function parseOrigins(value: string | undefined) {
+  return (
+    value
+      ?.split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean) ?? []
+  )
+}
 
 const MOBILE_TRUSTED_ORIGINS = [
   // Mobile app scheme. Must match app.json "expo.scheme" and expoClient.scheme.
@@ -45,28 +53,9 @@ const TRUSTED_ORIGINS = [
   "https://appleid.apple.com",
 ]
 
-const appleClientId = process.env.APPLE_CLIENT_ID?.trim()
-const appleClientSecret = appleClientId ? await resolveAppleClientSecret() : null
-
-if (appleClientId && !appleClientSecret) {
-  console.warn(
-    "[AUTH] APPLE_CLIENT_ID is set but no Apple client secret is available. " +
-      "Set APPLE_PRIVATE_KEY (+ APPLE_TEAM_ID, APPLE_KEY_ID) or APPLE_CLIENT_SECRET in production.",
-  )
-}
-
 const resend = new Resend(process.env.RESEND_API_KEY ?? "re_placeholder")
 const resendFromEmail =
   process.env.RESEND_FROM_EMAIL?.trim().toLowerCase() || "onboarding@resend.dev"
-
-function parseOrigins(value: string | undefined) {
-  return (
-    value
-      ?.split(",")
-      .map((origin) => origin.trim())
-      .filter(Boolean) ?? []
-  )
-}
 
 async function getUserNameByEmail(email: string) {
   const rows = await db
@@ -151,15 +140,12 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
       prompt: "select_account",
     },
-    ...(appleClientId && appleClientSecret
-      ? {
-          apple: {
-            clientId: appleClientId,
-            clientSecret: appleClientSecret,
-            appBundleIdentifier: process.env.APPLE_APP_BUNDLE_IDENTIFIER,
-          },
-        }
-      : {}),
+    apple: {
+      clientId: process.env.APPLE_CLIENT_ID!,
+      clientSecret: process.env.APPLE_CLIENT_SECRET!,
+      // Native iOS idToken flow: token audience is the bundle ID, not the Services ID.
+      appBundleIdentifier: process.env.APPLE_APP_BUNDLE_IDENTIFIER,
+    },
   },
   plugins: [
     expo(),
