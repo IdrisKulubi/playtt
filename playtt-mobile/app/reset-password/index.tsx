@@ -5,7 +5,7 @@ export default function ResetPasswordScreen() {
   return (
     <AuthShell
       headline="Reset your password."
-      subtitle="We will email a secure link to continue on this device."
+      subtitle="We will email a 6-digit code to continue."
     >
       <ResetPasswordForm />
     </AuthShell>

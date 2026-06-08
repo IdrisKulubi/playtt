@@ -4,8 +4,6 @@ export type AuthApiResult =
   | { success: true }
   | { success: false; message: string };
 
-const MOBILE_RESET_REDIRECT = 'playtt://reset-password/confirm';
-
 async function postToAuth(path: string, payload: Record<string, unknown>) {
   const response = await fetch(`${getApiBaseUrl()}/api/auth/${path}`, {
     method: 'POST',
@@ -107,50 +105,14 @@ export async function requestPasswordReset(email: string): Promise<AuthApiResult
   }
 
   try {
-    await postToAuthWithFallbacks(
-      ['forget-password', 'forgot-password', 'request-password-reset'],
-      {
-        email,
-        redirectTo: MOBILE_RESET_REDIRECT,
-      },
-    );
+    await postToAuth('email-otp/request-password-reset', { email });
 
     return { success: true };
   } catch (error) {
     return {
       success: false,
       message:
-        error instanceof Error ? error.message : 'Failed to send password reset email.',
-    };
-  }
-}
-
-export async function resetPassword(input: {
-  token: string;
-  newPassword: string;
-}): Promise<AuthApiResult> {
-  if (!input.token) {
-    return { success: false, message: 'Reset token is required.' };
-  }
-
-  if (!input.newPassword) {
-    return { success: false, message: 'New password is required.' };
-  }
-
-  try {
-    await postToAuthWithFallbacks(
-      ['reset-password', 'change-password', 'confirm-password-reset'],
-      {
-        token: input.token,
-        newPassword: input.newPassword,
-      },
-    );
-
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Failed to reset password.',
+        error instanceof Error ? error.message : 'Failed to send password reset code.',
     };
   }
 }

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { PlayTTFontFamilies, PlayTTSpacing } from '@/constants/playtt-tokens';
 import { useAuthTheme } from '@/hooks/use-auth-theme';
 import { requestPasswordReset } from '@/lib/auth-api';
+import { goToResetPasswordConfirm } from '@/lib/auth-navigation';
 import { requestResetSchema, type RequestResetValues } from '@/lib/auth-schemas';
 import { mapZodErrors, type FieldErrors } from '@/lib/form-errors';
 
@@ -15,7 +16,6 @@ export function ResetPasswordForm() {
   const theme = useAuthTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [values, setValues] = useState<RequestResetValues>({ email: '' });
   const [fieldErrors, setFieldErrors] = useState<FieldErrors<keyof RequestResetValues>>({});
 
@@ -24,7 +24,6 @@ export function ResetPasswordForm() {
 
   async function handleSubmit() {
     setFormError(null);
-    setStatusMessage(null);
     const parsed = requestResetSchema.safeParse(values);
     if (!parsed.success) {
       setFieldErrors(mapZodErrors(parsed));
@@ -42,9 +41,7 @@ export function ResetPasswordForm() {
       return;
     }
 
-    setStatusMessage(
-      'If an account exists for that email, a reset link has been sent. Open it on this device to continue.',
-    );
+    goToResetPasswordConfirm(parsed.data.email);
     setIsLoading(false);
   }
 
@@ -65,9 +62,6 @@ export function ResetPasswordForm() {
 
       {formError ? (
         <Text style={[styles.formError, { color: theme.destructive }]}>{formError}</Text>
-      ) : null}
-      {statusMessage ? (
-        <Text style={[styles.statusMessage, { color: theme.muted }]}>{statusMessage}</Text>
       ) : null}
 
       <Button
@@ -102,11 +96,6 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   formError: {
-    fontSize: 12,
-    fontFamily: PlayTTFontFamilies.regular,
-    textAlign: 'center',
-  },
-  statusMessage: {
     fontSize: 12,
     fontFamily: PlayTTFontFamilies.regular,
     textAlign: 'center',

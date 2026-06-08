@@ -20,3 +20,10 @@ export function goToVerifyEmail(email: string) {
     params: { email },
   })
 }
+
+export function goToResetPasswordConfirm(email: string) {
+  router.replace({
+    pathname: "/reset-password/confirm",
+    params: { email },
+  })
+}

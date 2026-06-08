@@ -123,13 +123,7 @@ export async function requestPasswordResetAction(
   }
 
   try {
-    await postToAuthWithFallbacks(
-      ["forget-password", "forgot-password", "request-password-reset"],
-      {
-      email,
-      redirectTo: `${authBaseUrl}/reset-password/confirm`,
-      },
-    );
+    await postToAuth("email-otp/request-password-reset", { email });
 
     return { success: true };
   } catch (error) {
@@ -138,31 +132,40 @@ export async function requestPasswordResetAction(
       message:
         error instanceof Error
           ? error.message
-          : "Failed to send password reset email.",
+          : "Failed to send password reset code.",
     };
   }
 }
 
+export async function resendPasswordResetOtpAction(
+  email: string,
+): Promise<ActionResult> {
+  return requestPasswordResetAction(email);
+}
+
 export async function resetPasswordAction(input: {
-  token: string;
-  newPassword: string;
+  email: string;
+  otp: string;
+  password: string;
 }): Promise<ActionResult> {
-  if (!input.token) {
-    return { success: false, message: "Reset token is required." };
+  if (!input.email) {
+    return { success: false, message: "Email is required." };
   }
 
-  if (!input.newPassword) {
+  if (!input.otp) {
+    return { success: false, message: "Reset code is required." };
+  }
+
+  if (!input.password) {
     return { success: false, message: "New password is required." };
   }
 
   try {
-    await postToAuthWithFallbacks(
-      ["reset-password", "change-password", "confirm-password-reset"],
-      {
-        token: input.token,
-        newPassword: input.newPassword,
-      },
-    );
+    await postToAuth("email-otp/reset-password", {
+      email: input.email,
+      otp: input.otp,
+      password: input.password,
+    });
 
     return { success: true };
   } catch (error) {

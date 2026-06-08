@@ -5,7 +5,7 @@ export default function ResetPasswordConfirmScreen() {
   return (
     <AuthShell
       headline="Choose a new password."
-      subtitle="Use at least eight characters. You can sign in right after saving."
+      subtitle="Enter the code from your email and choose a new password."
     >
       <ResetPasswordConfirmForm />
     </AuthShell>

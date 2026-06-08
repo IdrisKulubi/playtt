@@ -168,31 +168,32 @@ Requires `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` on the backend. Tap **Con
 
 ---
 
-## Phase 4 — Password reset
+## Phase 4 — Password reset (OTP)
 
 ### Steps
 
 1. On sign-in, tap **Forgot?** (or go to `/reset-password`)
-2. Enter account email → tap **Send reset link**
-3. Open reset email **on the same device**
-4. Link opens app at `/reset-password/confirm?token=...`
-5. Enter new password + confirm → tap **Save new password**
-6. Sign in with the new password
+2. Enter account email → tap **Continue**
+3. App navigates to `/reset-password/confirm?email=...`
+4. Enter 6-digit code from email + new password → tap **Continue**
+5. Sign in with the new password
 
 ### Expected behavior
 
-- Reset email contains link: `playtt://reset-password/confirm?token=...`
-- `POST /api/auth/reset-password` succeeds
+- Reset email contains OTP with subject "Reset your PlayTT password"
+- `POST /api/auth/email-otp/request-password-reset` sends the code
+- `POST /api/auth/email-otp/reset-password` succeeds
 - Redirect to sign-in
 
 ### Test cases
 
 | Case | Expected |
 |------|----------|
-| Unknown email | Generic success message (no account enumeration) |
-| Expired/invalid token | Error on confirm screen |
-| Passwords don't match | Inline validation error |
-| Open confirm without token | Prompt to request new link |
+| Unknown email | Navigate to confirm (no account enumeration) |
+| Expired/invalid OTP | Error on confirm screen |
+| Weak password | Inline validation error |
+| Open confirm without email | Prompt to request new code |
+| Resend code | New OTP sent |
 
 ---
 
@@ -228,8 +229,8 @@ Requires `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` on the backend. Tap **Con
 | `/sign-in` | Email/password + Google sign-in |
 | `/sign-up` | Create account |
 | `/verify-email` | OTP verification |
-| `/reset-password` | Request reset link |
-| `/reset-password/confirm` | Set new password (deep link) |
+| `/reset-password` | Request reset code |
+| `/reset-password/confirm` | Enter OTP + set new password |
 | `/(app)/(tabs)` | Authenticated home (sign-out) |
 
 ---
@@ -243,8 +244,8 @@ Requires `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` on the backend. Tap **Con
 | Verify email | `authClient.emailOtp.verifyEmail` | `POST /api/auth/email-otp/verify-email` |
 | Sign in | `authClient.signIn.email` | `POST /api/auth/sign-in/email` |
 | 2FA | `authClient.twoFactor.verifyOtp` | `POST /api/auth/two-factor/verify-otp` |
-| Request reset | `requestPasswordReset()` | `POST /api/auth/forget-password` |
-| Confirm reset | `resetPassword()` | `POST /api/auth/reset-password` |
+| Request reset | `requestPasswordReset()` | `POST /api/auth/email-otp/request-password-reset` |
+| Confirm reset | `authClient.emailOtp.resetPassword` | `POST /api/auth/email-otp/reset-password` |
 | Sign out | `authClient.signOut()` | `POST /api/auth/sign-out` |
 | Session | `useSession()` / `getSession()` | `GET /api/auth/get-session` |
 

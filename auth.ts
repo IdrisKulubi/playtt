@@ -7,7 +7,6 @@ import db from "./db/drizzle"
 import * as schema from "./db/schema"
 import { render } from "@react-email/components"
 import OtpEmail from "./src/emails/otp-email"
-import ResetPasswordEmail from "./src/emails/reset-password-email"
 import { user } from "./db/schema"
 import { eq } from "drizzle-orm"
 import { WEB_CORS_ORIGINS } from "./src/lib/web-cors-origins"
@@ -121,24 +120,6 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
-    async sendResetPassword(data: {
-      user: { email: string; name: string }
-      url: string
-    }) {
-      const { user, url } = data
-      const emailHtml = await render(
-        ResetPasswordEmail({
-          resetLink: url,
-          userName: user.name || "User",
-        })
-      )
-
-      await sendEmailOrThrow({
-        to: user.email,
-        subject: "Reset your PlayTT password",
-        html: emailHtml,
-      })
-    },
   },
   socialProviders: {
     google: {
@@ -158,20 +139,22 @@ export const auth = betterAuth({
       }),
     },
     emailOTP({
-      async sendVerificationOTP({
-        email,
-        otp,
-      }: {
-        email: string
-        otp: string
-      }) {
+      async sendVerificationOTP({ email, otp, type }) {
         try {
-          // Reuse existing OtpEmail template
-          const emailHtml = await render(OtpEmail({ otp }))
+          const subject =
+            type === "forget-password"
+              ? "Reset your PlayTT password"
+              : type === "sign-in"
+                ? "Your PlayTT sign-in code"
+                : type === "change-email"
+                  ? "Confirm your new email address"
+                  : "Verify your email address"
+
+          const emailHtml = await render(OtpEmail({ otp, purpose: type }))
 
           await sendEmailOrThrow({
             to: email,
-            subject: "Verify your email address",
+            subject,
             html: emailHtml,
           })
         } catch (error) {
@@ -190,7 +173,9 @@ export const auth = betterAuth({
           user: { email: string; name: string }
           otp: string
         }) {
-          const emailHtml = await render(OtpEmail({ otp }))
+          const emailHtml = await render(
+            OtpEmail({ otp, purpose: "two-factor" })
+          )
           await sendEmailOrThrow({
             to: user.email,
             subject: "Your PlayTT Security Code",

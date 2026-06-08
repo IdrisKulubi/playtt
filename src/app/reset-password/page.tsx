@@ -3,7 +3,7 @@ import { RequestPasswordResetForm } from "@/components/auth/request-password-res
 
 export default function ResetPasswordPage() {
   return (
-    <AuthShell title="Reset password" description="We will email you a secure link to choose a new password.">
+    <AuthShell title="Reset password" description="We will email you a 6-digit code to choose a new password.">
       <RequestPasswordResetForm />
     </AuthShell>
   );

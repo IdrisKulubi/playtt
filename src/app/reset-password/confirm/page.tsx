@@ -5,7 +5,7 @@ import { ResetPasswordConfirmForm } from "@/components/auth/reset-password-confi
 
 export default function ResetPasswordConfirmPage() {
   return (
-    <AuthShell title="New password" description="Choose a new password for your account.">
+    <AuthShell title="New password" description="Enter the code from your email and choose a new password.">
       <Suspense fallback={null}>
         <ResetPasswordConfirmForm />
       </Suspense>

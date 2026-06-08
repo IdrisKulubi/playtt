@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod/v3";
@@ -26,6 +27,7 @@ const requestResetSchema = z.object({
 });
 
 export function RequestPasswordResetForm() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<z.infer<typeof requestResetSchema>>({
@@ -45,14 +47,15 @@ export function RequestPasswordResetForm() {
       return;
     }
 
-    toast.success("Password reset email sent. Check your inbox.");
-    setIsLoading(false);
+    router.push(
+      `/reset-password/confirm?email=${encodeURIComponent(values.email)}`,
+    );
   }
 
   return (
     <AuthFormCard
       title="Recover your account"
-      description="Enter the email tied to your PlayTT account and we will send a secure reset link."
+      description="Enter the email tied to your PlayTT account and we will send a 6-digit reset code."
       footer={
         <p className="mx-auto text-center">
           Remembered it?{" "}
@@ -79,12 +82,12 @@ export function RequestPasswordResetForm() {
           />
 
           <div className="auth-support-note">
-            We keep this flow intentionally simple: one trusted address, one secure link, one clear next step.
+            If an account exists for that email, we will send a code to continue.
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? <CircleNotchIcon className="size-4 animate-spin" /> : null}
-            Send reset link
+            Send reset code
           </Button>
         </form>
       </Form>

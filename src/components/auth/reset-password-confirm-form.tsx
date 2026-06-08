@@ -9,7 +9,10 @@ import * as z from "zod/v3";
 import { CircleNotchIcon, Eye, EyeSlash } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
-import { resetPasswordAction } from "@/actions/auth-actions";
+import {
+  resendPasswordResetOtpAction,
+  resetPasswordAction,
+} from "@/actions/auth-actions";
 import { AuthFormCard } from "@/components/auth/auth-form-card";
 import { PasswordStrengthIndicator } from "@/components/ui/password-strength";
 import { Button } from "@/components/ui/button";
@@ -22,9 +25,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 const resetPasswordSchema = z
   .object({
+    otp: z.string().min(6, "OTP must be 6 digits"),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
   })
@@ -36,7 +41,7 @@ const resetPasswordSchema = z
 export function ResetPasswordConfirmForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get("token") ?? "";
+  const email = searchParams.get("email") ?? "";
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -44,16 +49,23 @@ export function ResetPasswordConfirmForm() {
   const form = useForm<z.infer<typeof resetPasswordSchema>>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: {
+      otp: "",
       password: "",
       confirmPassword: "",
     },
   });
 
   async function onSubmit(values: z.infer<typeof resetPasswordSchema>) {
+    if (!email) {
+      toast.error("Email is missing. Request a new code.");
+      return;
+    }
+
     setIsLoading(true);
     const result = await resetPasswordAction({
-      token,
-      newPassword: values.password,
+      email,
+      otp: values.otp,
+      password: values.password,
     });
 
     if (!result.success) {
@@ -66,14 +78,32 @@ export function ResetPasswordConfirmForm() {
     router.push("/sign-in");
   }
 
-  if (!token) {
+  async function handleResend() {
+    if (!email) {
+      return;
+    }
+
+    setIsLoading(true);
+    const result = await resendPasswordResetOtpAction(email);
+
+    if (!result.success) {
+      toast.error(result.message);
+      setIsLoading(false);
+      return;
+    }
+
+    toast.info("Reset code resent. Check your inbox.");
+    setIsLoading(false);
+  }
+
+  if (!email) {
     return (
       <AuthFormCard
-        title="Reset link incomplete"
-        description="This screen needs the secure token from your reset email before a new password can be saved."
+        title="Reset code incomplete"
+        description="This screen needs the email from the previous step before a new password can be saved."
         footer={
           <p className="mx-auto text-center">
-            Need a fresh link?{" "}
+            Need a fresh code?{" "}
             <Link href="/reset-password" className="auth-inline-link">
               Request one
             </Link>
@@ -81,7 +111,7 @@ export function ResetPasswordConfirmForm() {
         }
       >
         <Button asChild className="w-full">
-          <Link href="/reset-password">Request a new link</Link>
+          <Link href="/reset-password">Request a new code</Link>
         </Button>
       </AuthFormCard>
     );
@@ -90,18 +120,59 @@ export function ResetPasswordConfirmForm() {
   return (
     <AuthFormCard
       title="Set a new password"
-      description="Choose a strong password for your PlayTT account and confirm it once."
+      description={
+        <>
+          Enter the six-digit code sent to{" "}
+          <span className="font-medium text-foreground">{email}</span> and choose a
+          new password.
+        </>
+      }
       footer={
-        <p className="mx-auto text-center">
-          Back to{" "}
-          <Link href="/sign-in" className="auth-inline-link">
-            sign in
-          </Link>
-        </p>
+        <div className="mx-auto flex flex-col items-center gap-2 text-center">
+          <Button
+            variant="link"
+            onClick={handleResend}
+            className="h-auto p-0 text-sm text-primary"
+            disabled={isLoading}
+          >
+            Resend code
+          </Button>
+          <p>
+            Back to{" "}
+            <Link href="/sign-in" className="auth-inline-link">
+              sign in
+            </Link>
+          </p>
+        </div>
       }
     >
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+          <div className="flex justify-center">
+            <FormField
+              control={form.control}
+              name="otp"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="sr-only">Reset code</FormLabel>
+                  <FormControl>
+                    <InputOTP maxLength={6} {...field}>
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </FormControl>
+                  <FormMessage className="mt-3 text-center" />
+                </FormItem>
+              )}
+            />
+          </div>
+
           <FormField
             control={form.control}
             name="password"
@@ -168,7 +239,7 @@ export function ResetPasswordConfirmForm() {
           />
 
           <div className="auth-support-note">
-            Keep the language calm and the action obvious: create a strong password, confirm it, and continue.
+            Enter your code, create a strong password, confirm it, and continue.
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
