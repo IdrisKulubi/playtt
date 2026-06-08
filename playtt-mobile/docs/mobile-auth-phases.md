@@ -55,6 +55,11 @@ Create `.env.local` at the repo root with at least:
 | `RESEND_FROM_EMAIL` | Verified sender in Resend |
 | `GOOGLE_CLIENT_ID` | Optional — Google sign-in |
 | `GOOGLE_CLIENT_SECRET` | Optional — Google sign-in |
+| `APPLE_CLIENT_ID` | Services ID — Apple sign-in (e.g. `com.theplaytt.auth`) |
+| `APPLE_APP_BUNDLE_IDENTIFIER` | iOS bundle ID (e.g. `com.theplaytt.app`) |
+| `APPLE_TEAM_ID` | Apple Developer Team ID |
+| `APPLE_KEY_ID` | Sign In with Apple key ID |
+| `APPLE_PRIVATE_KEY` | `.p8` private key (use `\n` for line breaks) |
 
 See `.cursor/skills/run-project/env-reference.md` for the full list.
 
@@ -165,6 +170,18 @@ Use **`npm start`**, not `npx expo start` (avoids legacy global expo-cli on Wind
 ### Google sign-in (optional)
 
 Requires `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` on the backend. Tap **Continue with Google** — browser OAuth flow returns to app via `playtt://` scheme.
+
+### Apple sign-in (iOS)
+
+Requires Apple env vars on the backend (client secret is generated dynamically from `APPLE_PRIVATE_KEY`). The iOS app uses native `expo-apple-authentication` and sends an `idToken` to Better Auth (not a browser redirect).
+
+| Requirement | Value |
+|-------------|-------|
+| iOS bundle ID | `com.theplaytt.app` in `app.json` and Apple Developer App ID |
+| Services ID return URL | `https://www.theplaytt.com/api/auth/callback/apple` |
+| Test device | iOS simulator or device with Apple ID; dev client/EAS build recommended over Expo Go |
+
+Manual test: tap **Apple** on sign-in → native sheet → app navigates to dashboard with session in SecureStore.
 
 ---
 

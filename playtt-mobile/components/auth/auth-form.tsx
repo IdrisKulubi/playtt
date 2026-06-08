@@ -1,5 +1,5 @@
 import type { AuthMode } from '@/constants/auth-theme';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SocialAuthButton } from '@/components/auth/social-auth-button';
@@ -9,6 +9,11 @@ import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { PlayTTFontFamilies, PlayTTSpacing } from '@/constants/playtt-tokens';
 import { useAuthTheme } from '@/hooks/use-auth-theme';
+import {
+  AppleSignInCanceledError,
+  isAppleSignInAvailable,
+  signInWithApple,
+} from '@/lib/apple-sign-in';
 import { sendVerificationOtp } from '@/lib/auth-api';
 import { formatAuthError } from '@/lib/auth-errors';
 import { authClient, refreshSession } from '@/lib/auth-client';
@@ -57,6 +62,15 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
 
   const isSignIn = mode === 'sign-in';
   const isIos = Platform.OS === 'ios';
+  const [appleAvailable, setAppleAvailable] = useState(false);
+
+  useEffect(() => {
+    if (!isIos) {
+      return;
+    }
+
+    void isAppleSignInAvailable().then(setAppleAvailable);
+  }, [isIos]);
 
   function handleModeChange(nextMode: AuthMode) {
     setMode(nextMode);
@@ -188,6 +202,59 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
       setFormError(
         formatAuthError(
           error instanceof Error ? error.message : 'Google sign in failed.',
+        ),
+      );
+      setIsLoading(false);
+    }
+  }
+
+  async function handleAppleSignIn() {
+    setFormError(null);
+    setIsLoading(true);
+
+    try {
+      const credential = await signInWithApple();
+
+      await authClient.signIn.social(
+        {
+          provider: 'apple',
+          idToken: {
+            token: credential.identityToken,
+            nonce: credential.rawNonce,
+          },
+          callbackURL: '/',
+        },
+        {
+          onSuccess: async () => {
+            if (credential.fullName) {
+              try {
+                await authClient.updateUser({ name: credential.fullName });
+              } catch {
+                // Apple only returns a name on the first authorization.
+              }
+            }
+
+            const stored = await waitForStoredAuth();
+            if (stored?.token) {
+              goToAuthenticatedHome();
+            }
+            setIsLoading(false);
+          },
+          onError: (ctx) => {
+            setFormError(formatAuthError(ctx.error.message || 'Apple sign in failed.'));
+            setIsLoading(false);
+          },
+        },
+      );
+    } catch (error) {
+      if (error instanceof AppleSignInCanceledError) {
+        setIsLoading(false);
+        return;
+      }
+
+      setFormError(
+        formatAuthError(
+          error instanceof Error ? error.message : 'Apple sign in failed.',
         ),
       );
       setIsLoading(false);
@@ -349,16 +416,21 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
         compact
       />
 
-      <View style={[styles.socialRow, !isIos && styles.socialRowSingle]}>
+      <View style={[styles.socialRow, !(isIos && appleAvailable) && styles.socialRowSingle]}>
         <SocialAuthButton
           provider="google"
           theme={theme}
           onPress={handleGoogleSignIn}
           loading={isLoading}
-          fullWidth={!isIos}
+          fullWidth={!(isIos && appleAvailable)}
         />
-        {isIos ? (
-          <SocialAuthButton provider="apple" theme={theme} disabled />
+        {isIos && appleAvailable ? (
+          <SocialAuthButton
+            provider="apple"
+            theme={theme}
+            onPress={handleAppleSignIn}
+            loading={isLoading}
+          />
         ) : null}
       </View>
 

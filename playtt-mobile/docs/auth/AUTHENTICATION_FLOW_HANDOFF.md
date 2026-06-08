@@ -59,6 +59,11 @@ Mobile:
   comma-separated env var for Expo Go/dev-client callback URLs.
 - Google credentials in the hosted backend environment when Google login is
   enabled.
+- Apple credentials when iOS Apple login is enabled: `APPLE_CLIENT_ID`
+  (Services ID), `APPLE_APP_BUNDLE_IDENTIFIER`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`,
+  and `APPLE_PRIVATE_KEY`. The backend generates the Apple client secret JWT
+  from the private key at startup.
+- `https://appleid.apple.com` in `trustedOrigins`.
 - the same `TRUSTED_ORIGINS` passed both as top-level `trustedOrigins` and
   through the `playtt-trusted-origins` Better Auth plugin.
 
@@ -124,6 +129,25 @@ authClient.signIn.social({
   callbackURL: "/",
 })
 ```
+
+For Apple on iOS, use the native sheet via `expo-apple-authentication`, then
+pass the identity token to Better Auth:
+
+```ts
+const credential = await signInWithApple()
+
+authClient.signIn.social({
+  provider: "apple",
+  idToken: {
+    token: credential.identityToken,
+    nonce: credential.rawNonce,
+  },
+  callbackURL: "/",
+})
+```
+
+See `playtt-mobile/lib/apple-sign-in.ts`. `app.json` must set
+`ios.bundleIdentifier` to match `APPLE_APP_BUNDLE_IDENTIFIER`.
 
 The Expo root layout must also call:
 

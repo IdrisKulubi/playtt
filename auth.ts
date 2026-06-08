@@ -6,6 +6,7 @@ import { Resend } from "resend"
 import db from "./db/drizzle"
 import * as schema from "./db/schema"
 import { user } from "./db/schema"
+import { generateAppleClientSecret } from "./src/lib/apple-client-secret"
 import { renderOtpEmailHtml } from "./src/lib/email/render-otp-email"
 import { eq } from "drizzle-orm"
 import { WEB_CORS_ORIGINS } from "./src/lib/web-cors-origins"
@@ -38,7 +39,16 @@ const MOBILE_TRUSTED_ORIGINS = [
   ...parseOrigins(process.env.MOBILE_AUTH_CALLBACK_URLS),
 ]
 
-const TRUSTED_ORIGINS = [...WEB_CORS_ORIGINS, ...MOBILE_TRUSTED_ORIGINS]
+const TRUSTED_ORIGINS = [
+  ...WEB_CORS_ORIGINS,
+  ...MOBILE_TRUSTED_ORIGINS,
+  "https://appleid.apple.com",
+]
+
+const appleClientSecret =
+  process.env.APPLE_CLIENT_ID && process.env.APPLE_PRIVATE_KEY
+    ? await generateAppleClientSecret()
+    : ""
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "re_placeholder")
 const resendFromEmail =
@@ -136,6 +146,15 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
       prompt: "select_account",
     },
+    ...(process.env.APPLE_CLIENT_ID && appleClientSecret
+      ? {
+          apple: {
+            clientId: process.env.APPLE_CLIENT_ID,
+            clientSecret: appleClientSecret,
+            appBundleIdentifier: process.env.APPLE_APP_BUNDLE_IDENTIFIER,
+          },
+        }
+      : {}),
   },
   plugins: [
     expo(),
