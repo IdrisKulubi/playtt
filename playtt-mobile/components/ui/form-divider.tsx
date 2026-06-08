@@ -1,3 +1,4 @@
+import type { AuthThemeColors } from '@/constants/auth-theme';
 import { StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -9,14 +10,26 @@ import {
 
 type FormDividerProps = {
   label: string;
+  compact?: boolean;
+  variant?: 'product' | 'auth';
+  authTheme?: AuthThemeColors;
 };
 
-export function FormDivider({ label }: FormDividerProps) {
+export function FormDivider({
+  label,
+  compact = false,
+  variant = 'product',
+  authTheme,
+}: FormDividerProps) {
+  const isAuth = variant === 'auth' && authTheme;
+  const lineColor = isAuth ? authTheme.divider : PlayTTColors.productBorder;
+  const labelColor = isAuth ? authTheme.muted : PlayTTColors.productMuted;
+
   return (
-    <View style={styles.container}>
-      <View style={styles.line} />
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.line} />
+    <View style={[styles.container, compact && styles.containerCompact]}>
+      <View style={[styles.line, { backgroundColor: lineColor }]} />
+      <Text style={[styles.label, { color: labelColor }]}>{label}</Text>
+      <View style={[styles.line, { backgroundColor: lineColor }]} />
     </View>
   );
 }
@@ -26,15 +39,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: PlayTTSpacing.sm,
+    paddingVertical: PlayTTSpacing['2xs'],
+  },
+  containerCompact: {
+    paddingVertical: 0,
+    gap: PlayTTSpacing.xs,
   },
   line: {
     flex: 1,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: PlayTTColors.productBorder,
+    height: 1,
   },
   label: {
     ...PlayTTTypography.label,
+    fontSize: 12,
     fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.productMuted,
+    letterSpacing: 0.2,
   },
 });

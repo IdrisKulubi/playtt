@@ -1,112 +1,93 @@
-import { router, useLocalSearchParams } from "expo-router"
-import { useState } from "react"
-import { Pressable, StyleSheet, Text } from "react-native"
+import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { AuthFormCard } from "@/components/auth/auth-form-card"
-import { Button } from "@/components/ui/button"
-import { FormField } from "@/components/ui/form-field"
-import { Input } from "@/components/ui/input"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTTypography,
-} from "@/constants/playtt-tokens"
-import { sendVerificationOtp } from "@/lib/auth-api"
-import { authClient, refreshSession } from "@/lib/auth-client"
-import { waitForStoredAuth } from "@/lib/auth-helpers"
-import { goToAuthenticatedHome } from "@/lib/auth-navigation"
-import { verifyEmailSchema, type VerifyEmailValues } from "@/lib/auth-schemas"
-import { mapZodErrors, type FieldErrors } from "@/lib/form-errors"
+import { Button } from '@/components/ui/button';
+import { FormField } from '@/components/ui/form-field';
+import { Input } from '@/components/ui/input';
+import { PlayTTFontFamilies, PlayTTSpacing } from '@/constants/playtt-tokens';
+import { useAuthTheme } from '@/hooks/use-auth-theme';
+import { sendVerificationOtp } from '@/lib/auth-api';
+import { authClient, refreshSession } from '@/lib/auth-client';
+import { waitForStoredAuth } from '@/lib/auth-helpers';
+import { goToAuthenticatedHome } from '@/lib/auth-navigation';
+import { verifyEmailSchema, type VerifyEmailValues } from '@/lib/auth-schemas';
+import { mapZodErrors, type FieldErrors } from '@/lib/form-errors';
 
 export function VerifyEmailForm() {
-  const { email } = useLocalSearchParams<{ email?: string }>()
-  const resolvedEmail = typeof email === "string" ? email : ""
+  const theme = useAuthTheme();
+  const { email } = useLocalSearchParams<{ email?: string }>();
+  const resolvedEmail = typeof email === 'string' ? email : '';
 
-  const [isLoading, setIsLoading] = useState(false)
-  const [formError, setFormError] = useState<string | null>(null)
-  const [statusMessage, setStatusMessage] = useState<string | null>(null)
-  const [values, setValues] = useState<VerifyEmailValues>({ otp: "" })
-  const [fieldErrors, setFieldErrors] = useState<
-    FieldErrors<keyof VerifyEmailValues>
-  >({})
+  const [isLoading, setIsLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [values, setValues] = useState<VerifyEmailValues>({ otp: '' });
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<keyof VerifyEmailValues>>({});
+
+  const fieldProps = { variant: 'auth' as const, authTheme: theme, compact: true };
+  const inputProps = { variant: 'auth' as const, authTheme: theme };
 
   async function handleVerify() {
     if (!resolvedEmail) {
-      setFormError("Email is missing. Please restart sign-up.")
-      return
+      setFormError('Email is missing. Please restart sign-up.');
+      return;
     }
 
-    setFormError(null)
-    setStatusMessage(null)
-    const parsed = verifyEmailSchema.safeParse(values)
+    setFormError(null);
+    setStatusMessage(null);
+    const parsed = verifyEmailSchema.safeParse(values);
     if (!parsed.success) {
-      setFieldErrors(mapZodErrors(parsed))
-      return
+      setFieldErrors(mapZodErrors(parsed));
+      return;
     }
 
-    setFieldErrors({})
-    setIsLoading(true)
+    setFieldErrors({});
+    setIsLoading(true);
 
     const { error } = await authClient.emailOtp.verifyEmail({
       email: resolvedEmail,
       otp: parsed.data.otp,
-    })
+    });
 
     if (error) {
-      setFormError(error.message || "Invalid verification code.")
-      setIsLoading(false)
-      return
+      setFormError(error.message || 'Invalid verification code.');
+      setIsLoading(false);
+      return;
     }
 
-    await refreshSession()
-    await waitForStoredAuth()
-    goToAuthenticatedHome()
-    setIsLoading(false)
+    await refreshSession();
+    await waitForStoredAuth();
+    goToAuthenticatedHome();
+    setIsLoading(false);
   }
 
   async function handleResend() {
     if (!resolvedEmail) {
-      return
+      return;
     }
 
-    setFormError(null)
-    setStatusMessage(null)
-    setIsLoading(true)
+    setFormError(null);
+    setStatusMessage(null);
+    setIsLoading(true);
 
-    const result = await sendVerificationOtp(resolvedEmail)
+    const result = await sendVerificationOtp(resolvedEmail);
 
     if (!result.success) {
-      setFormError(result.message)
-      setIsLoading(false)
-      return
+      setFormError(result.message);
+      setIsLoading(false);
+      return;
     }
 
-    setStatusMessage("Verification code resent. Check your inbox.")
-    setIsLoading(false)
+    setStatusMessage('Verification code resent. Check your inbox.');
+    setIsLoading(false);
   }
 
   return (
-    <AuthFormCard
-      title="Verify your email"
-      description={
-        resolvedEmail
-          ? `Enter the six-digit code sent to ${resolvedEmail}.`
-          : "Enter the six-digit code from your inbox."
-      }
-      footer={
-        <Text style={styles.footerText}>
-          Wrong email?{" "}
-          <Text
-            style={styles.inlineLink}
-            onPress={() => router.replace("/sign-up")}
-          >
-            Start over
-          </Text>
-        </Text>
-      }
-    >
-      <FormField label="Verification code" error={fieldErrors.otp}>
+    <View style={styles.form}>
+      <FormField label="Verification code" error={fieldErrors.otp} {...fieldProps}>
         <Input
+          {...inputProps}
           value={values.otp}
           onChangeText={(otp) => setValues({ otp })}
           placeholder="123456"
@@ -116,55 +97,61 @@ export function VerifyEmailForm() {
         />
       </FormField>
 
-      {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+      {formError ? (
+        <Text style={[styles.formError, { color: theme.destructive }]}>{formError}</Text>
+      ) : null}
       {statusMessage ? (
-        <Text style={styles.statusMessage}>{statusMessage}</Text>
+        <Text style={[styles.statusMessage, { color: theme.muted }]}>{statusMessage}</Text>
       ) : null}
 
       <Button
-        label="Verify and continue"
-        surface="product"
+        label="Continue"
+        surface="auth"
+        authTheme={theme}
         onPress={handleVerify}
         loading={isLoading}
       />
 
       <Pressable onPress={handleResend} disabled={isLoading}>
-        <Text style={styles.resendLink}>Resend code</Text>
+        <Text style={[styles.link, { color: theme.link }]}>Resend code</Text>
       </Pressable>
-    </AuthFormCard>
-  )
+
+      <Pressable onPress={() => router.replace('/auth?mode=sign-up')}>
+        <Text style={[styles.modePrompt, { color: theme.muted }]}>
+          Wrong email?{' '}
+          <Text style={[styles.modeLink, { color: theme.foreground }]}>Start over</Text>
+        </Text>
+      </Pressable>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  footerText: {
-    ...PlayTTTypography.body,
+  form: {
+    gap: PlayTTSpacing.md,
+  },
+  link: {
     fontSize: 14,
-    lineHeight: 22,
+    fontFamily: PlayTTFontFamilies.semiBold,
+    textAlign: 'center',
+  },
+  modePrompt: {
+    fontSize: 14,
     fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.productMuted,
-    textAlign: "center",
+    textAlign: 'center',
   },
-  inlineLink: {
-    ...PlayTTTypography.label,
+  modeLink: {
     fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.primary,
-  },
-  resendLink: {
-    ...PlayTTTypography.label,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.primary,
-    textAlign: "center",
+    textDecorationLine: 'underline',
   },
   formError: {
-    ...PlayTTTypography.label,
+    fontSize: 12,
     fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.destructive,
-    textAlign: "center",
+    textAlign: 'center',
   },
   statusMessage: {
-    ...PlayTTTypography.label,
+    fontSize: 12,
     fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.productMuted,
-    textAlign: "center",
+    textAlign: 'center',
   },
-})
+});

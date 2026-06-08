@@ -1,26 +1,26 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { AuthFormCard } from '@/components/auth/auth-form-card';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTTypography,
-} from '@/constants/playtt-tokens';
+import { PlayTTFontFamilies, PlayTTSpacing } from '@/constants/playtt-tokens';
+import { useAuthTheme } from '@/hooks/use-auth-theme';
 import { requestPasswordReset } from '@/lib/auth-api';
 import { requestResetSchema, type RequestResetValues } from '@/lib/auth-schemas';
 import { mapZodErrors, type FieldErrors } from '@/lib/form-errors';
 
 export function ResetPasswordForm() {
+  const theme = useAuthTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [values, setValues] = useState<RequestResetValues>({ email: '' });
   const [fieldErrors, setFieldErrors] = useState<FieldErrors<keyof RequestResetValues>>({});
+
+  const fieldProps = { variant: 'auth' as const, authTheme: theme, compact: true };
+  const inputProps = { variant: 'auth' as const, authTheme: theme };
 
   async function handleSubmit() {
     setFormError(null);
@@ -49,22 +49,13 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <AuthFormCard
-      title="Reset your password"
-      description="We will email a secure link that opens PlayTT on this device."
-      footer={
-        <Text style={styles.footerText}>
-          Remembered it?{' '}
-          <Text style={styles.inlineLink} onPress={() => router.replace('/sign-in')}>
-            Back to sign in
-          </Text>
-        </Text>
-      }>
-      <FormField label="Email" error={fieldErrors.email}>
+    <View style={styles.form}>
+      <FormField label="Email" error={fieldErrors.email} {...fieldProps}>
         <Input
+          {...inputProps}
           value={values.email}
           onChangeText={(email) => setValues({ email })}
-          placeholder="name@theplaytt.com"
+          placeholder="Enter your email address"
           autoCapitalize="none"
           autoComplete="email"
           keyboardType="email-address"
@@ -72,43 +63,52 @@ export function ResetPasswordForm() {
         />
       </FormField>
 
-      {formError ? <Text style={styles.formError}>{formError}</Text> : null}
-      {statusMessage ? <Text style={styles.statusMessage}>{statusMessage}</Text> : null}
+      {formError ? (
+        <Text style={[styles.formError, { color: theme.destructive }]}>{formError}</Text>
+      ) : null}
+      {statusMessage ? (
+        <Text style={[styles.statusMessage, { color: theme.muted }]}>{statusMessage}</Text>
+      ) : null}
 
       <Button
-        label="Send reset link"
-        surface="product"
+        label="Continue"
+        surface="auth"
+        authTheme={theme}
         onPress={handleSubmit}
         loading={isLoading}
       />
-    </AuthFormCard>
+
+      <Pressable onPress={() => router.replace('/auth?mode=sign-in')}>
+        <Text style={[styles.modePrompt, { color: theme.muted }]}>
+          Remembered it?{' '}
+          <Text style={[styles.modeLink, { color: theme.foreground }]}>Log in</Text>
+        </Text>
+      </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  footerText: {
-    ...PlayTTTypography.body,
+  form: {
+    gap: PlayTTSpacing.md,
+  },
+  modePrompt: {
     fontSize: 14,
-    lineHeight: 22,
     fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.productMuted,
     textAlign: 'center',
   },
-  inlineLink: {
-    ...PlayTTTypography.label,
+  modeLink: {
     fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.primary,
+    textDecorationLine: 'underline',
   },
   formError: {
-    ...PlayTTTypography.label,
+    fontSize: 12,
     fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.destructive,
     textAlign: 'center',
   },
   statusMessage: {
-    ...PlayTTTypography.label,
+    fontSize: 12,
     fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.productMuted,
     textAlign: 'center',
   },
 });

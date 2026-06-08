@@ -3,7 +3,10 @@ import { ResetPasswordConfirmForm } from '@/components/auth/reset-password-confi
 
 export default function ResetPasswordConfirmScreen() {
   return (
-    <AuthShell title="New password" description="Set a fresh password for your PlayTT account.">
+    <AuthShell
+      headline="Choose a new password."
+      subtitle="Use at least eight characters. You can sign in right after saving."
+    >
       <ResetPasswordConfirmForm />
     </AuthShell>
   );

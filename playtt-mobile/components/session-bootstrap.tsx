@@ -8,7 +8,7 @@ export function SessionBootstrap() {
   useEffect(() => {
     setSessionExpiredHandler(async () => {
       await clearSession()
-      router.replace("/sign-in")
+      router.replace("/auth?mode=sign-in")
     })
   }, [])
 

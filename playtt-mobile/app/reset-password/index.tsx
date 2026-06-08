@@ -3,7 +3,10 @@ import { ResetPasswordForm } from '@/components/auth/reset-password-form';
 
 export default function ResetPasswordScreen() {
   return (
-    <AuthShell title="Forgot password" description="We will send a secure reset link to your inbox.">
+    <AuthShell
+      headline="Reset your password."
+      subtitle="We will email a secure link to continue on this device."
+    >
       <ResetPasswordForm />
     </AuthShell>
   );

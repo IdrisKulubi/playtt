@@ -94,13 +94,13 @@ export default function LandingScreen() {
           <Button
             label="Create account"
             variant="outline"
-            onPress={() => router.push("/sign-up")}
+            onPress={() => router.push("/auth?mode=sign-up")}
           />
           <View style={styles.signInRow}>
             <Text style={styles.signInPrompt}>Already have an account?</Text>
             <Pressable
               accessibilityRole="link"
-              onPress={() => router.push("/sign-in")}
+              onPress={() => router.push("/auth?mode=sign-in")}
               style={({ pressed }) => [
                 styles.signInLink,
                 pressed && styles.signInLinkPressed,

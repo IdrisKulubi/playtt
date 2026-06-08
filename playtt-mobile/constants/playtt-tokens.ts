@@ -14,10 +14,13 @@ export const PlayTTColors = {
   warning: '#ffb800',
   // Light product surface (auth/booking)
   productBackground: '#f5f7fa',
+  productElevated: '#eef2f7',
+  productCard: '#ffffff',
   productForeground: '#0a1628',
   productMuted: '#5a6b82',
   productBorder: '#d8e0ea',
   productInput: '#ffffff',
+  productFocusRing: 'rgba(0, 183, 255, 0.35)',
 } as const;
 
 export const PlayTTSpacing = {
@@ -87,6 +90,13 @@ export const PlayTTElevation = {
     shadowOpacity: 0.32,
     shadowRadius: 90,
     elevation: 12,
+  },
+  productCard: {
+    shadowColor: '#0a1628',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 24,
+    elevation: 4,
   },
 } as const;
 

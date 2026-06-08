@@ -7,7 +7,7 @@ export function goToAuthenticatedHome() {
 }
 
 export function goToSignIn() {
-  router.replace("/sign-in")
+  router.replace("/auth?mode=sign-in")
 }
 
 export function goToResetPassword() {

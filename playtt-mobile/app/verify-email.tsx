@@ -8,11 +8,14 @@ export default function VerifyEmailScreen() {
   const resolvedEmail = typeof email === 'string' ? email : '';
 
   if (!resolvedEmail) {
-    return <Redirect href="/sign-up" />;
+    return <Redirect href="/auth?mode=sign-up" />;
   }
 
   return (
-    <AuthShell title="Verify email" description="Confirm your inbox before entering PlayTT.">
+    <AuthShell
+      headline="Check your inbox."
+      subtitle="Enter the code we sent to your email."
+    >
       <VerifyEmailForm />
     </AuthShell>
   );

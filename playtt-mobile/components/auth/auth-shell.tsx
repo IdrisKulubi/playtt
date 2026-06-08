@@ -14,94 +14,129 @@ import { StatusBar } from 'expo-status-bar';
 
 import { BrandMark } from '@/components/brand/brand-mark';
 import {
-  PlayTTColors,
   PlayTTFontFamilies,
   PlayTTSpacing,
   PlayTTTypography,
 } from '@/constants/playtt-tokens';
+import { useAuthTheme } from '@/hooks/use-auth-theme';
 
 type AuthShellProps = {
-  title: string;
-  description: string;
   children: ReactNode;
+  headline?: string;
+  subtitle?: string;
 };
 
-export function AuthShell({ title, description, children }: AuthShellProps) {
+export function AuthShell({
+  children,
+  headline = 'Your booking space.',
+  subtitle,
+}: AuthShellProps) {
+  const theme = useAuthTheme();
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}>
-          <View style={styles.header}>
-            <BrandMark size="compact" tone="light" />
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.description}>{description}</Text>
-          </View>
+    <View style={[styles.root, { backgroundColor: theme.pageBackground }]}>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style={theme.statusBar} />
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="always"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}
+            bounces={false}>
+            <View style={styles.header}>
+              <BrandMark layout="auth" />
+              <Text style={[styles.headline, { color: theme.foreground }]}>
+                {headline}
+              </Text>
+              {subtitle ? (
+                <Text style={[styles.subtitle, { color: theme.muted }]}>{subtitle}</Text>
+              ) : null}
+            </View>
 
-          {children}
+            <View style={styles.formArea}>{children}</View>
 
-          <View style={styles.footer}>
-            <Text style={styles.footerLabel}>PlayTT account</Text>
-            <Pressable accessibilityRole="button" onPress={() => router.replace('/')}>
-              <Text style={styles.footerLink}>Back to home</Text>
-            </Pressable>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            <View style={styles.footer}>
+              <Pressable
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => router.replace('/')}>
+                <Text style={[styles.footerLink, { color: theme.muted }]}>
+                  Back to home
+                </Text>
+              </Pressable>
+              <Text style={[styles.legal, { color: theme.muted }]}>
+                By continuing, you agree to our Terms and Privacy Policy.
+              </Text>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   safeArea: {
     flex: 1,
-    backgroundColor: PlayTTColors.productBackground,
   },
   flex: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: PlayTTSpacing.xl,
-    paddingTop: PlayTTSpacing.md,
-    paddingBottom: PlayTTSpacing.xl,
+    paddingHorizontal: PlayTTSpacing.lg,
+    paddingTop: PlayTTSpacing.xl,
+    paddingBottom: PlayTTSpacing.lg,
     gap: PlayTTSpacing.lg,
   },
   header: {
-    gap: PlayTTSpacing.sm,
+    alignItems: 'center',
+    gap: PlayTTSpacing.md,
+    paddingHorizontal: PlayTTSpacing.sm,
   },
-  title: {
+  headline: {
     ...PlayTTTypography.headline,
+    fontSize: 22,
+    lineHeight: 28,
     fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.productForeground,
+    textAlign: 'center',
   },
-  description: {
+  subtitle: {
     ...PlayTTTypography.body,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.productMuted,
+    fontSize: 15,
+    lineHeight: 22,
+    fontFamily: PlayTTFontFamilies.medium,
+    textAlign: 'center',
+  },
+  formArea: {
+    width: '100%',
+    maxWidth: 400,
+    alignSelf: 'center',
+    gap: PlayTTSpacing.md,
   },
   footer: {
-    marginTop: 'auto',
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: PlayTTSpacing.sm,
     paddingTop: PlayTTSpacing.md,
-  },
-  footerLabel: {
-    ...PlayTTTypography.label,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.productMuted,
-    fontSize: 12,
+    marginTop: 'auto',
   },
   footerLink: {
     ...PlayTTTypography.label,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.primary,
-    fontSize: 12,
+    fontFamily: PlayTTFontFamilies.medium,
+    fontSize: 13,
+  },
+  legal: {
+    fontSize: 11,
+    lineHeight: 16,
+    fontFamily: PlayTTFontFamilies.regular,
+    textAlign: 'center',
+    paddingHorizontal: PlayTTSpacing.md,
   },
 });

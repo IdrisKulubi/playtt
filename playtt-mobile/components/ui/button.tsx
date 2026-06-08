@@ -1,3 +1,4 @@
+import type { AuthThemeColors } from '@/constants/auth-theme';
 import * as Haptics from 'expo-haptics';
 import {
   ActivityIndicator,
@@ -16,7 +17,7 @@ import {
 } from '@/constants/playtt-tokens';
 
 type ButtonVariant = 'primary' | 'outline' | 'ghost';
-type ButtonSurface = 'marketing' | 'product';
+type ButtonSurface = 'marketing' | 'product' | 'auth';
 
 type ButtonProps = PressableProps & {
   label: string;
@@ -24,6 +25,8 @@ type ButtonProps = PressableProps & {
   surface?: ButtonSurface;
   loading?: boolean;
   fullWidth?: boolean;
+  compact?: boolean;
+  authTheme?: AuthThemeColors;
 };
 
 export function Button({
@@ -32,6 +35,8 @@ export function Button({
   surface = 'marketing',
   loading = false,
   fullWidth = true,
+  compact = false,
+  authTheme,
   disabled,
   onPress,
   onPressIn,
@@ -39,11 +44,16 @@ export function Button({
   ...props
 }: ButtonProps) {
   const isDisabled = disabled || loading;
+  const isAuth = surface === 'auth' && authTheme;
+
   const outlineStyle = surface === 'product' ? styles.outlineProduct : styles.outlineMarketing;
   const outlineLabelStyle =
     surface === 'product' ? styles.labelOutlineProduct : styles.labelOutlineMarketing;
-  const spinnerColor =
-    variant === 'primary'
+  const spinnerColor = isAuth
+    ? variant === 'primary'
+      ? authTheme.primaryForeground
+      : authTheme.foreground
+    : variant === 'primary'
       ? PlayTTColors.primaryForeground
       : surface === 'product'
         ? PlayTTColors.productForeground
@@ -62,8 +72,11 @@ export function Button({
       }}
       style={({ pressed }) => [
         styles.base,
-        variant === 'primary' && styles.primary,
-        variant === 'outline' && outlineStyle,
+        compact && styles.baseCompact,
+        isAuth && styles.authBase,
+        isAuth && variant === 'primary' && { backgroundColor: authTheme.primary },
+        !isAuth && variant === 'primary' && styles.primary,
+        !isAuth && variant === 'outline' && outlineStyle,
         variant === 'ghost' && styles.ghost,
         fullWidth && styles.fullWidth,
         pressed && !isDisabled && styles.pressed,
@@ -77,9 +90,13 @@ export function Button({
         <Text
           style={[
             styles.label,
-            variant === 'primary' && styles.labelPrimary,
-            variant === 'outline' && outlineLabelStyle,
+            compact && styles.labelCompact,
+            isAuth && variant === 'primary' && { color: authTheme.primaryForeground },
+            isAuth && variant !== 'primary' && { color: authTheme.foreground },
+            !isAuth && variant === 'primary' && styles.labelPrimary,
+            !isAuth && variant === 'outline' && outlineLabelStyle,
             variant === 'ghost' &&
+              !isAuth &&
               (surface === 'product' ? styles.labelGhostProduct : styles.labelGhostMarketing),
           ]}>
           {label}
@@ -91,25 +108,40 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 48,
+    minHeight: 52,
     paddingVertical: 14,
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     borderRadius: PlayTTRadius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  authBase: {
+    minHeight: 44,
+    borderRadius: PlayTTRadius.md,
+    paddingVertical: 12,
+  },
+  baseCompact: {
+    minHeight: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
   },
   fullWidth: {
     width: '100%',
   },
   pressed: {
-    opacity: 0.88,
+    opacity: 0.9,
+    transform: [{ scale: 0.985 }],
   },
   disabled: {
     opacity: 0.5,
   },
   label: {
     ...PlayTTTypography.label,
+    fontSize: 15,
     fontFamily: PlayTTFontFamilies.semiBold,
+  },
+  labelCompact: {
+    fontSize: 14,
   },
   primary: {
     backgroundColor: PlayTTColors.primary,
@@ -120,7 +152,7 @@ const styles = StyleSheet.create({
     borderColor: PlayTTColors.border,
   },
   outlineProduct: {
-    backgroundColor: 'transparent',
+    backgroundColor: PlayTTColors.productElevated,
     borderWidth: 1,
     borderColor: PlayTTColors.productBorder,
   },

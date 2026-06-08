@@ -11,12 +11,29 @@ import {
 type BrandMarkProps = {
   size?: 'default' | 'compact';
   tone?: 'dark' | 'light';
+  layout?: 'horizontal' | 'auth';
 };
 
-export function BrandMark({ size = 'default', tone = 'dark' }: BrandMarkProps) {
+export function BrandMark({
+  size = 'default',
+  tone = 'dark',
+  layout = 'horizontal',
+}: BrandMarkProps) {
   const isCompact = size === 'compact';
-  const iconSize = isCompact ? 36 : 44;
+  const iconSize = layout === 'auth' ? 40 : isCompact ? 36 : 44;
   const isLight = tone === 'light';
+
+  if (layout === 'auth') {
+    return (
+      <View style={styles.authContainer} accessibilityRole="header">
+        <Image
+          source={require('@/assets/images/icon.png')}
+          style={{ width: iconSize, height: iconSize, borderRadius: 10 }}
+          contentFit="cover"
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container} accessibilityRole="header">
@@ -49,6 +66,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: PlayTTSpacing.sm,
+  },
+  authContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   monogram: {
     overflow: 'hidden',
