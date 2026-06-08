@@ -214,3 +214,13 @@ export const auth = betterAuth({
     }),
   ],
 })
+
+console.info("[AUTH] boot", {
+  commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "local",
+  providers: ["google", "apple"],
+  appleEnv: {
+    clientId: Boolean(process.env.APPLE_CLIENT_ID),
+    clientSecret: Boolean(process.env.APPLE_CLIENT_SECRET),
+    bundleId: process.env.APPLE_APP_BUNDLE_IDENTIFIER ?? null,
+  },
+})
