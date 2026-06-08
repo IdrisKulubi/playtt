@@ -25,6 +25,7 @@ async function postToAuth(path: string, payload: Record<string, unknown>) {
   if (!response.ok) {
     const message =
       getErrorMessage(data) ||
+      extractMessageFromText(text) ||
       `Auth request failed with status ${response.status}`;
 
     throw new Error(message);
@@ -81,6 +82,9 @@ function getErrorMessage(data: unknown) {
   const candidate =
     ("message" in data && typeof data.message === "string" && data.message) ||
     ("error" in data &&
+      typeof data.error === "string" &&
+      data.error) ||
+    ("error" in data &&
       typeof data.error === "object" &&
       data.error !== null &&
       "message" in data.error &&
@@ -88,6 +92,15 @@ function getErrorMessage(data: unknown) {
       data.error.message);
 
   return candidate || null;
+}
+
+function extractMessageFromText(text: string) {
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.startsWith("<")) {
+    return null;
+  }
+
+  return getErrorMessage(safeJsonParse(trimmed));
 }
 
 export async function sendVerificationEmailAction(

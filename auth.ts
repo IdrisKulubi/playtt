@@ -5,9 +5,8 @@ import { twoFactor, emailOTP } from "better-auth/plugins"
 import { Resend } from "resend"
 import db from "./db/drizzle"
 import * as schema from "./db/schema"
-import { render } from "@react-email/components"
-import OtpEmail from "./src/emails/otp-email"
 import { user } from "./db/schema"
+import { renderOtpEmailHtml } from "./src/lib/email/render-otp-email"
 import { eq } from "drizzle-orm"
 import { WEB_CORS_ORIGINS } from "./src/lib/web-cors-origins"
 
@@ -52,6 +51,16 @@ function parseOrigins(value: string | undefined) {
       .map((origin) => origin.trim())
       .filter(Boolean) ?? []
   )
+}
+
+async function getUserNameByEmail(email: string) {
+  const rows = await db
+    .select({ name: user.name })
+    .from(user)
+    .where(eq(user.email, email))
+    .limit(1)
+
+  return rows[0]?.name
 }
 
 async function sendEmailOrThrow(input: {
@@ -150,7 +159,13 @@ export const auth = betterAuth({
                   ? "Confirm your new email address"
                   : "Verify your email address"
 
-          const emailHtml = await render(OtpEmail({ otp, purpose: type }))
+          const name = await getUserNameByEmail(email)
+          const emailHtml = await renderOtpEmailHtml({
+            otp,
+            purpose: type,
+            name,
+            email,
+          })
 
           await sendEmailOrThrow({
             to: email,
@@ -173,9 +188,12 @@ export const auth = betterAuth({
           user: { email: string; name: string }
           otp: string
         }) {
-          const emailHtml = await render(
-            OtpEmail({ otp, purpose: "two-factor", name: user.name })
-          )
+          const emailHtml = await renderOtpEmailHtml({
+            otp,
+            purpose: "two-factor",
+            name: user.name,
+            email: user.email,
+          })
           await sendEmailOrThrow({
             to: user.email,
             subject: "Your PlayTT Security Code",
