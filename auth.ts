@@ -6,7 +6,7 @@ import { Resend } from "resend"
 import db from "./db/drizzle"
 import * as schema from "./db/schema"
 import { user } from "./db/schema"
-import { generateAppleClientSecret } from "./src/lib/apple-client-secret"
+import { resolveAppleClientSecret } from "./src/lib/apple-client-secret"
 import { renderOtpEmailHtml } from "./src/lib/email/render-otp-email"
 import { eq } from "drizzle-orm"
 import { WEB_CORS_ORIGINS } from "./src/lib/web-cors-origins"
@@ -45,10 +45,15 @@ const TRUSTED_ORIGINS = [
   "https://appleid.apple.com",
 ]
 
-const appleClientSecret =
-  process.env.APPLE_CLIENT_ID && process.env.APPLE_PRIVATE_KEY
-    ? await generateAppleClientSecret()
-    : ""
+const appleClientId = process.env.APPLE_CLIENT_ID?.trim()
+const appleClientSecret = appleClientId ? await resolveAppleClientSecret() : null
+
+if (appleClientId && !appleClientSecret) {
+  console.warn(
+    "[AUTH] APPLE_CLIENT_ID is set but no Apple client secret is available. " +
+      "Set APPLE_PRIVATE_KEY (+ APPLE_TEAM_ID, APPLE_KEY_ID) or APPLE_CLIENT_SECRET in production.",
+  )
+}
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "re_placeholder")
 const resendFromEmail =
@@ -146,10 +151,10 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
       prompt: "select_account",
     },
-    ...(process.env.APPLE_CLIENT_ID && appleClientSecret
+    ...(appleClientId && appleClientSecret
       ? {
           apple: {
-            clientId: process.env.APPLE_CLIENT_ID,
+            clientId: appleClientId,
             clientSecret: appleClientSecret,
             appBundleIdentifier: process.env.APPLE_APP_BUNDLE_IDENTIFIER,
           },
