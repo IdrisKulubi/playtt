@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 
-import { getAppleAllowedAudiences } from "@/lib/verify-apple-token"
+import {
+  getAppleAllowedAudiences,
+  getAppleExpoClientId,
+} from "@/lib/verify-apple-token"
 
 export const dynamic = "force-dynamic"
 
@@ -14,7 +17,7 @@ export function GET() {
       clientId: Boolean(process.env.APPLE_CLIENT_ID),
       clientSecret: Boolean(process.env.APPLE_CLIENT_SECRET),
       bundleId: process.env.APPLE_APP_BUNDLE_IDENTIFIER ?? null,
-      expoClientId: process.env.APPLE_EXPO_CLIENT_ID ?? null,
+      expoClientId: getAppleExpoClientId(),
       audienceCount: audiences.length,
       audiences,
     },

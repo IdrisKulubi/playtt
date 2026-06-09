@@ -1,9 +1,16 @@
 import { decodeJwt, decodeProtectedHeader, importJWK, jwtVerify } from "jose"
 
+/** Apple JWT audience when signing in via Expo Go (not an EAS/production bundle). */
+export const EXPO_GO_APPLE_AUDIENCE = "host.exp.Exponent"
+
 export type VerifiedAppleToken = {
   sub: string
   email: string | null
   emailVerified: boolean
+}
+
+function getExpoAppleAudience() {
+  return process.env.APPLE_EXPO_CLIENT_ID?.trim() || EXPO_GO_APPLE_AUDIENCE
 }
 
 function buildAllowedAudiences() {
@@ -11,11 +18,15 @@ function buildAllowedAudiences() {
     ...new Set(
       [
         process.env.APPLE_APP_BUNDLE_IDENTIFIER?.trim(),
-        process.env.APPLE_EXPO_CLIENT_ID?.trim(),
+        getExpoAppleAudience(),
         process.env.APPLE_CLIENT_ID?.trim(),
       ].filter((value): value is string => Boolean(value)),
     ),
   ]
+}
+
+export function getAppleExpoClientId() {
+  return getExpoAppleAudience()
 }
 
 export function getAppleAllowedAudiences() {

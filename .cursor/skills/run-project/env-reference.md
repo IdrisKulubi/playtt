@@ -48,6 +48,21 @@ Copy `playtt-mobile/.env.example` to `playtt-mobile/.env` (or set in your shell)
 
 Defaults to `https://www.theplaytt.com`. For local dev, set `http://localhost:3000` or your LAN IP in `playtt-mobile/.env`.
 
+### Apple Sign-In (web + mobile)
+
+| Variable                      | Used in                         | Purpose                                                                 |
+| ----------------------------- | ------------------------------- | ----------------------------------------------------------------------- |
+| `APPLE_CLIENT_ID`             | `auth.ts`, `verify-apple-token` | Services ID for Better Auth web OAuth (e.g. `com.theplaytt.auth`)       |
+| `APPLE_APP_BUNDLE_IDENTIFIER` | `auth.ts`, `verify-apple-token` | iOS bundle ID for EAS/production builds (e.g. `com.theplaytt.app`)    |
+| `APPLE_EXPO_CLIENT_ID`        | `verify-apple-token`            | Expo Go audience; defaults to `host.exp.Exponent` when unset            |
+| `APPLE_TEAM_ID`               | `apple-client-secret.ts`        | Apple Developer Team ID                                                 |
+| `APPLE_KEY_ID`                | `apple-client-secret.ts`        | Sign In with Apple key ID                                               |
+| `APPLE_PRIVATE_KEY`           | `apple-client-secret.ts`        | `.p8` private key (use `\n` for line breaks)                            |
+
+Mobile native Apple sign-in posts to `POST /api/apple/sign-in`. The identity token `aud` must match one of the allowed audiences above. Expo Go always uses `host.exp.Exponent`.
+
+Verify configured audiences: `GET /api/version` → `apple.audiences`.
+
 ### Production backend (web hosting)
 
 When mobile uses the hosted API, ensure these are set on the server (e.g. Vercel):
@@ -58,6 +73,8 @@ When mobile uses the hosted API, ensure these are set on the server (e.g. Vercel
 | `BETTER_AUTH_URL`                           | `https://www.theplaytt.com`                                           |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google sign-in                                                        |
 | `BETTER_AUTH_TRUST_EXPO_GO`                 | Set `true` while testing in Expo Go (allows `exp://` OAuth redirects) |
+| `APPLE_APP_BUNDLE_IDENTIFIER`               | `com.theplaytt.app` — required for EAS/production Apple sign-in      |
+| `APPLE_EXPO_CLIENT_ID`                      | Optional; defaults to `host.exp.Exponent` for Expo Go testing         |
 
 ## Notes
 
