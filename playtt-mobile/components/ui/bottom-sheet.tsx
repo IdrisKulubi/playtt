@@ -7,7 +7,11 @@ import {
   Text,
   View,
 } from "react-native"
-import { Gesture, GestureDetector } from "react-native-gesture-handler"
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler"
 import Animated, {
   FadeIn,
   FadeOut,
@@ -148,7 +152,7 @@ export function BottomSheet({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <View style={styles.overlay}>
+      <GestureHandlerRootView style={styles.overlay}>
         <Animated.View
           entering={FadeIn.duration(180)}
           exiting={FadeOut.duration(140)}
@@ -174,7 +178,7 @@ export function BottomSheet({
             {body}
           </Animated.View>
         </GestureDetector>
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   )
 }
