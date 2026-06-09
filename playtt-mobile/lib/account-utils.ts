@@ -37,7 +37,21 @@ export function formatPhonePreview(phone?: string | null) {
     return "No phone added"
   }
 
-  return phone
+  const digits = phone.replace(/\D/g, "")
+
+  let local = ""
+
+  if (digits.startsWith("254") && digits.length === 12) {
+    local = `0${digits.slice(3)}`
+  } else if (digits.startsWith("0") && digits.length === 10) {
+    local = digits
+  } else if (digits.length === 9) {
+    local = `0${digits}`
+  } else {
+    return phone
+  }
+
+  return `${local.slice(0, 4)} ${local.slice(4, 7)} ${local.slice(7)}`
 }
 
 export function formatPersonalDetailsPreview(profile: UserProfile) {

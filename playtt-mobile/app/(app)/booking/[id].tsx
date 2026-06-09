@@ -3,20 +3,15 @@ import { useEffect, useState } from "react"
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
+import { BookingDetailContent } from "@/components/booking/booking-detail-content"
 import { BookingDetailSkeleton } from "@/components/ui/skeleton"
 import {
   PlayTTColors,
   PlayTTFontFamilies,
   PlayTTSpacing,
-  PlayTTTypography,
 } from "@/constants/playtt-tokens"
 import { fetchBookingById } from "@/lib/booking-api"
 import type { UserBookingSummary } from "@/lib/booking-types"
-import {
-  formatBookingStatus,
-  formatKes,
-  formatTimeRange,
-} from "@/lib/booking-utils"
 import { toast } from "@/lib/toast"
 
 export default function BookingDetailScreen() {
@@ -68,26 +63,7 @@ export default function BookingDetailScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
-          <Text style={styles.title}>{booking.locationName}</Text>
-          <Text style={styles.subtitle}>{booking.resourceName}</Text>
-          <Text style={styles.time}>
-            {formatTimeRange(booking.startTime, booking.endTime)}
-          </Text>
-          <Text style={styles.status}>
-            {formatBookingStatus(booking.status, booking.paymentStatus)}
-          </Text>
-          <Text style={styles.price}>
-            {formatKes(booking.totalAmount, booking.currency)}
-          </Text>
-          {booking.expiresAt ? (
-            <Text style={styles.meta}>
-              Hold expires:{" "}
-              {new Date(booking.expiresAt).toLocaleString("en-KE")}
-            </Text>
-          ) : null}
-          {booking.notes ? (
-            <Text style={styles.meta}>Notes: {booking.notes}</Text>
-          ) : null}
+          <BookingDetailContent booking={booking} surface="dark" />
         </ScrollView>
       )}
     </SafeAreaView>
@@ -130,38 +106,5 @@ const styles = StyleSheet.create({
   },
   scroll: {
     padding: PlayTTSpacing.xl,
-    gap: PlayTTSpacing.sm,
-  },
-  title: {
-    ...PlayTTTypography.headline,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.foreground,
-  },
-  subtitle: {
-    fontSize: 15,
-    fontFamily: PlayTTFontFamilies.medium,
-    color: PlayTTColors.mutedText,
-  },
-  time: {
-    fontSize: 20,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.foreground,
-    marginTop: PlayTTSpacing.sm,
-  },
-  status: {
-    fontSize: 14,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.mutedText,
-  },
-  price: {
-    fontSize: 18,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.primary,
-    marginTop: PlayTTSpacing.sm,
-  },
-  meta: {
-    fontSize: 13,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.mutedText,
   },
 })

@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { BrandMark } from "@/components/brand/brand-mark"
+import { BookingDetailSheet } from "@/components/booking/booking-detail-sheet"
 import { Button } from "@/components/ui/button"
 import { UpcomingCardSkeleton } from "@/components/ui/skeleton"
 import {
@@ -45,6 +46,7 @@ export default function AppHomeScreen() {
   const [upcomingBooking, setUpcomingBooking] =
     useState<UserBookingSummary | null>(null)
   const [isLoadingUpcoming, setIsLoadingUpcoming] = useState(true)
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
 
   const loadUpcoming = useCallback(async () => {
     setIsLoadingUpcoming(true)
@@ -80,12 +82,7 @@ export default function AppHomeScreen() {
           <UpcomingCardSkeleton surface="dark" />
         ) : upcomingBooking ? (
           <Pressable
-            onPress={() =>
-              router.push({
-                pathname: "/(app)/booking/[id]",
-                params: { id: upcomingBooking.id },
-              })
-            }
+            onPress={() => setSelectedBookingId(upcomingBooking.id)}
             style={styles.upcomingCard}
           >
             <Text style={styles.upcomingLabel}>Upcoming booking</Text>
@@ -105,6 +102,12 @@ export default function AppHomeScreen() {
           </Pressable>
         ) : null}
       </View>
+
+      <BookingDetailSheet
+        visible={selectedBookingId !== null}
+        bookingId={selectedBookingId}
+        onClose={() => setSelectedBookingId(null)}
+      />
     </SafeAreaView>
   )
 }

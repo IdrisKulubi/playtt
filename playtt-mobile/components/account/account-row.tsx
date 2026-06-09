@@ -15,6 +15,7 @@ type AccountRowProps = {
   showChevron?: boolean
   destructive?: boolean
   isLast?: boolean
+  accessibilityHint?: string
 }
 
 export function AccountRow({
@@ -25,6 +26,7 @@ export function AccountRow({
   showChevron = Boolean(onPress),
   destructive = false,
   isLast = false,
+  accessibilityHint,
 }: AccountRowProps) {
   const containerStyle = [styles.container, isLast && styles.containerLast]
 
@@ -54,6 +56,7 @@ export function AccountRow({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityHint={accessibilityHint}
       onPress={onPress}
       style={({ pressed }) => [
         ...containerStyle,

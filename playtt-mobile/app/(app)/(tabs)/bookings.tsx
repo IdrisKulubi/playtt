@@ -3,6 +3,7 @@ import { useCallback, useState } from "react"
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
+import { BookingDetailSheet } from "@/components/booking/booking-detail-sheet"
 import { Button } from "@/components/ui/button"
 import { BookingListSkeleton, SkeletonGate } from "@/components/ui/skeleton"
 import {
@@ -23,6 +24,7 @@ import { toast } from "@/lib/toast"
 export default function BookingsScreen() {
   const [bookings, setBookings] = useState<UserBookingSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
 
   const loadBookings = useCallback(async () => {
     setIsLoading(true)
@@ -66,12 +68,7 @@ export default function BookingsScreen() {
               {bookings.map((booking) => (
                 <Pressable
                   key={booking.id}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/(app)/booking/[id]",
-                      params: { id: booking.id },
-                    })
-                  }
+                  onPress={() => setSelectedBookingId(booking.id)}
                   style={styles.card}
                 >
                   <Text style={styles.cardTitle}>{booking.locationName}</Text>
@@ -90,6 +87,12 @@ export default function BookingsScreen() {
           )}
         </SkeletonGate>
       </ScrollView>
+
+      <BookingDetailSheet
+        visible={selectedBookingId !== null}
+        bookingId={selectedBookingId}
+        onClose={() => setSelectedBookingId(null)}
+      />
     </SafeAreaView>
   )
 }

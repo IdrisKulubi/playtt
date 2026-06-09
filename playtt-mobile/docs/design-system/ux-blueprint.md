@@ -45,7 +45,8 @@ Move the user from curiosity to reservation with minimal ambiguity. Every screen
 
 ## Account Blueprint
 - **Account tab** is the settings hub: profile summary, security actions, sign out
-- Use dark product surface to match Home and Bookings; grouped cards with section labels
+- Use dark product surface to match Home and Bookings; flat layout with section labels and hairline row dividers (no card chrome)
+- Identity (name, email, verification) lives in the profile header only; Security is actions-only
 - **Stack sub-screens** for edits (personal details, password, email verification) — not additional tabs
 - One navigable row per decision area on the hub; forms live on pushed screens with Back + single save CTA
 - Home stays booking-focused; account chrome and sign out live on the Account tab only
@@ -75,6 +76,7 @@ See **[booking-ux.md](./booking-ux.md)** for the canonical mobile booking spec (
 - One primary action per moment; Back only in screen header
 - Sticky checkout bar keeps selection context visible
 - Sheets over full-page steps for group size and confirm
+- Booking detail from My bookings or Home upcoming card opens in a bottom sheet (drag down or backdrop tap to close), not a pushed screen
 
 ## Future Screen Rule
 - New screens should be designed by mapping them onto one of the existing shell types first

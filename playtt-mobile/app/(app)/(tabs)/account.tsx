@@ -1,6 +1,14 @@
 import { router, useFocusEffect } from "expo-router"
-import { useCallback, useState } from "react"
-import { ScrollView, StyleSheet, Text, View } from "react-native"
+import { useCallback, useRef, useState } from "react"
+import {
+  Alert,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { AccountProfileHeader } from "@/components/account/account-profile-header"
@@ -15,7 +23,6 @@ import {
   PlayTTColors,
   PlayTTFontFamilies,
   PlayTTSpacing,
-  PlayTTTypography,
 } from "@/constants/playtt-tokens"
 import {
   canChangePassword,
@@ -28,23 +35,36 @@ import { fetchCurrentUser, type UserProfile } from "@/lib/user-api"
 export default function AccountScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
+  const hasLoadedRef = useRef(false)
 
-  const loadProfile = useCallback(async () => {
-    setIsLoading(true)
+  const loadProfile = useCallback(async (silent = false) => {
+    if (silent) {
+      setIsRefreshing(true)
+    } else {
+      setIsLoading(true)
+    }
+
     try {
       const response = await fetchCurrentUser()
       setProfile(response.data?.user ?? null)
     } catch {
-      setProfile(null)
+      if (!silent) {
+        setProfile(null)
+      }
     } finally {
-      setIsLoading(false)
+      if (!silent) {
+        setIsLoading(false)
+      }
+      setIsRefreshing(false)
     }
   }, [])
 
   useFocusEffect(
     useCallback(() => {
-      void loadProfile()
+      void loadProfile(hasLoadedRef.current)
+      hasLoadedRef.current = true
     }, [loadProfile]),
   )
 
@@ -59,6 +79,21 @@ export default function AccountScreen() {
     })
   }
 
+  function handleSignOutPress() {
+    Alert.alert(
+      "Sign out?",
+      "You will need to sign in again to book.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Sign out",
+          style: "destructive",
+          onPress: () => void handleSignOut(),
+        },
+      ],
+    )
+  }
+
   async function handleSignOut() {
     setIsSigningOut(true)
     await clearSession()
@@ -68,18 +103,26 @@ export default function AccountScreen() {
 
   const oauthLabel = getOAuthProviderLabel(profile?.authMethods)
   const showChangePassword = canChangePassword(profile?.authMethods)
+  const showSecuritySection = showChangePassword || Boolean(oauthLabel)
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => void loadProfile(true)}
+            tintColor={PlayTTColors.primary}
+          />
+        }
+      >
         <SkeletonGate
-          loading={isLoading}
+          loading={isLoading && !profile}
           skeleton={<AccountHubSkeleton surface="dark" />}
         >
           {profile ? (
             <>
-              <Text style={styles.title}>Account</Text>
-
               <AccountProfileHeader
                 profile={profile}
                 onVerifyPress={
@@ -87,58 +130,58 @@ export default function AccountScreen() {
                 }
               />
 
-              <AccountSection title="Your details">
+              <AccountSection title="Profile">
                 <AccountRow
                   title="Personal details"
                   subtitle={formatPersonalDetailsPreview(profile)}
                   onPress={() => router.push("/(app)/account/edit-profile")}
+                  accessibilityHint="Edit your name, phone, and skill level"
                   isLast
                 />
               </AccountSection>
 
-              <AccountSection title="Security">
-                <AccountRow
-                  title="Email"
-                  value={profile.email}
-                  subtitle={
-                    profile.emailVerified ? "Verified" : "Verification required"
+              {showSecuritySection ? (
+                <AccountSection
+                  title="Security"
+                  description={
+                    !showChangePassword && oauthLabel ? oauthLabel : undefined
                   }
-                  onPress={profile.emailVerified ? undefined : goToVerifyEmail}
-                  showChevron={!profile.emailVerified}
-                />
-                {showChangePassword ? (
-                  <AccountRow
-                    title="Change password"
-                    subtitle="Update your sign-in password"
-                    onPress={() => router.push("/(app)/account/change-password")}
-                    isLast
-                  />
-                ) : oauthLabel ? (
-                  <AccountRow title={oauthLabel} isLast showChevron={false} />
-                ) : (
-                  <AccountRow
-                    title="Password"
-                    subtitle="Managed by your sign-in provider"
-                    isLast
-                    showChevron={false}
-                  />
-                )}
-              </AccountSection>
+                >
+                  {showChangePassword ? (
+                    <AccountRow
+                      title="Change password"
+                      subtitle="Update your sign-in password"
+                      onPress={() =>
+                        router.push("/(app)/account/change-password")
+                      }
+                      accessibilityHint="Opens the change password screen"
+                      isLast
+                    />
+                  ) : null}
+                </AccountSection>
+              ) : null}
 
-              <Button
-                label="Sign out"
-                variant="outline"
-                surface="product"
-                onPress={handleSignOut}
-                loading={isSigningOut}
-              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Sign out"
+                accessibilityState={{ disabled: isSigningOut }}
+                disabled={isSigningOut}
+                onPress={handleSignOutPress}
+                style={styles.signOut}
+              >
+                <Text style={styles.signOutLabel}>
+                  {isSigningOut ? "Signing out…" : "Sign out"}
+                </Text>
+              </Pressable>
             </>
           ) : (
             <View style={styles.empty}>
-              <Text style={styles.title}>Account</Text>
-              <Text style={styles.emptyBody}>
-                Could not load your account. Pull to refresh or try again later.
-              </Text>
+              <Text style={styles.emptyTitle}>Could not load your account.</Text>
+              <Button
+                label="Try again"
+                surface="product"
+                onPress={() => void loadProfile(false)}
+              />
             </View>
           )}
         </SkeletonGate>
@@ -158,17 +201,22 @@ const styles = StyleSheet.create({
     paddingBottom: PlayTTSpacing["2xl"],
     gap: PlayTTSpacing.lg,
   },
-  title: {
-    ...PlayTTTypography.headline,
+  signOut: {
+    alignSelf: "flex-start",
+    paddingVertical: PlayTTSpacing.sm,
+  },
+  signOutLabel: {
+    fontSize: 16,
     fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.foreground,
+    color: PlayTTColors.destructive,
   },
   empty: {
-    gap: PlayTTSpacing.sm,
+    gap: PlayTTSpacing.md,
+    paddingTop: PlayTTSpacing.lg,
   },
-  emptyBody: {
-    fontSize: 14,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.mutedText,
+  emptyTitle: {
+    fontSize: 16,
+    fontFamily: PlayTTFontFamilies.medium,
+    color: PlayTTColors.foreground,
   },
 })
