@@ -4,6 +4,11 @@ import { apiFetch } from "@/lib/api-client"
 import { AUTHENTICATED_HOME } from "@/lib/auth-navigation"
 import { setCachedSessionRoute } from "@/lib/session-cache"
 
+export type UserAuthMethods = {
+  providers: ("credential" | "google" | "apple")[]
+  hasPassword: boolean
+}
+
 export type UserProfile = {
   id: string
   name: string
@@ -16,6 +21,13 @@ export type UserProfile = {
   playIntent?: string | null
   earlyAdopterOptIn?: boolean
   onboardingCompletedAt?: string | null
+  authMethods?: UserAuthMethods
+}
+
+export type ProfilePatchInput = {
+  name: string
+  skillLevel: string
+  phone: string
 }
 
 export type CurrentUserResponse = {
@@ -54,6 +66,13 @@ export async function routeAfterAuth() {
 
 export async function patchOnboarding(body: Record<string, unknown>) {
   return apiFetch<OnboardingPatchResponse>("/api/user/onboarding", {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function patchProfile(body: ProfilePatchInput) {
+  return apiFetch<OnboardingPatchResponse>("/api/user/profile", {
     method: "PATCH",
     body: JSON.stringify(body),
   })

@@ -1,6 +1,7 @@
 import type { AppleSignInResult } from '@/lib/apple-sign-in';
 import { ApiError } from '@/lib/api-error';
 import { formatApiFailure, getFriendlyErrorMessage } from '@/lib/api-errors';
+import { authClient } from '@/lib/auth-client';
 import { getApiBaseUrl } from '@/lib/env';
 
 export type AuthApiResult =
@@ -200,6 +201,26 @@ export async function sendVerificationOtp(email: string): Promise<AuthApiResult>
       ),
     };
   }
+}
+
+export async function changePassword(input: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<AuthApiResult> {
+  const { error } = await authClient.changePassword({
+    currentPassword: input.currentPassword,
+    newPassword: input.newPassword,
+    revokeOtherSessions: false,
+  });
+
+  if (error) {
+    return {
+      success: false,
+      message: error.message || 'Could not change password.',
+    };
+  }
+
+  return { success: true };
 }
 
 export async function requestPasswordReset(email: string): Promise<AuthApiResult> {

@@ -12,8 +12,6 @@ import {
   PlayTTSpacing,
   PlayTTTypography,
 } from "@/constants/playtt-tokens"
-import { useSession } from "@/lib/auth-client"
-import { clearSession } from "@/lib/auth-helpers"
 import { fetchMyBookings } from "@/lib/booking-api"
 import type { UserBookingSummary } from "@/lib/booking-types"
 import {
@@ -44,8 +42,6 @@ function findUpcomingBooking(bookings: UserBookingSummary[]) {
 }
 
 export default function AppHomeScreen() {
-  const { data: session } = useSession()
-  const [isSigningOut, setIsSigningOut] = useState(false)
   const [upcomingBooking, setUpcomingBooking] =
     useState<UserBookingSummary | null>(null)
   const [isLoadingUpcoming, setIsLoadingUpcoming] = useState(true)
@@ -68,21 +64,11 @@ export default function AppHomeScreen() {
     }, [loadUpcoming]),
   )
 
-  async function handleSignOut() {
-    setIsSigningOut(true)
-    await clearSession()
-    router.replace("/?mode=sign-in")
-    setIsSigningOut(false)
-  }
-
-  const userEmail = session?.user?.email ?? "Signed in"
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <BrandMark size="compact" />
         <Text style={styles.title}>Ready to play?</Text>
-        <Text style={styles.descriptionMuted}>{userEmail}</Text>
 
         <Button
           label="Book a session"
@@ -118,14 +104,6 @@ export default function AppHomeScreen() {
             </Text>
           </Pressable>
         ) : null}
-
-        <Button
-          label="Sign out"
-          variant="outline"
-          surface="product"
-          onPress={handleSignOut}
-          loading={isSigningOut}
-        />
       </View>
     </SafeAreaView>
   )
@@ -146,11 +124,6 @@ const styles = StyleSheet.create({
     ...PlayTTTypography.headline,
     fontFamily: PlayTTFontFamilies.semiBold,
     color: PlayTTColors.foreground,
-  },
-  descriptionMuted: {
-    fontSize: 13,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.mutedText,
   },
   upcomingCard: {
     backgroundColor: PlayTTColors.card,

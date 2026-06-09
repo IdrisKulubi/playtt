@@ -43,6 +43,13 @@ Move the user from curiosity to reservation with minimal ambiguity. Every screen
 - It should confirm account state, reinforce that the product is ready, and lead clearly into booking
 - Do not introduce heavy navigation or admin-style density here
 
+## Account Blueprint
+- **Account tab** is the settings hub: profile summary, security actions, sign out
+- Use dark product surface to match Home and Bookings; grouped cards with section labels
+- **Stack sub-screens** for edits (personal details, password, email verification) — not additional tabs
+- One navigable row per decision area on the hub; forms live on pushed screens with Back + single save CTA
+- Home stays booking-focused; account chrome and sign out live on the Account tab only
+
 ## Booking Funnel Blueprint
 
 See **[booking-ux.md](./booking-ux.md)** for the canonical mobile booking spec (tap budget, copy, components, anti-patterns).

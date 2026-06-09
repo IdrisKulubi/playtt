@@ -21,6 +21,7 @@ export {
 } from "./skeleton"
 export { SkeletonGate, type SkeletonGateProps } from "./skeleton-gate"
 export {
+  AccountHubSkeleton,
   AuthFormSkeleton,
   BookingDetailSkeleton,
   BookingListSkeleton,
