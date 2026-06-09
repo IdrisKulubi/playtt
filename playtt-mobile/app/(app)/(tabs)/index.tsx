@@ -21,7 +21,7 @@ export default function AppHomeScreen() {
   async function handleSignOut() {
     setIsSigningOut(true)
     await clearSession()
-    router.replace("/auth?mode=sign-in")
+    router.replace("/?mode=sign-in")
     setIsSigningOut(false)
   }
 
