@@ -1,6 +1,6 @@
-import { router } from "expo-router"
-import { useState } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { router, useFocusEffect } from "expo-router"
+import { useCallback, useState } from "react"
+import { Pressable, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { BrandMark } from "@/components/brand/brand-mark"
@@ -13,10 +13,55 @@ import {
 } from "@/constants/playtt-tokens"
 import { useSession } from "@/lib/auth-client"
 import { clearSession } from "@/lib/auth-helpers"
+import { fetchMyBookings } from "@/lib/booking-api"
+import type { UserBookingSummary } from "@/lib/booking-types"
+import {
+  formatBookingStatus,
+  formatTimeRange,
+} from "@/lib/booking-utils"
+
+const UPCOMING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+
+function findUpcomingBooking(bookings: UserBookingSummary[]) {
+  const now = Date.now()
+  const cutoff = now + UPCOMING_WINDOW_MS
+
+  return (
+    bookings
+      .filter((booking) => {
+        if (booking.status === "cancelled" || booking.status === "expired") {
+          return false
+        }
+        const start = new Date(booking.startTime).getTime()
+        return start >= now && start <= cutoff
+      })
+      .sort(
+        (left, right) =>
+          new Date(left.startTime).getTime() - new Date(right.startTime).getTime(),
+      )[0] ?? null
+  )
+}
 
 export default function AppHomeScreen() {
   const { data: session } = useSession()
   const [isSigningOut, setIsSigningOut] = useState(false)
+  const [upcomingBooking, setUpcomingBooking] =
+    useState<UserBookingSummary | null>(null)
+
+  const loadUpcoming = useCallback(async () => {
+    try {
+      const bookings = await fetchMyBookings("upcoming")
+      setUpcomingBooking(findUpcomingBooking(bookings))
+    } catch {
+      setUpcomingBooking(null)
+    }
+  }, [])
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadUpcoming()
+    }, [loadUpcoming]),
+  )
 
   async function handleSignOut() {
     setIsSigningOut(true)
@@ -31,11 +76,42 @@ export default function AppHomeScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <BrandMark size="compact" />
-        <Text style={styles.title}>Dashboard</Text>
-        <Text style={styles.description}>
-          You are signed in as {userEmail}. Booking and venue features will land
-          here next.
-        </Text>
+        <Text style={styles.title}>Welcome back</Text>
+        <Text style={styles.description}>Signed in as {userEmail}</Text>
+
+        <Button
+          label="Book a session"
+          surface="product"
+          onPress={() => router.push("/(app)/book")}
+        />
+
+        {upcomingBooking ? (
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: "/(app)/booking/[id]",
+                params: { id: upcomingBooking.id },
+              })
+            }
+            style={styles.upcomingCard}
+          >
+            <Text style={styles.upcomingLabel}>Upcoming booking</Text>
+            <Text style={styles.upcomingVenue}>{upcomingBooking.locationName}</Text>
+            <Text style={styles.upcomingTime}>
+              {formatTimeRange(
+                upcomingBooking.startTime,
+                upcomingBooking.endTime,
+              )}
+            </Text>
+            <Text style={styles.upcomingStatus}>
+              {formatBookingStatus(
+                upcomingBooking.status,
+                upcomingBooking.paymentStatus,
+              )}
+            </Text>
+          </Pressable>
+        ) : null}
+
         <Button
           label="Sign out"
           variant="outline"
@@ -68,5 +144,35 @@ const styles = StyleSheet.create({
     ...PlayTTTypography.body,
     fontFamily: PlayTTFontFamilies.regular,
     color: PlayTTColors.productMuted,
+  },
+  upcomingCard: {
+    backgroundColor: PlayTTColors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: PlayTTColors.border,
+    padding: PlayTTSpacing.md,
+    gap: PlayTTSpacing.xs,
+  },
+  upcomingLabel: {
+    fontSize: 12,
+    fontFamily: PlayTTFontFamilies.semiBold,
+    color: PlayTTColors.primary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  upcomingVenue: {
+    fontSize: 16,
+    fontFamily: PlayTTFontFamilies.semiBold,
+    color: PlayTTColors.foreground,
+  },
+  upcomingTime: {
+    fontSize: 14,
+    fontFamily: PlayTTFontFamilies.medium,
+    color: PlayTTColors.foreground,
+  },
+  upcomingStatus: {
+    fontSize: 13,
+    fontFamily: PlayTTFontFamilies.regular,
+    color: PlayTTColors.mutedText,
   },
 })

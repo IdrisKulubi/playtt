@@ -1,10 +1,5 @@
-import { ProductShell } from '@/components/layout/product-shell';
+import { Redirect } from "expo-router"
 
-export default function BookScreen() {
-  return (
-    <ProductShell
-      title="Book now"
-      description="The booking flow is coming soon. Use this screen to return to the home landing."
-    />
-  );
+export default function BookRedirect() {
+  return <Redirect href="/(app)/book" />
 }

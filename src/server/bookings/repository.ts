@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, inArray, lt } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt } from "drizzle-orm";
 
 import db from "@/db/drizzle";
 import {
@@ -14,7 +14,44 @@ import type {
   CreatePendingBookingResult,
   LocationSummary,
   ResourceSummary,
+  UserBookingSummary,
 } from "@/server/bookings/types";
+
+export type BookingListFilter = "all" | "upcoming" | "past";
+
+function mapBookingRow(row: {
+  id: string;
+  status: string;
+  paymentStatus: string;
+  startTime: Date;
+  endTime: Date;
+  durationMinutes: number;
+  currency: string;
+  totalAmount: string;
+  locationId: string;
+  locationName: string;
+  resourceId: string;
+  resourceName: string;
+  expiresAt: Date | null;
+  notes: string | null;
+}): UserBookingSummary {
+  return {
+    id: row.id,
+    status: row.status,
+    paymentStatus: row.paymentStatus,
+    startTime: row.startTime.toISOString(),
+    endTime: row.endTime.toISOString(),
+    durationMinutes: row.durationMinutes,
+    currency: row.currency,
+    totalAmount: String(row.totalAmount),
+    locationId: row.locationId,
+    locationName: row.locationName,
+    resourceId: row.resourceId,
+    resourceName: row.resourceName,
+    expiresAt: row.expiresAt?.toISOString() ?? null,
+    notes: row.notes,
+  };
+}
 
 export async function listActiveLocationsWithResources(): Promise<LocationSummary[]> {
   const rows = await db
@@ -169,6 +206,83 @@ export async function findBlockingBookingsForResources(input: {
     );
 }
 
+export async function listUserBookings(input: {
+  userId: string;
+  filter?: BookingListFilter;
+}): Promise<UserBookingSummary[]> {
+  const now = new Date();
+  const filter = input.filter ?? "all";
+
+  const timeCondition =
+    filter === "upcoming"
+      ? gte(bookings.endTime, now)
+      : filter === "past"
+        ? lt(bookings.endTime, now)
+        : undefined;
+
+  const rows = await db
+    .select({
+      id: bookings.id,
+      status: bookings.status,
+      paymentStatus: bookings.paymentStatus,
+      startTime: bookings.startTime,
+      endTime: bookings.endTime,
+      durationMinutes: bookings.durationMinutes,
+      currency: bookings.currency,
+      totalAmount: bookings.totalAmount,
+      locationId: bookings.locationId,
+      locationName: locations.name,
+      resourceId: bookings.resourceId,
+      resourceName: resources.name,
+      expiresAt: bookings.expiresAt,
+      notes: bookings.notes,
+    })
+    .from(bookings)
+    .innerJoin(locations, eq(bookings.locationId, locations.id))
+    .innerJoin(resources, eq(bookings.resourceId, resources.id))
+    .where(
+      and(
+        eq(bookings.userId, input.userId),
+        timeCondition,
+      ),
+    )
+    .orderBy(
+      filter === "past" ? desc(bookings.startTime) : asc(bookings.startTime),
+    );
+
+  return rows.map(mapBookingRow);
+}
+
+export async function getUserBookingById(input: {
+  userId: string;
+  bookingId: string;
+}): Promise<UserBookingSummary | null> {
+  const [row] = await db
+    .select({
+      id: bookings.id,
+      status: bookings.status,
+      paymentStatus: bookings.paymentStatus,
+      startTime: bookings.startTime,
+      endTime: bookings.endTime,
+      durationMinutes: bookings.durationMinutes,
+      currency: bookings.currency,
+      totalAmount: bookings.totalAmount,
+      locationId: bookings.locationId,
+      locationName: locations.name,
+      resourceId: bookings.resourceId,
+      resourceName: resources.name,
+      expiresAt: bookings.expiresAt,
+      notes: bookings.notes,
+    })
+    .from(bookings)
+    .innerJoin(locations, eq(bookings.locationId, locations.id))
+    .innerJoin(resources, eq(bookings.resourceId, resources.id))
+    .where(and(eq(bookings.id, input.bookingId), eq(bookings.userId, input.userId)))
+    .limit(1);
+
+  return row ? mapBookingRow(row) : null;
+}
+
 export async function insertPendingBooking(input: {
   booking: CreatePendingBookingInput & {
     start: Date;
@@ -216,7 +330,7 @@ export async function insertPendingBooking(input: {
       toStatus: "pending",
       reason: "booking_created",
       metadata: {
-        source: "phase_2_booking_action",
+        source: "api_bookings_create",
       },
     });
 
