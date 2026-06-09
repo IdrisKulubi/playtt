@@ -174,7 +174,7 @@ Requires `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` on the backend. Tap **Con
 
 ### Apple sign-in (iOS)
 
-Mobile uses native `expo-apple-authentication` and posts to **`POST /api/auth/apple`** (not Better Auth `signIn.social`). The backend verifies the Apple JWT, upserts `user`/`account`, creates a `session`, and returns a Bearer token stored in `playtt_session`.
+Mobile uses native `expo-apple-authentication` and posts to **`POST /api/apple/sign-in`** (not Better Auth `signIn.social`). The backend verifies the Apple JWT, upserts `user`/`account`, creates a `session`, and returns a Bearer token stored in `playtt_session`.
 
 | Requirement | Value |
 |-------------|-------|
@@ -182,7 +182,7 @@ Mobile uses native `expo-apple-authentication` and posts to **`POST /api/auth/ap
 | Expo Go testing | Set `APPLE_EXPO_CLIENT_ID=host.exp.Exponent` on production backend |
 | Production build | `APPLE_APP_BUNDLE_IDENTIFIER=com.theplaytt.app` |
 
-Manual test: tap **Apple** → native sheet → `POST /api/auth/apple` 200 → home with session in SecureStore.
+Manual test: tap **Apple** → native sheet → `POST /api/apple/sign-in` 200 → home with session in SecureStore.
 
 ---
 

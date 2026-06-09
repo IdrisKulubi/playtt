@@ -96,7 +96,7 @@ function getErrorMessage(data: unknown) {
 export async function signInWithAppleApi(
   credential: AppleSignInResult,
 ): Promise<AppleAuthResponse> {
-  const response = await fetch(`${getApiBaseUrl()}/api/auth/apple`, {
+  const response = await fetch(`${getApiBaseUrl()}/api/apple/sign-in`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
