@@ -73,6 +73,9 @@ export default function AppLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="book" />
       <Stack.Screen name="booking/[id]" />
+      <Stack.Screen name="account/edit-profile" />
+      <Stack.Screen name="account/change-password" />
+      <Stack.Screen name="account/verify-email" />
     </Stack>
   )
 }
