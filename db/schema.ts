@@ -157,6 +157,12 @@ export const user = pgTable(
       .default("0")
       .notNull(),
     defaultLocationId: uuid("default_location_id"),
+    onboardingCompletedAt: timestamp("onboarding_completed_at", {
+      withTimezone: true,
+    }),
+    referralSource: text("referral_source"),
+    playIntent: text("play_intent"),
+    earlyAdopterOptIn: boolean("early_adopter_opt_in").default(false).notNull(),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()

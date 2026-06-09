@@ -10,7 +10,7 @@ import { useAuthTheme } from '@/hooks/use-auth-theme';
 import { sendVerificationOtp } from '@/lib/auth-api';
 import { authClient, refreshSession } from '@/lib/auth-client';
 import { waitForStoredAuth } from '@/lib/auth-helpers';
-import { goToAuthenticatedHome } from '@/lib/auth-navigation';
+import { routeAfterAuth } from '@/lib/user-api';
 import { verifyEmailSchema, type VerifyEmailValues } from '@/lib/auth-schemas';
 import { mapZodErrors, type FieldErrors } from '@/lib/form-errors';
 
@@ -58,7 +58,7 @@ export function VerifyEmailForm() {
 
     await refreshSession();
     await waitForStoredAuth();
-    goToAuthenticatedHome();
+    await routeAfterAuth();
     setIsLoading(false);
   }
 
