@@ -9,6 +9,7 @@ import { PlayTTColors } from "@/constants/playtt-tokens"
 import { useAuthTheme } from "@/hooks/use-auth-theme"
 import { useSession } from "@/lib/auth-client"
 import { AUTHENTICATED_HOME } from "@/lib/auth-navigation"
+import { toast } from "@/lib/toast"
 import { resolvePostAuthRoute } from "@/lib/user-api"
 
 function parseAuthMode(mode: string | string[] | undefined): AuthMode {
@@ -44,8 +45,9 @@ export default function IndexScreen() {
         if (mounted) {
           setPostAuthRoute(route)
         }
-      } catch {
+      } catch (error) {
         if (mounted) {
+          toast.apiError(error, "Could not load your account. Try again.")
           setPostAuthRoute(AUTHENTICATED_HOME)
         }
       } finally {

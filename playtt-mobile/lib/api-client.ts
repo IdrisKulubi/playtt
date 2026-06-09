@@ -1,5 +1,9 @@
+import { ApiError } from "@/lib/api-error"
+import { formatApiFailure, getFriendlyErrorMessage } from "@/lib/api-errors"
 import { getApiBaseUrl } from "@/lib/env"
 import { getAuthToken } from "@/lib/auth-helpers"
+
+export { ApiError } from "@/lib/api-error"
 
 const AUTH_FAILURE_CODES = new Set([
   "SESSION_EXPIRED",
@@ -10,25 +14,6 @@ const AUTH_FAILURE_CODES = new Set([
 ])
 
 let sessionExpiredHandler: (() => void | Promise<void>) | null = null
-
-export class ApiError extends Error {
-  status: number
-  code?: string
-  data: unknown
-
-  constructor(input: {
-    message: string
-    status: number
-    code?: string
-    data?: unknown
-  }) {
-    super(input.message)
-    this.name = "ApiError"
-    this.status = input.status
-    this.code = input.code
-    this.data = input.data
-  }
-}
 
 export function setSessionExpiredHandler(handler: () => void | Promise<void>) {
   sessionExpiredHandler = handler
@@ -64,13 +49,18 @@ export async function apiFetch<T>(
 
     if (!response.ok) {
       const code = getResponseCode(data)
+      const rawMessage =
+        getResponseMessage(data) ||
+        `Request failed with status ${response.status}`
       const error = new ApiError({
         status: response.status,
         code,
         data,
-        message:
-          getResponseMessage(data) ||
-          `Request failed with status ${response.status}`,
+        message: formatApiFailure({
+          status: response.status,
+          code,
+          message: rawMessage,
+        }),
       })
 
       if (shouldClearSession(error)) {
@@ -81,6 +71,37 @@ export async function apiFetch<T>(
     }
 
     return data as T
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error
+    }
+
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new ApiError({
+        status: 408,
+        code: "TIMEOUT",
+        message: formatApiFailure({
+          status: 408,
+          code: "TIMEOUT",
+          message: "Request timed out.",
+        }),
+        data: null,
+      })
+    }
+
+    if (
+      error instanceof TypeError ||
+      (error instanceof Error && error.message.toLowerCase().includes("network"))
+    ) {
+      throw new ApiError({
+        status: 0,
+        code: "NETWORK_ERROR",
+        message: getFriendlyErrorMessage(error),
+        data: null,
+      })
+    }
+
+    throw error
   } finally {
     clearTimeout(timeoutId)
   }

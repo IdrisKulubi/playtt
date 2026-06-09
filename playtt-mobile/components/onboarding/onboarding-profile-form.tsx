@@ -7,7 +7,7 @@ import { FormField } from "@/components/ui/form-field"
 import { Input } from "@/components/ui/input"
 import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useAuthTheme } from "@/hooks/use-auth-theme"
-import { ApiError } from "@/lib/api-client"
+import { toast } from "@/lib/toast"
 import {
   SKILL_LEVEL_OPTIONS,
   type SkillLevel,
@@ -27,27 +27,24 @@ export function OnboardingProfileForm({
   const [name, setName] = useState(initialName)
   const [phone, setPhone] = useState("")
   const [skillLevel, setSkillLevel] = useState<SkillLevel | null>(null)
-  const [formError, setFormError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   const fieldProps = { variant: "auth" as const, authTheme: theme, compact: true }
   const inputProps = { variant: "auth" as const, authTheme: theme }
 
   async function handleContinue() {
-    setFormError(null)
-
     if (!name.trim() || name.trim().length < 2) {
-      setFormError("Enter your display name.")
+      toast.error("Enter your display name.")
       return
     }
 
     if (!skillLevel) {
-      setFormError("Select your skill level.")
+      toast.error("Select your skill level.")
       return
     }
 
     if (!phone.trim()) {
-      setFormError("Phone number is required.")
+      toast.error("Phone number is required.")
       return
     }
 
@@ -62,13 +59,7 @@ export function OnboardingProfileForm({
       })
       onComplete()
     } catch (error) {
-      setFormError(
-        error instanceof ApiError
-          ? error.message
-          : error instanceof Error
-            ? error.message
-            : "Could not save your profile.",
-      )
+      toast.apiError(error, "Could not save your profile.")
     } finally {
       setIsLoading(false)
     }
@@ -108,12 +99,6 @@ export function OnboardingProfileForm({
         />
       </FormField>
 
-      {formError ? (
-        <Text style={[styles.formError, { color: theme.destructive }]}>
-          {formError}
-        </Text>
-      ) : null}
-
       <Button
         label="Continue"
         surface="auth"
@@ -132,11 +117,6 @@ const styles = StyleSheet.create({
   progress: {
     fontSize: 12,
     fontFamily: PlayTTFontFamilies.medium,
-    textAlign: "center",
-  },
-  formError: {
-    fontSize: 12,
-    fontFamily: PlayTTFontFamilies.regular,
     textAlign: "center",
   },
 })

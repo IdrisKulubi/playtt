@@ -1,4 +1,6 @@
 import type { AppleSignInResult } from '@/lib/apple-sign-in';
+import { ApiError } from '@/lib/api-error';
+import { formatApiFailure, getFriendlyErrorMessage } from '@/lib/api-errors';
 import { getApiBaseUrl } from '@/lib/env';
 
 export type AuthApiResult =
@@ -32,9 +34,18 @@ async function postToAuth(path: string, payload: Record<string, unknown>) {
   const data = text ? safeJsonParse(text) : null;
 
   if (!response.ok) {
-    const message =
+    const rawMessage =
       getErrorMessage(data) || `Auth request failed with status ${response.status}`;
-    throw new Error(message);
+    throw new ApiError({
+      status: response.status,
+      code: getErrorCode(data),
+      data,
+      message: formatApiFailure({
+        status: response.status,
+        code: getErrorCode(data),
+        message: rawMessage,
+      }),
+    });
   }
 
   if (data && typeof data === 'object' && 'error' in data && data.error) {
@@ -113,9 +124,18 @@ export async function signInWithAppleApi(
   const data = text ? safeJsonParse(text) : null;
 
   if (!response.ok) {
-    const message =
+    const rawMessage =
       getErrorMessage(data) || `Apple sign in failed with status ${response.status}`;
-    throw new Error(message);
+    throw new ApiError({
+      status: response.status,
+      code: getErrorCode(data),
+      data,
+      message: formatApiFailure({
+        status: response.status,
+        code: getErrorCode(data),
+        message: rawMessage,
+      }),
+    });
   }
 
   if (
@@ -174,8 +194,10 @@ export async function sendVerificationOtp(email: string): Promise<AuthApiResult>
   } catch (error) {
     return {
       success: false,
-      message:
-        error instanceof Error ? error.message : 'Failed to send verification email.',
+      message: getFriendlyErrorMessage(
+        error,
+        'Failed to send verification email.',
+      ),
     };
   }
 }
@@ -192,8 +214,19 @@ export async function requestPasswordReset(email: string): Promise<AuthApiResult
   } catch (error) {
     return {
       success: false,
-      message:
-        error instanceof Error ? error.message : 'Failed to send password reset code.',
+      message: getFriendlyErrorMessage(
+        error,
+        'Failed to send password reset code.',
+      ),
     };
   }
+}
+
+function getErrorCode(data: unknown) {
+  if (!data || typeof data !== 'object') {
+    return undefined;
+  }
+
+  const record = data as Record<string, unknown>;
+  return typeof record.code === 'string' ? record.code : undefined;
 }

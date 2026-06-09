@@ -15,6 +15,7 @@ import "react-native-reanimated"
 
 import { PlayTTColors } from "@/constants/playtt-tokens"
 import { SessionBootstrap } from "@/components/session-bootstrap"
+import { ToastHost } from "@/components/ui/toast-host"
 
 SplashScreen.preventAutoHideAsync()
 WebBrowser.maybeCompleteAuthSession()
@@ -72,6 +73,7 @@ export default function RootLayout() {
         <Stack.Screen name="book" />
         <Stack.Screen name="(app)" />
       </Stack>
+      <ToastHost />
       <StatusBar style="light" />
     </ThemeProvider>
   )

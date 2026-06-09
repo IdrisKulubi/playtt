@@ -12,6 +12,7 @@ import { authClient } from '@/lib/auth-client';
 import { goToResetPassword, goToSignIn } from '@/lib/auth-navigation';
 import { resetPasswordOtpSchema, type ResetPasswordOtpValues } from '@/lib/auth-schemas';
 import { mapZodErrors, type FieldErrors } from '@/lib/form-errors';
+import { toast } from '@/lib/toast';
 
 export function ResetPasswordConfirmForm() {
   const theme = useAuthTheme();
@@ -20,8 +21,6 @@ export function ResetPasswordConfirmForm() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [values, setValues] = useState<ResetPasswordOtpValues>({
     otp: '',
     password: '',
@@ -33,12 +32,10 @@ export function ResetPasswordConfirmForm() {
 
   async function handleSubmit() {
     if (!resolvedEmail) {
-      setFormError('Email is missing. Request a new code.');
+      toast.error('Email is missing. Request a new code.');
       return;
     }
 
-    setFormError(null);
-    setStatusMessage(null);
     const parsed = resetPasswordOtpSchema.safeParse(values);
     if (!parsed.success) {
       setFieldErrors(mapZodErrors(parsed));
@@ -55,11 +52,12 @@ export function ResetPasswordConfirmForm() {
     });
 
     if (error) {
-      setFormError(error.message || 'Failed to reset password.');
+      toast.error(error.message || 'Failed to reset password.');
       setIsLoading(false);
       return;
     }
 
+    toast.success('Password reset successfully. You can sign in now.');
     goToSignIn();
     setIsLoading(false);
   }
@@ -69,19 +67,17 @@ export function ResetPasswordConfirmForm() {
       return;
     }
 
-    setFormError(null);
-    setStatusMessage(null);
     setIsLoading(true);
 
     const result = await requestPasswordReset(resolvedEmail);
 
     if (!result.success) {
-      setFormError(result.message);
+      toast.error(result.message);
       setIsLoading(false);
       return;
     }
 
-    setStatusMessage('Reset code resent. Check your inbox.');
+    toast.info('Reset code resent. Check your inbox.');
     setIsLoading(false);
   }
 
@@ -137,13 +133,6 @@ export function ResetPasswordConfirmForm() {
         />
       </FormField>
 
-      {formError ? (
-        <Text style={[styles.formError, { color: theme.destructive }]}>{formError}</Text>
-      ) : null}
-      {statusMessage ? (
-        <Text style={[styles.statusMessage, { color: theme.muted }]}>{statusMessage}</Text>
-      ) : null}
-
       <Button
         label="Continue"
         surface="auth"
@@ -192,15 +181,5 @@ const styles = StyleSheet.create({
   modeLink: {
     fontFamily: PlayTTFontFamilies.semiBold,
     textDecorationLine: 'underline',
-  },
-  formError: {
-    fontSize: 12,
-    fontFamily: PlayTTFontFamilies.regular,
-    textAlign: 'center',
-  },
-  statusMessage: {
-    fontSize: 12,
-    fontFamily: PlayTTFontFamilies.regular,
-    textAlign: 'center',
   },
 });
