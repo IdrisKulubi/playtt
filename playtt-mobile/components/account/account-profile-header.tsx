@@ -3,7 +3,6 @@ import { Pressable, StyleSheet, Text, View } from "react-native"
 import {
   PlayTTColors,
   PlayTTFontFamilies,
-  PlayTTRadius,
   PlayTTSpacing,
   PlayTTTypography,
 } from "@/constants/playtt-tokens"
@@ -29,16 +28,15 @@ export function AccountProfileHeader({
       <Text style={styles.name}>{profile.name}</Text>
       <Text style={styles.email}>{profile.email}</Text>
       {verified ? (
-        <View style={styles.verifiedPill}>
-          <Text style={styles.verifiedText}>Verified</Text>
-        </View>
+        <Text style={styles.verified}>Email verified</Text>
       ) : (
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Verify email"
           onPress={onVerifyPress}
-          style={styles.verifyPill}
+          hitSlop={8}
         >
-          <Text style={styles.verifyText}>Verify email</Text>
+          <Text style={styles.verifyLink}>Verify email</Text>
         </Pressable>
       )}
     </View>
@@ -78,36 +76,17 @@ const styles = StyleSheet.create({
     fontFamily: PlayTTFontFamilies.regular,
     color: PlayTTColors.mutedText,
   },
-  verifiedPill: {
+  verified: {
     marginTop: PlayTTSpacing.xs,
-    paddingHorizontal: PlayTTSpacing.sm,
-    paddingVertical: 4,
-    borderRadius: PlayTTRadius.pill,
-    backgroundColor: "rgba(0, 255, 102, 0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(0, 255, 102, 0.35)",
+    fontSize: 13,
+    fontFamily: PlayTTFontFamilies.regular,
+    color: PlayTTColors.mutedText,
   },
-  verifiedText: {
-    fontSize: 12,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.success,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  verifyPill: {
+  verifyLink: {
     marginTop: PlayTTSpacing.xs,
-    paddingHorizontal: PlayTTSpacing.sm,
-    paddingVertical: 4,
-    borderRadius: PlayTTRadius.pill,
-    backgroundColor: "rgba(255, 184, 0, 0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 184, 0, 0.35)",
-  },
-  verifyText: {
-    fontSize: 12,
+    fontSize: 14,
     fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.warning,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
+    color: PlayTTColors.primary,
+    textDecorationLine: "underline",
   },
 })

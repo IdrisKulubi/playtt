@@ -9,14 +9,22 @@ import {
 
 type AccountSectionProps = {
   title: string
-  children: ReactNode
+  description?: string
+  children?: ReactNode
 }
 
-export function AccountSection({ title, children }: AccountSectionProps) {
+export function AccountSection({
+  title,
+  description,
+  children,
+}: AccountSectionProps) {
   return (
     <View style={styles.section}>
       <Text style={styles.title}>{title}</Text>
-      <View style={styles.rows}>{children}</View>
+      {description ? (
+        <Text style={styles.description}>{description}</Text>
+      ) : null}
+      {children ? <View style={styles.rows}>{children}</View> : null}
     </View>
   )
 }
@@ -31,6 +39,12 @@ const styles = StyleSheet.create({
     color: PlayTTColors.mutedText,
     textTransform: "uppercase",
     letterSpacing: 0.6,
+  },
+  description: {
+    fontSize: 13,
+    fontFamily: PlayTTFontFamilies.regular,
+    color: PlayTTColors.mutedText,
+    marginTop: -PlayTTSpacing.xs,
   },
   rows: {
     gap: 0,

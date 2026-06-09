@@ -143,24 +143,19 @@ export function BookingDetailSkeleton({ surface = "dark" }: PresetProps) {
 export function AccountHubSkeleton({ surface = "dark" }: PresetProps) {
   return (
     <SkeletonGroup gap="lg" style={styles.accountHub}>
-      <Skeleton width="35%" height={28} surface={surface} />
       <SkeletonGroup gap="xs" style={styles.accountHeaderFlat}>
         <Skeleton width={64} height={64} borderRadius={32} surface={surface} />
         <Skeleton width="50%" height={20} surface={surface} />
         <Skeleton width="70%" height={14} surface={surface} />
-        <Skeleton width="30%" height={12} surface={surface} />
+        <Skeleton width="35%" height={13} surface={surface} />
       </SkeletonGroup>
-      <Skeleton width="30%" height={12} surface={surface} />
+      <Skeleton width="22%" height={12} surface={surface} />
       <SkeletonGroup gap="sm">
         <Skeleton width="55%" height={16} surface={surface} />
         <Skeleton width="80%" height={13} surface={surface} />
       </SkeletonGroup>
       <Skeleton width="25%" height={12} surface={surface} />
-      <SkeletonGroup gap="sm">
-        <Skeleton width="40%" height={16} surface={surface} />
-        <Skeleton width="65%" height={13} surface={surface} />
-        <Skeleton width="50%" height={16} surface={surface} />
-      </SkeletonGroup>
+      <Skeleton width="45%" height={16} surface={surface} />
     </SkeletonGroup>
   )
 }
