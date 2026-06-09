@@ -9,19 +9,23 @@ import {
 } from "@/server/bookings/utils"
 import { calculateBookingQuote } from "@/server/bookings/pricing"
 import {
+  type BookingListFilter,
   ensureUserExists,
   findBlockingBookings,
   findBlockingBookingsForResources,
   getResourceContext,
+  getUserBookingById,
   insertPendingBooking,
   listActiveResourcesByLocation,
   listActiveLocationsWithResources,
+  listUserBookings,
 } from "@/server/bookings/repository"
 import type {
   BookingQuote,
   CreatePendingBookingResult,
   LocationSummary,
   SlotAvailability,
+  UserBookingSummary,
 } from "@/server/bookings/types"
 import {
   bookingQuoteInputSchema,
@@ -201,4 +205,18 @@ export async function createPendingBooking(
       expiresAt: getPendingBookingExpiry(),
     },
   })
+}
+
+export async function listBookingsForUser(input: {
+  userId: string
+  filter?: BookingListFilter
+}): Promise<UserBookingSummary[]> {
+  return listUserBookings(input)
+}
+
+export async function getBookingForUser(input: {
+  userId: string
+  bookingId: string
+}): Promise<UserBookingSummary | null> {
+  return getUserBookingById(input)
 }

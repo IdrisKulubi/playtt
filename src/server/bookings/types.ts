@@ -65,3 +65,20 @@ export interface CreatePendingBookingResult {
   currency: string;
   expiresAt: string | null;
 }
+
+export interface UserBookingSummary {
+  id: string;
+  status: string;
+  paymentStatus: string;
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  currency: string;
+  totalAmount: string;
+  locationId: string;
+  locationName: string;
+  resourceId: string;
+  resourceName: string;
+  expiresAt: string | null;
+  notes: string | null;
+}

@@ -36,6 +36,10 @@ export const createPendingBookingSchema = bookingQuoteInputSchema.extend({
   notes: z.string().max(300).optional(),
 });
 
+export const createBookingBodySchema = bookingQuoteInputSchema.extend({
+  notes: z.string().max(300).optional(),
+});
+
 export const locationAvailabilityInputSchema = z.object({
   locationId: z.string().uuid("Location is required."),
   date: z.string().min(1, "Date is required."),

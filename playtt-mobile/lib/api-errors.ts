@@ -12,6 +12,9 @@ const CODE_MESSAGES: Record<string, string> = {
   INVALID_PHONE: "Enter a valid Kenyan phone number (e.g. 07XX XXX XXX).",
   PHONE_IN_USE: "That phone number is already linked to another account.",
   ONBOARDING_INCOMPLETE: "Complete your player profile before continuing.",
+  SLOT_UNAVAILABLE: "That time slot is no longer available. Pick another time.",
+  BOOKING_NOT_FOUND: "We could not find that booking.",
+  BOOKING_ERROR: "Something went wrong with your booking. Please try again.",
   NETWORK_ERROR: "Cannot reach PlayTT right now. Check your internet connection.",
   TIMEOUT: "That took too long. Check your connection and try again.",
 }
