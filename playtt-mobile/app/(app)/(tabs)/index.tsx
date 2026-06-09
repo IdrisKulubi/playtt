@@ -81,8 +81,8 @@ export default function AppHomeScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <BrandMark size="compact" />
-        <Text style={styles.title}>Welcome back</Text>
-        <Text style={styles.description}>Signed in as {userEmail}</Text>
+        <Text style={styles.title}>Ready to play?</Text>
+        <Text style={styles.descriptionMuted}>{userEmail}</Text>
 
         <Button
           label="Book a session"
@@ -147,10 +147,10 @@ const styles = StyleSheet.create({
     fontFamily: PlayTTFontFamilies.semiBold,
     color: PlayTTColors.foreground,
   },
-  description: {
-    ...PlayTTTypography.body,
+  descriptionMuted: {
+    fontSize: 13,
     fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.productMuted,
+    color: PlayTTColors.mutedText,
   },
   upcomingCard: {
     backgroundColor: PlayTTColors.card,
