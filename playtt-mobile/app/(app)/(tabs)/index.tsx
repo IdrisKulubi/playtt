@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context"
 
 import { BrandMark } from "@/components/brand/brand-mark"
 import { Button } from "@/components/ui/button"
+import { UpcomingCardSkeleton } from "@/components/ui/skeleton"
 import {
   PlayTTColors,
   PlayTTFontFamilies,
@@ -47,13 +48,17 @@ export default function AppHomeScreen() {
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [upcomingBooking, setUpcomingBooking] =
     useState<UserBookingSummary | null>(null)
+  const [isLoadingUpcoming, setIsLoadingUpcoming] = useState(true)
 
   const loadUpcoming = useCallback(async () => {
+    setIsLoadingUpcoming(true)
     try {
       const bookings = await fetchMyBookings("upcoming")
       setUpcomingBooking(findUpcomingBooking(bookings))
     } catch {
       setUpcomingBooking(null)
+    } finally {
+      setIsLoadingUpcoming(false)
     }
   }, [])
 
@@ -85,7 +90,9 @@ export default function AppHomeScreen() {
           onPress={() => router.push("/(app)/book")}
         />
 
-        {upcomingBooking ? (
+        {isLoadingUpcoming ? (
+          <UpcomingCardSkeleton surface="dark" />
+        ) : upcomingBooking ? (
           <Pressable
             onPress={() =>
               router.push({

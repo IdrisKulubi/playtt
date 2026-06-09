@@ -1,8 +1,9 @@
 import { Redirect, Stack } from "expo-router"
-import { ActivityIndicator, StyleSheet, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 import { useEffect, useState } from "react"
 
-import { PlayTTColors } from "@/constants/playtt-tokens"
+import { AuthFormSkeleton } from "@/components/ui/skeleton"
+import { PlayTTColors, PlayTTSpacing } from "@/constants/playtt-tokens"
 import { getStoredAuth } from "@/lib/auth-helpers"
 import { ONBOARDING_ROUTE } from "@/lib/auth-navigation"
 import { fetchCurrentUser } from "@/lib/user-api"
@@ -54,7 +55,7 @@ export default function AppLayout() {
   if (gate === "loading") {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={PlayTTColors.primary} />
+        <AuthFormSkeleton surface="dark" />
       </View>
     )
   }
@@ -79,8 +80,7 @@ export default function AppLayout() {
 const styles = StyleSheet.create({
   loading: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
     backgroundColor: PlayTTColors.background,
+    paddingTop: PlayTTSpacing.xl,
   },
 })

@@ -23,7 +23,7 @@ const STATUS_MESSAGES: Record<number, string> = {
   400: "Something in that request was not valid. Check your details and try again.",
   401: "Please sign in to continue.",
   403: "You do not have permission to do that.",
-  404: "We could not find what you were looking for. It may have been moved or removed.",
+  404: "There has been an error. Please try again shortly.",
   408: "The request timed out. Check your connection and try again.",
   409: "That conflicts with an existing record. Try different details.",
   422: "Some details look incorrect. Check the form and try again.",

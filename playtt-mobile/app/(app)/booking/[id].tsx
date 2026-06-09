@@ -1,15 +1,9 @@
 import { router, useLocalSearchParams } from "expo-router"
 import { useEffect, useState } from "react"
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native"
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
+import { BookingDetailSkeleton } from "@/components/ui/skeleton"
 import {
   PlayTTColors,
   PlayTTFontFamilies,
@@ -67,9 +61,7 @@ export default function BookingDetailScreen() {
       </View>
 
       {isLoading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={PlayTTColors.primary} />
-        </View>
+        <BookingDetailSkeleton surface="dark" />
       ) : !booking ? (
         <View style={styles.loading}>
           <Text style={styles.missing}>Booking not found.</Text>

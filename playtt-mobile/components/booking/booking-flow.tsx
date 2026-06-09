@@ -1,7 +1,6 @@
 import { router } from "expo-router"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { Button } from "@/components/ui/button"
+import { Skeleton, SlotListSkeleton, VenueCardSkeleton } from "@/components/ui/skeleton"
 import {
   PlayTTColors,
   PlayTTFontFamilies,
@@ -58,7 +58,9 @@ export function BookingFlow() {
   const [step, setStep] = useState<BookingStep>("location")
   const [locations, setLocations] = useState<LocationSummary[]>([])
   const [isBootstrapping, setIsBootstrapping] = useState(true)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false)
+  const [isLoadingQuote, setIsLoadingQuote] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedLocationId, setSelectedLocationId] = useState("")
   const [selectedDate, setSelectedDate] = useState(toDateKey(new Date()))
   const [durationMinutes, setDurationMinutes] = useState<30 | 60>(60)
@@ -107,7 +109,7 @@ export function BookingFlow() {
   const loadAvailability = useCallback(async () => {
     if (!selectedLocationId) return
 
-    setIsLoading(true)
+    setIsLoadingSlots(true)
     try {
       const data = await fetchAvailability({
         locationId: selectedLocationId,
@@ -127,7 +129,7 @@ export function BookingFlow() {
     } catch (error) {
       toast.apiError(error, "Could not load availability.")
     } finally {
-      setIsLoading(false)
+      setIsLoadingSlots(false)
     }
   }, [durationMinutes, groupSize, selectedDate, selectedLocationId])
 
@@ -142,7 +144,7 @@ export function BookingFlow() {
     let mounted = true
 
     async function loadQuote() {
-      setIsLoading(true)
+      setIsLoadingQuote(true)
       try {
         const data = await fetchBookingQuote({
           locationId: selectedLocationId,
@@ -155,7 +157,7 @@ export function BookingFlow() {
       } catch (error) {
         toast.apiError(error, "Could not calculate price.")
       } finally {
-        if (mounted) setIsLoading(false)
+        if (mounted) setIsLoadingQuote(false)
       }
     }
 
@@ -178,7 +180,7 @@ export function BookingFlow() {
       return
     }
 
-    setIsLoading(true)
+    setIsSubmitting(true)
     try {
       const result = await createBooking({
         locationId: selectedLocationId,
@@ -194,14 +196,14 @@ export function BookingFlow() {
     } catch (error) {
       toast.apiError(error, "Could not complete your booking.")
     } finally {
-      setIsLoading(false)
+      setIsSubmitting(false)
     }
   }
 
   if (isBootstrapping) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={PlayTTColors.primary} />
+        <VenueCardSkeleton surface="product" />
       </View>
     )
   }
@@ -329,8 +331,8 @@ export function BookingFlow() {
               })}
             </View>
 
-            {isLoading ? (
-              <ActivityIndicator color={PlayTTColors.primary} />
+            {isLoadingSlots ? (
+              <SlotListSkeleton surface="product" />
             ) : (
               slots.map((slot) => {
                 const past = isSlotStartInPast(slot.startsAt, nowMs)
@@ -409,16 +411,20 @@ export function BookingFlow() {
 
             <View style={styles.summaryCard}>
               <Text style={styles.summaryLabel}>Total</Text>
-              <Text style={styles.summaryAmount}>
-                {quote
-                  ? formatKes(quote.totalAmount, quote.currency)
-                  : selectedSlot
-                    ? formatKes(
-                        selectedSlot.price.totalAmount,
-                        selectedSlot.price.currency,
-                      )
-                    : "—"}
-              </Text>
+              {isLoadingQuote && !quote ? (
+                <Skeleton width={120} height={24} surface="product" />
+              ) : (
+                <Text style={styles.summaryAmount}>
+                  {quote
+                    ? formatKes(quote.totalAmount, quote.currency)
+                    : selectedSlot
+                      ? formatKes(
+                          selectedSlot.price.totalAmount,
+                          selectedSlot.price.currency,
+                        )
+                      : "—"}
+                </Text>
+              )}
             </View>
 
             <View style={styles.actionRow}>
@@ -435,7 +441,7 @@ export function BookingFlow() {
                   label="Reserve booking"
                   surface="product"
                   onPress={handleConfirm}
-                  loading={isLoading}
+                  loading={isSubmitting}
                 />
               </View>
             </View>

@@ -1,12 +1,9 @@
 import type { AuthMode } from "@/constants/auth-theme"
 import { Redirect, useLocalSearchParams } from "expo-router"
 import { useEffect, useState } from "react"
-import { ActivityIndicator, StyleSheet, View } from "react-native"
-
 import { AuthForm } from "@/components/auth/auth-form"
 import { AuthShell } from "@/components/auth/auth-shell"
-import { PlayTTColors } from "@/constants/playtt-tokens"
-import { useAuthTheme } from "@/hooks/use-auth-theme"
+import { AuthFormSkeleton } from "@/components/ui/skeleton"
 import { useSession } from "@/lib/auth-client"
 import { AUTHENTICATED_HOME } from "@/lib/auth-navigation"
 import { toast } from "@/lib/toast"
@@ -24,7 +21,6 @@ export default function IndexScreen() {
   const [mode, setMode] = useState<AuthMode>(initialMode)
   const [postAuthRoute, setPostAuthRoute] = useState<string | null>(null)
   const [isResolvingRoute, setIsResolvingRoute] = useState(false)
-  const theme = useAuthTheme()
 
   useEffect(() => {
     let mounted = true
@@ -66,9 +62,9 @@ export default function IndexScreen() {
 
   if (isPending || (session && isResolvingRoute)) {
     return (
-      <View style={[styles.loading, { backgroundColor: theme.pageBackground }]}>
-        <ActivityIndicator color={PlayTTColors.primary} />
-      </View>
+      <AuthShell subtitle={mode === "sign-in" ? "Sign in to PlayTT" : "Create your PlayTT account"}>
+        <AuthFormSkeleton surface="product" />
+      </AuthShell>
     )
   }
 
@@ -86,10 +82,3 @@ export default function IndexScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  loading: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-})

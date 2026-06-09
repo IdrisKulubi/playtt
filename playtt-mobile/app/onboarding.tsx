@@ -1,19 +1,15 @@
 import { Redirect } from "expo-router"
 import { useEffect, useState } from "react"
-import { ActivityIndicator, StyleSheet, View } from "react-native"
-
 import { AuthShell } from "@/components/auth/auth-shell"
+import { AuthFormSkeleton } from "@/components/ui/skeleton"
 import { OnboardingProfileForm } from "@/components/onboarding/onboarding-profile-form"
 import { OnboardingSurveyForm } from "@/components/onboarding/onboarding-survey-form"
-import { PlayTTColors } from "@/constants/playtt-tokens"
-import { useAuthTheme } from "@/hooks/use-auth-theme"
 import { useSession } from "@/lib/auth-client"
 import { AUTHENTICATED_HOME } from "@/lib/auth-navigation"
 import { fetchCurrentUser, type UserProfile } from "@/lib/user-api"
 
 export default function OnboardingScreen() {
   const { data: session, isPending } = useSession()
-  const theme = useAuthTheme()
   const [step, setStep] = useState<1 | 2>(1)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
@@ -54,9 +50,9 @@ export default function OnboardingScreen() {
 
   if (isPending || isLoadingProfile) {
     return (
-      <View style={[styles.loading, { backgroundColor: theme.pageBackground }]}>
-        <ActivityIndicator color={PlayTTColors.primary} />
-      </View>
+      <AuthShell subtitle="Setting up your account">
+        <AuthFormSkeleton surface="product" />
+      </AuthShell>
     )
   }
 
@@ -92,10 +88,3 @@ export default function OnboardingScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  loading: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-})
