@@ -1,4 +1,5 @@
 import type { AuthThemeColors } from '@/constants/auth-theme';
+import type { ProductThemeColors } from '@/constants/product-theme';
 import * as Haptics from 'expo-haptics';
 import {
   ActivityIndicator,
@@ -27,6 +28,7 @@ type ButtonProps = PressableProps & {
   fullWidth?: boolean;
   compact?: boolean;
   authTheme?: AuthThemeColors;
+  productTheme?: ProductThemeColors;
 };
 
 export function Button({
@@ -37,6 +39,7 @@ export function Button({
   fullWidth = true,
   compact = false,
   authTheme,
+  productTheme,
   disabled,
   onPress,
   onPressIn,
@@ -45,19 +48,29 @@ export function Button({
 }: ButtonProps) {
   const isDisabled = disabled || loading;
   const isAuth = surface === 'auth' && authTheme;
+  const isProduct = surface === 'product' && productTheme;
 
-  const outlineStyle = surface === 'product' ? styles.outlineProduct : styles.outlineMarketing;
-  const outlineLabelStyle =
-    surface === 'product' ? styles.labelOutlineProduct : styles.labelOutlineMarketing;
+  const outlineStyle = isProduct
+    ? { backgroundColor: productTheme.elevated, borderWidth: 1, borderColor: productTheme.border }
+    : surface === 'product'
+      ? styles.outlineProduct
+      : styles.outlineMarketing;
+  const outlineLabelStyle = isProduct
+    ? { color: productTheme.foreground }
+    : surface === 'product'
+      ? styles.labelOutlineProduct
+      : styles.labelOutlineMarketing;
   const spinnerColor = isAuth
     ? variant === 'primary'
       ? authTheme.primaryForeground
       : authTheme.foreground
     : variant === 'primary'
       ? PlayTTColors.primaryForeground
-      : surface === 'product'
-        ? PlayTTColors.productForeground
-        : PlayTTColors.foreground;
+      : isProduct
+        ? productTheme.foreground
+        : surface === 'product'
+          ? PlayTTColors.productForeground
+          : PlayTTColors.foreground;
 
   return (
     <Pressable
@@ -97,7 +110,11 @@ export function Button({
             !isAuth && variant === 'outline' && outlineLabelStyle,
             variant === 'ghost' &&
               !isAuth &&
-              (surface === 'product' ? styles.labelGhostProduct : styles.labelGhostMarketing),
+              (isProduct
+                ? { color: productTheme.foreground }
+                : surface === 'product'
+                  ? styles.labelGhostProduct
+                  : styles.labelGhostMarketing),
           ]}>
           {label}
         </Text>

@@ -44,30 +44,30 @@ Move the user from curiosity to reservation with minimal ambiguity. Every screen
 - Do not introduce heavy navigation or admin-style density here
 
 ## Booking Funnel Blueprint
-### Step 1: Location
-- Start with place selection
-- Emphasize venue identity, address, and available tables
-- Avoid showing pricing or group complexity too early
 
-### Step 2: Timing
-- Show available slots with open-table counts
-- Keep date and duration controls nearby
-- Make unavailable or past slots easy to distinguish without feeling broken
+See **[booking-ux.md](./booking-ux.md)** for the canonical mobile booking spec (tap budget, copy, components, anti-patterns).
 
-### Step 3: Group
-- Ask for group size only after time is chosen
-- Explain the included player count and larger-group surcharge plainly
-- Keep the summary of the chosen slot visible
+### When (timing screen)
+- Single venue (MVP): skip venue step; show venue as a chip on the timing screen
+- Date chips with Today / Tomorrow labels, 30/60 min toggle, available slots with price
+- Slot tap is the primary action (no Continue button on this screen)
+- Empty day: "No times left" + Try tomorrow
 
-### Step 4: Checkout
-- Present venue, time, group, notes, and pricing in a quiet review moment
-- The total should be legible immediately
-- The reserve action should feel confident and final
+### Players (bottom sheet)
+- Opened immediately after slot tap
+- Default 2 players; surcharge copy for larger groups
+- Continue closes sheet and shows sticky summary bar
+
+### Confirm (bottom sheet + sticky bar)
+- Sticky bar shows time, duration, price, and "Book this slot"
+- Confirm sheet: summary, collapsible notes, final submit
+- Success screen: "You're booked!" with view bookings CTA
 
 ## Mobile Behavior
-- Prioritize vertical scanning and a single next action
-- Keep booking context visible through a compact summary bar or stacked summary card
-- Avoid making the player jump between hidden panels to understand price or selection state
+- Target ~3 taps for returning users (slot → players → book)
+- One primary action per moment; Back only in screen header
+- Sticky checkout bar keeps selection context visible
+- Sheets over full-page steps for group size and confirm
 
 ## Future Screen Rule
 - New screens should be designed by mapping them onto one of the existing shell types first

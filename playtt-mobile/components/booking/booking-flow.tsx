@@ -1,24 +1,18 @@
 import { router } from "expo-router"
-import { useCallback, useEffect, useMemo, useState } from "react"
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Pressable, ScrollView, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
+import { BookingCheckoutBar } from "@/components/booking/booking-checkout-bar"
+import { BookingConfirmSheet } from "@/components/booking/booking-confirm-sheet"
+import { BookingProgress } from "@/components/booking/booking-progress"
+import { createBookingFlowStyles } from "@/components/booking/booking-theme"
+import { GroupSizeSheet } from "@/components/booking/group-size-sheet"
+import { TimingPanel } from "@/components/booking/timing-panel"
 import { Button } from "@/components/ui/button"
-import { Skeleton, SlotListSkeleton, VenueCardSkeleton } from "@/components/ui/skeleton"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTRadius,
-  PlayTTSpacing,
-  PlayTTTypography,
-} from "@/constants/playtt-tokens"
+import { VenueCardSkeleton } from "@/components/ui/skeleton"
+import { useProductTheme, useSkeletonSurface } from "@/hooks/use-product-theme"
+import { ApiError } from "@/lib/api-error"
 import {
   createBooking,
   fetchAvailability,
@@ -37,25 +31,17 @@ import {
   buildDateStrip,
   formatBookingStatus,
   formatKes,
-  formatPricingTierLabel,
   formatTimeRange,
   isSlotStartInPast,
-  slotSubtitle,
   toDateKey,
 } from "@/lib/booking-utils"
 import { toast } from "@/lib/toast"
 
-const STEP_LABELS: Record<BookingStep, string> = {
-  location: "Choose a venue",
-  timing: "Pick a time",
-  checkout: "Review booking",
-  confirmed: "Booking reserved",
-}
-
-const GROUP_SIZE_OPTIONS: GroupSize[] = [2, 3, 4, 5, 6, 7, 8]
-
 export function BookingFlow() {
-  const [step, setStep] = useState<BookingStep>("location")
+  const theme = useProductTheme()
+  const skeletonSurface = useSkeletonSurface()
+  const styles = useMemo(() => createBookingFlowStyles(theme), [theme])
+  const [step, setStep] = useState<BookingStep>("timing")
   const [locations, setLocations] = useState<LocationSummary[]>([])
   const [isBootstrapping, setIsBootstrapping] = useState(true)
   const [isLoadingSlots, setIsLoadingSlots] = useState(false)
@@ -70,19 +56,38 @@ export function BookingFlow() {
   const [quote, setQuote] = useState<BookingQuote | null>(null)
   const [notes, setNotes] = useState("")
   const [confirmation, setConfirmation] = useState<CreateBookingResult | null>(null)
+  const [groupSheetOpen, setGroupSheetOpen] = useState(false)
+  const [confirmSheetOpen, setConfirmSheetOpen] = useState(false)
+  const [groupConfirmed, setGroupConfirmed] = useState(false)
   const [nowMs, setNowMs] = useState(Date.now())
 
+  const latestSelectedSlotRef = useRef<SlotAvailability | null>(null)
   const dateStrip = useMemo(() => buildDateStrip(7), [])
   const selectedLocation = locations.find((item) => item.id === selectedLocationId) ?? null
+  const singleVenue = locations.length === 1
   const selectedResourceId =
     selectedSlot?.availableResourceIds[0] ??
     selectedLocation?.resources[0]?.id ??
     ""
 
   useEffect(() => {
+    latestSelectedSlotRef.current = selectedSlot
+  }, [selectedSlot])
+
+  useEffect(() => {
     const intervalId = setInterval(() => setNowMs(Date.now()), 30_000)
     return () => clearInterval(intervalId)
   }, [])
+
+  useEffect(() => {
+    if (!selectedSlot) return
+    if (!isSlotStartInPast(selectedSlot.startsAt, nowMs)) return
+    setSelectedSlot(null)
+    setQuote(null)
+    setGroupConfirmed(false)
+    setGroupSheetOpen(false)
+    setConfirmSheetOpen(false)
+  }, [nowMs, selectedSlot])
 
   useEffect(() => {
     let mounted = true
@@ -92,7 +97,13 @@ export function BookingFlow() {
         const data = await fetchBookingBootstrap()
         if (!mounted) return
         setLocations(data)
-        setSelectedLocationId(data[0]?.id ?? "")
+        if (data.length === 1) {
+          setSelectedLocationId(data[0].id)
+          setStep("timing")
+        } else if (data[0]) {
+          setSelectedLocationId(data[0].id)
+          setStep("location")
+        }
       } catch (error) {
         toast.apiError(error, "Could not load venues.")
       } finally {
@@ -118,14 +129,23 @@ export function BookingFlow() {
         groupSize,
       })
       setSlots(data)
-      setSelectedSlot((current) => {
-        if (!current) return null
-        return (
-          data.find(
-            (slot) => slot.startsAt === current.startsAt && slot.isAvailable,
-          ) ?? null
-        )
-      })
+
+      const currentSlot = latestSelectedSlotRef.current
+      if (!currentSlot) return
+
+      const matchingSlot =
+        data.find(
+          (slot) => slot.startsAt === currentSlot.startsAt && slot.isAvailable,
+        ) ?? null
+
+      if (!matchingSlot) {
+        setSelectedSlot(null)
+        setQuote(null)
+        setGroupConfirmed(false)
+        setConfirmSheetOpen(false)
+      } else {
+        setSelectedSlot(matchingSlot)
+      }
     } catch (error) {
       toast.apiError(error, "Could not load availability.")
     } finally {
@@ -138,32 +158,28 @@ export function BookingFlow() {
     void loadAvailability()
   }, [loadAvailability, selectedLocationId, step])
 
-  useEffect(() => {
-    if (step !== "checkout" || !selectedSlot || !selectedResourceId) return
-
-    let mounted = true
-
-    async function loadQuote() {
-      setIsLoadingQuote(true)
-      try {
-        const data = await fetchBookingQuote({
-          locationId: selectedLocationId,
-          resourceId: selectedResourceId,
-          startTimeIso: selectedSlot!.startsAt,
-          durationMinutes,
-          groupSize,
-        })
-        if (mounted) setQuote(data)
-      } catch (error) {
-        toast.apiError(error, "Could not calculate price.")
-      } finally {
-        if (mounted) setIsLoadingQuote(false)
-      }
+  const loadQuote = useCallback(async () => {
+    if (!selectedSlot || !selectedLocationId || !selectedResourceId) {
+      return null
     }
 
-    void loadQuote()
-    return () => {
-      mounted = false
+    setIsLoadingQuote(true)
+    try {
+      const data = await fetchBookingQuote({
+        locationId: selectedLocationId,
+        resourceId: selectedResourceId,
+        startTimeIso: selectedSlot.startsAt,
+        durationMinutes,
+        groupSize,
+      })
+      setQuote(data)
+      return data
+    } catch (error) {
+      toast.apiError(error, "Could not calculate price.")
+      setQuote(null)
+      return null
+    } finally {
+      setIsLoadingQuote(false)
     }
   }, [
     durationMinutes,
@@ -171,12 +187,47 @@ export function BookingFlow() {
     selectedLocationId,
     selectedResourceId,
     selectedSlot,
-    step,
   ])
+
+  function handleDateChange(dateKey: string) {
+    setSelectedDate(dateKey)
+    setSelectedSlot(null)
+    setQuote(null)
+    setGroupConfirmed(false)
+    setConfirmSheetOpen(false)
+  }
+
+  function handleDurationChange(value: 30 | 60) {
+    setDurationMinutes(value)
+    setSelectedSlot(null)
+    setQuote(null)
+    setGroupConfirmed(false)
+    setConfirmSheetOpen(false)
+  }
+
+  function handleSlotSelect(slot: SlotAvailability) {
+    setSelectedSlot(slot)
+    setQuote(null)
+    setGroupConfirmed(false)
+    setConfirmSheetOpen(false)
+    setGroupSheetOpen(true)
+  }
+
+  async function handleGroupContinue() {
+    const nextQuote = await loadQuote()
+    if (!nextQuote) return
+    setGroupSheetOpen(false)
+    setGroupConfirmed(true)
+  }
+
+  function handleOpenConfirm() {
+    if (!selectedSlot || !groupConfirmed) return
+    setConfirmSheetOpen(true)
+  }
 
   async function handleConfirm() {
     if (!selectedSlot || !selectedLocationId || !selectedResourceId) {
-      toast.error("Select a venue and an available time to continue.")
+      toast.error("Select a time to continue.")
       return
     }
 
@@ -192,18 +243,54 @@ export function BookingFlow() {
       })
       setConfirmation(result)
       setStep("confirmed")
-      toast.success("Reservation saved.")
+      setConfirmSheetOpen(false)
+      setGroupSheetOpen(false)
+      toast.success("You're booked!")
     } catch (error) {
+      if (error instanceof ApiError && error.code === "SLOT_UNAVAILABLE") {
+        toast.apiError(error, "That time was just taken. Pick another slot.")
+        setSelectedSlot(null)
+        setQuote(null)
+        setGroupConfirmed(false)
+        setConfirmSheetOpen(false)
+        void loadAvailability()
+        return
+      }
       toast.apiError(error, "Could not complete your booking.")
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  function handleBookAnother() {
+    setStep(singleVenue ? "timing" : "location")
+    setConfirmation(null)
+    setSelectedSlot(null)
+    setQuote(null)
+    setNotes("")
+    setGroupConfirmed(false)
+    setGroupSheetOpen(false)
+    setConfirmSheetOpen(false)
+  }
+
+  const progressStep =
+    step === "confirmed"
+      ? "done"
+      : groupSheetOpen || groupConfirmed
+        ? "players"
+        : "when"
+
+  const showCheckoutBar =
+    step === "timing" &&
+    Boolean(selectedSlot) &&
+    groupConfirmed &&
+    !groupSheetOpen &&
+    !confirmSheetOpen
+
   if (isBootstrapping) {
     return (
       <View style={styles.loading}>
-        <VenueCardSkeleton surface="product" />
+        <VenueCardSkeleton surface={skeletonSurface} />
       </View>
     )
   }
@@ -217,527 +304,132 @@ export function BookingFlow() {
     )
   }
 
+  const checkoutBarInset = showCheckoutBar ? 112 : 0
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.stepLabel}>{STEP_LABELS[step]}</Text>
+      {step === "timing" ? (
+        <View style={styles.timingPage}>
+          <View style={styles.timingHeader}>
+            <BookingProgress activeStep={progressStep} />
+          </View>
+          <TimingPanel
+            location={selectedLocation}
+            dateStrip={dateStrip}
+            selectedDate={selectedDate}
+            durationMinutes={durationMinutes}
+            slots={slots}
+            selectedSlot={selectedSlot}
+            isLoadingSlots={isLoadingSlots}
+            nowMs={nowMs}
+            listBottomInset={checkoutBarInset}
+            onDateChange={handleDateChange}
+            onDurationChange={handleDurationChange}
+            onSlotSelect={handleSlotSelect}
+          />
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={[
+            styles.scroll,
+            showCheckoutBar && styles.scrollWithBar,
+          ]}
+        >
+          {step !== "confirmed" ? (
+            <BookingProgress activeStep={progressStep} />
+          ) : null}
 
-        {step === "location" ? (
-          <View style={styles.section}>
-            {locations.map((location) => {
-              const selected = location.id === selectedLocationId
-              return (
-                <Pressable
-                  key={location.id}
-                  onPress={() => setSelectedLocationId(location.id)}
-                  style={[styles.card, selected && styles.cardSelected]}
-                >
-                  <Text style={styles.cardTitle}>{location.name}</Text>
-                  <Text style={styles.cardBody}>{location.address}</Text>
-                  <Text style={styles.cardMeta}>
-                    {location.resources.length} table
-                    {location.resources.length === 1 ? "" : "s"}
+          {step === "location" ? (
+            <View style={styles.section}>
+              <Text style={styles.heading}>Choose a venue</Text>
+              {locations.map((location) => {
+                const selected = location.id === selectedLocationId
+                return (
+                  <Pressable
+                    key={location.id}
+                    onPress={() => {
+                      setSelectedLocationId(location.id)
+                      setSelectedSlot(null)
+                      setQuote(null)
+                      setGroupConfirmed(false)
+                      setStep("timing")
+                    }}
+                    style={[styles.card, selected && styles.cardSelected]}
+                  >
+                    <Text style={styles.cardTitle}>{location.name}</Text>
+                    <Text style={styles.cardBody}>{location.address}</Text>
+                  </Pressable>
+                )
+              })}
+            </View>
+          ) : null}
+
+          {step === "confirmed" && confirmation ? (
+            <View style={styles.section}>
+              <Text style={styles.confirmedTitle}>You're booked!</Text>
+              <Text style={styles.confirmedBody}>
+                {formatBookingStatus(confirmation.status, confirmation.paymentStatus)}
+              </Text>
+              {selectedSlot && selectedLocation ? (
+                <>
+                  <Text style={styles.confirmedVenue}>{selectedLocation.name}</Text>
+                  <Text style={styles.confirmedMeta}>
+                    {formatTimeRange(selectedSlot.startsAt, selectedSlot.endsAt)}
                   </Text>
-                </Pressable>
-              )
-            })}
-            <Button
-              label="Continue"
-              surface="product"
-              onPress={() => setStep("timing")}
-              disabled={!selectedLocationId}
-            />
-          </View>
-        ) : null}
-
-        {step === "timing" ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{selectedLocation?.name}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.dateRow}>
-                {dateStrip.map((day) => {
-                  const key = toDateKey(day)
-                  const selected = key === selectedDate
-                  return (
-                    <Pressable
-                      key={key}
-                      onPress={() => setSelectedDate(key)}
-                      style={[styles.dateChip, selected && styles.dateChipSelected]}
-                    >
-                      <Text
-                        style={[
-                          styles.dateChipDay,
-                          selected && styles.dateChipTextSelected,
-                        ]}
-                      >
-                        {day.toLocaleDateString("en-KE", { weekday: "short" })}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.dateChipDate,
-                          selected && styles.dateChipTextSelected,
-                        ]}
-                      >
-                        {day.getDate()}
-                      </Text>
-                    </Pressable>
-                  )
-                })}
-              </View>
-            </ScrollView>
-
-            <View style={styles.toggleRow}>
-              {[30, 60].map((value) => {
-                const selected = durationMinutes === value
-                return (
-                  <Pressable
-                    key={value}
-                    onPress={() => setDurationMinutes(value as 30 | 60)}
-                    style={[styles.toggle, selected && styles.toggleSelected]}
-                  >
-                    <Text
-                      style={[
-                        styles.toggleLabel,
-                        selected && styles.toggleLabelSelected,
-                      ]}
-                    >
-                      {value} min
-                    </Text>
-                  </Pressable>
-                )
-              })}
+                  <Text style={styles.confirmedMeta}>
+                    {formatKes(confirmation.totalAmount, confirmation.currency)}
+                  </Text>
+                </>
+              ) : null}
+              <Button
+                label="View my bookings"
+                surface="product"
+                productTheme={theme}
+                onPress={() => router.replace("/(app)/(tabs)/bookings")}
+              />
+              <Button
+                label="Book another session"
+                variant="outline"
+                surface="product"
+                productTheme={theme}
+                onPress={handleBookAnother}
+              />
             </View>
+          ) : null}
+        </ScrollView>
+      )}
 
-            <Text style={styles.fieldLabel}>Players</Text>
-            <View style={styles.groupRow}>
-              {GROUP_SIZE_OPTIONS.map((size) => {
-                const selected = groupSize === size
-                return (
-                  <Pressable
-                    key={size}
-                    onPress={() => setGroupSize(size)}
-                    style={[styles.groupChip, selected && styles.groupChipSelected]}
-                  >
-                    <Text
-                      style={[
-                        styles.groupChipLabel,
-                        selected && styles.groupChipLabelSelected,
-                      ]}
-                    >
-                      {size}
-                    </Text>
-                  </Pressable>
-                )
-              })}
-            </View>
+      <GroupSizeSheet
+        visible={groupSheetOpen}
+        groupSize={groupSize}
+        currency={selectedSlot?.price.currency ?? "KES"}
+        onClose={() => setGroupSheetOpen(false)}
+        onGroupSizeChange={setGroupSize}
+        onContinue={handleGroupContinue}
+        loading={isLoadingQuote}
+      />
 
-            {isLoadingSlots ? (
-              <SlotListSkeleton surface="product" />
-            ) : (
-              slots.map((slot) => {
-                const past = isSlotStartInPast(slot.startsAt, nowMs)
-                const disabled = past || !slot.isAvailable
-                const selected = selectedSlot?.startsAt === slot.startsAt
-                return (
-                  <Pressable
-                    key={slot.startsAt}
-                    disabled={disabled}
-                    onPress={() => setSelectedSlot(slot)}
-                    style={[
-                      styles.slotRow,
-                      selected && styles.slotRowSelected,
-                      disabled && styles.slotRowDisabled,
-                    ]}
-                  >
-                    <View>
-                      <Text style={styles.slotTime}>
-                        {formatTimeRange(slot.startsAt, slot.endsAt)}
-                      </Text>
-                      <Text style={styles.slotMeta}>{slotSubtitle(slot, nowMs)}</Text>
-                    </View>
-                    <Text style={styles.slotPrice}>
-                      {formatKes(slot.price.totalAmount, slot.price.currency)}
-                    </Text>
-                  </Pressable>
-                )
-              })
-            )}
+      <BookingConfirmSheet
+        visible={confirmSheetOpen}
+        location={selectedLocation}
+        selectedSlot={selectedSlot}
+        groupSize={groupSize}
+        quote={quote}
+        notes={notes}
+        loading={isSubmitting}
+        onClose={() => setConfirmSheetOpen(false)}
+        onNotesChange={setNotes}
+        onConfirm={handleConfirm}
+      />
 
-            <View style={styles.actionRow}>
-              <View style={styles.actionButton}>
-                <Button
-                  label="Back"
-                  variant="outline"
-                  surface="product"
-                  onPress={() => setStep("location")}
-                />
-              </View>
-              <View style={styles.actionButton}>
-                <Button
-                  label="Continue"
-                  surface="product"
-                  onPress={() => setStep("checkout")}
-                  disabled={!selectedSlot}
-                />
-              </View>
-            </View>
-          </View>
-        ) : null}
-
-        {step === "checkout" ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{selectedLocation?.name}</Text>
-            {selectedSlot ? (
-              <Text style={styles.checkoutTime}>
-                {formatTimeRange(selectedSlot.startsAt, selectedSlot.endsAt)}
-              </Text>
-            ) : null}
-            {quote ? (
-              <Text style={styles.tier}>
-                {formatPricingTierLabel(quote.pricingRuleSnapshot) ?? "Standard rate"}
-              </Text>
-            ) : null}
-
-            <Text style={styles.fieldLabel}>Players: {groupSize}</Text>
-            <Text style={styles.fieldLabel}>Notes (optional)</Text>
-            <TextInput
-              value={notes}
-              onChangeText={setNotes}
-              placeholder="Anything we should know?"
-              placeholderTextColor={PlayTTColors.productMuted}
-              style={styles.notesInput}
-              multiline
-            />
-
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>Total</Text>
-              {isLoadingQuote && !quote ? (
-                <Skeleton width={120} height={24} surface="product" />
-              ) : (
-                <Text style={styles.summaryAmount}>
-                  {quote
-                    ? formatKes(quote.totalAmount, quote.currency)
-                    : selectedSlot
-                      ? formatKes(
-                          selectedSlot.price.totalAmount,
-                          selectedSlot.price.currency,
-                        )
-                      : "—"}
-                </Text>
-              )}
-            </View>
-
-            <View style={styles.actionRow}>
-              <View style={styles.actionButton}>
-                <Button
-                  label="Back"
-                  variant="outline"
-                  surface="product"
-                  onPress={() => setStep("timing")}
-                />
-              </View>
-              <View style={styles.actionButton}>
-                <Button
-                  label="Reserve booking"
-                  surface="product"
-                  onPress={handleConfirm}
-                  loading={isSubmitting}
-                />
-              </View>
-            </View>
-          </View>
-        ) : null}
-
-        {step === "confirmed" && confirmation ? (
-          <View style={styles.section}>
-            <Text style={styles.confirmedTitle}>You're reserved</Text>
-            <Text style={styles.confirmedBody}>
-              {formatBookingStatus(confirmation.status, confirmation.paymentStatus)}
-            </Text>
-            {selectedSlot && selectedLocation ? (
-              <>
-                <Text style={styles.checkoutTime}>
-                  {selectedLocation.name}
-                </Text>
-                <Text style={styles.confirmedMeta}>
-                  {formatTimeRange(selectedSlot.startsAt, selectedSlot.endsAt)}
-                </Text>
-                <Text style={styles.confirmedMeta}>
-                  {formatKes(confirmation.totalAmount, confirmation.currency)}
-                </Text>
-              </>
-            ) : null}
-            <Button
-              label="View my bookings"
-              surface="product"
-              onPress={() => router.replace("/(app)/(tabs)/bookings")}
-            />
-            <Button
-              label="Book another session"
-              variant="outline"
-              surface="product"
-              onPress={() => {
-                setStep("location")
-                setConfirmation(null)
-                setSelectedSlot(null)
-                setQuote(null)
-                setNotes("")
-              }}
-            />
-          </View>
-        ) : null}
-      </ScrollView>
+      <BookingCheckoutBar
+        visible={showCheckoutBar}
+        selectedSlot={selectedSlot!}
+        durationMinutes={durationMinutes}
+        quote={quote}
+        onPrimaryAction={handleOpenConfirm}
+        disabled={isLoadingQuote || !quote}
+      />
     </SafeAreaView>
   )
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: PlayTTColors.productBackground,
-  },
-  scroll: {
-    padding: PlayTTSpacing.lg,
-    gap: PlayTTSpacing.md,
-  },
-  loading: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: PlayTTColors.productBackground,
-  },
-  empty: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: PlayTTSpacing.xl,
-    backgroundColor: PlayTTColors.productBackground,
-  },
-  emptyTitle: {
-    ...PlayTTTypography.title,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.productForeground,
-  },
-  emptyBody: {
-    ...PlayTTTypography.body,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.productMuted,
-    textAlign: "center",
-  },
-  stepLabel: {
-    ...PlayTTTypography.headline,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.productForeground,
-  },
-  section: {
-    gap: PlayTTSpacing.md,
-  },
-  sectionTitle: {
-    ...PlayTTTypography.title,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.productForeground,
-  },
-  card: {
-    backgroundColor: PlayTTColors.productCard,
-    borderRadius: PlayTTRadius.lg,
-    borderWidth: 1,
-    borderColor: PlayTTColors.productBorder,
-    padding: PlayTTSpacing.md,
-    gap: PlayTTSpacing.xs,
-  },
-  cardSelected: {
-    borderColor: PlayTTColors.primary,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.productForeground,
-  },
-  cardBody: {
-    fontSize: 14,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.productMuted,
-  },
-  cardMeta: {
-    fontSize: 12,
-    fontFamily: PlayTTFontFamilies.medium,
-    color: PlayTTColors.primary,
-  },
-  dateRow: {
-    flexDirection: "row",
-    gap: PlayTTSpacing.xs,
-  },
-  dateChip: {
-    minWidth: 56,
-    alignItems: "center",
-    paddingVertical: PlayTTSpacing.sm,
-    paddingHorizontal: PlayTTSpacing.sm,
-    borderRadius: PlayTTRadius.md,
-    backgroundColor: PlayTTColors.productCard,
-    borderWidth: 1,
-    borderColor: PlayTTColors.productBorder,
-  },
-  dateChipSelected: {
-    backgroundColor: PlayTTColors.primary,
-    borderColor: PlayTTColors.primary,
-  },
-  dateChipDay: {
-    fontSize: 11,
-    fontFamily: PlayTTFontFamilies.medium,
-    color: PlayTTColors.productMuted,
-  },
-  dateChipDate: {
-    fontSize: 16,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.productForeground,
-  },
-  dateChipTextSelected: {
-    color: PlayTTColors.primaryForeground,
-  },
-  toggleRow: {
-    flexDirection: "row",
-    gap: PlayTTSpacing.sm,
-  },
-  toggle: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: PlayTTSpacing.sm,
-    borderRadius: PlayTTRadius.md,
-    borderWidth: 1,
-    borderColor: PlayTTColors.productBorder,
-    backgroundColor: PlayTTColors.productCard,
-  },
-  toggleSelected: {
-    backgroundColor: PlayTTColors.primary,
-    borderColor: PlayTTColors.primary,
-  },
-  toggleLabel: {
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.productForeground,
-  },
-  toggleLabelSelected: {
-    color: PlayTTColors.primaryForeground,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.productForeground,
-  },
-  groupRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: PlayTTSpacing.xs,
-  },
-  groupChip: {
-    minWidth: 40,
-    alignItems: "center",
-    paddingVertical: PlayTTSpacing.xs,
-    paddingHorizontal: PlayTTSpacing.sm,
-    borderRadius: PlayTTRadius.pill,
-    borderWidth: 1,
-    borderColor: PlayTTColors.productBorder,
-    backgroundColor: PlayTTColors.productCard,
-  },
-  groupChipSelected: {
-    backgroundColor: PlayTTColors.primary,
-    borderColor: PlayTTColors.primary,
-  },
-  groupChipLabel: {
-    fontFamily: PlayTTFontFamilies.medium,
-    color: PlayTTColors.productForeground,
-  },
-  groupChipLabelSelected: {
-    color: PlayTTColors.primaryForeground,
-  },
-  slotRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: PlayTTSpacing.md,
-    borderRadius: PlayTTRadius.md,
-    borderWidth: 1,
-    borderColor: PlayTTColors.productBorder,
-    backgroundColor: PlayTTColors.productCard,
-  },
-  slotRowSelected: {
-    borderColor: PlayTTColors.primary,
-  },
-  slotRowDisabled: {
-    opacity: 0.45,
-  },
-  slotTime: {
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.productForeground,
-  },
-  slotMeta: {
-    fontSize: 12,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.productMuted,
-  },
-  slotPrice: {
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.productForeground,
-  },
-  actionRow: {
-    flexDirection: "row",
-    gap: PlayTTSpacing.sm,
-  },
-  actionButton: {
-    flex: 1,
-  },
-  checkoutTime: {
-    fontSize: 22,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.productForeground,
-  },
-  tier: {
-    fontSize: 13,
-    fontFamily: PlayTTFontFamilies.medium,
-    color: PlayTTColors.primary,
-  },
-  notesInput: {
-    minHeight: 80,
-    borderWidth: 1,
-    borderColor: PlayTTColors.productBorder,
-    borderRadius: PlayTTRadius.md,
-    padding: PlayTTSpacing.md,
-    backgroundColor: PlayTTColors.productInput,
-    color: PlayTTColors.productForeground,
-    fontFamily: PlayTTFontFamilies.regular,
-    textAlignVertical: "top",
-  },
-  summaryCard: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: PlayTTSpacing.md,
-    borderRadius: PlayTTRadius.lg,
-    backgroundColor: PlayTTColors.productCard,
-    borderWidth: 1,
-    borderColor: PlayTTColors.productBorder,
-  },
-  summaryLabel: {
-    fontFamily: PlayTTFontFamilies.medium,
-    color: PlayTTColors.productMuted,
-  },
-  summaryAmount: {
-    fontSize: 20,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.productForeground,
-  },
-  confirmedTitle: {
-    ...PlayTTTypography.headline,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.productForeground,
-  },
-  confirmedBody: {
-    ...PlayTTTypography.body,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.productMuted,
-  },
-  confirmedMeta: {
-    fontSize: 15,
-    fontFamily: PlayTTFontFamilies.medium,
-    color: PlayTTColors.productForeground,
-  },
-})

@@ -1,5 +1,12 @@
 import type { SlotAvailability } from "@/lib/booking-types"
 
+export const INCLUDED_PLAYERS = 5
+export const EXTRA_PLAYER_SURCHARGE = 500
+
+export function extraPlayerSurcharge(groupSize: number) {
+  return Math.max(0, groupSize - INCLUDED_PLAYERS) * EXTRA_PLAYER_SURCHARGE
+}
+
 export function isSlotStartInPast(startsAtIso: string, nowMs = Date.now()) {
   return new Date(startsAtIso).getTime() <= nowMs
 }
@@ -31,7 +38,7 @@ export function formatKes(amount: number | string, currency = "KES") {
 export function formatBookingStatus(status: string, paymentStatus: string) {
   if (status === "confirmed") return "Confirmed — see you at the pod"
   if (status === "pending" && paymentStatus === "unpaid") {
-    return "Reserved — payment coming soon. We'll confirm your slot."
+    return "Your table is held. We'll confirm soon."
   }
   if (status === "cancelled") return "Cancelled"
   if (status === "expired") return "Expired"
@@ -58,6 +65,51 @@ export function toDateKey(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, "0")
   const day = String(date.getDate()).padStart(2, "0")
   return `${year}-${month}-${day}`
+}
+
+export function formatDateChipLabel(date: Date, now = new Date()) {
+  const today = new Date(now)
+  today.setHours(0, 0, 0, 0)
+
+  const target = new Date(date)
+  target.setHours(0, 0, 0, 0)
+
+  const diffDays = Math.round(
+    (target.getTime() - today.getTime()) / (24 * 60 * 60 * 1000),
+  )
+
+  if (diffDays === 0) return "Today"
+  if (diffDays === 1) return "Tomorrow"
+
+  return date.toLocaleDateString("en-KE", { weekday: "short" })
+}
+
+export function addDaysToDateKey(dateKey: string, days: number) {
+  const date = new Date(`${dateKey}T12:00:00`)
+  date.setDate(date.getDate() + days)
+  return toDateKey(date)
+}
+
+export function formatSlotSummary(
+  startsAt: string,
+  durationMinutes: number,
+  amount: number | string,
+  currency = "KES",
+) {
+  const start = new Date(startsAt)
+  const dayLabel = start.toLocaleDateString("en-KE", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  })
+  const timeLabel = start.toLocaleTimeString("en-KE", {
+    hour: "numeric",
+    minute: "2-digit",
+  })
+  const price =
+    typeof amount === "string" ? Number(amount) : amount
+
+  return `${dayLabel} · ${timeLabel} · ${durationMinutes} min · ${currency} ${price.toLocaleString("en-KE")}`
 }
 
 export function formatTimeRange(startIso: string, endIso: string) {
