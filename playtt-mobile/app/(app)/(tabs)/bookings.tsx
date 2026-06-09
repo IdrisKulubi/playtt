@@ -1,16 +1,10 @@
 import { router, useFocusEffect } from "expo-router"
 import { useCallback, useState } from "react"
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native"
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { Button } from "@/components/ui/button"
+import { BookingListSkeleton, SkeletonGate } from "@/components/ui/skeleton"
 import {
   PlayTTColors,
   PlayTTFontFamilies,
@@ -51,45 +45,50 @@ export default function BookingsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>My bookings</Text>
-
-        {isLoading ? (
-          <ActivityIndicator color={PlayTTColors.primary} />
-        ) : bookings.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No bookings yet</Text>
-            <Text style={styles.emptyBody}>Book your first session to see it here.</Text>
-            <Button
-              label="Book a session"
-              surface="product"
-              onPress={() => router.push("/(app)/book")}
-            />
-          </View>
-        ) : (
-          bookings.map((booking) => (
-            <Pressable
-              key={booking.id}
-              onPress={() =>
-                router.push({
-                  pathname: "/(app)/booking/[id]",
-                  params: { id: booking.id },
-                })
-              }
-              style={styles.card}
-            >
-              <Text style={styles.cardTitle}>{booking.locationName}</Text>
-              <Text style={styles.cardTime}>
-                {formatTimeRange(booking.startTime, booking.endTime)}
-              </Text>
-              <Text style={styles.cardStatus}>
-                {formatBookingStatus(booking.status, booking.paymentStatus)}
-              </Text>
-              <Text style={styles.cardPrice}>
-                {formatKes(booking.totalAmount, booking.currency)}
-              </Text>
-            </Pressable>
-          ))
-        )}
+        <SkeletonGate
+          loading={isLoading}
+          skeleton={<BookingListSkeleton surface="dark" />}
+        >
+          {bookings.length === 0 ? (
+            <View style={styles.empty}>
+              <Text style={styles.title}>My bookings</Text>
+              <Text style={styles.emptyTitle}>No bookings yet</Text>
+              <Text style={styles.emptyBody}>Book your first session to see it here.</Text>
+              <Button
+                label="Book a session"
+                surface="product"
+                onPress={() => router.push("/(app)/book")}
+              />
+            </View>
+          ) : (
+            <>
+              <Text style={styles.title}>My bookings</Text>
+              {bookings.map((booking) => (
+                <Pressable
+                  key={booking.id}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(app)/booking/[id]",
+                      params: { id: booking.id },
+                    })
+                  }
+                  style={styles.card}
+                >
+                  <Text style={styles.cardTitle}>{booking.locationName}</Text>
+                  <Text style={styles.cardTime}>
+                    {formatTimeRange(booking.startTime, booking.endTime)}
+                  </Text>
+                  <Text style={styles.cardStatus}>
+                    {formatBookingStatus(booking.status, booking.paymentStatus)}
+                  </Text>
+                  <Text style={styles.cardPrice}>
+                    {formatKes(booking.totalAmount, booking.currency)}
+                  </Text>
+                </Pressable>
+              ))}
+            </>
+          )}
+        </SkeletonGate>
       </ScrollView>
     </SafeAreaView>
   )
