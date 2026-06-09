@@ -10,6 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "bundleIdentifier": "com.theplaytt.app",
+      "usesAppleSignIn": true,
       "supportsTablet": true
     },
     "android": {

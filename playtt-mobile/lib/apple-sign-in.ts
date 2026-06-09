@@ -1,5 +1,4 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
-import * as Crypto from 'expo-crypto';
 
 export class AppleSignInCanceledError extends Error {
   constructor() {
@@ -10,39 +9,22 @@ export class AppleSignInCanceledError extends Error {
 
 export type AppleSignInResult = {
   identityToken: string;
-  rawNonce: string;
-  fullName: string | null;
+  authorizationCode: string | null;
+  email: string | null;
+  fullName: AppleAuthentication.AppleAuthenticationFullName | null;
 };
 
 export async function isAppleSignInAvailable() {
   return AppleAuthentication.isAvailableAsync();
 }
 
-function formatAppleFullName(
-  fullName: AppleAuthentication.AppleAuthenticationFullName | null,
-) {
-  if (!fullName) {
-    return null;
-  }
-
-  const parts = [fullName.givenName, fullName.familyName].filter(Boolean);
-  return parts.length > 0 ? parts.join(' ') : null;
-}
-
 export async function signInWithApple(): Promise<AppleSignInResult> {
-  const rawNonce = Crypto.randomUUID();
-  const hashedNonce = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    rawNonce,
-  );
-
   try {
     const credential = await AppleAuthentication.signInAsync({
       requestedScopes: [
         AppleAuthentication.AppleAuthenticationScope.EMAIL,
         AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
       ],
-      nonce: hashedNonce,
     });
 
     if (!credential.identityToken) {
@@ -51,8 +33,9 @@ export async function signInWithApple(): Promise<AppleSignInResult> {
 
     return {
       identityToken: credential.identityToken,
-      rawNonce,
-      fullName: formatAppleFullName(credential.fullName),
+      authorizationCode: credential.authorizationCode ?? null,
+      email: credential.email ?? null,
+      fullName: credential.fullName,
     };
   } catch (error) {
     if (

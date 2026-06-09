@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server"
 
-import { buildAppleAudience, isExpoGoTrusted } from "@/lib/apple-audience"
+import { getAppleAllowedAudiences } from "@/lib/verify-apple-token"
 
 export const dynamic = "force-dynamic"
 
 export function GET() {
-  const audiences = buildAppleAudience()
+  const audiences = getAppleAllowedAudiences()
 
   return NextResponse.json({
     commit: process.env.VERCEL_GIT_COMMIT_SHA ?? "local",
-    expoGoTrusted: isExpoGoTrusted(),
     apple: {
       clientId: Boolean(process.env.APPLE_CLIENT_ID),
       clientSecret: Boolean(process.env.APPLE_CLIENT_SECRET),
       bundleId: process.env.APPLE_APP_BUNDLE_IDENTIFIER ?? null,
+      expoClientId: process.env.APPLE_EXPO_CLIENT_ID ?? null,
       audienceCount: audiences.length,
       audiences,
     },
