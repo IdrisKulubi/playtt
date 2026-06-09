@@ -1,9 +1,7 @@
-import { router } from 'expo-router';
 import { ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -60,14 +58,6 @@ export function AuthShell({
             <View style={styles.formArea}>{children}</View>
 
             <View style={styles.footer}>
-              <Pressable
-                accessibilityRole="button"
-                hitSlop={8}
-                onPress={() => router.replace('/')}>
-                <Text style={[styles.footerLink, { color: theme.muted }]}>
-                  Back to home
-                </Text>
-              </Pressable>
               <Text style={[styles.legal, { color: theme.muted }]}>
                 By continuing, you agree to our Terms and Privacy Policy.
               </Text>
@@ -126,11 +116,6 @@ const styles = StyleSheet.create({
     gap: PlayTTSpacing.sm,
     paddingTop: PlayTTSpacing.md,
     marginTop: 'auto',
-  },
-  footerLink: {
-    ...PlayTTTypography.label,
-    fontFamily: PlayTTFontFamilies.medium,
-    fontSize: 13,
   },
   legal: {
     fontSize: 11,

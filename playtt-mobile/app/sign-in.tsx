@@ -1,5 +1,5 @@
 import { Redirect } from 'expo-router';
 
 export default function SignInScreen() {
-  return <Redirect href="/auth?mode=sign-in" />;
+  return <Redirect href="/?mode=sign-in" />;
 }

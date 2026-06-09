@@ -390,21 +390,24 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
         compact
       />
 
-      <View style={[styles.socialRow, !(isIos && appleAvailable) && styles.socialRowSingle]}>
-        <SocialAuthButton
-          provider="google"
-          theme={theme}
-          onPress={handleGoogleSignIn}
-          loading={isLoading}
-          fullWidth={!(isIos && appleAvailable)}
-        />
-        {isIos && appleAvailable ? (
+      <View style={styles.socialRow}>
+        <View style={styles.socialButtonSlot}>
           <SocialAuthButton
-            provider="apple"
+            provider="google"
             theme={theme}
-            onPress={handleAppleSignIn}
+            onPress={handleGoogleSignIn}
             loading={isLoading}
           />
+        </View>
+        {isIos && appleAvailable ? (
+          <View style={styles.socialButtonSlot}>
+            <SocialAuthButton
+              provider="apple"
+              theme={theme}
+              onPress={handleAppleSignIn}
+              loading={isLoading}
+            />
+          </View>
         ) : null}
       </View>
 
@@ -443,8 +446,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: PlayTTSpacing.sm,
   },
-  socialRowSingle: {
-    flexDirection: 'column',
+  socialButtonSlot: {
+    flex: 1,
+    minWidth: 0,
   },
   modePrompt: {
     fontSize: 14,

@@ -116,7 +116,7 @@ export function VerifyEmailForm() {
         <Text style={[styles.link, { color: theme.link }]}>Resend code</Text>
       </Pressable>
 
-      <Pressable onPress={() => router.replace('/auth?mode=sign-up')}>
+      <Pressable onPress={() => router.replace('/?mode=sign-up')}>
         <Text style={[styles.modePrompt, { color: theme.muted }]}>
           Wrong email?{' '}
           <Text style={[styles.modeLink, { color: theme.foreground }]}>Start over</Text>

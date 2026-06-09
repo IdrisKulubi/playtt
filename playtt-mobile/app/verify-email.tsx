@@ -8,7 +8,7 @@ export default function VerifyEmailScreen() {
   const resolvedEmail = typeof email === 'string' ? email : '';
 
   if (!resolvedEmail) {
-    return <Redirect href="/auth?mode=sign-up" />;
+    return <Redirect href="/?mode=sign-up" />;
   }
 
   return (

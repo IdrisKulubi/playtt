@@ -72,7 +72,7 @@ export function ResetPasswordForm() {
         loading={isLoading}
       />
 
-      <Pressable onPress={() => router.replace('/auth?mode=sign-in')}>
+      <Pressable onPress={() => router.replace('/?mode=sign-in')}>
         <Text style={[styles.modePrompt, { color: theme.muted }]}>
           Remembered it?{' '}
           <Text style={[styles.modeLink, { color: theme.foreground }]}>Log in</Text>

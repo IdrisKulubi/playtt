@@ -20,7 +20,6 @@ type SocialAuthButtonProps = {
   onPress?: () => void;
   disabled?: boolean;
   loading?: boolean;
-  fullWidth?: boolean;
 };
 
 export function SocialAuthButton({
@@ -29,7 +28,6 @@ export function SocialAuthButton({
   onPress,
   disabled = false,
   loading = false,
-  fullWidth = false,
 }: SocialAuthButtonProps) {
   const isDisabled = disabled || loading;
   const label = provider === 'google' ? 'Google' : 'Apple';
@@ -47,7 +45,6 @@ export function SocialAuthButton({
       }}
       style={({ pressed }) => [
         styles.base,
-        fullWidth && styles.fullWidth,
         {
           backgroundColor: theme.socialFill,
           opacity: isDisabled ? 0.45 : pressed ? 0.88 : 1,
@@ -71,16 +68,12 @@ export function SocialAuthButton({
 
 const styles = StyleSheet.create({
   base: {
-    flex: 1,
+    width: '100%',
     minHeight: 44,
     borderRadius: PlayTTRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: PlayTTSpacing.md,
-  },
-  fullWidth: {
-    flex: undefined,
-    width: '100%',
   },
   content: {
     flexDirection: 'row',

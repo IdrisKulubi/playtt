@@ -31,7 +31,7 @@ export default function AppLayout() {
   }
 
   if (!hasStoredAuth) {
-    return <Redirect href="/auth?mode=sign-in" />
+    return <Redirect href="/?mode=sign-in" />
   }
 
   return (
