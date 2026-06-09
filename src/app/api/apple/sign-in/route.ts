@@ -18,6 +18,8 @@ type AppleAuthBody = {
 }
 
 export async function POST(req: NextRequest) {
+  console.info("[APPLE AUTH] POST /api/apple/sign-in")
+
   let body: AppleAuthBody
 
   try {

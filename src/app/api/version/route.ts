@@ -9,6 +9,7 @@ export function GET() {
 
   return NextResponse.json({
     commit: process.env.VERCEL_GIT_COMMIT_SHA ?? "local",
+    appleSignInRoute: "/api/apple/sign-in",
     apple: {
       clientId: Boolean(process.env.APPLE_CLIENT_ID),
       clientSecret: Boolean(process.env.APPLE_CLIENT_SECRET),
