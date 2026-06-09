@@ -16,6 +16,7 @@ import {
 } from '@/lib/apple-sign-in';
 import { sendVerificationOtp, signInWithAppleApi } from '@/lib/auth-api';
 import { formatAuthError } from '@/lib/auth-errors';
+import { toast } from '@/lib/toast';
 import { authClient, refreshSession } from '@/lib/auth-client';
 import { storeAppleSession, waitForStoredAuth } from '@/lib/auth-helpers';
 import {
@@ -44,7 +45,6 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
   const [isLoading, setIsLoading] = useState(false);
   const [showTwoFactor, setShowTwoFactor] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
 
   const [signInValues, setSignInValues] = useState<SignInValues>({
     email: '',
@@ -74,7 +74,6 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
 
   function handleModeChange(nextMode: AuthMode) {
     setMode(nextMode);
-    setFormError(null);
     onModeChange?.(nextMode);
   }
 
@@ -85,7 +84,6 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
   }
 
   async function handleEmailSignIn() {
-    setFormError(null);
     const parsed = signInSchema.safeParse(signInValues);
     if (!parsed.success) {
       setSignInErrors(mapZodErrors(parsed));
@@ -101,14 +99,14 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
         onSuccess: async (ctx) => {
           if (ctx.data.twoFactorRedirect) {
             setShowTwoFactor(true);
-            setFormError(null);
+            toast.info('Two-factor verification is required.');
           } else {
             await completeSignIn();
           }
           setIsLoading(false);
         },
         onError: (ctx) => {
-          setFormError(formatAuthError(ctx.error.message || 'Failed to sign in.'));
+          toast.error(formatAuthError(ctx.error.message || 'Failed to sign in.'));
           setIsLoading(false);
         },
       },
@@ -116,7 +114,6 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
   }
 
   async function handleSignUp() {
-    setFormError(null);
     const parsed = signUpSchema.safeParse(signUpValues);
     if (!parsed.success) {
       setSignUpErrors(mapZodErrors(parsed));
@@ -136,7 +133,7 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
         onSuccess: async () => {
           const result = await sendVerificationOtp(parsed.data.email);
           if (!result.success) {
-            setFormError(result.message);
+            toast.error(result.message);
             setIsLoading(false);
             return;
           }
@@ -144,7 +141,7 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
           setIsLoading(false);
         },
         onError: (ctx) => {
-          setFormError(formatAuthError(ctx.error.message || 'Failed to sign up.'));
+          toast.error(formatAuthError(ctx.error.message || 'Failed to sign up.'));
           setIsLoading(false);
         },
       },
@@ -152,7 +149,6 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
   }
 
   async function handleOtpSubmit() {
-    setFormError(null);
     const parsed = otpSchema.safeParse(otpValues);
     if (!parsed.success) {
       setOtpErrors(mapZodErrors(parsed));
@@ -168,7 +164,7 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
     });
 
     if (error) {
-      setFormError(formatAuthError(error.message || 'Invalid verification code.'));
+      toast.error(formatAuthError(error.message || 'Invalid verification code.'));
       setIsLoading(false);
       return;
     }
@@ -178,7 +174,6 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
   }
 
   async function handleGoogleSignIn() {
-    setFormError(null);
     setIsLoading(true);
 
     try {
@@ -193,23 +188,18 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
             setIsLoading(false);
           },
           onError: (ctx) => {
-            setFormError(formatAuthError(ctx.error.message || 'Google sign in failed.'));
+            toast.error(formatAuthError(ctx.error.message || 'Google sign in failed.'));
             setIsLoading(false);
           },
         },
       );
     } catch (error) {
-      setFormError(
-        formatAuthError(
-          error instanceof Error ? error.message : 'Google sign in failed.',
-        ),
-      );
+      toast.apiError(error, 'Google sign in failed.');
       setIsLoading(false);
     }
   }
 
   async function handleAppleSignIn() {
-    setFormError(null);
     setIsLoading(true);
 
     try {
@@ -226,11 +216,7 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
         return;
       }
 
-      setFormError(
-        formatAuthError(
-          error instanceof Error ? error.message : 'Apple sign in failed.',
-        ),
-      );
+      toast.apiError(error, 'Apple sign in failed.');
       setIsLoading(false);
     }
   }
@@ -252,9 +238,6 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
             hasError={Boolean(otpErrors.otp)}
           />
         </FormField>
-        {formError ? (
-          <Text style={[styles.formError, { color: theme.destructive }]}>{formError}</Text>
-        ) : null}
         <Button
           label="Verify and continue"
           surface="auth"
@@ -371,10 +354,6 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
         </>
       )}
 
-      {formError ? (
-        <Text style={[styles.formError, { color: theme.destructive }]}>{formError}</Text>
-      ) : null}
-
       <Button
         label={isSignIn ? 'Sign in' : 'Continue'}
         surface="auth"
@@ -436,11 +415,6 @@ const styles = StyleSheet.create({
   inlineLink: {
     fontSize: 12,
     fontFamily: PlayTTFontFamilies.semiBold,
-  },
-  formError: {
-    fontSize: 12,
-    fontFamily: PlayTTFontFamilies.regular,
-    textAlign: 'center',
   },
   socialRow: {
     flexDirection: 'row',

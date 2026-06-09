@@ -10,9 +10,10 @@ import { useAuthTheme } from '@/hooks/use-auth-theme';
 import { sendVerificationOtp } from '@/lib/auth-api';
 import { authClient, refreshSession } from '@/lib/auth-client';
 import { waitForStoredAuth } from '@/lib/auth-helpers';
-import { routeAfterAuth } from '@/lib/user-api';
 import { verifyEmailSchema, type VerifyEmailValues } from '@/lib/auth-schemas';
 import { mapZodErrors, type FieldErrors } from '@/lib/form-errors';
+import { toast } from '@/lib/toast';
+import { routeAfterAuth } from '@/lib/user-api';
 
 export function VerifyEmailForm() {
   const theme = useAuthTheme();
@@ -20,8 +21,6 @@ export function VerifyEmailForm() {
   const resolvedEmail = typeof email === 'string' ? email : '';
 
   const [isLoading, setIsLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [values, setValues] = useState<VerifyEmailValues>({ otp: '' });
   const [fieldErrors, setFieldErrors] = useState<FieldErrors<keyof VerifyEmailValues>>({});
 
@@ -30,12 +29,10 @@ export function VerifyEmailForm() {
 
   async function handleVerify() {
     if (!resolvedEmail) {
-      setFormError('Email is missing. Please restart sign-up.');
+      toast.error('Email is missing. Please restart sign-up.');
       return;
     }
 
-    setFormError(null);
-    setStatusMessage(null);
     const parsed = verifyEmailSchema.safeParse(values);
     if (!parsed.success) {
       setFieldErrors(mapZodErrors(parsed));
@@ -51,13 +48,14 @@ export function VerifyEmailForm() {
     });
 
     if (error) {
-      setFormError(error.message || 'Invalid verification code.');
+      toast.error(error.message || 'Invalid verification code.');
       setIsLoading(false);
       return;
     }
 
     await refreshSession();
     await waitForStoredAuth();
+    toast.success('Email verified successfully.');
     await routeAfterAuth();
     setIsLoading(false);
   }
@@ -67,19 +65,17 @@ export function VerifyEmailForm() {
       return;
     }
 
-    setFormError(null);
-    setStatusMessage(null);
     setIsLoading(true);
 
     const result = await sendVerificationOtp(resolvedEmail);
 
     if (!result.success) {
-      setFormError(result.message);
+      toast.error(result.message);
       setIsLoading(false);
       return;
     }
 
-    setStatusMessage('Verification code resent. Check your inbox.');
+    toast.info('Verification code resent. Check your inbox.');
     setIsLoading(false);
   }
 
@@ -97,22 +93,15 @@ export function VerifyEmailForm() {
         />
       </FormField>
 
-      {formError ? (
-        <Text style={[styles.formError, { color: theme.destructive }]}>{formError}</Text>
-      ) : null}
-      {statusMessage ? (
-        <Text style={[styles.statusMessage, { color: theme.muted }]}>{statusMessage}</Text>
-      ) : null}
-
       <Button
-        label="Continue"
+        label="Verify and continue"
         surface="auth"
         authTheme={theme}
         onPress={handleVerify}
         loading={isLoading}
       />
 
-      <Pressable onPress={handleResend} disabled={isLoading}>
+      <Pressable onPress={handleResend}>
         <Text style={[styles.link, { color: theme.link }]}>Resend code</Text>
       </Pressable>
 
@@ -134,6 +123,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: PlayTTFontFamilies.semiBold,
     textAlign: 'center',
+    textDecorationLine: 'underline',
   },
   modePrompt: {
     fontSize: 14,
@@ -143,15 +133,5 @@ const styles = StyleSheet.create({
   modeLink: {
     fontFamily: PlayTTFontFamilies.semiBold,
     textDecorationLine: 'underline',
-  },
-  formError: {
-    fontSize: 12,
-    fontFamily: PlayTTFontFamilies.regular,
-    textAlign: 'center',
-  },
-  statusMessage: {
-    fontSize: 12,
-    fontFamily: PlayTTFontFamilies.regular,
-    textAlign: 'center',
   },
 });

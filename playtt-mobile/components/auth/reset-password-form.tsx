@@ -11,11 +11,11 @@ import { requestPasswordReset } from '@/lib/auth-api';
 import { goToResetPasswordConfirm } from '@/lib/auth-navigation';
 import { requestResetSchema, type RequestResetValues } from '@/lib/auth-schemas';
 import { mapZodErrors, type FieldErrors } from '@/lib/form-errors';
+import { toast } from '@/lib/toast';
 
 export function ResetPasswordForm() {
   const theme = useAuthTheme();
   const [isLoading, setIsLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
   const [values, setValues] = useState<RequestResetValues>({ email: '' });
   const [fieldErrors, setFieldErrors] = useState<FieldErrors<keyof RequestResetValues>>({});
 
@@ -23,7 +23,6 @@ export function ResetPasswordForm() {
   const inputProps = { variant: 'auth' as const, authTheme: theme };
 
   async function handleSubmit() {
-    setFormError(null);
     const parsed = requestResetSchema.safeParse(values);
     if (!parsed.success) {
       setFieldErrors(mapZodErrors(parsed));
@@ -36,11 +35,12 @@ export function ResetPasswordForm() {
     const result = await requestPasswordReset(parsed.data.email);
 
     if (!result.success) {
-      setFormError(result.message);
+      toast.error(result.message);
       setIsLoading(false);
       return;
     }
 
+    toast.info('Reset code sent. Check your inbox.');
     goToResetPasswordConfirm(parsed.data.email);
     setIsLoading(false);
   }
@@ -59,10 +59,6 @@ export function ResetPasswordForm() {
           hasError={Boolean(fieldErrors.email)}
         />
       </FormField>
-
-      {formError ? (
-        <Text style={[styles.formError, { color: theme.destructive }]}>{formError}</Text>
-      ) : null}
 
       <Button
         label="Continue"
@@ -94,10 +90,5 @@ const styles = StyleSheet.create({
   modeLink: {
     fontFamily: PlayTTFontFamilies.semiBold,
     textDecorationLine: 'underline',
-  },
-  formError: {
-    fontSize: 12,
-    fontFamily: PlayTTFontFamilies.regular,
-    textAlign: 'center',
   },
 });

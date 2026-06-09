@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { FormField } from "@/components/ui/form-field"
 import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useAuthTheme } from "@/hooks/use-auth-theme"
-import { ApiError } from "@/lib/api-client"
+import { toast } from "@/lib/toast"
 import {
   PLAY_INTENT_OPTIONS,
   REFERRAL_SOURCE_OPTIONS,
@@ -22,21 +22,18 @@ export function OnboardingSurveyForm() {
   )
   const [playIntent, setPlayIntent] = useState<PlayIntent | null>(null)
   const [earlyAdopterOptIn, setEarlyAdopterOptIn] = useState(false)
-  const [formError, setFormError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   const fieldProps = { variant: "auth" as const, authTheme: theme, compact: true }
 
   async function handleFinish() {
-    setFormError(null)
-
     if (!referralSource) {
-      setFormError("Tell us how you heard about PlayTT.")
+      toast.error("Tell us how you heard about PlayTT.")
       return
     }
 
     if (!playIntent) {
-      setFormError("Tell us what brings you here.")
+      toast.error("Tell us what brings you here.")
       return
     }
 
@@ -51,13 +48,7 @@ export function OnboardingSurveyForm() {
       })
       await routeAfterAuth()
     } catch (error) {
-      setFormError(
-        error instanceof ApiError
-          ? error.message
-          : error instanceof Error
-            ? error.message
-            : "Could not finish onboarding.",
-      )
+      toast.apiError(error, "Could not finish onboarding.")
       setIsLoading(false)
     }
   }
@@ -110,12 +101,6 @@ export function OnboardingSurveyForm() {
         </Text>
       </Pressable>
 
-      {formError ? (
-        <Text style={[styles.formError, { color: theme.destructive }]}>
-          {formError}
-        </Text>
-      ) : null}
-
       <Button
         label="Finish setup"
         surface="auth"
@@ -159,10 +144,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: PlayTTFontFamilies.regular,
     lineHeight: 20,
-  },
-  formError: {
-    fontSize: 12,
-    fontFamily: PlayTTFontFamilies.regular,
-    textAlign: "center",
   },
 })
