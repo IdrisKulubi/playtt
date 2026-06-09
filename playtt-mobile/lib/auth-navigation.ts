@@ -1,9 +1,14 @@
 import { router } from "expo-router"
 
 export const AUTHENTICATED_HOME = "/(app)/(tabs)"
+export const ONBOARDING_ROUTE = "/onboarding"
 
 export function goToAuthenticatedHome() {
   router.replace(AUTHENTICATED_HOME)
+}
+
+export function goToOnboarding() {
+  router.replace(ONBOARDING_ROUTE)
 }
 
 export function goToSignIn() {

@@ -19,10 +19,10 @@ import { formatAuthError } from '@/lib/auth-errors';
 import { authClient, refreshSession } from '@/lib/auth-client';
 import { storeAppleSession, waitForStoredAuth } from '@/lib/auth-helpers';
 import {
-  goToAuthenticatedHome,
   goToResetPassword,
   goToVerifyEmail,
 } from '@/lib/auth-navigation';
+import { routeAfterAuth } from '@/lib/user-api';
 import {
   otpSchema,
   signInSchema,
@@ -81,7 +81,7 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
   async function completeSignIn() {
     await refreshSession();
     await waitForStoredAuth();
-    goToAuthenticatedHome();
+    await routeAfterAuth();
   }
 
   async function handleEmailSignIn() {
@@ -188,7 +188,7 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
           onSuccess: async () => {
             const stored = await waitForStoredAuth();
             if (stored?.token) {
-              goToAuthenticatedHome();
+              await routeAfterAuth();
             }
             setIsLoading(false);
           },
@@ -218,7 +218,7 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
       const result = await signInWithAppleApi(credential);
 
       await storeAppleSession(result.user, result.token);
-      goToAuthenticatedHome();
+      await routeAfterAuth();
       setIsLoading(false);
     } catch (error) {
       if (error instanceof AppleSignInCanceledError) {

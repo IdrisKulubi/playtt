@@ -8,6 +8,13 @@
       "when": 1775417313742,
       "tag": "0000_curvy_hiroim",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781035000000,
+      "tag": "0001_user_onboarding",
+      "breakpoints": true
     }
   ]
 }
