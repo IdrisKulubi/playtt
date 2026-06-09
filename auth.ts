@@ -6,7 +6,6 @@ import { Resend } from "resend"
 import db from "./db/drizzle"
 import * as schema from "./db/schema"
 import { user } from "./db/schema"
-import { buildAppleAudience, isExpoGoTrusted } from "./src/lib/apple-audience"
 import { renderOtpEmailHtml } from "./src/lib/email/render-otp-email"
 import { eq } from "drizzle-orm"
 import { WEB_CORS_ORIGINS } from "./src/lib/web-cors-origins"
@@ -144,9 +143,7 @@ export const auth = betterAuth({
     apple: {
       clientId: process.env.APPLE_CLIENT_ID!,
       clientSecret: process.env.APPLE_CLIENT_SECRET!,
-      // Native iOS idToken flow: token audience is the bundle ID, not the Services ID.
       appBundleIdentifier: process.env.APPLE_APP_BUNDLE_IDENTIFIER,
-      audience: buildAppleAudience(),
     },
   },
   plugins: [
@@ -224,7 +221,6 @@ console.info("[AUTH] boot", {
     clientId: Boolean(process.env.APPLE_CLIENT_ID),
     clientSecret: Boolean(process.env.APPLE_CLIENT_SECRET),
     bundleId: process.env.APPLE_APP_BUNDLE_IDENTIFIER ?? null,
-    expoGoTrusted: isExpoGoTrusted(),
-    audienceCount: buildAppleAudience().length,
+    expoClientId: process.env.APPLE_EXPO_CLIENT_ID ?? null,
   },
 })

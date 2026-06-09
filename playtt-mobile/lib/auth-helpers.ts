@@ -1,5 +1,6 @@
 import * as SecureStore from "expo-secure-store"
 
+import type { AppleAuthUser } from "@/lib/auth-api"
 import { authClient } from "@/lib/auth-client"
 import {
   clearCachedSessionRoute,
@@ -74,6 +75,20 @@ export async function getStoredAuth(): Promise<StoredAuth | null> {
 export async function getAuthToken() {
   const stored = await getStoredAuth()
   return stored?.token ?? null
+}
+
+export async function storeAppleSession(user: AppleAuthUser, token: string) {
+  const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
+
+  await SecureStore.setItemAsync(
+    AUTH_KEYS.session,
+    JSON.stringify({
+      session: { token, userId: user.id, expiresAt },
+      user,
+    }),
+  )
+  await SecureStore.setItemAsync(AUTH_KEYS.sessionToken, token)
+  await SecureStore.setItemAsync(AUTH_KEYS.userId, user.id)
 }
 
 export async function getCurrentUserId() {

@@ -14,10 +14,10 @@ import {
   isAppleSignInAvailable,
   signInWithApple,
 } from '@/lib/apple-sign-in';
-import { sendVerificationOtp } from '@/lib/auth-api';
+import { sendVerificationOtp, signInWithAppleApi } from '@/lib/auth-api';
 import { formatAuthError } from '@/lib/auth-errors';
 import { authClient, refreshSession } from '@/lib/auth-client';
-import { waitForStoredAuth } from '@/lib/auth-helpers';
+import { storeAppleSession, waitForStoredAuth } from '@/lib/auth-helpers';
 import {
   goToAuthenticatedHome,
   goToResetPassword,
@@ -214,38 +214,11 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
 
     try {
       const credential = await signInWithApple();
+      const result = await signInWithAppleApi(credential);
 
-      await authClient.signIn.social(
-        {
-          provider: 'apple',
-          idToken: {
-            token: credential.identityToken,
-            nonce: credential.rawNonce,
-          },
-          callbackURL: '/',
-        },
-        {
-          onSuccess: async () => {
-            if (credential.fullName) {
-              try {
-                await authClient.updateUser({ name: credential.fullName });
-              } catch {
-                // Apple only returns a name on the first authorization.
-              }
-            }
-
-            const stored = await waitForStoredAuth();
-            if (stored?.token) {
-              goToAuthenticatedHome();
-            }
-            setIsLoading(false);
-          },
-          onError: (ctx) => {
-            setFormError(formatAuthError(ctx.error.message || 'Apple sign in failed.'));
-            setIsLoading(false);
-          },
-        },
-      );
+      await storeAppleSession(result.user, result.token);
+      goToAuthenticatedHome();
+      setIsLoading(false);
     } catch (error) {
       if (error instanceof AppleSignInCanceledError) {
         setIsLoading(false);
