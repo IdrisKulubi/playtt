@@ -1,4 +1,3 @@
-import { betterFetch } from "@better-fetch/fetch"
 import { decodeJwt, decodeProtectedHeader, importJWK, jwtVerify } from "jose"
 
 export type VerifiedAppleToken = {
@@ -39,8 +38,16 @@ export async function verifyAppleToken(
       return null
     }
 
-    const { data } = await betterFetch("https://appleid.apple.com/auth/keys")
-    const keys = (data as { keys?: Array<Record<string, unknown>> } | null)?.keys
+    const response = await fetch("https://appleid.apple.com/auth/keys")
+    if (!response.ok) {
+      console.error("[APPLE AUTH] Failed to fetch Apple JWKS:", response.status)
+      return null
+    }
+
+    const data = (await response.json()) as {
+      keys?: Array<Record<string, unknown>>
+    }
+    const keys = data.keys
     const jwk = keys?.find((key) => key.kid === kid)
 
     if (!jwk) {
