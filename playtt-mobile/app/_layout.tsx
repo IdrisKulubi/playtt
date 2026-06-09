@@ -11,6 +11,7 @@ import * as SplashScreen from "expo-splash-screen"
 import { StatusBar } from "expo-status-bar"
 import * as WebBrowser from "expo-web-browser"
 import { useEffect } from "react"
+import { GestureHandlerRootView } from "react-native-gesture-handler"
 import "react-native-reanimated"
 
 import { PlayTTColors } from "@/constants/playtt-tokens"
@@ -55,6 +56,7 @@ export default function RootLayout() {
   }
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <ThemeProvider value={playttDarkTheme}>
       <SessionBootstrap />
       <Stack
@@ -76,5 +78,6 @@ export default function RootLayout() {
       <ToastHost />
       <StatusBar style="light" />
     </ThemeProvider>
+    </GestureHandlerRootView>
   )
 }
