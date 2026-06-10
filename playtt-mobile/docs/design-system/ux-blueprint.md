@@ -42,6 +42,16 @@ Move the user from curiosity to reservation with minimal ambiguity. Every screen
 - The dashboard is an orientation layer, not a feature dump
 - It should confirm account state, reinforce that the product is ready, and lead clearly into booking
 - Do not introduce heavy navigation or admin-style density here
+- **Home** uses a single-surface hero band: greeting, one headline, and either a primary book CTA (empty) or the next-session ticket embedded inside the hero (upcoming)
+- Secondary actions (book another, highlights) use hairline list rows under a "More" label, not bordered cards
+- Full stats and replays live on the Activity tab
+- See [USER.md](../USER.md) for the complete player IA
+
+## Activity Blueprint
+- Compact intro band with Sample badge at screen level (not repeated per segment panel)
+- **Highlights:** featured latest replay (large thumb + play affordance), earlier clips as hairline rows; no glow washes or carousel-in-scroll
+- **Stats:** journal-style prose lead (hours on table), month dot rhythm, hairline secondary rows; no hero KPI, bar chart, or bordered chip grid
+- Replay detail sheet: title once in sheet header, shared thumb placeholder, one meta line
 
 ## Account Blueprint
 - **Account tab** is the settings hub: profile summary, security actions, sign out

@@ -161,17 +161,32 @@ export function AccountHubSkeleton({ surface = "dark" }: PresetProps) {
 }
 
 export function UpcomingCardSkeleton({ surface = "dark" }: PresetProps) {
+  return <HomeTicketSkeleton surface={surface} />
+}
+
+type HomeTicketSkeletonProps = PresetProps & {
+  embedded?: boolean
+}
+
+export function HomeTicketSkeleton({
+  surface = "dark",
+  embedded = false,
+}: HomeTicketSkeletonProps) {
+  const shellStyle =
+    surface === "product" ? styles.cardShellProduct : styles.cardShellDark
+
   return (
     <View
       style={[
-        styles.upcomingCard,
-        surface === "product" ? styles.cardShellProduct : styles.cardShellDark,
+        styles.homeTicket,
+        embedded ? shellStyle : styles.homeTicketStandalone,
+        !embedded && shellStyle,
       ]}
     >
-      <Skeleton width="40%" height={12} surface={surface} />
-      <Skeleton width="65%" height={18} surface={surface} />
-      <Skeleton width="50%" height={14} surface={surface} />
-      <Skeleton width="85%" height={13} surface={surface} />
+      <Skeleton width="28%" height={12} surface={surface} />
+      <Skeleton width="70%" height={22} surface={surface} />
+      <Skeleton width="55%" height={15} surface={surface} />
+      <Skeleton width="40%" height={13} surface={surface} />
     </View>
   )
 }
@@ -237,6 +252,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: PlayTTSpacing.md,
     gap: PlayTTSpacing.xs,
+  },
+  homeTicket: {
+    borderRadius: PlayTTRadius.lg,
+    padding: PlayTTSpacing.md,
+    gap: PlayTTSpacing.sm,
+  },
+  homeTicketStandalone: {
+    borderWidth: 1,
   },
   accountHub: {
     paddingHorizontal: PlayTTSpacing.xl,

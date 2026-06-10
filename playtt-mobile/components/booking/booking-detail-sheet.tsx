@@ -20,12 +20,14 @@ type BookingDetailSheetProps = {
   visible: boolean
   bookingId: string | null
   onClose: () => void
+  onBookingChanged?: () => void
 }
 
 export function BookingDetailSheet({
   visible,
   bookingId,
   onClose,
+  onBookingChanged,
 }: BookingDetailSheetProps) {
   const theme = useProductTheme()
   const skeletonSurface = useSkeletonSurface()
@@ -105,7 +107,14 @@ export function BookingDetailSheet({
         <BookingDetailContent
           booking={booking}
           surface={skeletonSurface}
-          onBookingUpdated={setBooking}
+          onBookingUpdated={(updated) => {
+            setBooking(updated)
+            onBookingChanged?.()
+          }}
+          onBookingCancelled={() => {
+            onClose()
+            onBookingChanged?.()
+          }}
         />
       ) : (
         <Text style={styles.error}>Booking not found.</Text>

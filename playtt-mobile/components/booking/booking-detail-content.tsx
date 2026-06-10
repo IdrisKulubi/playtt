@@ -1,8 +1,12 @@
 import { useState } from "react"
 import { StyleSheet, Text, View } from "react-native"
 
+import { BookingAccessCard } from "@/components/booking/booking-access-card"
+import { BookingCancelActions } from "@/components/booking/booking-cancel-actions"
 import { BookingEditFlow } from "@/components/booking/booking-edit-flow"
 import { BookingDetailPaymentActions } from "@/components/booking/booking-detail-payment-actions"
+import { BookingPastSessionCard } from "@/components/booking/booking-past-session-card"
+import { BookingReceiptSection } from "@/components/booking/booking-receipt-section"
 import { Button } from "@/components/ui/button"
 import {
   PlayTTColors,
@@ -14,21 +18,25 @@ import { ProductThemes } from "@/constants/product-theme"
 import { useProductTheme, useSkeletonSurface } from "@/hooks/use-product-theme"
 import type { UserBookingSummary } from "@/lib/booking-types"
 import {
+  canShowAccessCard,
   formatBookingStatus,
   formatKes,
   formatTimeRange,
+  isPastBooking,
 } from "@/lib/booking-utils"
 
 type BookingDetailContentProps = {
   booking: UserBookingSummary
   surface?: "dark" | "product"
   onBookingUpdated?: (booking: UserBookingSummary) => void
+  onBookingCancelled?: () => void
 }
 
 export function BookingDetailContent({
   booking,
   surface,
   onBookingUpdated,
+  onBookingCancelled,
 }: BookingDetailContentProps) {
   const [editFlowVisible, setEditFlowVisible] = useState(false)
   const defaultSurface = useSkeletonSurface()
@@ -67,6 +75,21 @@ export function BookingDetailContent({
         <Text style={[styles.meta, { color: theme.muted }]}>
           Notes: {booking.notes}
         </Text>
+      ) : null}
+
+      <BookingReceiptSection booking={booking} />
+
+      {canShowAccessCard(booking) ? (
+        <BookingAccessCard booking={booking} />
+      ) : null}
+
+      {isPastBooking(booking) ? <BookingPastSessionCard /> : null}
+
+      {onBookingCancelled ? (
+        <BookingCancelActions
+          booking={booking}
+          onCancelled={onBookingCancelled}
+        />
       ) : null}
 
       {booking.editable ? (
