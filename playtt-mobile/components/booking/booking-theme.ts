@@ -145,12 +145,19 @@ export function createTimingPanelStyles(theme: ProductThemeColors) {
     root: {
       flex: 1,
     },
+    rootCompact: {
+      flex: 0,
+    },
     header: {
       gap: PlayTTSpacing.md,
       paddingBottom: PlayTTSpacing.sm,
     },
     slotList: {
       flex: 1,
+    },
+    slotListCompact: {
+      flexGrow: 0,
+      maxHeight: 280,
     },
     slotListContent: {
       gap: PlayTTSpacing.sm,
@@ -429,6 +436,116 @@ export function createConfirmSheetStyles(theme: ProductThemeColors) {
       fontFamily: PlayTTFontFamilies.regular,
       color: theme.muted,
       textAlign: "center",
+      marginBottom: PlayTTSpacing.md,
+    },
+  })
+}
+
+export function createEditIntentSheetStyles(theme: ProductThemeColors) {
+  return StyleSheet.create({
+    intro: {
+      fontSize: 14,
+      fontFamily: PlayTTFontFamilies.regular,
+      color: theme.muted,
+      marginBottom: PlayTTSpacing.md,
+      lineHeight: 20,
+    },
+    list: {
+      gap: PlayTTSpacing.sm,
+      marginBottom: PlayTTSpacing.md,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: PlayTTRadius.md,
+      padding: PlayTTSpacing.md,
+      backgroundColor: theme.card,
+    },
+    rowActive: {
+      borderColor: PlayTTColors.primary,
+      backgroundColor: theme.elevated,
+    },
+    rowLabel: {
+      fontSize: 16,
+      fontFamily: PlayTTFontFamilies.semiBold,
+      color: theme.foreground,
+    },
+    rowMeta: {
+      fontSize: 13,
+      fontFamily: PlayTTFontFamilies.regular,
+      color: theme.muted,
+      marginTop: 2,
+    },
+    check: {
+      fontSize: 18,
+      fontFamily: PlayTTFontFamilies.semiBold,
+      color: PlayTTColors.primary,
+    },
+  })
+}
+
+export function createEditReviewSheetStyles(theme: ProductThemeColors) {
+  return StyleSheet.create({
+    anchor: {
+      fontSize: 13,
+      fontFamily: PlayTTFontFamilies.regular,
+      color: theme.muted,
+      marginBottom: PlayTTSpacing.md,
+      lineHeight: 18,
+    },
+    diffBlock: {
+      gap: PlayTTSpacing.sm,
+      marginBottom: PlayTTSpacing.md,
+    },
+    diffRow: {
+      gap: PlayTTSpacing.xs,
+    },
+    diffLabel: {
+      fontSize: 12,
+      fontFamily: PlayTTFontFamilies.semiBold,
+      color: theme.muted,
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
+    },
+    diffValue: {
+      fontSize: 16,
+      fontFamily: PlayTTFontFamilies.medium,
+      color: theme.foreground,
+      lineHeight: 22,
+    },
+    diffValueMuted: {
+      color: theme.muted,
+    },
+    paymentRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingTop: PlayTTSpacing.sm,
+      marginBottom: PlayTTSpacing.md,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+    },
+    paymentLabel: {
+      fontSize: 14,
+      fontFamily: PlayTTFontFamilies.medium,
+      color: theme.muted,
+    },
+    paymentAmount: {
+      fontSize: 18,
+      fontFamily: PlayTTFontFamilies.semiBold,
+      color: PlayTTColors.primary,
+    },
+    savingsNote: {
+      fontSize: 13,
+      fontFamily: PlayTTFontFamilies.regular,
+      color: theme.muted,
+      marginBottom: PlayTTSpacing.md,
+      lineHeight: 18,
+    },
+    quotingRow: {
       marginBottom: PlayTTSpacing.md,
     },
   })

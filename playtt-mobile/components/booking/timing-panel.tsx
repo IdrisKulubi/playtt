@@ -27,6 +27,10 @@ type TimingPanelProps = {
   isLoadingSlots: boolean
   nowMs: number
   listBottomInset?: number
+  /** Compact layout for bottom sheets (caps slot list height). */
+  compact?: boolean
+  hideDurationToggle?: boolean
+  heading?: string
   onDateChange: (dateKey: string) => void
   onDurationChange: (minutes: 30 | 60) => void
   onSlotSelect: (slot: SlotAvailability) => void
@@ -42,6 +46,9 @@ export function TimingPanel({
   isLoadingSlots,
   nowMs,
   listBottomInset = 0,
+  compact = false,
+  hideDurationToggle = false,
+  heading = "When do you want to play?",
   onDateChange,
   onDurationChange,
   onSlotSelect,
@@ -54,7 +61,7 @@ export function TimingPanel({
   )
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, compact && styles.rootCompact]}>
       <View style={styles.header}>
         {location ? (
           <View style={styles.venueChip}>
@@ -62,7 +69,7 @@ export function TimingPanel({
           </View>
         ) : null}
 
-        <Text style={styles.heading}>When do you want to play?</Text>
+        <Text style={styles.heading}>{heading}</Text>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.dateRow}>
@@ -97,33 +104,35 @@ export function TimingPanel({
           </View>
         </ScrollView>
 
-        <View style={styles.toggleRow}>
-          {[30, 60].map((value) => {
-            const selected = durationMinutes === value
-            return (
-              <Pressable
-                key={value}
-                onPress={() => onDurationChange(value as 30 | 60)}
-                style={[styles.toggle, selected && styles.toggleSelected]}
-              >
-                <Text
-                  style={[
-                    styles.toggleLabel,
-                    selected && styles.toggleLabelSelected,
-                  ]}
+        {hideDurationToggle ? null : (
+          <View style={styles.toggleRow}>
+            {[30, 60].map((value) => {
+              const selected = durationMinutes === value
+              return (
+                <Pressable
+                  key={value}
+                  onPress={() => onDurationChange(value as 30 | 60)}
+                  style={[styles.toggle, selected && styles.toggleSelected]}
                 >
-                  {value} min
-                </Text>
-              </Pressable>
-            )
-          })}
-        </View>
+                  <Text
+                    style={[
+                      styles.toggleLabel,
+                      selected && styles.toggleLabelSelected,
+                    ]}
+                  >
+                    {value} min
+                  </Text>
+                </Pressable>
+              )
+            })}
+          </View>
+        )}
 
         <Text style={styles.slotsLabel}>Available times</Text>
       </View>
 
       <ScrollView
-        style={styles.slotList}
+        style={[styles.slotList, compact && styles.slotListCompact]}
         contentContainerStyle={[
           styles.slotListContent,
           (isLoadingSlots || availableSlots.length === 0) && styles.slotListEmpty,

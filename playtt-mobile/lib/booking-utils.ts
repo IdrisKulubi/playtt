@@ -78,6 +78,32 @@ export function buildDateStrip(daysAhead = 7) {
   return days
 }
 
+/** Seven-day strip centered on anchor (3 days before through 3 after, clamped to today). */
+export function buildDateStripAround(anchor: Date, daysAhead = 7) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const anchorDay = new Date(anchor)
+  anchorDay.setHours(0, 0, 0, 0)
+
+  const half = Math.floor(daysAhead / 2)
+  let start = new Date(anchorDay)
+  start.setDate(anchorDay.getDate() - half)
+
+  if (start < today) {
+    start = new Date(today)
+  }
+
+  const days: Date[] = []
+  for (let index = 0; index < daysAhead; index += 1) {
+    const day = new Date(start)
+    day.setDate(start.getDate() + index)
+    days.push(day)
+  }
+
+  return days
+}
+
 export function toDateKey(date: Date) {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, "0")
