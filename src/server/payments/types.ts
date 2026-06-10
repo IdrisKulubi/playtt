@@ -50,6 +50,7 @@ export type InitiatePaymentResult = {
   displayText: string
   expiresAt: string | null
   bookingId: string
+  returnUrl: string
   authorizationUrl?: string
 }
 

@@ -80,7 +80,18 @@ export type InitiatePaymentResult = {
   displayText: string
   expiresAt: string | null
   bookingId: string
+  returnUrl: string
   authorizationUrl?: string
+}
+
+export type PaymentStatusResult = {
+  bookingId: string
+  bookingStatus: string
+  paymentStatus: string
+  reference: string | null
+  providerStatus: string | null
+  displayText: string | null
+  expiresAt: string | null
 }
 
 export type BookingStep = "location" | "timing" | "pay" | "confirmed"
