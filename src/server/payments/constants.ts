@@ -4,6 +4,19 @@ export const PAYSTACK_MPESA_PROVIDER = "mpesa" as const
 
 export const PAYSTACK_CURRENCY = "KES"
 
+export function getAppBaseUrl() {
+  const base =
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    process.env.BETTER_AUTH_URL?.trim() ||
+    "http://localhost:3000"
+
+  return base.replace(/\/+$/, "")
+}
+
+export function getPaymentCallbackUrl() {
+  return `${getAppBaseUrl()}/pay/complete`
+}
+
 /** Paystack amounts are in the smallest currency unit (cents for KES). */
 export function kesToPaystackAmount(totalKes: string | number): number {
   const value = typeof totalKes === "string" ? Number(totalKes) : totalKes

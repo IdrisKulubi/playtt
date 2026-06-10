@@ -36,12 +36,22 @@ export type PaystackWebhookEvent = {
   data: PaystackTransactionData
 }
 
-export type InitiatePaymentResult = {
+export type PaymentMethodChoice = "mpesa" | "card"
+
+export type PaystackInitializeData = {
+  authorization_url: string
+  access_code: string
   reference: string
-  status: PaystackChargeStatus
+}
+
+export type InitiatePaymentResult = {
+  method: PaymentMethodChoice
+  reference: string
+  status: string
   displayText: string
   expiresAt: string | null
   bookingId: string
+  authorizationUrl?: string
 }
 
 export type PaymentStatusResult = {
