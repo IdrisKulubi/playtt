@@ -1,7 +1,7 @@
 import { router } from "expo-router"
 import type { ReactNode } from "react"
 import { useMemo } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native"
 
 import { IconSymbol } from "@/components/ui/icon-symbol"
 import { PreviewBadge } from "@/components/ui/preview-badge"
@@ -10,6 +10,8 @@ import {
   PlayTTSpacing,
 } from "@/constants/playtt-tokens"
 import { useProductTheme } from "@/hooks/use-product-theme"
+import type { UserBookingSummary } from "@/lib/booking-types"
+import { formatLastSessionLabel, formatSecondSessionLabel } from "@/lib/booking-utils"
 import { MOCK_PLAYER_STATS } from "@/lib/mock/mock-player-stats"
 import { MOCK_REPLAYS } from "@/lib/mock/mock-replays"
 
@@ -89,11 +91,28 @@ function HomeLinkRow({
   )
 }
 
-type HomeLinksSectionProps = {
-  showBookAnother?: boolean
+function openDirections(locationName: string) {
+  const query = encodeURIComponent(locationName)
+  void Linking.openURL(
+    `https://www.google.com/maps/search/?api=1&query=${query}`,
+  )
 }
 
-export function HomeLinksSection({ showBookAnother = false }: HomeLinksSectionProps) {
+type HomeLinksSectionProps = {
+  showBookAnother?: boolean
+  upcomingBooking?: UserBookingSummary | null
+  secondUpcomingBooking?: UserBookingSummary | null
+  lastPastBooking?: UserBookingSummary | null
+  onOpenBooking?: (bookingId: string) => void
+}
+
+export function HomeLinksSection({
+  showBookAnother = false,
+  upcomingBooking = null,
+  secondUpcomingBooking = null,
+  lastPastBooking = null,
+  onOpenBooking,
+}: HomeLinksSectionProps) {
   const theme = useProductTheme()
   const stats = MOCK_PLAYER_STATS
   const latestReplay = MOCK_REPLAYS[0]
@@ -116,6 +135,8 @@ export function HomeLinksSection({ showBookAnother = false }: HomeLinksSectionPr
     [theme],
   )
 
+  const showLastSession = !upcomingBooking && lastPastBooking
+
   return (
     <View style={styles.section}>
       <Text style={styles.label}>More</Text>
@@ -123,6 +144,30 @@ export function HomeLinksSection({ showBookAnother = false }: HomeLinksSectionPr
       {showBookAnother ? (
         <HomeLinkRow
           title="Book another session"
+          onPress={() => router.push("/(app)/book")}
+        />
+      ) : null}
+
+      {secondUpcomingBooking && onOpenBooking ? (
+        <HomeLinkRow
+          title="Next session after this"
+          subtitle={formatSecondSessionLabel(secondUpcomingBooking)}
+          onPress={() => onOpenBooking(secondUpcomingBooking.id)}
+        />
+      ) : null}
+
+      {upcomingBooking ? (
+        <HomeLinkRow
+          title="Get directions"
+          subtitle={upcomingBooking.locationName}
+          onPress={() => openDirections(upcomingBooking.locationName)}
+        />
+      ) : null}
+
+      {showLastSession ? (
+        <HomeLinkRow
+          title="Book again"
+          subtitle={formatLastSessionLabel(lastPastBooking)}
           onPress={() => router.push("/(app)/book")}
         />
       ) : null}

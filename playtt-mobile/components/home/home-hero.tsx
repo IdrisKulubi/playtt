@@ -15,10 +15,16 @@ import { formatTimeOfDayGreeting } from "@/lib/booking-utils"
 type HomeHeroProps = {
   showBookCta: boolean
   onBook: () => void
+  startingPriceLabel?: string | null
   children?: ReactNode
 }
 
-export function HomeHero({ showBookCta, onBook, children }: HomeHeroProps) {
+export function HomeHero({
+  showBookCta,
+  onBook,
+  startingPriceLabel,
+  children,
+}: HomeHeroProps) {
   const theme = useProductTheme()
   const greeting = formatTimeOfDayGreeting()
   const [reduceMotion, setReduceMotion] = useState(false)
@@ -63,6 +69,11 @@ export function HomeHero({ showBookCta, onBook, children }: HomeHeroProps) {
           color: theme.muted,
           lineHeight: 22,
         },
+        priceHint: {
+          fontSize: 14,
+          fontFamily: PlayTTFontFamilies.medium,
+          color: theme.muted,
+        },
         cta: {
           marginTop: PlayTTSpacing.xs,
         },
@@ -87,6 +98,9 @@ export function HomeHero({ showBookCta, onBook, children }: HomeHeroProps) {
         <Text style={styles.greeting}>{greeting}</Text>
         <Text style={styles.headline}>{headline}</Text>
         {tagline ? <Text style={styles.tagline}>{tagline}</Text> : null}
+        {showBookCta && startingPriceLabel ? (
+          <Text style={styles.priceHint}>{startingPriceLabel}</Text>
+        ) : null}
       </View>
 
       {children}

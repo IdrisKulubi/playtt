@@ -10,7 +10,10 @@ import { BookingDetailSheet } from "@/components/booking/booking-detail-sheet"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { HomeTicketSkeleton } from "@/components/ui/skeleton"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
-import { fetchMyBookings } from "@/lib/booking-api"
+import {
+  fetchMyBookings,
+  fetchStartingPriceHint,
+} from "@/lib/booking-api"
 import type { UserBookingSummary } from "@/lib/booking-types"
 import {
   useProductTheme,
@@ -19,22 +22,33 @@ import {
 
 const UPCOMING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 
-function findUpcomingBooking(bookings: UserBookingSummary[]) {
+function findUpcomingBookings(bookings: UserBookingSummary[]) {
   const now = Date.now()
   const cutoff = now + UPCOMING_WINDOW_MS
 
+  return bookings
+    .filter((booking) => {
+      if (booking.status === "cancelled" || booking.status === "expired") {
+        return false
+      }
+      const start = new Date(booking.startTime).getTime()
+      return start >= now && start <= cutoff
+    })
+    .sort(
+      (left, right) =>
+        new Date(left.startTime).getTime() - new Date(right.startTime).getTime(),
+    )
+}
+
+function findLastPastBooking(bookings: UserBookingSummary[]) {
+  const now = Date.now()
+
   return (
     bookings
-      .filter((booking) => {
-        if (booking.status === "cancelled" || booking.status === "expired") {
-          return false
-        }
-        const start = new Date(booking.startTime).getTime()
-        return start >= now && start <= cutoff
-      })
+      .filter((booking) => new Date(booking.endTime).getTime() < now)
       .sort(
         (left, right) =>
-          new Date(left.startTime).getTime() - new Date(right.startTime).getTime(),
+          new Date(right.endTime).getTime() - new Date(left.endTime).getTime(),
       )[0] ?? null
   )
 }
@@ -46,11 +60,18 @@ export default function AppHomeScreen() {
 
   const [upcomingBooking, setUpcomingBooking] =
     useState<UserBookingSummary | null>(null)
+  const [secondUpcomingBooking, setSecondUpcomingBooking] =
+    useState<UserBookingSummary | null>(null)
+  const [lastPastBooking, setLastPastBooking] =
+    useState<UserBookingSummary | null>(null)
+  const [startingPriceLabel, setStartingPriceLabel] = useState<string | null>(
+    null,
+  )
   const [isLoadingUpcoming, setIsLoadingUpcoming] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
 
-  const loadUpcoming = useCallback(async (silent = false) => {
+  const loadHome = useCallback(async (silent = false) => {
     if (silent) {
       setIsRefreshing(true)
     } else {
@@ -58,10 +79,30 @@ export default function AppHomeScreen() {
     }
 
     try {
-      const bookings = await fetchMyBookings("upcoming")
-      setUpcomingBooking(findUpcomingBooking(bookings))
+      const [upcomingBookings, pastBookings] = await Promise.all([
+        fetchMyBookings("upcoming"),
+        fetchMyBookings("past"),
+      ])
+
+      const upcoming = findUpcomingBookings(upcomingBookings)
+      const primary = upcoming[0] ?? null
+      const secondary = upcoming[1] ?? null
+
+      setUpcomingBooking(primary)
+      setSecondUpcomingBooking(secondary)
+      setLastPastBooking(findLastPastBooking(pastBookings))
+
+      if (!primary) {
+        const priceHint = await fetchStartingPriceHint()
+        setStartingPriceLabel(priceHint)
+      } else {
+        setStartingPriceLabel(null)
+      }
     } catch {
       setUpcomingBooking(null)
+      setSecondUpcomingBooking(null)
+      setLastPastBooking(null)
+      setStartingPriceLabel(null)
     } finally {
       if (!silent) {
         setIsLoadingUpcoming(false)
@@ -72,8 +113,8 @@ export default function AppHomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void loadUpcoming()
-    }, [loadUpcoming]),
+      void loadHome()
+    }, [loadHome]),
   )
 
   const showBookCta = !isLoadingUpcoming && upcomingBooking === null
@@ -88,13 +129,14 @@ export default function AppHomeScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
-            onRefresh={() => void loadUpcoming(true)}
+            onRefresh={() => void loadHome(true)}
             tintColor={theme.foreground}
           />
         }
       >
         <HomeHero
           showBookCta={showBookCta}
+          startingPriceLabel={startingPriceLabel}
           onBook={() => router.push("/(app)/book")}
         >
           {isLoadingUpcoming ? (
@@ -108,14 +150,20 @@ export default function AppHomeScreen() {
           ) : null}
         </HomeHero>
 
-        <HomeLinksSection showBookAnother={Boolean(upcomingBooking)} />
+        <HomeLinksSection
+          showBookAnother={Boolean(upcomingBooking)}
+          upcomingBooking={upcomingBooking}
+          secondUpcomingBooking={secondUpcomingBooking}
+          lastPastBooking={lastPastBooking}
+          onOpenBooking={setSelectedBookingId}
+        />
       </ScrollView>
 
       <BookingDetailSheet
         visible={selectedBookingId !== null}
         bookingId={selectedBookingId}
         onClose={() => setSelectedBookingId(null)}
-        onBookingChanged={() => void loadUpcoming()}
+        onBookingChanged={() => void loadHome()}
       />
     </SafeAreaView>
   )

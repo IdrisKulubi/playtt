@@ -272,16 +272,64 @@ export function formatTicketTimeLine(
 }
 
 export function formatTicketStatusLine(booking: UserBookingSummary) {
+  const players = `${booking.groupSize} players`
+  const duration = `${booking.durationMinutes} min`
+
   if (booking.status === "confirmed" || booking.paymentStatus === "paid") {
-    return `Confirmed · ${booking.groupSize} players`
+    return `Confirmed · ${players} · ${duration}`
   }
 
   if (booking.status === "pending" && booking.paymentStatus === "unpaid") {
-    return `Awaiting payment · ${booking.groupSize} players`
+    return `Awaiting payment · ${players} · ${duration}`
   }
 
-  return `${booking.groupSize} players`
+  return `${players} · ${duration}`
 }
+
+export function needsBookingPayment(booking: UserBookingSummary) {
+  return booking.status === "pending" && booking.paymentStatus === "unpaid"
+}
+
+export function canShowEntryCodeTeaser(
+  booking: UserBookingSummary,
+  nowMs = Date.now(),
+) {
+  return (
+    canShowAccessCard(booking, nowMs) &&
+    isSessionWithinCountdownWindow(booking.startTime, nowMs)
+  )
+}
+
+export function isEntryCodeTeaserDay(startIso: string, nowMs = Date.now()) {
+  const start = new Date(startIso)
+  const now = new Date(nowMs)
+
+  const startDay = new Date(start)
+  startDay.setHours(0, 0, 0, 0)
+
+  const today = new Date(now)
+  today.setHours(0, 0, 0, 0)
+
+  return startDay.getTime() === today.getTime()
+}
+
+export function formatLastSessionLabel(booking: UserBookingSummary) {
+  const playedOn = new Date(booking.endTime).toLocaleDateString("en-KE", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  })
+
+  return `Last played ${playedOn} · ${booking.locationName}`
+}
+
+export function formatSecondSessionLabel(booking: UserBookingSummary) {
+  const relative = formatRelativeSessionStart(booking.startTime)
+  return `${relative} · ${booking.locationName}`
+}
+
+/** Off-peak 60 min at base group size — mirrors server pricing floor. */
+export const DEFAULT_STARTING_PRICE_KES = 1600
 
 export function isPastBooking(booking: UserBookingSummary, nowMs = Date.now()) {
   return new Date(booking.endTime).getTime() < nowMs
