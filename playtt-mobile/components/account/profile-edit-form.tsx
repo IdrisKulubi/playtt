@@ -1,12 +1,12 @@
 import { useState } from "react"
 import { StyleSheet, View } from "react-native"
 
-import { AccountFormTheme } from "@/components/account/account-form-theme"
 import { OptionChips } from "@/components/onboarding/option-chips"
 import { Button } from "@/components/ui/button"
 import { FormField } from "@/components/ui/form-field"
 import { Input } from "@/components/ui/input"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAuthTheme } from "@/hooks/use-auth-theme"
 import {
   SKILL_LEVEL_OPTIONS,
   type SkillLevel,
@@ -21,16 +21,16 @@ type ProfileEditFormProps = {
   onSaved: () => void
 }
 
-const theme = AccountFormTheme
-const fieldProps = { variant: "auth" as const, authTheme: theme, compact: true }
-const inputProps = { variant: "auth" as const, authTheme: theme }
-
 export function ProfileEditForm({
   initialName,
   initialPhone,
   initialSkillLevel,
   onSaved,
 }: ProfileEditFormProps) {
+  const theme = useAuthTheme()
+  const fieldProps = { variant: "auth" as const, authTheme: theme, compact: true }
+  const inputProps = { variant: "auth" as const, authTheme: theme }
+
   const [name, setName] = useState(initialName)
   const [phone, setPhone] = useState(initialPhone)
   const [skillLevel, setSkillLevel] = useState<SkillLevel | null>(

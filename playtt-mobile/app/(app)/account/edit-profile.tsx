@@ -1,21 +1,25 @@
 import { router } from "expo-router"
-import { useEffect, useState } from "react"
-import { ScrollView, StyleSheet, Text, View } from "react-native"
+import { useEffect, useMemo, useState } from "react"
+import { ScrollView, Text } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { AccountScreenHeader } from "@/components/account/account-screen-header"
 import { ProfileEditForm } from "@/components/account/profile-edit-form"
+import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { AuthFormSkeleton } from "@/components/ui/skeleton"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
 import type { SkillLevel } from "@/lib/onboarding-options"
 import { toast } from "@/lib/toast"
 import { fetchCurrentUser } from "@/lib/user-api"
+import {
+  useProductTheme,
+  useSkeletonSurface,
+} from "@/hooks/use-product-theme"
 
 export default function EditProfileScreen() {
+  const theme = useProductTheme()
+  const skeletonSurface = useSkeletonSurface()
+  const styles = useMemo(() => createAppScreenStyles(theme), [theme])
+
   const [isLoading, setIsLoading] = useState(true)
   const [initialName, setInitialName] = useState("")
   const [initialPhone, setInitialPhone] = useState("")
@@ -59,10 +63,10 @@ export default function EditProfileScreen() {
       <AccountScreenHeader title="Personal details" />
 
       {isLoading ? (
-        <AuthFormSkeleton surface="dark" />
+        <AuthFormSkeleton surface={skeletonSurface} />
       ) : (
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <Text style={styles.description}>
+        <ScrollView contentContainerStyle={styles.stackScroll}>
+          <Text style={styles.stackDescription}>
             Keep your name, skill level, and phone up to date for bookings.
           </Text>
           <ProfileEditForm
@@ -76,21 +80,3 @@ export default function EditProfileScreen() {
     </SafeAreaView>
   )
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: PlayTTColors.background,
-  },
-  scroll: {
-    paddingHorizontal: PlayTTSpacing.xl,
-    paddingBottom: PlayTTSpacing["2xl"],
-    gap: PlayTTSpacing.md,
-  },
-  description: {
-    fontSize: 14,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.mutedText,
-    lineHeight: 20,
-  },
-})

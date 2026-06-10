@@ -2,11 +2,11 @@ import { router } from "expo-router"
 import { useState } from "react"
 import { Pressable, StyleSheet, Text, View } from "react-native"
 
-import { AccountFormTheme } from "@/components/account/account-form-theme"
 import { Button } from "@/components/ui/button"
 import { FormField } from "@/components/ui/form-field"
 import { Input } from "@/components/ui/input"
 import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAuthTheme } from "@/hooks/use-auth-theme"
 import { sendVerificationOtp } from "@/lib/auth-api"
 import { authClient, refreshSession } from "@/lib/auth-client"
 import { verifyEmailSchema, type VerifyEmailValues } from "@/lib/auth-schemas"
@@ -18,14 +18,14 @@ type AccountVerifyEmailFormProps = {
   onVerified: () => void
 }
 
-const theme = AccountFormTheme
-const fieldProps = { variant: "auth" as const, authTheme: theme, compact: true }
-const inputProps = { variant: "auth" as const, authTheme: theme }
-
 export function AccountVerifyEmailForm({
   email,
   onVerified,
 }: AccountVerifyEmailFormProps) {
+  const theme = useAuthTheme()
+  const fieldProps = { variant: "auth" as const, authTheme: theme, compact: true }
+  const inputProps = { variant: "auth" as const, authTheme: theme }
+
   const [isLoading, setIsLoading] = useState(false)
   const [values, setValues] = useState<VerifyEmailValues>({ otp: "" })
   const [fieldErrors, setFieldErrors] = useState<
@@ -77,7 +77,7 @@ export function AccountVerifyEmailForm({
 
   return (
     <View style={styles.form}>
-      <Text style={styles.description}>
+      <Text style={[styles.description, { color: theme.muted }]}>
         We sent a 6-digit code to {email}. Enter it below to verify your email.
       </Text>
 
@@ -102,11 +102,11 @@ export function AccountVerifyEmailForm({
       />
 
       <Pressable onPress={handleResend}>
-        <Text style={styles.link}>Resend code</Text>
+        <Text style={[styles.link, { color: theme.link }]}>Resend code</Text>
       </Pressable>
 
       <Pressable onPress={() => router.back()}>
-        <Text style={styles.cancel}>Cancel</Text>
+        <Text style={[styles.cancel, { color: theme.muted }]}>Cancel</Text>
       </Pressable>
     </View>
   )
@@ -119,20 +119,17 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 14,
     fontFamily: PlayTTFontFamilies.regular,
-    color: theme.muted,
     lineHeight: 20,
   },
   link: {
     fontSize: 14,
     fontFamily: PlayTTFontFamilies.semiBold,
-    color: theme.link,
     textAlign: "center",
     textDecorationLine: "underline",
   },
   cancel: {
     fontSize: 14,
     fontFamily: PlayTTFontFamilies.regular,
-    color: theme.muted,
     textAlign: "center",
   },
 })

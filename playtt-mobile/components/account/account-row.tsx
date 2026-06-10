@@ -1,3 +1,4 @@
+import { useMemo } from "react"
 import { Pressable, StyleSheet, Text, View } from "react-native"
 
 import { IconSymbol } from "@/components/ui/icon-symbol"
@@ -6,6 +7,8 @@ import {
   PlayTTFontFamilies,
   PlayTTSpacing,
 } from "@/constants/playtt-tokens"
+import type { ProductThemeColors } from "@/constants/product-theme"
+import { useProductTheme } from "@/hooks/use-product-theme"
 
 type AccountRowProps = {
   title: string
@@ -18,6 +21,52 @@ type AccountRowProps = {
   accessibilityHint?: string
 }
 
+function createStyles(theme: ProductThemeColors) {
+  return StyleSheet.create({
+    container: {
+      paddingVertical: PlayTTSpacing.md,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.border,
+    },
+    containerLast: {
+      borderBottomWidth: 0,
+      paddingBottom: 0,
+    },
+    pressed: {
+      opacity: 0.7,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: PlayTTSpacing.sm,
+    },
+    copy: {
+      flex: 1,
+      gap: 2,
+    },
+    title: {
+      fontSize: 16,
+      fontFamily: PlayTTFontFamilies.medium,
+      color: theme.foreground,
+    },
+    subtitle: {
+      fontSize: 13,
+      fontFamily: PlayTTFontFamilies.regular,
+      color: theme.muted,
+    },
+    value: {
+      fontSize: 13,
+      fontFamily: PlayTTFontFamilies.regular,
+      color: theme.muted,
+      marginTop: 2,
+    },
+    destructive: {
+      color: PlayTTColors.destructive,
+    },
+  })
+}
+
 export function AccountRow({
   title,
   subtitle,
@@ -28,6 +77,8 @@ export function AccountRow({
   isLast = false,
   accessibilityHint,
 }: AccountRowProps) {
+  const theme = useProductTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
   const containerStyle = [styles.container, isLast && styles.containerLast]
 
   const content = (
@@ -43,7 +94,7 @@ export function AccountRow({
         <IconSymbol
           name="chevron.right"
           size={18}
-          color={PlayTTColors.mutedText}
+          color={theme.muted}
         />
       ) : null}
     </View>
@@ -67,47 +118,3 @@ export function AccountRow({
     </Pressable>
   )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    paddingVertical: PlayTTSpacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: PlayTTColors.border,
-  },
-  containerLast: {
-    borderBottomWidth: 0,
-    paddingBottom: 0,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: PlayTTSpacing.sm,
-  },
-  copy: {
-    flex: 1,
-    gap: 2,
-  },
-  title: {
-    fontSize: 16,
-    fontFamily: PlayTTFontFamilies.medium,
-    color: PlayTTColors.foreground,
-  },
-  subtitle: {
-    fontSize: 13,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.mutedText,
-  },
-  value: {
-    fontSize: 13,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.mutedText,
-    marginTop: 2,
-  },
-  destructive: {
-    color: PlayTTColors.destructive,
-  },
-})

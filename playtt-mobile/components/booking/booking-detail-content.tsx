@@ -7,6 +7,7 @@ import {
   PlayTTTypography,
 } from "@/constants/playtt-tokens"
 import { ProductThemes } from "@/constants/product-theme"
+import { useSkeletonSurface } from "@/hooks/use-product-theme"
 import type { UserBookingSummary } from "@/lib/booking-types"
 import {
   formatBookingStatus,
@@ -21,9 +22,12 @@ type BookingDetailContentProps = {
 
 export function BookingDetailContent({
   booking,
-  surface = "dark",
+  surface,
 }: BookingDetailContentProps) {
-  const theme = surface === "product" ? ProductThemes.light : ProductThemes.dark
+  const defaultSurface = useSkeletonSurface()
+  const resolvedSurface = surface ?? defaultSurface
+  const theme =
+    resolvedSurface === "product" ? ProductThemes.light : ProductThemes.dark
 
   return (
     <View style={styles.container}>

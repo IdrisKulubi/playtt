@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from "expo-router"
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import {
   Alert,
   Pressable,
@@ -14,16 +14,13 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { AccountProfileHeader } from "@/components/account/account-profile-header"
 import { AccountRow } from "@/components/account/account-row"
 import { AccountSection } from "@/components/account/account-section"
+import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { Button } from "@/components/ui/button"
 import {
   AccountHubSkeleton,
   SkeletonGate,
 } from "@/components/ui/skeleton"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
+import { PlayTTColors, PlayTTFontFamilies } from "@/constants/playtt-tokens"
 import {
   canChangePassword,
   formatPersonalDetailsPreview,
@@ -31,8 +28,16 @@ import {
 } from "@/lib/account-utils"
 import { clearSession } from "@/lib/auth-helpers"
 import { fetchCurrentUser, type UserProfile } from "@/lib/user-api"
+import {
+  useProductTheme,
+  useSkeletonSurface,
+} from "@/hooks/use-product-theme"
 
 export default function AccountScreen() {
+  const theme = useProductTheme()
+  const skeletonSurface = useSkeletonSurface()
+  const styles = useMemo(() => createAppScreenStyles(theme), [theme])
+
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -108,7 +113,7 @@ export default function AccountScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={styles.accountScroll}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -119,7 +124,7 @@ export default function AccountScreen() {
       >
         <SkeletonGate
           loading={isLoading && !profile}
-          skeleton={<AccountHubSkeleton surface="dark" />}
+          skeleton={<AccountHubSkeleton surface={skeletonSurface} />}
         >
           {profile ? (
             <>
@@ -176,7 +181,9 @@ export default function AccountScreen() {
             </>
           ) : (
             <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>Could not load your account.</Text>
+              <Text style={[localStyles.emptyTitle, { color: theme.foreground }]}>
+                Could not load your account.
+              </Text>
               <Button
                 label="Try again"
                 surface="product"
@@ -190,33 +197,9 @@ export default function AccountScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: PlayTTColors.background,
-  },
-  scroll: {
-    paddingHorizontal: PlayTTSpacing.xl,
-    paddingTop: PlayTTSpacing.lg,
-    paddingBottom: PlayTTSpacing["2xl"],
-    gap: PlayTTSpacing.lg,
-  },
-  signOut: {
-    alignSelf: "flex-start",
-    paddingVertical: PlayTTSpacing.sm,
-  },
-  signOutLabel: {
-    fontSize: 16,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.destructive,
-  },
-  empty: {
-    gap: PlayTTSpacing.md,
-    paddingTop: PlayTTSpacing.lg,
-  },
+const localStyles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontFamily: PlayTTFontFamilies.medium,
-    color: PlayTTColors.foreground,
   },
 })
