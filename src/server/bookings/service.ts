@@ -9,7 +9,6 @@ import {
 } from "@/server/bookings/utils"
 import { calculateBookingQuote } from "@/server/bookings/pricing"
 import {
-  type BookingListFilter,
   ensureUserExists,
   findBlockingBookings,
   findBlockingBookingsForResources,
@@ -19,6 +18,7 @@ import {
   listActiveResourcesByLocation,
   listActiveLocationsWithResources,
   listUserBookings,
+  type BookingListFilter,
 } from "@/server/bookings/repository"
 import { runBookingExpirySweep } from "@/server/payments/service"
 import type {
@@ -28,6 +28,7 @@ import type {
   SlotAvailability,
   UserBookingSummary,
 } from "@/server/bookings/types"
+import { getEditEligibility } from "@/server/bookings/modifications/eligibility"
 import {
   bookingQuoteInputSchema,
   createPendingBookingSchema,
@@ -219,10 +220,33 @@ export async function listBookingsForUser(input: {
   return listUserBookings(input)
 }
 
+function enrichBookingSummary(booking: UserBookingSummary): UserBookingSummary {
+  const eligibility = getEditEligibility({
+    status: booking.status,
+    paymentStatus: booking.paymentStatus,
+    startTime: new Date(booking.startTime),
+  })
+
+  return {
+    ...booking,
+    editable: eligibility.editable,
+    editBlockedReason: eligibility.reason,
+  }
+}
+
 export async function getBookingForUser(input: {
   userId: string
   bookingId: string
 }): Promise<UserBookingSummary | null> {
   await runBookingExpirySweep()
-  return getUserBookingById(input)
+  const booking = await getUserBookingById(input)
+  return booking ? enrichBookingSummary(booking) : null
+}
+
+export async function listBookingsForUserEnriched(input: {
+  userId: string
+  filter?: BookingListFilter
+}): Promise<UserBookingSummary[]> {
+  const bookings = await listBookingsForUser(input)
+  return bookings.map(enrichBookingSummary)
 }

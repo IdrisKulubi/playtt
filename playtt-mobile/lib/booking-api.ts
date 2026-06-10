@@ -4,6 +4,8 @@ import type {
   CreateBookingResult,
   InitiatePaymentResult,
   LocationSummary,
+  ModificationApplyResult,
+  ModificationPreview,
   SlotAvailability,
   UserBookingSummary,
 } from "@/lib/booking-types"
@@ -90,7 +92,15 @@ export async function createBooking(input: {
   return response.data
 }
 
-export async function fetchMyBookings(filter: "all" | "upcoming" | "past" = "all") {
+type ModificationQuoteResponse = {
+  data?: { modificationPreview: ModificationPreview }
+}
+type ModificationApplyResponse = { data?: ModificationApplyResult }
+type ModificationStatusResponse = {
+  data?: { modificationId: string; status: string; applied: boolean }
+}
+
+export async function fetchMyBookings(filter: "all" | "upcoming" | "past" = "upcoming") {
   const response = await apiFetch<MineResponse>(
     `/api/bookings/mine?filter=${filter}`,
   )
@@ -130,4 +140,57 @@ export async function cancelBooking(bookingId: string) {
   await apiFetch(`/api/bookings/${bookingId}/cancel`, {
     method: "POST",
   })
+}
+
+export async function quoteBookingModification(
+  bookingId: string,
+  body: {
+    startTimeIso?: string
+    groupSize?: number
+    notes?: string
+  },
+) {
+  const response = await apiFetch<ModificationQuoteResponse>(
+    `/api/bookings/${bookingId}/modifications/quote`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+  )
+
+  return response.data?.modificationPreview ?? null
+}
+
+export async function applyBookingModification(
+  bookingId: string,
+  body: {
+    startTimeIso?: string
+    groupSize?: number
+    notes?: string
+  },
+) {
+  const response = await apiFetch<ModificationApplyResponse>(
+    `/api/bookings/${bookingId}/modifications/apply`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+  )
+
+  if (!response.data) {
+    throw new Error("Modification response was empty.")
+  }
+
+  return response.data
+}
+
+export async function fetchModificationStatus(
+  bookingId: string,
+  modificationId: string,
+) {
+  const response = await apiFetch<ModificationStatusResponse>(
+    `/api/bookings/${bookingId}/modifications/${modificationId}`,
+  )
+
+  return response.data ?? null
 }

@@ -7,7 +7,7 @@ import {
   mapBookingServiceError,
 } from "@/server/bookings/http"
 import type { BookingListFilter } from "@/server/bookings/repository"
-import { listBookingsForUser } from "@/server/bookings/service"
+import { listBookingsForUserEnriched } from "@/server/bookings/service"
 
 function parseFilter(value: string | null): BookingListFilter {
   if (value === "upcoming" || value === "past") {
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const filter = parseFilter(req.nextUrl.searchParams.get("filter"))
-    const bookings = await listBookingsForUser({
+    const bookings = await listBookingsForUserEnriched({
       userId: session.user.id,
       filter,
     })

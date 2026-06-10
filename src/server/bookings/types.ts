@@ -73,7 +73,9 @@ export interface UserBookingSummary {
   startTime: string;
   endTime: string;
   durationMinutes: number;
+  groupSize: number;
   currency: string;
+  subtotalAmount: string;
   totalAmount: string;
   locationId: string;
   locationName: string;
@@ -81,4 +83,6 @@ export interface UserBookingSummary {
   resourceName: string;
   expiresAt: string | null;
   notes: string | null;
+  editable: boolean;
+  editBlockedReason: string | null;
 }

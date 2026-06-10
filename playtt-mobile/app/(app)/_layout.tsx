@@ -77,7 +77,8 @@ export default function AppLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="book" />
-      <Stack.Screen name="booking/[id]" />
+      <Stack.Screen name="booking/[id]/index" />
+      <Stack.Screen name="booking/[id]/edit" />
       <Stack.Screen name="account/edit-profile" />
       <Stack.Screen name="account/change-password" />
       <Stack.Screen name="account/verify-email" />
