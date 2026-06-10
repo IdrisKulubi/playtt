@@ -10,6 +10,16 @@ import {
 } from "@/server/payments/repository"
 import type { PaystackTransactionData } from "@/server/payments/types"
 
+function mapPaystackChannelToPaymentMethod(
+  channel: string | null | undefined,
+): "card" | "mpesa" {
+  if (channel === "mobile_money") {
+    return "mpesa"
+  }
+
+  return "card"
+}
+
 export type ConfirmBookingPaymentInput = {
   reference: string
   providerEventId?: string | null
@@ -55,12 +65,15 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
     ? new Date(input.transaction.paid_at)
     : new Date()
 
+  const paymentMethod = mapPaystackChannelToPaymentMethod(input.transaction.channel)
+
   await db.transaction(async (tx) => {
     await tx
       .update(payments)
       .set({
         status: "paid",
         paidAt,
+        paymentMethod,
         providerEventId: input.providerEventId ?? existingPayment.providerEventId,
         rawPayload: input.transaction as unknown as Record<string, unknown>,
       })

@@ -26,6 +26,7 @@ export type PaystackTransactionData = {
   reference: string
   amount: number
   currency: string
+  channel?: string | null
   paid_at?: string | null
   gateway_response?: string | null
   metadata?: Record<string, unknown> | string | null
@@ -36,8 +37,6 @@ export type PaystackWebhookEvent = {
   data: PaystackTransactionData
 }
 
-export type PaymentMethodChoice = "mpesa" | "card"
-
 export type PaystackInitializeData = {
   authorization_url: string
   access_code: string
@@ -45,7 +44,7 @@ export type PaystackInitializeData = {
 }
 
 export type InitiatePaymentResult = {
-  method: PaymentMethodChoice
+  method: "hosted"
   reference: string
   status: string
   displayText: string

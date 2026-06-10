@@ -2,9 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { StyleSheet, Text, View } from "react-native"
 
 import { createBookingFlowStyles } from "@/components/booking/booking-theme"
-import { PaymentMethodPicker } from "@/components/booking/payment-method-picker"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
   PlayTTFontFamilies,
   PlayTTSpacing,
@@ -15,18 +13,13 @@ import {
   fetchBookingPaymentStatus,
   initiateBookingPayment,
 } from "@/lib/booking-api"
-import type {
-  CreateBookingResult,
-  LocationSummary,
-  PaymentMethodChoice,
-} from "@/lib/booking-types"
+import type { CreateBookingResult, LocationSummary } from "@/lib/booking-types"
 import {
   formatKes,
   formatPaymentCountdown,
   formatTimeRange,
 } from "@/lib/booking-utils"
-import { openCardCheckout } from "@/lib/payment-browser"
-import { fetchCurrentUser } from "@/lib/user-api"
+import { openPaymentCheckout } from "@/lib/payment-browser"
 import { toast } from "@/lib/toast"
 
 type BookingPaymentStepProps = {
@@ -52,33 +45,10 @@ export function BookingPaymentStep({
   const styles = useMemo(() => createBookingFlowStyles(theme), [theme])
   const localStyles = useMemo(() => createLocalStyles(theme.foreground, theme.muted), [theme])
 
-  const [method, setMethod] = useState<PaymentMethodChoice>("mpesa")
-  const [phone, setPhone] = useState("")
   const [displayText, setDisplayText] = useState<string | null>(null)
   const [isPaying, setIsPaying] = useState(false)
   const [isWaiting, setIsWaiting] = useState(false)
   const [nowMs, setNowMs] = useState(Date.now())
-
-  useEffect(() => {
-    let mounted = true
-
-    async function loadPhone() {
-      try {
-        const response = await fetchCurrentUser()
-        if (mounted) {
-          setPhone(response.data?.user?.phone ?? "")
-        }
-      } catch {
-        // User can still enter phone manually.
-      }
-    }
-
-    void loadPhone()
-
-    return () => {
-      mounted = false
-    }
-  }, [])
 
   useEffect(() => {
     const intervalId = setInterval(() => setNowMs(Date.now()), 1000)
@@ -129,52 +99,35 @@ export function BookingPaymentStep({
     setIsPaying(true)
 
     try {
-      const result = await initiateBookingPayment(confirmation.bookingId, {
-        method,
-        phone: method === "mpesa" ? phone.trim() || undefined : undefined,
-      })
+      const result = await initiateBookingPayment(confirmation.bookingId)
 
       setDisplayText(result.displayText)
 
-      if (method === "card" && result.authorizationUrl) {
-        const browserResult = await openCardCheckout(result.authorizationUrl)
+      if (!result.authorizationUrl) {
+        throw new Error("Payment checkout URL was missing.")
+      }
 
-        if (browserResult.type === "cancel") {
-          toast.info("Card checkout closed. You can try again.")
-          return
-        }
+      const browserResult = await openPaymentCheckout(result.authorizationUrl)
 
-        setIsWaiting(true)
-        await pollPaymentStatus()
+      if (browserResult.type === "cancel") {
+        toast.info("Checkout closed. You can try again.")
         return
       }
 
       setIsWaiting(true)
-      toast.info("Check your phone for the M-Pesa prompt.")
+      await pollPaymentStatus()
     } catch (error) {
-      toast.apiError(
-        error,
-        method === "card"
-          ? "Could not start card payment."
-          : "Could not start M-Pesa payment.",
-      )
+      toast.apiError(error, "Could not start payment.")
     } finally {
       setIsPaying(false)
     }
   }
 
-  const payLabel =
-    method === "card"
-      ? isWaiting
-        ? "Waiting for payment…"
-        : "Pay with card"
-      : isWaiting
-        ? "Waiting for payment…"
-        : "Pay with M-Pesa"
+  const payLabel = isWaiting ? "Waiting for payment…" : "Pay now"
 
   return (
     <View style={styles.section}>
-      <Text style={styles.confirmedTitle}>How would you like to pay?</Text>
+      <Text style={styles.confirmedTitle}>Complete payment</Text>
       <Text style={styles.confirmedBody}>
         Complete payment to confirm your booking.
       </Text>
@@ -193,32 +146,11 @@ export function BookingPaymentStep({
 
       {countdown ? <Text style={localStyles.countdown}>{countdown}</Text> : null}
 
-      <PaymentMethodPicker
-        value={method}
-        onChange={setMethod}
-        theme={theme}
-        disabled={isWaiting}
-      />
-
-      {method === "mpesa" && !isWaiting ? (
-        <View style={localStyles.phoneField}>
-          <Text style={localStyles.label}>M-Pesa phone number</Text>
-          <Input
-            variant="product"
-            value={phone}
-            onChangeText={setPhone}
-            placeholder="07XX XXX XXX"
-            keyboardType="phone-pad"
-            autoComplete="tel"
-          />
-        </View>
-      ) : null}
-
       {displayText ? (
         <Text style={localStyles.displayText}>{displayText}</Text>
-      ) : isWaiting && method === "mpesa" ? (
+      ) : isWaiting ? (
         <Text style={localStyles.displayText}>
-          Check your phone and enter your M-Pesa PIN.
+          Finish payment in the secure checkout page.
         </Text>
       ) : null}
 
@@ -251,15 +183,6 @@ function createLocalStyles(foreground: string, muted: string) {
       fontSize: 14,
       fontFamily: PlayTTFontFamilies.semiBold,
       color: foreground,
-    },
-    phoneField: {
-      gap: PlayTTSpacing.xs,
-      marginTop: PlayTTSpacing.md,
-    },
-    label: {
-      fontSize: 13,
-      fontFamily: PlayTTFontFamilies.medium,
-      color: muted,
     },
     displayText: {
       marginTop: PlayTTSpacing.sm,

@@ -1,19 +1,18 @@
-# Phase 4 — Payment (Paystack M-Pesa + Card)
+# Phase 4 — Payment (Paystack hosted checkout)
 
 Implemented for mobile bookings.
 
 ## Scope
 
-- **M-Pesa:** Paystack STK push via Charge API
-- **Card:** Paystack hosted checkout via Initialize Transaction (`channels: ["card"]`)
-- `POST /api/bookings/[id]/pay` — initiate payment (`method: "mpesa" | "card"`)
+- Paystack hosted checkout via Initialize Transaction (card, M-Pesa, and other enabled channels)
+- `POST /api/bookings/[id]/pay` — initiate payment (no body required)
 - `GET /api/bookings/[id]/payment` — poll + server-side verify fallback
-- `POST /api/webhooks/paystack` — `charge.success` confirmation (both methods)
+- `POST /api/webhooks/paystack` — `charge.success` confirmation
 - `POST /api/bookings/[id]/cancel` — release unpaid pending holds
 - On success: `paymentStatus: paid`, `status: confirmed`
 - Enforce `DEFAULT_PENDING_BOOKING_WINDOW_MINUTES` (10 min) expiry
 - Confirmation email via Resend
-- Web callback page: `/pay/complete` (card checkout return URL)
+- Web callback page: `/pay/complete` (checkout return URL)
 
 ## Files
 
@@ -27,16 +26,15 @@ Implemented for mobile bookings.
 | Callback page | `src/app/pay/complete/page.tsx` |
 | Expiry cron | `src/app/api/cron/expire-bookings/route.ts` |
 | Mobile pay step | `playtt-mobile/components/booking/booking-payment-step.tsx` |
-| Method picker | `playtt-mobile/components/booking/payment-method-picker.tsx` |
-| Card browser helper | `playtt-mobile/lib/payment-browser.ts` |
+| Checkout browser helper | `playtt-mobile/lib/payment-browser.ts` |
 | Detail pay CTA | `playtt-mobile/components/booking/booking-detail-payment-actions.tsx` |
 
 ## Environment
 
 | Variable | Purpose |
 |----------|---------|
-| `PAYSTACK_SECRET_KEY` | Charge + Initialize Transaction + webhook signature |
-| `NEXT_PUBLIC_APP_URL` | Card `callback_url` base (`/pay/complete`) |
+| `PAYSTACK_SECRET_KEY` | Initialize Transaction + webhook signature |
+| `NEXT_PUBLIC_APP_URL` | Checkout `callback_url` base (`/pay/complete`) |
 | `CRON_SECRET` | Optional bearer for expiry cron |
 | `RESEND_API_KEY` | Confirmation email |
 
@@ -44,19 +42,10 @@ Register webhook: `https://<host>/api/webhooks/paystack`
 
 ## Mobile flow
 
-### M-Pesa (default)
-
 1. Create pending booking (`POST /api/bookings`)
-2. Pay step — select M-Pesa → `POST /api/bookings/[id]/pay` with `{ method: "mpesa", phone? }`
-3. Customer authorizes STK on phone (~180s window)
-4. Webhook or poll confirms booking
-
-### Card
-
-1. Create pending booking
-2. Pay step — select Card → `POST /api/bookings/[id]/pay` with `{ method: "card" }`
+2. Pay step — tap **Pay now** → `POST /api/bookings/[id]/pay`
 3. App opens `authorizationUrl` in secure browser (`expo-web-browser`)
-4. Customer completes Paystack checkout (3DS, OTP as needed)
+4. Customer picks card, M-Pesa, or other method on Paystack hosted page
 5. Redirect to `/pay/complete` closes browser; webhook or poll confirms booking
 
 Unpaid bookings can also be paid from My Bookings detail sheet.

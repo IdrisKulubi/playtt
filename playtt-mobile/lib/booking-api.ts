@@ -4,7 +4,6 @@ import type {
   CreateBookingResult,
   InitiatePaymentResult,
   LocationSummary,
-  PaymentMethodChoice,
   SlotAvailability,
   UserBookingSummary,
 } from "@/lib/booking-types"
@@ -103,28 +102,12 @@ export async function fetchBookingById(bookingId: string) {
   return response.data?.booking ?? null
 }
 
-export async function initiateBookingPayment(
-  bookingId: string,
-  input?: {
-    method?: PaymentMethodChoice
-    phone?: string
-  },
-) {
-  const body: { method?: PaymentMethodChoice; phone?: string } = {}
-
-  if (input?.method) {
-    body.method = input.method
-  }
-
-  if (input?.phone?.trim()) {
-    body.phone = input.phone.trim()
-  }
-
+export async function initiateBookingPayment(bookingId: string) {
   const response = await apiFetch<PaymentInitResponse>(
     `/api/bookings/${bookingId}/pay`,
     {
       method: "POST",
-      body: JSON.stringify(body),
+      body: JSON.stringify({}),
     },
   )
 
