@@ -23,6 +23,20 @@
 - [ ] Home shows upcoming card when applicable
 - [ ] Sign out / sign in preserves list
 
+## Phase 4 (Payment)
+
+- [ ] `POST /api/bookings/[id]/pay` triggers M-Pesa STK (test key)
+- [ ] `payments` row created with Paystack reference
+- [ ] Webhook `charge.success` sets booking `confirmed` + `paid`
+- [ ] Replay webhook is idempotent (no double confirm)
+- [ ] `GET /api/bookings/[id]/payment` verifies delayed payments
+- [ ] Unpaid booking expires after 10 minutes (`expired` status)
+- [ ] Expired booking no longer blocks slot availability
+- [ ] Mobile: slot → players → confirm → pay → success screen
+- [ ] Mobile: pay from My Bookings detail sheet for abandoned hold
+- [ ] `POST /api/bookings/[id]/cancel` releases unpaid pending booking
+- [ ] Confirmation email sent on successful payment (when Resend configured)
+
 ## Regression
 
 - [ ] Onboarding gate still works

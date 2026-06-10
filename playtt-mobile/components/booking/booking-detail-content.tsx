@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native"
 
+import { BookingDetailPaymentActions } from "@/components/booking/booking-detail-payment-actions"
 import {
   PlayTTColors,
   PlayTTFontFamilies,
@@ -18,11 +19,13 @@ import {
 type BookingDetailContentProps = {
   booking: UserBookingSummary
   surface?: "dark" | "product"
+  onBookingUpdated?: (booking: UserBookingSummary) => void
 }
 
 export function BookingDetailContent({
   booking,
   surface,
+  onBookingUpdated,
 }: BookingDetailContentProps) {
   const defaultSurface = useSkeletonSurface()
   const resolvedSurface = surface ?? defaultSurface
@@ -56,6 +59,13 @@ export function BookingDetailContent({
         <Text style={[styles.meta, { color: theme.muted }]}>
           Notes: {booking.notes}
         </Text>
+      ) : null}
+
+      {onBookingUpdated ? (
+        <BookingDetailPaymentActions
+          booking={booking}
+          onBookingUpdated={onBookingUpdated}
+        />
       ) : null}
     </View>
   )

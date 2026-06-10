@@ -21,7 +21,8 @@ flowchart LR
   slotTap --> groupSheet[Group size sheet]
   groupSheet --> stickyBar[Sticky summary bar]
   stickyBar --> confirmSheet[Confirm sheet]
-  confirmSheet --> done[Confirmed]
+  confirmSheet --> pay[Pay with M-Pesa]
+  pay --> done[Confirmed]
 ```
 
 ## Tap budget
@@ -51,6 +52,8 @@ flowchart LR
 | `components/booking/group-size-sheet.tsx` | Player count after slot selection |
 | `components/booking/booking-checkout-bar.tsx` | Sticky summary + "Book this slot" |
 | `components/booking/booking-confirm-sheet.tsx` | Final review, notes, submit |
+| `components/booking/booking-payment-step.tsx` | M-Pesa pay step after hold created |
+| `components/booking/booking-detail-payment-actions.tsx` | Pay now CTA on booking detail |
 | `components/booking/booking-progress.tsx` | When → Players → Done dots |
 | `components/ui/bottom-sheet.tsx` | Shared sheet primitive |
 
@@ -101,7 +104,9 @@ Back navigation lives in the screen header only. Do not pair Back + Continue on 
 | Group sheet title | How many of you? |
 | Sticky bar CTA | Book this slot |
 | Confirm CTA | Book this slot |
-| Pending status | Your table is held. We'll confirm soon. |
+| Pay step headline | Pay with M-Pesa |
+| Pay waiting | Check your phone and enter your M-Pesa PIN |
+| Pending status | Complete M-Pesa payment to confirm your booking. |
 | Success title | You're booked! |
 | Empty slots | No times left for this day. |
 | Empty action | Try tomorrow |
