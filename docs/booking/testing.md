@@ -25,28 +25,21 @@
 
 ## Phase 4 (Payment)
 
-- [ ] `POST /api/bookings/[id]/pay` triggers M-Pesa STK (test key)
+- [ ] `POST /api/bookings/[id]/pay` returns `authorizationUrl` (hosted checkout)
 - [ ] `payments` row created with Paystack reference
 - [ ] Webhook `charge.success` sets booking `confirmed` + `paid`
 - [ ] Replay webhook is idempotent (no double confirm)
 - [ ] `GET /api/bookings/[id]/payment` verifies delayed payments
 - [ ] Unpaid booking expires after 10 minutes (`expired` status)
 - [ ] Expired booking no longer blocks slot availability
-- [ ] Mobile: slot → players → confirm → pay → success screen
+- [ ] Mobile: slot → players → confirm → Pay now → success screen
 - [ ] Mobile: pay from My Bookings detail sheet for abandoned hold
 - [ ] `POST /api/bookings/[id]/cancel` releases unpaid pending booking
 - [ ] Confirmation email sent on successful payment (when Resend configured)
-
-### Card payments
-
-- [ ] `POST /api/bookings/[id]/pay` with `{ "method": "card" }` returns `authorizationUrl`
-- [ ] `payments` row created with `paymentMethod: card`
 - [ ] Paystack test card `4084 0840 8408 4081` completes hosted checkout
-- [ ] 3DS test flow succeeds and webhook confirms booking
+- [ ] M-Pesa via Paystack hosted page confirms booking (test mode)
 - [ ] Closing browser mid-checkout leaves booking pending; retry reuses `authorizationUrl`
-- [ ] Mobile: card flow from pay step reaches success screen
-- [ ] Mobile: card flow from My Bookings detail sheet works
-- [ ] M-Pesa flow still works after card changes (regression)
+- [ ] Confirmed payment stores correct `paymentMethod` from Paystack channel
 
 ## Regression
 

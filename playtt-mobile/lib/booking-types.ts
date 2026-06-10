@@ -73,10 +73,8 @@ export type UserBookingSummary = {
   notes: string | null
 }
 
-export type PaymentMethodChoice = "mpesa" | "card"
-
 export type InitiatePaymentResult = {
-  method: PaymentMethodChoice
+  method: "hosted"
   reference: string
   status: string
   displayText: string

@@ -3,7 +3,6 @@ import { createHmac } from "node:crypto"
 import { PAYSTACK_API_BASE_URL } from "@/server/payments/constants"
 import type {
   PaystackApiResponse,
-  PaystackChargeData,
   PaystackInitializeData,
   PaystackTransactionData,
 } from "@/server/payments/types"
@@ -58,30 +57,6 @@ export function verifyPaystackSignature(rawBody: string, signature: string | nul
   return hash === signature
 }
 
-export async function chargeMobileMoney(input: {
-  email: string
-  amount: number
-  currency: string
-  phone: string
-  metadata: Record<string, string>
-}) {
-  const response = await paystackRequest<PaystackChargeData>("/charge", {
-    method: "POST",
-    body: JSON.stringify({
-      email: input.email,
-      amount: input.amount,
-      currency: input.currency,
-      metadata: input.metadata,
-      mobile_money: {
-        phone: input.phone,
-        provider: "mpesa",
-      },
-    }),
-  })
-
-  return response.data
-}
-
 export async function verifyPaystackTransaction(reference: string) {
   const response = await paystackRequest<PaystackTransactionData>(
     `/transaction/verify/${encodeURIComponent(reference)}`,
@@ -90,15 +65,7 @@ export async function verifyPaystackTransaction(reference: string) {
   return response.data
 }
 
-export async function checkPaystackCharge(reference: string) {
-  const response = await paystackRequest<PaystackChargeData>(
-    `/charge/${encodeURIComponent(reference)}`,
-  )
-
-  return response.data
-}
-
-export async function initializeCardTransaction(input: {
+export async function initializeHostedTransaction(input: {
   email: string
   amount: number
   currency: string
@@ -114,7 +81,6 @@ export async function initializeCardTransaction(input: {
         amount: input.amount,
         currency: input.currency,
         callback_url: input.callbackUrl,
-        channels: ["card"],
         metadata: input.metadata,
       }),
     },
