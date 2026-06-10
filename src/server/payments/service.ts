@@ -160,7 +160,7 @@ async function initiateHostedPayment(
       email: booking.userEmail,
       amount,
       currency: PAYSTACK_CURRENCY,
-      callbackUrl: getPaymentCallbackUrl(),
+      callbackUrl: getPaymentCallbackUrl(booking.id),
       metadata: {
         bookingId: booking.id,
         userId: booking.userId,

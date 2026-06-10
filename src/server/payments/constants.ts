@@ -13,8 +13,11 @@ export function getAppBaseUrl() {
   return base.replace(/\/+$/, "")
 }
 
-export function getPaymentCallbackUrl() {
-  return `${getAppBaseUrl()}/pay/complete`
+export const PAYMENT_COMPLETE_PATH = "/pay/complete"
+
+export function getPaymentCallbackUrl(bookingId: string) {
+  const params = new URLSearchParams({ bookingId })
+  return `${getAppBaseUrl()}${PAYMENT_COMPLETE_PATH}?${params.toString()}`
 }
 
 /** Paystack amounts are in the smallest currency unit (cents for KES). */
