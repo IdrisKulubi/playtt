@@ -1,17 +1,12 @@
 import { router, useFocusEffect } from "expo-router"
-import { useCallback, useState } from "react"
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
+import { useCallback, useMemo, useState } from "react"
+import { Pressable, ScrollView, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { BookingDetailSheet } from "@/components/booking/booking-detail-sheet"
+import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { Button } from "@/components/ui/button"
 import { BookingListSkeleton, SkeletonGate } from "@/components/ui/skeleton"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-  PlayTTTypography,
-} from "@/constants/playtt-tokens"
 import { fetchMyBookings } from "@/lib/booking-api"
 import type { UserBookingSummary } from "@/lib/booking-types"
 import {
@@ -19,9 +14,17 @@ import {
   formatKes,
   formatTimeRange,
 } from "@/lib/booking-utils"
+import {
+  useProductTheme,
+  useSkeletonSurface,
+} from "@/hooks/use-product-theme"
 import { toast } from "@/lib/toast"
 
 export default function BookingsScreen() {
+  const theme = useProductTheme()
+  const skeletonSurface = useSkeletonSurface()
+  const styles = useMemo(() => createAppScreenStyles(theme), [theme])
+
   const [bookings, setBookings] = useState<UserBookingSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
@@ -49,7 +52,7 @@ export default function BookingsScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         <SkeletonGate
           loading={isLoading}
-          skeleton={<BookingListSkeleton surface="dark" />}
+          skeleton={<BookingListSkeleton surface={skeletonSurface} />}
         >
           {bookings.length === 0 ? (
             <View style={styles.empty}>
@@ -72,10 +75,10 @@ export default function BookingsScreen() {
                   style={styles.card}
                 >
                   <Text style={styles.cardTitle}>{booking.locationName}</Text>
-                  <Text style={styles.cardTime}>
+                  <Text style={styles.cardMuted}>
                     {formatTimeRange(booking.startTime, booking.endTime)}
                   </Text>
-                  <Text style={styles.cardStatus}>
+                  <Text style={styles.cardSubtle}>
                     {formatBookingStatus(booking.status, booking.paymentStatus)}
                   </Text>
                   <Text style={styles.cardPrice}>
@@ -96,61 +99,3 @@ export default function BookingsScreen() {
     </SafeAreaView>
   )
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: PlayTTColors.background,
-  },
-  scroll: {
-    padding: PlayTTSpacing.xl,
-    gap: PlayTTSpacing.md,
-  },
-  title: {
-    ...PlayTTTypography.headline,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.foreground,
-  },
-  empty: {
-    gap: PlayTTSpacing.md,
-    paddingVertical: PlayTTSpacing.xl,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.foreground,
-  },
-  emptyBody: {
-    fontSize: 14,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.mutedText,
-  },
-  card: {
-    backgroundColor: PlayTTColors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: PlayTTColors.border,
-    padding: PlayTTSpacing.md,
-    gap: PlayTTSpacing.xs,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.foreground,
-  },
-  cardTime: {
-    fontSize: 14,
-    fontFamily: PlayTTFontFamilies.medium,
-    color: PlayTTColors.foreground,
-  },
-  cardStatus: {
-    fontSize: 13,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.mutedText,
-  },
-  cardPrice: {
-    fontSize: 14,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.primary,
-  },
-})

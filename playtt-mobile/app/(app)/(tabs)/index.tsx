@@ -1,24 +1,23 @@
 import { router, useFocusEffect } from "expo-router"
-import { useCallback, useState } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { useCallback, useMemo, useState } from "react"
+import { Pressable, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { BrandMark } from "@/components/brand/brand-mark"
 import { BookingDetailSheet } from "@/components/booking/booking-detail-sheet"
+import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { Button } from "@/components/ui/button"
 import { UpcomingCardSkeleton } from "@/components/ui/skeleton"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-  PlayTTTypography,
-} from "@/constants/playtt-tokens"
 import { fetchMyBookings } from "@/lib/booking-api"
 import type { UserBookingSummary } from "@/lib/booking-types"
 import {
   formatBookingStatus,
   formatTimeRange,
 } from "@/lib/booking-utils"
+import {
+  useProductTheme,
+  useSkeletonSurface,
+} from "@/hooks/use-product-theme"
 
 const UPCOMING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -43,6 +42,10 @@ function findUpcomingBooking(bookings: UserBookingSummary[]) {
 }
 
 export default function AppHomeScreen() {
+  const theme = useProductTheme()
+  const skeletonSurface = useSkeletonSurface()
+  const styles = useMemo(() => createAppScreenStyles(theme), [theme])
+
   const [upcomingBooking, setUpcomingBooking] =
     useState<UserBookingSummary | null>(null)
   const [isLoadingUpcoming, setIsLoadingUpcoming] = useState(true)
@@ -79,21 +82,21 @@ export default function AppHomeScreen() {
         />
 
         {isLoadingUpcoming ? (
-          <UpcomingCardSkeleton surface="dark" />
+          <UpcomingCardSkeleton surface={skeletonSurface} />
         ) : upcomingBooking ? (
           <Pressable
             onPress={() => setSelectedBookingId(upcomingBooking.id)}
-            style={styles.upcomingCard}
+            style={styles.card}
           >
-            <Text style={styles.upcomingLabel}>Upcoming booking</Text>
-            <Text style={styles.upcomingVenue}>{upcomingBooking.locationName}</Text>
-            <Text style={styles.upcomingTime}>
+            <Text style={styles.cardAccent}>Upcoming booking</Text>
+            <Text style={styles.cardTitle}>{upcomingBooking.locationName}</Text>
+            <Text style={styles.cardMuted}>
               {formatTimeRange(
                 upcomingBooking.startTime,
                 upcomingBooking.endTime,
               )}
             </Text>
-            <Text style={styles.upcomingStatus}>
+            <Text style={styles.cardSubtle}>
               {formatBookingStatus(
                 upcomingBooking.status,
                 upcomingBooking.paymentStatus,
@@ -111,51 +114,3 @@ export default function AppHomeScreen() {
     </SafeAreaView>
   )
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: PlayTTColors.background,
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: PlayTTSpacing.xl,
-    paddingTop: PlayTTSpacing.lg,
-    gap: PlayTTSpacing.md,
-  },
-  title: {
-    ...PlayTTTypography.headline,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.foreground,
-  },
-  upcomingCard: {
-    backgroundColor: PlayTTColors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: PlayTTColors.border,
-    padding: PlayTTSpacing.md,
-    gap: PlayTTSpacing.xs,
-  },
-  upcomingLabel: {
-    fontSize: 12,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.primary,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  upcomingVenue: {
-    fontSize: 16,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.foreground,
-  },
-  upcomingTime: {
-    fontSize: 14,
-    fontFamily: PlayTTFontFamilies.medium,
-    color: PlayTTColors.foreground,
-  },
-  upcomingStatus: {
-    fontSize: 13,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.mutedText,
-  },
-})

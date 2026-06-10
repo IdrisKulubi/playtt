@@ -1,21 +1,25 @@
 import { router, useLocalSearchParams } from "expo-router"
-import { useEffect, useState } from "react"
-import { ScrollView, StyleSheet, Text, View } from "react-native"
+import { useEffect, useMemo, useState } from "react"
+import { ScrollView, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { AccountScreenHeader } from "@/components/account/account-screen-header"
 import { AccountVerifyEmailForm } from "@/components/account/account-verify-email-form"
+import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { AuthFormSkeleton } from "@/components/ui/skeleton"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
 import { sendVerificationOtp } from "@/lib/auth-api"
 import { toast } from "@/lib/toast"
 import { fetchCurrentUser } from "@/lib/user-api"
+import {
+  useProductTheme,
+  useSkeletonSurface,
+} from "@/hooks/use-product-theme"
 
 export default function AccountVerifyEmailScreen() {
+  const theme = useProductTheme()
+  const skeletonSurface = useSkeletonSurface()
+  const styles = useMemo(() => createAppScreenStyles(theme), [theme])
+
   const { email: emailParam } = useLocalSearchParams<{ email?: string }>()
   const [email, setEmail] = useState("")
   const [isBootstrapping, setIsBootstrapping] = useState(true)
@@ -69,11 +73,11 @@ export default function AccountVerifyEmailScreen() {
     <SafeAreaView style={styles.safeArea}>
       <AccountScreenHeader title="Verify email" />
 
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={styles.stackScroll}>
         {isBootstrapping ? (
-          <View style={styles.bootstrapping}>
-            <Text style={styles.bootstrappingText}>Sending code…</Text>
-            <AuthFormSkeleton surface="dark" />
+          <View style={styles.empty}>
+            <Text style={styles.stackDescription}>Sending code…</Text>
+            <AuthFormSkeleton surface={skeletonSurface} />
           </View>
         ) : email ? (
           <AccountVerifyEmailForm
@@ -85,22 +89,3 @@ export default function AccountVerifyEmailScreen() {
     </SafeAreaView>
   )
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: PlayTTColors.background,
-  },
-  scroll: {
-    paddingHorizontal: PlayTTSpacing.xl,
-    paddingBottom: PlayTTSpacing["2xl"],
-  },
-  bootstrapping: {
-    gap: PlayTTSpacing.md,
-  },
-  bootstrappingText: {
-    fontSize: 14,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.mutedText,
-  },
-})

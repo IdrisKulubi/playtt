@@ -1,23 +1,33 @@
 import { Tabs } from 'expo-router';
+import { useMemo } from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { PlayTTColors } from '@/constants/playtt-tokens';
+import { ProductThemes } from '@/constants/product-theme';
+import { Colors, resolveColorScheme } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
+  const colorScheme = resolveColorScheme(useColorScheme());
+  const palette = Colors[colorScheme];
+  const productTheme = ProductThemes[colorScheme];
+
+  const screenOptions = useMemo(
+    () => ({
+      tabBarActiveTintColor: palette.tabIconSelected,
+      tabBarInactiveTintColor: palette.tabIconDefault,
+      tabBarStyle: {
+        backgroundColor: productTheme.elevated,
+        borderTopColor: productTheme.border,
+      },
+      headerShown: false,
+      tabBarButton: HapticTab,
+    }),
+    [palette.tabIconDefault, palette.tabIconSelected, productTheme.border, productTheme.elevated],
+  );
+
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors.dark.tint,
-        tabBarInactiveTintColor: Colors.dark.tabIconDefault,
-        tabBarStyle: {
-          backgroundColor: PlayTTColors.backgroundElevated,
-          borderTopColor: PlayTTColors.border,
-        },
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
+    <Tabs screenOptions={screenOptions}>
       <Tabs.Screen
         name="index"
         options={{

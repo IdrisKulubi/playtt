@@ -1,11 +1,11 @@
 import { useState } from "react"
 import { StyleSheet, View } from "react-native"
 
-import { AccountFormTheme } from "@/components/account/account-form-theme"
 import { Button } from "@/components/ui/button"
 import { FormField } from "@/components/ui/form-field"
 import { Input } from "@/components/ui/input"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAuthTheme } from "@/hooks/use-auth-theme"
 import { changePassword } from "@/lib/auth-api"
 import {
   changePasswordSchema,
@@ -18,11 +18,11 @@ type ChangePasswordFormProps = {
   onSaved: () => void
 }
 
-const theme = AccountFormTheme
-const fieldProps = { variant: "auth" as const, authTheme: theme, compact: true }
-const inputProps = { variant: "auth" as const, authTheme: theme }
-
 export function ChangePasswordForm({ onSaved }: ChangePasswordFormProps) {
+  const theme = useAuthTheme()
+  const fieldProps = { variant: "auth" as const, authTheme: theme, compact: true }
+  const inputProps = { variant: "auth" as const, authTheme: theme }
+
   const [isLoading, setIsLoading] = useState(false)
   const [values, setValues] = useState<ChangePasswordValues>({
     currentPassword: "",

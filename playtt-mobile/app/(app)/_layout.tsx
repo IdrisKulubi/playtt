@@ -1,14 +1,19 @@
 import { Redirect, Stack } from "expo-router"
-import { StyleSheet, View } from "react-native"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { View } from "react-native"
 
+import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { AuthFormSkeleton } from "@/components/ui/skeleton"
-import { PlayTTColors, PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useProductTheme, useSkeletonSurface } from "@/hooks/use-product-theme"
 import { getStoredAuth } from "@/lib/auth-helpers"
 import { ONBOARDING_ROUTE } from "@/lib/auth-navigation"
 import { fetchCurrentUser } from "@/lib/user-api"
 
 export default function AppLayout() {
+  const theme = useProductTheme()
+  const skeletonSurface = useSkeletonSurface()
+  const styles = useMemo(() => createAppScreenStyles(theme), [theme])
+
   const [gate, setGate] = useState<"loading" | "auth" | "onboarding" | "app">(
     "loading",
   )
@@ -54,8 +59,8 @@ export default function AppLayout() {
 
   if (gate === "loading") {
     return (
-      <View style={styles.loading}>
-        <AuthFormSkeleton surface="dark" />
+      <View style={styles.loadingGate}>
+        <AuthFormSkeleton surface={skeletonSurface} />
       </View>
     )
   }
@@ -79,11 +84,3 @@ export default function AppLayout() {
     </Stack>
   )
 }
-
-const styles = StyleSheet.create({
-  loading: {
-    flex: 1,
-    backgroundColor: PlayTTColors.background,
-    paddingTop: PlayTTSpacing.xl,
-  },
-})
