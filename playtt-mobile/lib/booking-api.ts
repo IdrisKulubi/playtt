@@ -9,6 +9,12 @@ import type {
   SlotAvailability,
   UserBookingSummary,
 } from "@/lib/booking-types"
+import {
+  DEFAULT_STARTING_PRICE_KES,
+  formatKes,
+  isSlotStartInPast,
+  toDateKey,
+} from "@/lib/booking-utils"
 
 type BootstrapResponse = { data?: { locations: LocationSummary[] } }
 type AvailabilityResponse = { data?: { slots: SlotAvailability[] } }
@@ -105,6 +111,42 @@ export async function fetchMyBookings(filter: "all" | "upcoming" | "past" = "upc
     `/api/bookings/mine?filter=${filter}`,
   )
   return response.data?.bookings ?? []
+}
+
+export async function fetchStartingPriceHint() {
+  try {
+    const locations = await fetchBookingBootstrap()
+    const location = locations[0]
+    if (!location) {
+      return `From ${formatKes(DEFAULT_STARTING_PRICE_KES)} per session`
+    }
+
+    const slots = await fetchAvailability({
+      locationId: location.id,
+      date: toDateKey(new Date()),
+      durationMinutes: 60,
+      groupSize: 2,
+    })
+
+    const available = slots.filter(
+      (slot) =>
+        slot.isAvailable &&
+        slot.openTableCount > 0 &&
+        !isSlotStartInPast(slot.startsAt),
+    )
+
+    if (available.length === 0) {
+      return `From ${formatKes(DEFAULT_STARTING_PRICE_KES)} per session`
+    }
+
+    const minAmount = Math.min(
+      ...available.map((slot) => slot.price.totalAmount),
+    )
+
+    return `From ${formatKes(minAmount)} per session`
+  } catch {
+    return `From ${formatKes(DEFAULT_STARTING_PRICE_KES)} per session`
+  }
 }
 
 export async function fetchBookingById(bookingId: string) {
