@@ -1,26 +1,21 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { useEffect, useMemo, useState } from "react"
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
 
 import { createBookingFlowStyles } from "@/components/booking/booking-theme"
 import { Button } from "@/components/ui/button"
 import {
+  PlayTTColors,
   PlayTTFontFamilies,
   PlayTTSpacing,
 } from "@/constants/playtt-tokens"
+import { usePaymentCheckout } from "@/hooks/use-payment-checkout"
 import { useProductTheme } from "@/hooks/use-product-theme"
-import {
-  fetchBookingById,
-  fetchBookingPaymentStatus,
-  initiateBookingPayment,
-} from "@/lib/booking-api"
 import type { CreateBookingResult, LocationSummary } from "@/lib/booking-types"
 import {
   formatKes,
   formatPaymentCountdown,
   formatTimeRange,
 } from "@/lib/booking-utils"
-import { openPaymentCheckout } from "@/lib/payment-browser"
-import { toast } from "@/lib/toast"
 
 type BookingPaymentStepProps = {
   confirmation: CreateBookingResult
@@ -30,8 +25,6 @@ type BookingPaymentStepProps = {
   onConfirmed: () => void
   onExpired: () => void
 }
-
-const POLL_INTERVAL_MS = 4000
 
 export function BookingPaymentStep({
   confirmation,
@@ -45,10 +38,20 @@ export function BookingPaymentStep({
   const styles = useMemo(() => createBookingFlowStyles(theme), [theme])
   const localStyles = useMemo(() => createLocalStyles(theme.foreground, theme.muted), [theme])
 
-  const [displayText, setDisplayText] = useState<string | null>(null)
-  const [isPaying, setIsPaying] = useState(false)
-  const [isWaiting, setIsWaiting] = useState(false)
   const [nowMs, setNowMs] = useState(Date.now())
+
+  const {
+    displayText,
+    isPaying,
+    isWaiting,
+    isConfirming,
+    payLabel,
+    handlePay,
+    handleCheckStatus,
+  } = usePaymentCheckout({
+    bookingId: confirmation.bookingId,
+    onConfirmed,
+  })
 
   useEffect(() => {
     const intervalId = setInterval(() => setNowMs(Date.now()), 1000)
@@ -56,35 +59,6 @@ export function BookingPaymentStep({
   }, [])
 
   const countdown = formatPaymentCountdown(confirmation.expiresAt, nowMs)
-
-  const pollPaymentStatus = useCallback(async () => {
-    const booking = await fetchBookingById(confirmation.bookingId)
-
-    if (booking?.status === "confirmed" || booking?.paymentStatus === "paid") {
-      onConfirmed()
-      return true
-    }
-
-    if (booking?.status === "expired") {
-      onExpired()
-      return true
-    }
-
-    await fetchBookingPaymentStatus(confirmation.bookingId)
-    return false
-  }, [confirmation.bookingId, onConfirmed, onExpired])
-
-  useEffect(() => {
-    if (!isWaiting) {
-      return
-    }
-
-    const intervalId = setInterval(() => {
-      void pollPaymentStatus()
-    }, POLL_INTERVAL_MS)
-
-    return () => clearInterval(intervalId)
-  }, [isWaiting, pollPaymentStatus])
 
   useEffect(() => {
     if (
@@ -95,42 +69,26 @@ export function BookingPaymentStep({
     }
   }, [confirmation.expiresAt, nowMs, onExpired])
 
-  async function handlePay() {
-    setIsPaying(true)
-
-    try {
-      const result = await initiateBookingPayment(confirmation.bookingId)
-
-      setDisplayText(result.displayText)
-
-      if (!result.authorizationUrl) {
-        throw new Error("Payment checkout URL was missing.")
-      }
-
-      const browserResult = await openPaymentCheckout(result.authorizationUrl)
-
-      if (browserResult.type === "cancel") {
-        toast.info("Checkout closed. You can try again.")
-        return
-      }
-
-      setIsWaiting(true)
-      await pollPaymentStatus()
-    } catch (error) {
-      toast.apiError(error, "Could not start payment.")
-    } finally {
-      setIsPaying(false)
-    }
-  }
-
-  const payLabel = isWaiting ? "Waiting for payment…" : "Pay now"
-
   return (
     <View style={styles.section}>
-      <Text style={styles.confirmedTitle}>Complete payment</Text>
-      <Text style={styles.confirmedBody}>
-        Complete payment to confirm your booking.
-      </Text>
+      {isConfirming ? (
+        <>
+          <View style={localStyles.confirmingRow}>
+            <ActivityIndicator color={PlayTTColors.primary} />
+            <Text style={styles.confirmedTitle}>Confirming payment…</Text>
+          </View>
+          <Text style={styles.confirmedBody}>
+            This usually takes a few seconds.
+          </Text>
+        </>
+      ) : (
+        <>
+          <Text style={styles.confirmedTitle}>Complete payment</Text>
+          <Text style={styles.confirmedBody}>
+            Complete payment to confirm your booking.
+          </Text>
+        </>
+      )}
 
       {location ? (
         <>
@@ -146,30 +104,28 @@ export function BookingPaymentStep({
 
       {countdown ? <Text style={localStyles.countdown}>{countdown}</Text> : null}
 
-      {displayText ? (
+      {displayText && !isConfirming ? (
         <Text style={localStyles.displayText}>{displayText}</Text>
-      ) : isWaiting ? (
-        <Text style={localStyles.displayText}>
-          Finish payment in the secure checkout page.
-        </Text>
       ) : null}
 
-      <Button
-        label={payLabel}
-        surface="product"
-        productTheme={theme}
-        onPress={handlePay}
-        loading={isPaying}
-        disabled={isWaiting}
-      />
+      {!isConfirming ? (
+        <Button
+          label={payLabel}
+          surface="product"
+          productTheme={theme}
+          onPress={handlePay}
+          loading={isPaying}
+          disabled={isWaiting}
+        />
+      ) : null}
 
-      {isWaiting ? (
+      {isWaiting && !isConfirming ? (
         <Button
           label="I've paid — check status"
           variant="outline"
           surface="product"
           productTheme={theme}
-          onPress={() => void pollPaymentStatus()}
+          onPress={() => void handleCheckStatus()}
         />
       ) : null}
     </View>
@@ -178,6 +134,11 @@ export function BookingPaymentStep({
 
 function createLocalStyles(foreground: string, muted: string) {
   return StyleSheet.create({
+    confirmingRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: PlayTTSpacing.sm,
+    },
     countdown: {
       marginTop: PlayTTSpacing.sm,
       fontSize: 14,

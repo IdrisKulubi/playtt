@@ -1,5 +1,6 @@
 import {
   getPaymentCallbackUrl,
+  getPaymentReturnUrl,
   kesToPaystackAmount,
   PAYSTACK_CURRENCY,
 } from "@/server/payments/constants"
@@ -118,6 +119,7 @@ function buildResult(input: {
     displayText: input.displayText,
     expiresAt: input.booking.expiresAt?.toISOString() ?? null,
     bookingId: input.booking.id,
+    returnUrl: getPaymentReturnUrl(),
     authorizationUrl: input.authorizationUrl,
   }
 }

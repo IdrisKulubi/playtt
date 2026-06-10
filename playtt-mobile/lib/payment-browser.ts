@@ -2,21 +2,21 @@ import * as WebBrowser from "expo-web-browser"
 
 import { getApiBaseUrl } from "@/lib/env"
 
-/** Must match server `PAYMENT_COMPLETE_PATH` and `NEXT_PUBLIC_APP_URL` origin. */
+/** Must match server `PAYMENT_COMPLETE_PATH`. */
 export const PAYMENT_COMPLETE_PATH = "/pay/complete"
 
 /**
- * Return URL for expo-web-browser after Paystack checkout.
- * `EXPO_PUBLIC_API_URL` must use the same host as `NEXT_PUBLIC_APP_URL`
- * (including www) or the in-app browser may not auto-dismiss.
+ * Fallback return URL when the server does not provide one.
+ * Prefer `returnUrl` from the payment init response so the host
+ * matches `NEXT_PUBLIC_APP_URL` (including www).
  */
-export function getPaymentReturnUrl() {
+export function getPaymentReturnUrlFallback() {
   return `${getApiBaseUrl()}${PAYMENT_COMPLETE_PATH}`
 }
 
-export async function openPaymentCheckout(authorizationUrl: string) {
-  return WebBrowser.openAuthSessionAsync(
-    authorizationUrl,
-    getPaymentReturnUrl(),
-  )
+export async function openPaymentCheckout(
+  authorizationUrl: string,
+  returnUrl: string,
+) {
+  return WebBrowser.openAuthSessionAsync(authorizationUrl, returnUrl)
 }

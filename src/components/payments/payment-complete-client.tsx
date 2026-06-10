@@ -1,33 +1,24 @@
 "use client"
 
 import { CheckCircleIcon } from "@phosphor-icons/react"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback } from "react"
 
 import { BrandMark } from "@/components/layout/brand-mark"
 import { Button } from "@/components/ui/button"
 import { getPaymentCompleteDeepLink } from "@/lib/mobile-deep-link"
 
-const AUTO_REDIRECT_DELAY_MS = 700
-
 type PaymentCompleteClientProps = {
   bookingId?: string | null
+  confirmed: boolean
 }
 
-export function PaymentCompleteClient({ bookingId }: PaymentCompleteClientProps) {
-  const [isRedirecting, setIsRedirecting] = useState(true)
-
+export function PaymentCompleteClient({
+  bookingId,
+  confirmed,
+}: PaymentCompleteClientProps) {
   const openApp = useCallback(() => {
     window.location.href = getPaymentCompleteDeepLink(bookingId)
   }, [bookingId])
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      openApp()
-      setIsRedirecting(false)
-    }, AUTO_REDIRECT_DELAY_MS)
-
-    return () => window.clearTimeout(timeoutId)
-  }, [openApp])
 
   return (
     <main className="dark flex min-h-screen items-center justify-center bg-background px-6 py-12 text-center text-foreground">
@@ -41,22 +32,28 @@ export function PaymentCompleteClient({ bookingId }: PaymentCompleteClientProps)
 
           <div className="space-y-2">
             <h1 className="text-2xl font-semibold tracking-[-0.02em]">
-              Payment received
+              {confirmed ? "Payment confirmed" : "Payment received"}
             </h1>
             <p className="text-sm leading-6 text-muted-foreground">
-              Return to PlayTT to see your booking.
+              {confirmed
+                ? "Your booking is confirmed. Tap ✕ to return to PlayTT."
+                : "Tap ✕ to return to PlayTT and check your booking."}
             </p>
           </div>
         </div>
 
         <div className="flex w-full flex-col items-center gap-3">
-          <Button size="lg" className="w-full max-w-xs" onClick={openApp}>
+          <Button
+            size="lg"
+            variant="outline"
+            className="w-full max-w-xs"
+            onClick={openApp}
+          >
             Open PlayTT
           </Button>
-
-          {isRedirecting ? (
-            <p className="text-xs text-muted-foreground">Opening app…</p>
-          ) : null}
+          <p className="text-xs text-muted-foreground">
+            If the button does not work, close this window with ✕ at the top.
+          </p>
         </div>
       </div>
     </main>
