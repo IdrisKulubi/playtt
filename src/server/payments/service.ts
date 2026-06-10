@@ -1,6 +1,7 @@
 import { z } from "zod/v3"
 
 import {
+  getPaymentCallbackUrl,
   kesToPaystackAmount,
   PAYSTACK_CURRENCY,
 } from "@/server/payments/constants"
@@ -10,6 +11,7 @@ import { formatPhoneForPaystack } from "@/server/payments/phone"
 import {
   chargeMobileMoney,
   checkPaystackCharge,
+  initializeCardTransaction,
   PaystackApiError,
   verifyPaystackTransaction,
 } from "@/server/payments/paystack-client"
@@ -20,9 +22,15 @@ import {
   insertPaymentRecord,
   markPaymentFailed,
 } from "@/server/payments/repository"
-import type { InitiatePaymentResult, PaymentStatusResult } from "@/server/payments/types"
+import type {
+  BookingPaymentContext,
+  InitiatePaymentResult,
+  PaymentMethodChoice,
+  PaymentStatusResult,
+} from "@/server/payments/types"
 
 const initiatePaymentBodySchema = z.object({
+  method: z.enum(["mpesa", "card"]).optional(),
   phone: z.string().trim().optional(),
 })
 
@@ -88,30 +96,62 @@ function mapChargeDisplayText(status: string, displayText?: string) {
   return "Processing your payment."
 }
 
-export async function initiateBookingPayment(input: {
-  bookingId: string
-  userId: string
-  body: unknown
-}): Promise<InitiatePaymentResult> {
-  await runBookingExpirySweep()
+function getAuthorizationUrlFromPayload(
+  rawPayload: Record<string, unknown> | null | undefined,
+) {
+  if (!rawPayload) {
+    return null
+  }
 
-  const parsed = initiatePaymentBodySchema.parse(input.body)
-  const booking = await getBookingPaymentContext({
-    bookingId: input.bookingId,
-    userId: input.userId,
-  })
+  const url = rawPayload.authorization_url
 
-  if (!booking) {
+  return typeof url === "string" && url.trim() ? url : null
+}
+
+async function tryConfirmFromVerify(reference: string) {
+  const transaction = await verifyPaystackTransaction(reference)
+
+  if (transaction.status === "success") {
+    await confirmBookingPayment({
+      reference,
+      providerEventId: String(transaction.id),
+      transaction,
+      source: "verify",
+    })
     throw new PaymentServiceError(
-      "BOOKING_NOT_FOUND",
-      "We could not find that booking.",
-      404,
+      "BOOKING_ALREADY_PAID",
+      "This booking is already paid.",
+      409,
     )
   }
 
-  assertBookingPayable(booking)
+  return transaction
+}
 
-  const phoneSource = parsed.phone ?? booking.userPhone ?? ""
+function buildResult(input: {
+  method: PaymentMethodChoice
+  reference: string
+  status: string
+  displayText: string
+  booking: BookingPaymentContext
+  authorizationUrl?: string
+}): InitiatePaymentResult {
+  return {
+    method: input.method,
+    reference: input.reference,
+    status: input.status,
+    displayText: input.displayText,
+    expiresAt: input.booking.expiresAt?.toISOString() ?? null,
+    bookingId: input.booking.id,
+    authorizationUrl: input.authorizationUrl,
+  }
+}
+
+async function initiateMpesaPayment(
+  booking: BookingPaymentContext,
+  phone?: string,
+): Promise<InitiatePaymentResult> {
+  const phoneSource = phone ?? booking.userPhone ?? ""
   const paystackPhone = formatPhoneForPaystack(phoneSource)
 
   if (!paystackPhone) {
@@ -124,31 +164,25 @@ export async function initiateBookingPayment(input: {
 
   const latestPayment = await findLatestPaymentForBooking(booking.id)
 
-  if (latestPayment?.status === "pending") {
+  if (
+    latestPayment?.status === "pending" &&
+    latestPayment.paymentMethod === "mpesa"
+  ) {
     try {
       const charge = await checkPaystackCharge(latestPayment.providerReference)
 
       if (charge.status === "success") {
-        await confirmBookingPayment({
-          reference: latestPayment.providerReference,
-          transaction: await verifyPaystackTransaction(latestPayment.providerReference),
-          source: "verify",
-        })
-        throw new PaymentServiceError(
-          "BOOKING_ALREADY_PAID",
-          "This booking is already paid.",
-          409,
-        )
+        await tryConfirmFromVerify(latestPayment.providerReference)
       }
 
       if (charge.status === "pay_offline" || charge.status === "pending") {
-        return {
+        return buildResult({
+          method: "mpesa",
           reference: latestPayment.providerReference,
           status: charge.status,
           displayText: mapChargeDisplayText(charge.status, charge.display_text),
-          expiresAt: booking.expiresAt?.toISOString() ?? null,
-          bookingId: booking.id,
-        }
+          booking,
+        })
       }
 
       if (charge.status === "failed" || charge.status === "timeout") {
@@ -195,6 +229,7 @@ export async function initiateBookingPayment(input: {
     providerReference: charge.reference,
     amount: booking.totalAmount,
     currency: booking.currency,
+    paymentMethod: "mpesa",
     rawPayload: charge as unknown as Record<string, unknown>,
   })
 
@@ -206,13 +241,123 @@ export async function initiateBookingPayment(input: {
     )
   }
 
-  return {
+  return buildResult({
+    method: "mpesa",
     reference: charge.reference,
     status: charge.status,
     displayText: mapChargeDisplayText(charge.status, charge.display_text),
-    expiresAt: booking.expiresAt?.toISOString() ?? null,
-    bookingId: booking.id,
+    booking,
+  })
+}
+
+async function initiateCardPayment(
+  booking: BookingPaymentContext,
+): Promise<InitiatePaymentResult> {
+  const latestPayment = await findLatestPaymentForBooking(booking.id)
+
+  if (
+    latestPayment?.status === "pending" &&
+    latestPayment.paymentMethod === "card"
+  ) {
+    try {
+      await tryConfirmFromVerify(latestPayment.providerReference)
+    } catch (error) {
+      if (error instanceof PaymentServiceError) {
+        throw error
+      }
+    }
+
+    const authorizationUrl = getAuthorizationUrlFromPayload(
+      latestPayment.rawPayload as Record<string, unknown> | null,
+    )
+
+    if (authorizationUrl) {
+      return buildResult({
+        method: "card",
+        reference: latestPayment.providerReference,
+        status: "pending",
+        displayText: "Complete payment in the secure checkout.",
+        booking,
+        authorizationUrl,
+      })
+    }
   }
+
+  const amount = kesToPaystackAmount(booking.totalAmount)
+
+  let initialized
+
+  try {
+    initialized = await initializeCardTransaction({
+      email: booking.userEmail,
+      amount,
+      currency: PAYSTACK_CURRENCY,
+      callbackUrl: getPaymentCallbackUrl(),
+      metadata: {
+        bookingId: booking.id,
+        userId: booking.userId,
+      },
+    })
+  } catch (error) {
+    const message =
+      error instanceof PaystackApiError
+        ? error.message
+        : "Could not start card payment."
+
+    throw new PaymentServiceError("PAYMENT_INIT_FAILED", message, 502)
+  }
+
+  await insertPaymentRecord({
+    bookingId: booking.id,
+    locationId: booking.locationId,
+    userId: booking.userId,
+    providerReference: initialized.reference,
+    amount: booking.totalAmount,
+    currency: booking.currency,
+    paymentMethod: "card",
+    rawPayload: initialized as unknown as Record<string, unknown>,
+  })
+
+  return buildResult({
+    method: "card",
+    reference: initialized.reference,
+    status: "pending",
+    displayText: "You will be redirected to a secure card checkout.",
+    booking,
+    authorizationUrl: initialized.authorization_url,
+  })
+}
+
+export async function initiateBookingPayment(input: {
+  bookingId: string
+  userId: string
+  body: unknown
+}): Promise<InitiatePaymentResult> {
+  await runBookingExpirySweep()
+
+  const parsed = initiatePaymentBodySchema.parse(input.body)
+  const method: PaymentMethodChoice = parsed.method ?? "mpesa"
+
+  const booking = await getBookingPaymentContext({
+    bookingId: input.bookingId,
+    userId: input.userId,
+  })
+
+  if (!booking) {
+    throw new PaymentServiceError(
+      "BOOKING_NOT_FOUND",
+      "We could not find that booking.",
+      404,
+    )
+  }
+
+  assertBookingPayable(booking)
+
+  if (method === "card") {
+    return initiateCardPayment(booking)
+  }
+
+  return initiateMpesaPayment(booking, parsed.phone)
 }
 
 export async function getBookingPaymentStatus(input: {

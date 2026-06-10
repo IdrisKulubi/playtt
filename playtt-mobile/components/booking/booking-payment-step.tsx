@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { StyleSheet, Text, View } from "react-native"
 
 import { createBookingFlowStyles } from "@/components/booking/booking-theme"
+import { PaymentMethodPicker } from "@/components/booking/payment-method-picker"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -14,12 +15,17 @@ import {
   fetchBookingPaymentStatus,
   initiateBookingPayment,
 } from "@/lib/booking-api"
-import type { CreateBookingResult, LocationSummary } from "@/lib/booking-types"
+import type {
+  CreateBookingResult,
+  LocationSummary,
+  PaymentMethodChoice,
+} from "@/lib/booking-types"
 import {
   formatKes,
   formatPaymentCountdown,
   formatTimeRange,
 } from "@/lib/booking-utils"
+import { openCardCheckout } from "@/lib/payment-browser"
 import { fetchCurrentUser } from "@/lib/user-api"
 import { toast } from "@/lib/toast"
 
@@ -46,6 +52,7 @@ export function BookingPaymentStep({
   const styles = useMemo(() => createBookingFlowStyles(theme), [theme])
   const localStyles = useMemo(() => createLocalStyles(theme.foreground, theme.muted), [theme])
 
+  const [method, setMethod] = useState<PaymentMethodChoice>("mpesa")
   const [phone, setPhone] = useState("")
   const [displayText, setDisplayText] = useState<string | null>(null)
   const [isPaying, setIsPaying] = useState(false)
@@ -122,24 +129,52 @@ export function BookingPaymentStep({
     setIsPaying(true)
 
     try {
-      const result = await initiateBookingPayment(
-        confirmation.bookingId,
-        phone.trim() || undefined,
-      )
+      const result = await initiateBookingPayment(confirmation.bookingId, {
+        method,
+        phone: method === "mpesa" ? phone.trim() || undefined : undefined,
+      })
 
       setDisplayText(result.displayText)
+
+      if (method === "card" && result.authorizationUrl) {
+        const browserResult = await openCardCheckout(result.authorizationUrl)
+
+        if (browserResult.type === "cancel") {
+          toast.info("Card checkout closed. You can try again.")
+          return
+        }
+
+        setIsWaiting(true)
+        await pollPaymentStatus()
+        return
+      }
+
       setIsWaiting(true)
       toast.info("Check your phone for the M-Pesa prompt.")
     } catch (error) {
-      toast.apiError(error, "Could not start M-Pesa payment.")
+      toast.apiError(
+        error,
+        method === "card"
+          ? "Could not start card payment."
+          : "Could not start M-Pesa payment.",
+      )
     } finally {
       setIsPaying(false)
     }
   }
 
+  const payLabel =
+    method === "card"
+      ? isWaiting
+        ? "Waiting for payment…"
+        : "Pay with card"
+      : isWaiting
+        ? "Waiting for payment…"
+        : "Pay with M-Pesa"
+
   return (
     <View style={styles.section}>
-      <Text style={styles.confirmedTitle}>Pay with M-Pesa</Text>
+      <Text style={styles.confirmedTitle}>How would you like to pay?</Text>
       <Text style={styles.confirmedBody}>
         Complete payment to confirm your booking.
       </Text>
@@ -158,7 +193,14 @@ export function BookingPaymentStep({
 
       {countdown ? <Text style={localStyles.countdown}>{countdown}</Text> : null}
 
-      {!isWaiting ? (
+      <PaymentMethodPicker
+        value={method}
+        onChange={setMethod}
+        theme={theme}
+        disabled={isWaiting}
+      />
+
+      {method === "mpesa" && !isWaiting ? (
         <View style={localStyles.phoneField}>
           <Text style={localStyles.label}>M-Pesa phone number</Text>
           <Input
@@ -174,14 +216,14 @@ export function BookingPaymentStep({
 
       {displayText ? (
         <Text style={localStyles.displayText}>{displayText}</Text>
-      ) : isWaiting ? (
+      ) : isWaiting && method === "mpesa" ? (
         <Text style={localStyles.displayText}>
           Check your phone and enter your M-Pesa PIN.
         </Text>
       ) : null}
 
       <Button
-        label={isWaiting ? "Waiting for payment…" : "Pay with M-Pesa"}
+        label={payLabel}
         surface="product"
         productTheme={theme}
         onPress={handlePay}

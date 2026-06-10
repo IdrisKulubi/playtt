@@ -73,12 +73,16 @@ export type UserBookingSummary = {
   notes: string | null
 }
 
+export type PaymentMethodChoice = "mpesa" | "card"
+
 export type InitiatePaymentResult = {
+  method: PaymentMethodChoice
   reference: string
   status: string
   displayText: string
   expiresAt: string | null
   bookingId: string
+  authorizationUrl?: string
 }
 
 export type BookingStep = "location" | "timing" | "pay" | "confirmed"

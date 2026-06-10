@@ -107,6 +107,7 @@ export async function insertPaymentRecord(input: {
   providerReference: string
   amount: string
   currency: string
+  paymentMethod?: "mpesa" | "card"
   rawPayload: Record<string, unknown>
 }) {
   const [created] = await db
@@ -120,7 +121,7 @@ export async function insertPaymentRecord(input: {
       amount: input.amount,
       currency: input.currency,
       status: "pending",
-      paymentMethod: "mpesa",
+      paymentMethod: input.paymentMethod ?? "mpesa",
       rawPayload: input.rawPayload,
     })
     .returning()
