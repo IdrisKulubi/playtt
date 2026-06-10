@@ -22,7 +22,7 @@
 | Migration | `drizzle/0002_booking_edits.sql` |
 | Domain | `src/server/bookings/modifications/` |
 | Mobile edit | `playtt-mobile/app/(app)/booking/[id]/edit.tsx` |
-| Mobile form | `playtt-mobile/components/booking/booking-edit-form.tsx` |
+| Mobile edit flow | `playtt-mobile/components/booking/booking-edit-flow.tsx` |
 
 ## Migration
 

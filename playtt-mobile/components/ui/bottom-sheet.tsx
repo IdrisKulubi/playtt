@@ -1,5 +1,6 @@
-import { type ReactNode, useEffect, useMemo } from "react"
+import { type ReactNode, useCallback, useEffect, useMemo } from "react"
 import {
+  Dimensions,
   Modal,
   Pressable,
   ScrollView,
@@ -13,14 +14,13 @@ import {
   GestureHandlerRootView,
 } from "react-native-gesture-handler"
 import Animated, {
+  Easing,
   FadeIn,
-  FadeOut,
   runOnJS,
   SlideInDown,
-  SlideOutDown,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
+  withTiming,
 } from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -34,6 +34,10 @@ import { useProductTheme } from "@/hooks/use-product-theme"
 
 const DISMISS_DRAG_THRESHOLD = 120
 const DISMISS_VELOCITY_THRESHOLD = 800
+const DISMISS_DURATION_MS = 220
+const SNAP_BACK_DURATION_MS = 200
+const SMOOTH_EASING = Easing.out(Easing.cubic)
+const SCREEN_HEIGHT = Dimensions.get("window").height
 
 type BottomSheetSurface = "product" | "dark"
 
@@ -58,12 +62,35 @@ export function BottomSheet({
   const productTheme = useProductTheme()
   const theme = surface === "dark" ? ProductThemes.dark : productTheme
   const translateY = useSharedValue(0)
+  const isDismissing = useSharedValue(false)
+
+  const completeDismiss = useCallback(() => {
+    onClose()
+  }, [onClose])
+
+  const animateDismiss = useCallback(() => {
+    if (isDismissing.value) {
+      return
+    }
+
+    isDismissing.value = true
+    translateY.value = withTiming(
+      SCREEN_HEIGHT,
+      { duration: DISMISS_DURATION_MS, easing: SMOOTH_EASING },
+      (finished) => {
+        if (finished) {
+          runOnJS(completeDismiss)()
+        }
+      },
+    )
+  }, [completeDismiss, isDismissing, translateY])
 
   useEffect(() => {
     if (visible) {
+      isDismissing.value = false
       translateY.value = 0
     }
-  }, [visible, translateY])
+  }, [visible, isDismissing, translateY])
 
   const styles = useMemo(
     () =>
@@ -113,6 +140,11 @@ export function BottomSheet({
     transform: [{ translateY: translateY.value }],
   }))
 
+  const backdropAnimatedStyle = useAnimatedStyle(() => {
+    const progress = Math.min(translateY.value / SCREEN_HEIGHT, 1)
+    return { opacity: 1 - progress }
+  })
+
   const panGesture = Gesture.Pan()
     .onUpdate((event) => {
       if (event.translationY > 0) {
@@ -120,16 +152,32 @@ export function BottomSheet({
       }
     })
     .onEnd((event) => {
-      if (
+      const shouldDismiss =
         event.translationY > DISMISS_DRAG_THRESHOLD ||
         event.velocityY > DISMISS_VELOCITY_THRESHOLD
-      ) {
-        translateY.value = 0
-        runOnJS(onClose)()
+
+      if (shouldDismiss) {
+        if (isDismissing.value) {
+          return
+        }
+
+        isDismissing.value = true
+        translateY.value = withTiming(
+          SCREEN_HEIGHT,
+          { duration: DISMISS_DURATION_MS, easing: SMOOTH_EASING },
+          (finished) => {
+            if (finished) {
+              runOnJS(completeDismiss)()
+            }
+          },
+        )
         return
       }
 
-      translateY.value = withSpring(0, { damping: 20, stiffness: 220 })
+      translateY.value = withTiming(0, {
+        duration: SNAP_BACK_DURATION_MS,
+        easing: SMOOTH_EASING,
+      })
     })
 
   const body = scrollable ? (
@@ -149,22 +197,20 @@ export function BottomSheet({
       visible={visible}
       transparent
       animationType="none"
-      onRequestClose={onClose}
+      onRequestClose={animateDismiss}
       statusBarTranslucent
     >
       <GestureHandlerRootView style={styles.overlay}>
         <Animated.View
           entering={FadeIn.duration(180)}
-          exiting={FadeOut.duration(140)}
-          style={StyleSheet.absoluteFill}
+          style={[StyleSheet.absoluteFill, backdropAnimatedStyle]}
         >
-          <Pressable style={styles.backdrop} onPress={onClose} />
+          <Pressable style={styles.backdrop} onPress={animateDismiss} />
         </Animated.View>
 
         <GestureDetector gesture={panGesture}>
           <Animated.View
             entering={SlideInDown.duration(260)}
-            exiting={SlideOutDown.duration(200)}
             style={[
               styles.sheet,
               sheetAnimatedStyle,

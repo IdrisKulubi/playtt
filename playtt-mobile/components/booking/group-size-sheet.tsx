@@ -24,6 +24,11 @@ type GroupSizeSheetProps = {
   onGroupSizeChange: (size: GroupSize) => void
   onContinue: () => void
   loading?: boolean
+  /** Edit mode: only show sizes from minGroupSize through 8. */
+  minGroupSize?: GroupSize
+  title?: string
+  continueLabel?: string
+  hint?: string
 }
 
 export function GroupSizeSheet({
@@ -34,14 +39,27 @@ export function GroupSizeSheet({
   onGroupSizeChange,
   onContinue,
   loading = false,
+  minGroupSize,
+  title = "How many of you?",
+  continueLabel = "Continue",
+  hint,
 }: GroupSizeSheetProps) {
   const theme = useProductTheme()
   const styles = useMemo(() => createGroupSizeSheetStyles(theme), [theme])
+  const sizeOptions = useMemo(
+    () =>
+      minGroupSize
+        ? GROUP_SIZE_OPTIONS.filter((size) => size >= minGroupSize)
+        : GROUP_SIZE_OPTIONS,
+    [minGroupSize],
+  )
+
+  const defaultHint = `Base rate includes up to ${INCLUDED_PLAYERS} players. Extra players are ${formatKes(EXTRA_PLAYER_SURCHARGE, currency)} each.`
 
   return (
-    <BottomSheet visible={visible} title="How many of you?" onClose={onClose}>
+    <BottomSheet visible={visible} title={title} onClose={onClose}>
       <View style={styles.list}>
-        {GROUP_SIZE_OPTIONS.map((size) => {
+        {sizeOptions.map((size) => {
           const active = size === groupSize
           const surcharge = extraPlayerSurcharge(size)
 
@@ -64,13 +82,10 @@ export function GroupSizeSheet({
         })}
       </View>
 
-      <Text style={styles.hint}>
-        Base rate includes up to {INCLUDED_PLAYERS} players. Extra players are{" "}
-        {formatKes(EXTRA_PLAYER_SURCHARGE, currency)} each.
-      </Text>
+      <Text style={styles.hint}>{hint ?? defaultHint}</Text>
 
       <Button
-        label="Continue"
+        label={continueLabel}
         surface="product"
         productTheme={theme}
         onPress={onContinue}

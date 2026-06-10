@@ -1,6 +1,7 @@
-import { router } from "expo-router"
+import { useState } from "react"
 import { StyleSheet, Text, View } from "react-native"
 
+import { BookingEditFlow } from "@/components/booking/booking-edit-flow"
 import { BookingDetailPaymentActions } from "@/components/booking/booking-detail-payment-actions"
 import { Button } from "@/components/ui/button"
 import {
@@ -29,6 +30,7 @@ export function BookingDetailContent({
   surface,
   onBookingUpdated,
 }: BookingDetailContentProps) {
+  const [editFlowVisible, setEditFlowVisible] = useState(false)
   const defaultSurface = useSkeletonSurface()
   const resolvedSurface = surface ?? defaultSurface
   const productTheme = useProductTheme()
@@ -72,12 +74,30 @@ export function BookingDetailContent({
           label="Edit booking"
           surface="product"
           productTheme={productTheme}
-          onPress={() => router.push(`/(app)/booking/${booking.id}/edit`)}
+          onPress={() => setEditFlowVisible(true)}
         />
       ) : booking.editBlockedReason ? (
-        <Text style={[styles.meta, { color: theme.muted }]}>
-          {booking.editBlockedReason}
-        </Text>
+        <View style={[styles.blockedCard, { borderColor: theme.border }]}>
+          <Text style={[styles.blockedTitle, { color: theme.foreground }]}>
+            Edits close 2 hours before start
+          </Text>
+          <Text style={[styles.meta, { color: theme.muted }]}>
+            {booking.editBlockedReason}
+          </Text>
+          <Text style={[styles.meta, { color: theme.muted }]}>
+            {formatTimeRange(booking.startTime, booking.endTime)} ·{" "}
+            {booking.groupSize} players
+          </Text>
+        </View>
+      ) : null}
+
+      {onBookingUpdated ? (
+        <BookingEditFlow
+          booking={booking}
+          visible={editFlowVisible}
+          onClose={() => setEditFlowVisible(false)}
+          onUpdated={onBookingUpdated}
+        />
       ) : null}
 
       {onBookingUpdated ? (
@@ -120,5 +140,16 @@ const styles = StyleSheet.create({
   meta: {
     fontSize: 13,
     fontFamily: PlayTTFontFamilies.regular,
+  },
+  blockedCard: {
+    gap: PlayTTSpacing.xs,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: PlayTTSpacing.md,
+    marginTop: PlayTTSpacing.xs,
+  },
+  blockedTitle: {
+    fontSize: 14,
+    fontFamily: PlayTTFontFamilies.semiBold,
   },
 })

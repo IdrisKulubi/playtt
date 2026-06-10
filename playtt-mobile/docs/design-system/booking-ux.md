@@ -140,6 +140,62 @@ When a second location ships:
 3. Changing venue clears slot, quote, and group confirmation.
 4. Do not restore a full-page venue wizard unless UX testing shows confusion.
 
+## Edit booking flow
+
+Edits launch from the **booking detail sheet**, not a separate full-page form. Use stacked bottom sheets like the book flow.
+
+```mermaid
+flowchart LR
+  detail[Detail sheet] --> intent[What to change]
+  intent --> timeSheet[Change time sheet]
+  intent --> playerSheet[Add players sheet]
+  timeSheet --> review[Review before/after]
+  playerSheet --> review
+  review --> pay[Pay delta if needed]
+```
+
+### Edit tap budget
+
+| Change | Target taps after Edit |
+|--------|------------------------|
+| Add players only | 3 (intent → players → confirm) |
+| Change time only | 3 (intent → time → confirm) |
+| Both | 4 (intent → time → players → confirm) |
+
+### Edit component map
+
+| File | Responsibility |
+|------|----------------|
+| `components/booking/booking-edit-flow.tsx` | Sheet orchestration, quote, apply |
+| `components/booking/booking-edit-intent-sheet.tsx` | What to change (time / players) |
+| `components/booking/booking-edit-time-sheet.tsx` | Reuses `timing-panel` (compact, no duration toggle) |
+| `components/booking/booking-edit-review-sheet.tsx` | Current vs updated summary + CTA |
+| `hooks/use-modification-checkout.ts` | Payment poll + confirming state |
+
+### Edit copy standards
+
+| Context | Copy |
+|---------|------|
+| Intent sheet title | Edit booking |
+| Intent prompt | What do you want to change? |
+| Time sheet title | Change time |
+| Time headline | Pick a new time |
+| Players sheet title | Add players |
+| Review title | Review changes |
+| Quoting | Calculating new total… |
+| Confirming payment | Confirming your update… |
+| Venue on review | Same venue (not resource/table name) |
+| Cheaper slot | New total … (… less, no refund). |
+| Blocked edit | Edits close 2 hours before start |
+
+### Edit rules
+
+- Date strip is **anchored on the booking day**, not always Today.
+- On date change, clear slot selection until availability loads; auto-select first valid slot.
+- Reuse `TimingPanel` and `GroupSizeSheet`; do not duplicate chip/slot UI.
+- Review always shows **Current** and **Updated** rows before confirm.
+- Loading uses skeletons; empty slots use in-list "Try tomorrow" only.
+
 ## Related docs
 
 - [ux-blueprint.md](./ux-blueprint.md) — funnel overview

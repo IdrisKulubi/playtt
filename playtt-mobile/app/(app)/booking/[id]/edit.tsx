@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Pressable, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
-import { BookingEditForm } from "@/components/booking/booking-edit-form"
+import { BookingEditFlow } from "@/components/booking/booking-edit-flow"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { BookingDetailSkeleton } from "@/components/ui/skeleton"
 import {
@@ -58,6 +58,7 @@ export default function BookingEditScreen() {
 
   const [booking, setBooking] = useState<UserBookingSummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [flowVisible, setFlowVisible] = useState(false)
 
   useEffect(() => {
     if (!id) {
@@ -73,6 +74,9 @@ export default function BookingEditScreen() {
         const data = await fetchBookingById(id)
         if (mounted) {
           setBooking(data)
+          if (data?.editable) {
+            setFlowVisible(true)
+          }
         }
       } catch (error) {
         toast.apiError(error, "Could not load booking.")
@@ -110,12 +114,11 @@ export default function BookingEditScreen() {
             {booking.editBlockedReason ?? "This booking cannot be edited."}
           </Text>
         ) : (
-          <BookingEditForm
+          <BookingEditFlow
             booking={booking}
-            onUpdated={(updated) => {
-              setBooking(updated)
-              router.back()
-            }}
+            visible={flowVisible}
+            onClose={() => router.back()}
+            onUpdated={setBooking}
           />
         )}
       </View>
