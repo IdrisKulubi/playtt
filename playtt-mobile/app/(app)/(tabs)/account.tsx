@@ -166,6 +166,25 @@ export default function AccountScreen() {
                 </AccountSection>
               ) : null}
 
+              <AccountSection title="Settings">
+                <AccountRow
+                  title="Notifications"
+                  subtitle="Reminders and booking updates"
+                  onPress={() => router.push("/(app)/account/notifications")}
+                />
+                <AccountRow
+                  title="Help"
+                  subtitle="FAQs and support"
+                  onPress={() => router.push("/(app)/account/help")}
+                />
+                <AccountRow
+                  title="Legal"
+                  subtitle="Terms and privacy"
+                  onPress={() => router.push("/(app)/account/legal")}
+                  isLast
+                />
+              </AccountSection>
+
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Sign out"

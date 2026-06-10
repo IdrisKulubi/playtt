@@ -1,19 +1,17 @@
 import { router, useFocusEffect } from "expo-router"
 import { useCallback, useMemo, useState } from "react"
-import { Pressable, Text, View } from "react-native"
+import { RefreshControl, ScrollView } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
-import { BrandMark } from "@/components/brand/brand-mark"
+import { HomeHero } from "@/components/home/home-hero"
+import { HomeLinksSection } from "@/components/home/home-links-section"
+import { NextSessionTicket } from "@/components/home/next-session-ticket"
 import { BookingDetailSheet } from "@/components/booking/booking-detail-sheet"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
-import { Button } from "@/components/ui/button"
-import { UpcomingCardSkeleton } from "@/components/ui/skeleton"
+import { HomeTicketSkeleton } from "@/components/ui/skeleton"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { fetchMyBookings } from "@/lib/booking-api"
 import type { UserBookingSummary } from "@/lib/booking-types"
-import {
-  formatBookingStatus,
-  formatTimeRange,
-} from "@/lib/booking-utils"
 import {
   useProductTheme,
   useSkeletonSurface,
@@ -49,17 +47,26 @@ export default function AppHomeScreen() {
   const [upcomingBooking, setUpcomingBooking] =
     useState<UserBookingSummary | null>(null)
   const [isLoadingUpcoming, setIsLoadingUpcoming] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
 
-  const loadUpcoming = useCallback(async () => {
-    setIsLoadingUpcoming(true)
+  const loadUpcoming = useCallback(async (silent = false) => {
+    if (silent) {
+      setIsRefreshing(true)
+    } else {
+      setIsLoadingUpcoming(true)
+    }
+
     try {
       const bookings = await fetchMyBookings("upcoming")
       setUpcomingBooking(findUpcomingBooking(bookings))
     } catch {
       setUpcomingBooking(null)
     } finally {
-      setIsLoadingUpcoming(false)
+      if (!silent) {
+        setIsLoadingUpcoming(false)
+      }
+      setIsRefreshing(false)
     }
   }, [])
 
@@ -69,47 +76,46 @@ export default function AppHomeScreen() {
     }, [loadUpcoming]),
   )
 
+  const showBookCta = !isLoadingUpcoming && upcomingBooking === null
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <BrandMark size="compact" />
-        <Text style={styles.title}>Ready to play?</Text>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scroll,
+          { gap: PlayTTSpacing.md, paddingBottom: PlayTTSpacing["2xl"] },
+        ]}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => void loadUpcoming(true)}
+            tintColor={theme.foreground}
+          />
+        }
+      >
+        <HomeHero
+          showBookCta={showBookCta}
+          onBook={() => router.push("/(app)/book")}
+        >
+          {isLoadingUpcoming ? (
+            <HomeTicketSkeleton surface={skeletonSurface} embedded />
+          ) : upcomingBooking ? (
+            <NextSessionTicket
+              booking={upcomingBooking}
+              embedded
+              onPress={() => setSelectedBookingId(upcomingBooking.id)}
+            />
+          ) : null}
+        </HomeHero>
 
-        <Button
-          label="Book a session"
-          surface="product"
-          onPress={() => router.push("/(app)/book")}
-        />
-
-        {isLoadingUpcoming ? (
-          <UpcomingCardSkeleton surface={skeletonSurface} />
-        ) : upcomingBooking ? (
-          <Pressable
-            onPress={() => setSelectedBookingId(upcomingBooking.id)}
-            style={styles.card}
-          >
-            <Text style={styles.cardAccent}>Upcoming booking</Text>
-            <Text style={styles.cardTitle}>{upcomingBooking.locationName}</Text>
-            <Text style={styles.cardMuted}>
-              {formatTimeRange(
-                upcomingBooking.startTime,
-                upcomingBooking.endTime,
-              )}
-            </Text>
-            <Text style={styles.cardSubtle}>
-              {formatBookingStatus(
-                upcomingBooking.status,
-                upcomingBooking.paymentStatus,
-              )}
-            </Text>
-          </Pressable>
-        ) : null}
-      </View>
+        <HomeLinksSection showBookAnother={Boolean(upcomingBooking)} />
+      </ScrollView>
 
       <BookingDetailSheet
         visible={selectedBookingId !== null}
         bookingId={selectedBookingId}
         onClose={() => setSelectedBookingId(null)}
+        onBookingChanged={() => void loadUpcoming()}
       />
     </SafeAreaView>
   )

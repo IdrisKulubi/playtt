@@ -82,6 +82,9 @@ export default function AppLayout() {
       <Stack.Screen name="account/edit-profile" />
       <Stack.Screen name="account/change-password" />
       <Stack.Screen name="account/verify-email" />
+      <Stack.Screen name="account/notifications" />
+      <Stack.Screen name="account/help" />
+      <Stack.Screen name="account/legal" />
     </Stack>
   )
 }

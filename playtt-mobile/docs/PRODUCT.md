@@ -79,3 +79,5 @@ Mobile booking is the default context: touch targets and one-thumb flows should 
 A first-time visitor should feel PlayTT is a real premium product within a few seconds. A player entering the booking flow should feel guided by the interface, not asked to figure it out. Returning players should be able to rebook quickly once they know the product. All three outcomes matter equally for the current build.
 
 Mobile booking funnel rules (tap budget, copy, anti-patterns): see [`docs/design-system/booking-ux.md`](design-system/booking-ux.md).
+
+Full player app scope (history, activity, settings, pre-hardware): see [`docs/USER.md`](USER.md).

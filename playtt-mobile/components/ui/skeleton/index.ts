@@ -27,6 +27,7 @@ export {
   BookingListSkeleton,
   SlotListSkeleton,
   TimingPanelSkeleton,
+  HomeTicketSkeleton,
   UpcomingCardSkeleton,
   VenueCardSkeleton,
 } from "./presets"

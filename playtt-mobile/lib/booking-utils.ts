@@ -1,4 +1,4 @@
-import type { SlotAvailability } from "@/lib/booking-types"
+import type { SlotAvailability, UserBookingSummary } from "@/lib/booking-types"
 
 export const INCLUDED_PLAYERS = 5
 export const EXTRA_PLAYER_SURCHARGE = 500
@@ -162,4 +162,156 @@ export function formatTimeRange(startIso: string, endIso: string) {
   const time = (value: Date) =>
     value.toLocaleTimeString("en-KE", { hour: "numeric", minute: "2-digit" })
   return `${time(start)} – ${time(end)}`
+}
+
+export function formatTimeOfDayGreeting(now = new Date()) {
+  const hour = now.getHours()
+  if (hour < 12) return "Good morning"
+  if (hour < 17) return "Good afternoon"
+  return "Good evening"
+}
+
+export function formatRelativeSessionStart(
+  startIso: string,
+  nowMs = Date.now(),
+) {
+  const start = new Date(startIso)
+  const now = new Date(nowMs)
+
+  const startDay = new Date(start)
+  startDay.setHours(0, 0, 0, 0)
+
+  const today = new Date(now)
+  today.setHours(0, 0, 0, 0)
+
+  const diffDays = Math.round(
+    (startDay.getTime() - today.getTime()) / (24 * 60 * 60 * 1000),
+  )
+
+  const timeLabel = start.toLocaleTimeString("en-KE", {
+    hour: "numeric",
+    minute: "2-digit",
+  })
+
+  if (diffDays === 0) {
+    const minutesUntil = Math.ceil((start.getTime() - nowMs) / (60 * 1000))
+    if (minutesUntil > 0 && minutesUntil < 60) {
+      return `Starts in ${minutesUntil} min`
+    }
+    return `Today at ${timeLabel}`
+  }
+
+  if (diffDays === 1) return `Tomorrow at ${timeLabel}`
+  if (diffDays > 1 && diffDays <= 7) return `In ${diffDays} days`
+
+  return start.toLocaleDateString("en-KE", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  })
+}
+
+export function isSessionWithinCountdownWindow(
+  startIso: string,
+  nowMs = Date.now(),
+) {
+  const start = new Date(startIso)
+  const now = new Date(nowMs)
+
+  const startDay = new Date(start)
+  startDay.setHours(0, 0, 0, 0)
+
+  const today = new Date(now)
+  today.setHours(0, 0, 0, 0)
+
+  const diffDays = Math.round(
+    (startDay.getTime() - today.getTime()) / (24 * 60 * 60 * 1000),
+  )
+
+  return diffDays >= 0 && diffDays <= 7
+}
+
+export function formatSessionCountdownLabel(
+  startIso: string,
+  nowMs = Date.now(),
+) {
+  const start = new Date(startIso)
+  const now = new Date(nowMs)
+
+  const startDay = new Date(start)
+  startDay.setHours(0, 0, 0, 0)
+
+  const today = new Date(now)
+  today.setHours(0, 0, 0, 0)
+
+  const diffDays = Math.round(
+    (startDay.getTime() - today.getTime()) / (24 * 60 * 60 * 1000),
+  )
+
+  if (diffDays === 0) return "Today"
+  if (diffDays === 1) return "Tomorrow"
+  if (diffDays > 1 && diffDays <= 7) return `In ${diffDays} days`
+
+  return start.toLocaleDateString("en-KE", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  })
+}
+
+export function formatTicketTimeLine(
+  startIso: string,
+  endIso: string,
+  nowMs = Date.now(),
+) {
+  if (isSessionWithinCountdownWindow(startIso, nowMs)) {
+    return formatTimeRange(startIso, endIso)
+  }
+
+  return formatRelativeSessionStart(startIso, nowMs)
+}
+
+export function formatTicketStatusLine(booking: UserBookingSummary) {
+  if (booking.status === "confirmed" || booking.paymentStatus === "paid") {
+    return `Confirmed · ${booking.groupSize} players`
+  }
+
+  if (booking.status === "pending" && booking.paymentStatus === "unpaid") {
+    return `Awaiting payment · ${booking.groupSize} players`
+  }
+
+  return `${booking.groupSize} players`
+}
+
+export function isPastBooking(booking: UserBookingSummary, nowMs = Date.now()) {
+  return new Date(booking.endTime).getTime() < nowMs
+}
+
+export function isUpcomingBooking(
+  booking: UserBookingSummary,
+  nowMs = Date.now(),
+) {
+  return (
+    !isPastBooking(booking, nowMs) &&
+    booking.status !== "cancelled" &&
+    booking.status !== "expired"
+  )
+}
+
+export function canCancelBooking(booking: UserBookingSummary) {
+  return booking.status === "pending" && booking.paymentStatus === "unpaid"
+}
+
+export function canShowAccessCard(booking: UserBookingSummary, nowMs = Date.now()) {
+  return (
+    booking.status === "confirmed" &&
+    booking.paymentStatus === "paid" &&
+    isUpcomingBooking(booking, nowMs)
+  )
+}
+
+export function formatPaymentStatus(paymentStatus: string) {
+  if (paymentStatus === "paid") return "Paid"
+  if (paymentStatus === "unpaid") return "Unpaid"
+  return paymentStatus.replaceAll("_", " ")
 }
