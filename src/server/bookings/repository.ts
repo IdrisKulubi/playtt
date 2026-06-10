@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, gte, inArray, lt } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, ne, notInArray } from "drizzle-orm";
 
 import db from "@/db/drizzle";
 import {
@@ -26,7 +26,9 @@ function mapBookingRow(row: {
   startTime: Date;
   endTime: Date;
   durationMinutes: number;
+  groupSize: number;
   currency: string;
+  subtotalAmount: string;
   totalAmount: string;
   locationId: string;
   locationName: string;
@@ -42,7 +44,9 @@ function mapBookingRow(row: {
     startTime: row.startTime.toISOString(),
     endTime: row.endTime.toISOString(),
     durationMinutes: row.durationMinutes,
+    groupSize: row.groupSize,
     currency: row.currency,
+    subtotalAmount: String(row.subtotalAmount),
     totalAmount: String(row.totalAmount),
     locationId: row.locationId,
     locationName: row.locationName,
@@ -50,6 +54,8 @@ function mapBookingRow(row: {
     resourceName: row.resourceName,
     expiresAt: row.expiresAt?.toISOString() ?? null,
     notes: row.notes,
+    editable: false,
+    editBlockedReason: null,
   };
 }
 
@@ -159,6 +165,7 @@ export async function findBlockingBookings(input: {
   resourceId: string;
   start: Date;
   end: Date;
+  excludeBookingId?: string;
 }) {
   return db
     .select({
@@ -174,6 +181,9 @@ export async function findBlockingBookings(input: {
         inArray(bookings.status, [...BOOKING_STATUSES_BLOCKING]),
         lt(bookings.startTime, input.end),
         gt(bookings.endTime, input.start),
+        input.excludeBookingId
+          ? ne(bookings.id, input.excludeBookingId)
+          : undefined,
       ),
     );
 }
@@ -182,6 +192,7 @@ export async function findBlockingBookingsForResources(input: {
   resourceIds: string[];
   start: Date;
   end: Date;
+  excludeBookingId?: string;
 }) {
   if (input.resourceIds.length === 0) {
     return [];
@@ -202,6 +213,9 @@ export async function findBlockingBookingsForResources(input: {
         inArray(bookings.status, [...BOOKING_STATUSES_BLOCKING]),
         lt(bookings.startTime, input.end),
         gt(bookings.endTime, input.start),
+        input.excludeBookingId
+          ? ne(bookings.id, input.excludeBookingId)
+          : undefined,
       ),
     );
 }
@@ -228,7 +242,9 @@ export async function listUserBookings(input: {
       startTime: bookings.startTime,
       endTime: bookings.endTime,
       durationMinutes: bookings.durationMinutes,
+      groupSize: bookings.groupSize,
       currency: bookings.currency,
+      subtotalAmount: bookings.subtotalAmount,
       totalAmount: bookings.totalAmount,
       locationId: bookings.locationId,
       locationName: locations.name,
@@ -244,6 +260,7 @@ export async function listUserBookings(input: {
       and(
         eq(bookings.userId, input.userId),
         timeCondition,
+        notInArray(bookings.status, ["expired", "cancelled"]),
       ),
     )
     .orderBy(
@@ -265,7 +282,9 @@ export async function getUserBookingById(input: {
       startTime: bookings.startTime,
       endTime: bookings.endTime,
       durationMinutes: bookings.durationMinutes,
+      groupSize: bookings.groupSize,
       currency: bookings.currency,
+      subtotalAmount: bookings.subtotalAmount,
       totalAmount: bookings.totalAmount,
       locationId: bookings.locationId,
       locationName: locations.name,
@@ -307,6 +326,7 @@ export async function insertPendingBooking(input: {
         startTime: input.booking.start,
         endTime: input.booking.end,
         durationMinutes: input.booking.durationMinutes,
+        groupSize: input.booking.groupSize,
         currency: input.booking.currency,
         subtotalAmount: input.booking.subtotalAmount,
         discountAmount: input.booking.discountAmount,

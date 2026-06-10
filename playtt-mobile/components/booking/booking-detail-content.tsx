@@ -1,6 +1,8 @@
+import { router } from "expo-router"
 import { StyleSheet, Text, View } from "react-native"
 
 import { BookingDetailPaymentActions } from "@/components/booking/booking-detail-payment-actions"
+import { Button } from "@/components/ui/button"
 import {
   PlayTTColors,
   PlayTTFontFamilies,
@@ -8,7 +10,7 @@ import {
   PlayTTTypography,
 } from "@/constants/playtt-tokens"
 import { ProductThemes } from "@/constants/product-theme"
-import { useSkeletonSurface } from "@/hooks/use-product-theme"
+import { useProductTheme, useSkeletonSurface } from "@/hooks/use-product-theme"
 import type { UserBookingSummary } from "@/lib/booking-types"
 import {
   formatBookingStatus,
@@ -29,6 +31,7 @@ export function BookingDetailContent({
 }: BookingDetailContentProps) {
   const defaultSurface = useSkeletonSurface()
   const resolvedSurface = surface ?? defaultSurface
+  const productTheme = useProductTheme()
   const theme =
     resolvedSurface === "product" ? ProductThemes.light : ProductThemes.dark
 
@@ -46,6 +49,9 @@ export function BookingDetailContent({
       <Text style={[styles.status, { color: theme.muted }]}>
         {formatBookingStatus(booking.status, booking.paymentStatus)}
       </Text>
+      <Text style={[styles.meta, { color: theme.muted }]}>
+        {booking.groupSize} players
+      </Text>
       <Text style={styles.price}>
         {formatKes(booking.totalAmount, booking.currency)}
       </Text>
@@ -58,6 +64,19 @@ export function BookingDetailContent({
       {booking.notes ? (
         <Text style={[styles.meta, { color: theme.muted }]}>
           Notes: {booking.notes}
+        </Text>
+      ) : null}
+
+      {booking.editable ? (
+        <Button
+          label="Edit booking"
+          surface="product"
+          productTheme={productTheme}
+          onPress={() => router.push(`/(app)/booking/${booking.id}/edit`)}
+        />
+      ) : booking.editBlockedReason ? (
+        <Text style={[styles.meta, { color: theme.muted }]}>
+          {booking.editBlockedReason}
         </Text>
       ) : null}
 

@@ -1,3 +1,4 @@
+import { confirmModificationPayment } from "@/server/bookings/modifications/confirm-payment"
 import { confirmBookingPayment } from "@/server/payments/confirm-booking"
 import { verifyPaystackTransaction } from "@/server/payments/paystack-client"
 
@@ -20,15 +21,43 @@ export async function confirmPaymentFromCallback(
       return { confirmed: false, reason: "not_successful" }
     }
 
-    const result = await confirmBookingPayment({
-      reference: reference.trim(),
-      providerEventId: String(transaction.id),
-      transaction,
-      source: "verify",
-    })
+    const metadata =
+      typeof transaction.metadata === "object" && transaction.metadata !== null
+        ? transaction.metadata
+        : null
+
+    const isModification =
+      metadata &&
+      "paymentType" in metadata &&
+      metadata.paymentType === "modification"
+
+    const result = isModification
+      ? await confirmModificationPayment({
+          reference: reference.trim(),
+          providerEventId: String(transaction.id),
+          transaction,
+        })
+      : await confirmBookingPayment({
+          reference: reference.trim(),
+          providerEventId: String(transaction.id),
+          transaction,
+          source: "verify",
+        })
 
     if (result.confirmed) {
       return { confirmed: true, reason: result.reason }
+    }
+
+    if (!isModification) {
+      const modificationResult = await confirmModificationPayment({
+        reference: reference.trim(),
+        providerEventId: String(transaction.id),
+        transaction,
+      })
+
+      if (modificationResult.confirmed) {
+        return { confirmed: true, reason: modificationResult.reason }
+      }
     }
 
     return { confirmed: false, reason: result.reason }

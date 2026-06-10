@@ -4,6 +4,7 @@ import {
   kesToPaystackAmount,
   PAYSTACK_CURRENCY,
 } from "@/server/payments/constants"
+import { confirmModificationPayment } from "@/server/bookings/modifications/confirm-payment"
 import { confirmBookingPayment } from "@/server/payments/confirm-booking"
 import { PaymentServiceError } from "@/server/payments/errors"
 import {
@@ -307,12 +308,38 @@ export async function handlePaystackWebhookEvent(input: {
     return { handled: false }
   }
 
-  const result = await confirmBookingPayment({
-    reference: input.data.reference,
-    providerEventId: String(input.data.id),
-    transaction: input.data,
-    source: "webhook",
-  })
+  const metadata =
+    typeof input.data.metadata === "object" && input.data.metadata !== null
+      ? input.data.metadata
+      : null
+
+  const isModification =
+    metadata &&
+    "paymentType" in metadata &&
+    metadata.paymentType === "modification"
+
+  const result = isModification
+    ? await confirmModificationPayment({
+        reference: input.data.reference,
+        providerEventId: String(input.data.id),
+        transaction: input.data,
+      })
+    : await confirmBookingPayment({
+        reference: input.data.reference,
+        providerEventId: String(input.data.id),
+        transaction: input.data,
+        source: "webhook",
+      })
+
+  if (!result.confirmed && !isModification) {
+    const modificationResult = await confirmModificationPayment({
+      reference: input.data.reference,
+      providerEventId: String(input.data.id),
+      transaction: input.data,
+    })
+
+    return { handled: true, result: modificationResult }
+  }
 
   return { handled: true, result }
 }

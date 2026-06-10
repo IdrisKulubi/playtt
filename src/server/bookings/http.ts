@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { ZodError } from "zod/v3"
 
+import { BookingModificationError } from "@/server/bookings/modifications/errors"
+
 export function bookingJson<T>(data: T, status = 200) {
   return NextResponse.json({ data }, { status })
 }
@@ -15,6 +17,14 @@ export function bookingError(
 }
 
 export function mapBookingServiceError(error: unknown) {
+  if (error instanceof BookingModificationError) {
+    return bookingError({
+      code: error.code,
+      message: error.message,
+      status: error.status,
+    })
+  }
+
   if (error instanceof ZodError) {
     return bookingError({
       code: "VALIDATION_ERROR",

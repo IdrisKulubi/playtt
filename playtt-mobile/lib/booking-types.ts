@@ -63,7 +63,9 @@ export type UserBookingSummary = {
   startTime: string
   endTime: string
   durationMinutes: number
+  groupSize: number
   currency: string
+  subtotalAmount: string
   totalAmount: string
   locationId: string
   locationName: string
@@ -71,6 +73,32 @@ export type UserBookingSummary = {
   resourceName: string
   expiresAt: string | null
   notes: string | null
+  editable: boolean
+  editBlockedReason: string | null
+}
+
+export type ModificationPreview = {
+  currentTotal: string
+  newTotal: string
+  deltaAmount: string
+  requiresPayment: boolean
+  changeType: string
+  newGroupSize: number
+  newStartTime: string
+  newEndTime: string
+  newResourceId: string
+  newResourceName: string
+  currency: string
+}
+
+export type ModificationApplyResult = {
+  modificationId: string
+  status: "applied" | "pending_payment"
+  deltaAmount: string
+  requiresPayment: boolean
+  authorizationUrl?: string
+  returnUrl?: string
+  displayText?: string
 }
 
 export type InitiatePaymentResult = {

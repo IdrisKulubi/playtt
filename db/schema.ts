@@ -53,6 +53,11 @@ export const paymentStatusEnum = pgEnum("payment_status", [
   "partially_refunded",
 ]);
 
+export const bookingModificationStatusEnum = pgEnum(
+  "booking_modification_status",
+  ["pending_payment", "applied", "cancelled"],
+);
+
 export const paymentProviderEnum = pgEnum("payment_provider", [
   "paystack",
   "mpesa_direct",
@@ -354,6 +359,7 @@ export const bookings = pgTable(
     startTime: timestamp("start_time", { withTimezone: true }).notNull(),
     endTime: timestamp("end_time", { withTimezone: true }).notNull(),
     durationMinutes: integer("duration_minutes").notNull(),
+    groupSize: integer("group_size").notNull(),
     currency: text("currency").default("KES").notNull(),
     subtotalAmount: numeric("subtotal_amount", { precision: 12, scale: 2 })
       .notNull(),
@@ -398,6 +404,52 @@ export const bookings = pgTable(
       "bookings_total_not_negative",
       sql`${table.totalAmount} >= 0`,
     ),
+    check(
+      "bookings_group_size_range",
+      sql`${table.groupSize} >= 2 and ${table.groupSize} <= 8`,
+    ),
+  ],
+);
+
+export const bookingModifications = pgTable(
+  "booking_modifications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => bookings.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    status: bookingModificationStatusEnum("status")
+      .default("pending_payment")
+      .notNull(),
+    changeType: text("change_type").notNull(),
+    beforeSnapshot: jsonb("before_snapshot")
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    afterSnapshot: jsonb("after_snapshot")
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    deltaAmount: numeric("delta_amount", { precision: 12, scale: 2 })
+      .default("0")
+      .notNull(),
+    currency: text("currency").default("KES").notNull(),
+    paymentId: uuid("payment_id").references(() => payments.id, {
+      onDelete: "set null",
+    }),
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("booking_modifications_booking_idx").on(table.bookingId),
+    index("booking_modifications_status_idx").on(table.status),
   ],
 );
 
@@ -717,6 +769,7 @@ export const bookingRelations = relations(bookings, ({ one, many }) => ({
     references: [user.id],
   }),
   payments: many(payments),
+  modifications: many(bookingModifications),
   statusHistory: many(bookingStatusHistory),
   accessCredentials: many(accessCredentials),
   sessionEvents: many(sessionEvents),
@@ -724,6 +777,24 @@ export const bookingRelations = relations(bookings, ({ one, many }) => ({
   replays: many(replays),
   notifications: many(notifications),
 }));
+
+export const bookingModificationRelations = relations(
+  bookingModifications,
+  ({ one }) => ({
+    booking: one(bookings, {
+      fields: [bookingModifications.bookingId],
+      references: [bookings.id],
+    }),
+    user: one(user, {
+      fields: [bookingModifications.userId],
+      references: [user.id],
+    }),
+    payment: one(payments, {
+      fields: [bookingModifications.paymentId],
+      references: [payments.id],
+    }),
+  }),
+);
 
 export const paymentRelations = relations(payments, ({ one }) => ({
   booking: one(bookings, {

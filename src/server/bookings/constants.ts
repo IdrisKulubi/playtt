@@ -32,3 +32,5 @@ export const BASE_GROUP_SIZE = 5;
 export const EXTRA_PLAYER_SURCHARGE = 500;
 
 export const GROUP_SIZE_OPTIONS = [2, 3, 4, 5, 6, 7, 8] as const;
+
+export const BOOKING_EDIT_CUTOFF_HOURS = 2;

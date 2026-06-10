@@ -6,18 +6,13 @@ import {
   bookingJson,
   mapBookingServiceError,
 } from "@/server/bookings/http"
-import type { BookingListFilter } from "@/server/bookings/repository"
-import { listBookingsForUserEnriched } from "@/server/bookings/service"
+import { getModificationStatus } from "@/server/bookings/modifications/apply"
 
-function parseFilter(value: string | null): BookingListFilter {
-  if (value === "upcoming" || value === "past") {
-    return value
-  }
-
-  return "all"
+type RouteContext = {
+  params: Promise<{ id: string; modId: string }>
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest, context: RouteContext) {
   const session = await getSessionWithBearerFallback(req)
 
   if (!session) {
@@ -29,13 +24,14 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const filter = parseFilter(req.nextUrl.searchParams.get("filter"))
-    const bookings = await listBookingsForUserEnriched({
+    const { id, modId } = await context.params
+    const result = await getModificationStatus({
+      bookingId: id,
+      modificationId: modId,
       userId: session.user.id,
-      filter,
     })
 
-    return bookingJson({ bookings })
+    return bookingJson(result)
   } catch (error) {
     return mapBookingServiceError(error)
   }

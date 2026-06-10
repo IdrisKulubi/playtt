@@ -32,7 +32,7 @@ export default function BookingsScreen() {
   const loadBookings = useCallback(async () => {
     setIsLoading(true)
     try {
-      const data = await fetchMyBookings("all")
+      const data = await fetchMyBookings("upcoming")
       setBookings(data)
     } catch (error) {
       toast.apiError(error, "Could not load your bookings.")
