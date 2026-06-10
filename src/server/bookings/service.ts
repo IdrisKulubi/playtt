@@ -20,6 +20,7 @@ import {
   listActiveLocationsWithResources,
   listUserBookings,
 } from "@/server/bookings/repository"
+import { runBookingExpirySweep } from "@/server/payments/service"
 import type {
   BookingQuote,
   CreatePendingBookingResult,
@@ -70,6 +71,8 @@ export async function getBookingQuote(input: unknown): Promise<BookingQuote> {
 export async function getLocationAvailability(
   input: unknown
 ): Promise<SlotAvailability[]> {
+  await runBookingExpirySweep()
+
   const parsed = locationAvailabilityInputSchema.parse(input)
   const day = parseISO(`${parsed.date}T00:00:00`)
 
@@ -140,6 +143,8 @@ export async function getLocationAvailability(
 export async function createPendingBooking(
   input: unknown
 ): Promise<CreatePendingBookingResult> {
+  await runBookingExpirySweep()
+
   const parsed = createPendingBookingSchema.parse(input)
   const resourceContext = await getResourceContext(parsed)
 
@@ -218,5 +223,6 @@ export async function getBookingForUser(input: {
   userId: string
   bookingId: string
 }): Promise<UserBookingSummary | null> {
+  await runBookingExpirySweep()
   return getUserBookingById(input)
 }

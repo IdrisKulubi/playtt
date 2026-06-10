@@ -73,7 +73,15 @@ export type UserBookingSummary = {
   notes: string | null
 }
 
-export type BookingStep = "location" | "timing" | "confirmed"
+export type InitiatePaymentResult = {
+  reference: string
+  status: string
+  displayText: string
+  expiresAt: string | null
+  bookingId: string
+}
+
+export type BookingStep = "location" | "timing" | "pay" | "confirmed"
 
 export const GROUP_SIZE_OPTIONS = [2, 3, 4, 5, 6, 7, 8] as const
 export type GroupSize = (typeof GROUP_SIZE_OPTIONS)[number]

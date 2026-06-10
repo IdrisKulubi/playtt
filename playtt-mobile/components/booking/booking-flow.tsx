@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context"
 
 import { BookingCheckoutBar } from "@/components/booking/booking-checkout-bar"
 import { BookingConfirmSheet } from "@/components/booking/booking-confirm-sheet"
+import { BookingPaymentStep } from "@/components/booking/booking-payment-step"
 import { BookingProgress } from "@/components/booking/booking-progress"
 import { createBookingFlowStyles } from "@/components/booking/booking-theme"
 import { GroupSizeSheet } from "@/components/booking/group-size-sheet"
@@ -242,10 +243,9 @@ export function BookingFlow() {
         notes: notes.trim() || undefined,
       })
       setConfirmation(result)
-      setStep("confirmed")
+      setStep("pay")
       setConfirmSheetOpen(false)
       setGroupSheetOpen(false)
-      toast.success("You're booked!")
     } catch (error) {
       if (error instanceof ApiError && error.code === "SLOT_UNAVAILABLE") {
         toast.apiError(error, "That time was just taken. Pick another slot.")
@@ -274,7 +274,7 @@ export function BookingFlow() {
   }
 
   const progressStep =
-    step === "confirmed"
+    step === "confirmed" || step === "pay"
       ? "done"
       : groupSheetOpen || groupConfirmed
         ? "players"
@@ -335,7 +335,7 @@ export function BookingFlow() {
             showCheckoutBar && styles.scrollWithBar,
           ]}
         >
-          {step !== "confirmed" ? (
+          {step !== "confirmed" && step !== "pay" ? (
             <BookingProgress activeStep={progressStep} />
           ) : null}
 
@@ -364,9 +364,35 @@ export function BookingFlow() {
             </View>
           ) : null}
 
+          {step === "pay" && confirmation && selectedSlot ? (
+            <BookingPaymentStep
+              confirmation={confirmation}
+              location={selectedLocation}
+              startTimeIso={selectedSlot.startsAt}
+              endTimeIso={selectedSlot.endsAt}
+              onConfirmed={() => {
+                setConfirmation((current) =>
+                  current
+                    ? {
+                        ...current,
+                        status: "confirmed",
+                        paymentStatus: "paid",
+                      }
+                    : current,
+                )
+                setStep("confirmed")
+                toast.success("Payment received. You are booked!")
+              }}
+              onExpired={() => {
+                toast.error("Your hold expired. Pick another slot.")
+                handleBookAnother()
+              }}
+            />
+          ) : null}
+
           {step === "confirmed" && confirmation ? (
             <View style={styles.section}>
-              <Text style={styles.confirmedTitle}>You're booked!</Text>
+              <Text style={styles.confirmedTitle}>You{"'"}re booked!</Text>
               <Text style={styles.confirmedBody}>
                 {formatBookingStatus(confirmation.status, confirmation.paymentStatus)}
               </Text>

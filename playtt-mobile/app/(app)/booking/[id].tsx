@@ -110,7 +110,11 @@ export default function BookingDetailScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
-          <BookingDetailContent booking={booking} surface={skeletonSurface} />
+          <BookingDetailContent
+            booking={booking}
+            surface={skeletonSurface}
+            onBookingUpdated={setBooking}
+          />
         </ScrollView>
       )}
     </SafeAreaView>

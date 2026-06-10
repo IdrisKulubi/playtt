@@ -30,6 +30,16 @@ All web env vars go in `.env.local` at the repo root.
 
 Both default to `http://localhost:3000` when unset.
 
+### Payments (Paystack M-Pesa)
+
+| Variable              | Used in                          | Purpose                                      |
+| --------------------- | -------------------------------- | -------------------------------------------- |
+| `PAYSTACK_SECRET_KEY` | `src/server/payments/*`          | Paystack secret key for Charge API + webhooks |
+| `PAYSTACK_PUBLIC_KEY` | —                                | Optional; not required for server-only Charge API |
+| `CRON_SECRET`         | `src/app/api/cron/expire-bookings` | Bearer token for booking expiry cron (optional) |
+
+Register webhook URL on Paystack dashboard: `https://<host>/api/webhooks/paystack`
+
 ### Optional database pool
 
 | Variable                | Default | Purpose                  |

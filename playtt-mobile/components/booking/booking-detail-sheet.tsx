@@ -102,7 +102,11 @@ export function BookingDetailSheet({
       ) : loadError ? (
         <Text style={styles.error}>Could not load this booking.</Text>
       ) : booking ? (
-        <BookingDetailContent booking={booking} surface={skeletonSurface} />
+        <BookingDetailContent
+          booking={booking}
+          surface={skeletonSurface}
+          onBookingUpdated={setBooking}
+        />
       ) : (
         <Text style={styles.error}>Booking not found.</Text>
       )}

@@ -35,7 +35,7 @@ flowchart LR
 | 1 | [phase-1-api.md](./phase-1-api.md) | Implemented | REST API for mobile |
 | 2 | [phase-2-mobile-ui.md](./phase-2-mobile-ui.md) | Implemented | Mobile booking flow |
 | 3 | [phase-3-my-bookings.md](./phase-3-my-bookings.md) | Implemented | List + detail + home CTA |
-| 4 | [phase-4-payment.md](./phase-4-payment.md) | Documented | M-Pesa / Paystack |
+| 4 | [phase-4-payment.md](./phase-4-payment.md) | Implemented | M-Pesa / Paystack |
 | 5 | [phase-5-access.md](./phase-5-access.md) | Documented | PIN / unlock card |
 | 6 | [phase-6-hardware.md](./phase-6-hardware.md) | Documented | TTLock, lighting |
 

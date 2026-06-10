@@ -2,6 +2,7 @@ import { apiFetch } from "@/lib/api-client"
 import type {
   BookingQuote,
   CreateBookingResult,
+  InitiatePaymentResult,
   LocationSummary,
   SlotAvailability,
   UserBookingSummary,
@@ -13,6 +14,18 @@ type QuoteResponse = { data?: { quote: BookingQuote } }
 type CreateResponse = { data?: CreateBookingResult }
 type MineResponse = { data?: { bookings: UserBookingSummary[] } }
 type DetailResponse = { data?: { booking: UserBookingSummary } }
+type PaymentInitResponse = { data?: InitiatePaymentResult }
+type PaymentStatusResponse = {
+  data?: {
+    bookingId: string
+    bookingStatus: string
+    paymentStatus: string
+    reference: string | null
+    providerStatus: string | null
+    displayText: string | null
+    expiresAt: string | null
+  }
+}
 
 export async function fetchBookingBootstrap() {
   const response = await apiFetch<BootstrapResponse>("/api/bookings/bootstrap")
@@ -87,4 +100,37 @@ export async function fetchMyBookings(filter: "all" | "upcoming" | "past" = "all
 export async function fetchBookingById(bookingId: string) {
   const response = await apiFetch<DetailResponse>(`/api/bookings/${bookingId}`)
   return response.data?.booking ?? null
+}
+
+export async function initiateBookingPayment(
+  bookingId: string,
+  phone?: string,
+) {
+  const response = await apiFetch<PaymentInitResponse>(
+    `/api/bookings/${bookingId}/pay`,
+    {
+      method: "POST",
+      body: JSON.stringify(phone ? { phone } : {}),
+    },
+  )
+
+  if (!response.data) {
+    throw new Error("Payment response was empty.")
+  }
+
+  return response.data
+}
+
+export async function fetchBookingPaymentStatus(bookingId: string) {
+  const response = await apiFetch<PaymentStatusResponse>(
+    `/api/bookings/${bookingId}/payment`,
+  )
+
+  return response.data ?? null
+}
+
+export async function cancelBooking(bookingId: string) {
+  await apiFetch(`/api/bookings/${bookingId}/cancel`, {
+    method: "POST",
+  })
 }

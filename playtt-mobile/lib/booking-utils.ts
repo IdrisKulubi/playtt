@@ -30,15 +30,33 @@ export function slotSubtitle(slot: SlotAvailability, nowMs = Date.now()) {
   return `${slot.openTableCount} open tables`
 }
 
+export function formatPaymentCountdown(expiresAtIso: string | null, nowMs = Date.now()) {
+  if (!expiresAtIso) return null
+
+  const remainingMs = new Date(expiresAtIso).getTime() - nowMs
+
+  if (remainingMs <= 0) {
+    return "Hold expired"
+  }
+
+  const totalSeconds = Math.floor(remainingMs / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+
+  return `${minutes}:${seconds.toString().padStart(2, "0")} left to pay`
+}
+
 export function formatKes(amount: number | string, currency = "KES") {
   const value = typeof amount === "string" ? Number(amount) : amount
   return `${currency} ${value.toLocaleString("en-KE")}`
 }
 
 export function formatBookingStatus(status: string, paymentStatus: string) {
-  if (status === "confirmed") return "Confirmed — see you at the pod"
+  if (status === "confirmed" || paymentStatus === "paid") {
+    return "Confirmed — see you at the pod"
+  }
   if (status === "pending" && paymentStatus === "unpaid") {
-    return "Your table is held. We'll confirm soon."
+    return "Complete M-Pesa payment to confirm your booking."
   }
   if (status === "cancelled") return "Cancelled"
   if (status === "expired") return "Expired"
