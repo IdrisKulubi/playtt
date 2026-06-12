@@ -24,6 +24,11 @@ export function getPaymentCallbackUrl(bookingId: string) {
   return `${getPaymentReturnUrl()}?${params.toString()}`
 }
 
+export function getProductPaymentCallbackUrl(productType: string) {
+  const params = new URLSearchParams({ productType })
+  return `${getPaymentReturnUrl()}?${params.toString()}`
+}
+
 /** Paystack amounts are in the smallest currency unit (cents for KES). */
 export function kesToPaystackAmount(totalKes: string | number): number {
   const value = typeof totalKes === "string" ? Number(totalKes) : totalKes

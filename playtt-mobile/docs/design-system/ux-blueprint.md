@@ -49,9 +49,20 @@ Move the user from curiosity to reservation with minimal ambiguity. Every screen
 
 ## Activity Blueprint
 - Compact intro band with Sample badge at screen level (not repeated per segment panel)
+- **Clip balance** in intro band: `N clips left` + tappable **Buy clips** (hairline, not a card)
 - **Highlights:** featured latest replay (large thumb + play affordance), earlier clips as hairline rows; no glow washes or carousel-in-scroll
 - **Stats:** journal-style prose lead (hours on table), month dot rhythm, hairline secondary rows; no hero KPI, bar chart, or bordered chip grid
 - Replay detail sheet: title once in sheet header, shared thumb placeholder, one meta line
+- Subtle **Reviewed** label on clips analyzed by Coach (subscribers only)
+
+## Coach Blueprint
+- Fifth tab (before Account): subscription status, insights, training — see [coach-and-replays.md](./coach-and-replays.md)
+- Mirror Activity shell: intro band + segment control (**Insights** | **Training**)
+- **Insights:** journal-style prose cards; detail in bottom sheet — never chat-first UI
+- **Training:** hairline rows like Home "More" section; drill detail in sheet
+- Inactive subscription: single band with `Start Coach` CTA + monthly price line
+- Clip packs and Coach bill **independently**; copy must make the split obvious
+- Purchase flows reuse booking Paystack pattern (hosted checkout, no urgency timers)
 
 ## Account Blueprint
 - **Account tab** is the settings hub: profile summary, security actions, sign out

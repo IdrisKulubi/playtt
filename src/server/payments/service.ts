@@ -5,7 +5,9 @@ import {
   PAYSTACK_CURRENCY,
 } from "@/server/payments/constants"
 import { confirmModificationPayment } from "@/server/bookings/modifications/confirm-payment"
+import { confirmCoachSubscriptionPurchase } from "@/server/coach/confirm-subscription"
 import { confirmBookingPayment } from "@/server/payments/confirm-booking"
+import { confirmReplayPackPurchase } from "@/server/replays/confirm-pack-purchase"
 import { PaymentServiceError } from "@/server/payments/errors"
 import {
   initializeHostedTransaction,
@@ -313,10 +315,30 @@ export async function handlePaystackWebhookEvent(input: {
       ? input.data.metadata
       : null
 
-  const isModification =
-    metadata &&
-    "paymentType" in metadata &&
-    metadata.paymentType === "modification"
+  const paymentType =
+    metadata && "paymentType" in metadata
+      ? String(metadata.paymentType)
+      : null
+
+  if (paymentType === "replay_pack") {
+    const result = await confirmReplayPackPurchase({
+      reference: input.data.reference,
+      providerEventId: String(input.data.id),
+      transaction: input.data,
+    })
+    return { handled: true, result }
+  }
+
+  if (paymentType === "coach_subscription") {
+    const result = await confirmCoachSubscriptionPurchase({
+      reference: input.data.reference,
+      providerEventId: String(input.data.id),
+      transaction: input.data,
+    })
+    return { handled: true, result }
+  }
+
+  const isModification = paymentType === "modification"
 
   const result = isModification
     ? await confirmModificationPayment({
@@ -332,6 +354,26 @@ export async function handlePaystackWebhookEvent(input: {
       })
 
   if (!result.confirmed && !isModification) {
+    const productResult = await confirmReplayPackPurchase({
+      reference: input.data.reference,
+      providerEventId: String(input.data.id),
+      transaction: input.data,
+    })
+
+    if (productResult.confirmed) {
+      return { handled: true, result: productResult }
+    }
+
+    const coachResult = await confirmCoachSubscriptionPurchase({
+      reference: input.data.reference,
+      providerEventId: String(input.data.id),
+      transaction: input.data,
+    })
+
+    if (coachResult.confirmed) {
+      return { handled: true, result: coachResult }
+    }
+
     const modificationResult = await confirmModificationPayment({
       reference: input.data.reference,
       providerEventId: String(input.data.id),

@@ -4,6 +4,7 @@ export type MockReplay = {
   recordedAt: string
   durationSeconds: number
   locationName: string
+  coachReviewed?: boolean
 }
 
 export const MOCK_REPLAYS: MockReplay[] = [
@@ -13,6 +14,7 @@ export const MOCK_REPLAYS: MockReplay[] = [
     recordedAt: "2026-05-28T18:30:00.000Z",
     durationSeconds: 28,
     locationName: "PlayTT Hurlingham",
+    coachReviewed: true,
   },
   {
     id: "replay-2",
@@ -20,6 +22,7 @@ export const MOCK_REPLAYS: MockReplay[] = [
     recordedAt: "2026-05-21T19:00:00.000Z",
     durationSeconds: 30,
     locationName: "PlayTT Hurlingham",
+    coachReviewed: true,
   },
   {
     id: "replay-3",

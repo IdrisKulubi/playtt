@@ -168,6 +168,11 @@ export default function AccountScreen() {
 
               <AccountSection title="Settings">
                 <AccountRow
+                  title="Coach"
+                  subtitle="Subscription and clip packs"
+                  onPress={() => router.push("/(app)/(tabs)/coach")}
+                />
+                <AccountRow
                   title="Notifications"
                   subtitle="Reminders and booking updates"
                   onPress={() => router.push("/(app)/account/notifications")}

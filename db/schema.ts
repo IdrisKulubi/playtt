@@ -129,6 +129,23 @@ export const replayStatusEnum = pgEnum("replay_status", [
   "failed",
 ]);
 
+export const productTypeEnum = pgEnum("product_type", [
+  "replay_pack",
+  "coach_subscription",
+]);
+
+export const coachSubscriptionStatusEnum = pgEnum("coach_subscription_status", [
+  "active",
+  "past_due",
+  "cancelled",
+  "expired",
+]);
+
+export const replayCreditLedgerReasonEnum = pgEnum(
+  "replay_credit_ledger_reason",
+  ["pack_purchase", "replay_capture", "admin_adjust", "refund"],
+);
+
 export const notificationChannelEnum = pgEnum("notification_channel", [
   "in_app",
   "sms",
@@ -673,6 +690,159 @@ export const replays = pgTable(
   ],
 );
 
+export const replayCreditBalances = pgTable("replay_credit_balances", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  balance: integer("balance").default(0).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const productPayments = pgTable(
+  "product_payments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    productType: productTypeEnum("product_type").notNull(),
+    provider: paymentProviderEnum("provider").default("paystack").notNull(),
+    providerReference: text("provider_reference").notNull(),
+    providerEventId: text("provider_event_id"),
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    currency: text("currency").default("KES").notNull(),
+    status: paymentStatusEnum("status").default("pending").notNull(),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    rawPayload: jsonb("raw_payload").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("product_payments_provider_reference_unique").on(
+      table.provider,
+      table.providerReference,
+    ),
+    index("product_payments_user_created_idx").on(table.userId, table.createdAt),
+    check("product_payments_amount_positive", sql`${table.amount} > 0`),
+  ],
+);
+
+export const replayCreditLedger = pgTable(
+  "replay_credit_ledger",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    delta: integer("delta").notNull(),
+    reason: replayCreditLedgerReasonEnum("reason").notNull(),
+    bookingId: uuid("booking_id").references(() => bookings.id, {
+      onDelete: "set null",
+    }),
+    replayId: uuid("replay_id").references(() => replays.id, {
+      onDelete: "set null",
+    }),
+    productPaymentId: uuid("product_payment_id").references(
+      () => productPayments.id,
+      { onDelete: "set null" },
+    ),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("replay_credit_ledger_user_created_idx").on(
+      table.userId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const coachSubscriptions = pgTable(
+  "coach_subscriptions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    status: coachSubscriptionStatusEnum("status").default("active").notNull(),
+    planId: text("plan_id").default("coach_monthly").notNull(),
+    paystackSubscriptionCode: text("paystack_subscription_code"),
+    currentPeriodEnd: timestamp("current_period_end", {
+      withTimezone: true,
+    }).notNull(),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("coach_subscriptions_user_unique").on(table.userId),
+    index("coach_subscriptions_status_idx").on(table.status),
+  ],
+);
+
+export const coachInsights = pgTable(
+  "coach_insights",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    replayId: uuid("replay_id")
+      .notNull()
+      .references(() => replays.id, { onDelete: "cascade" }),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => bookings.id, { onDelete: "cascade" }),
+    summary: text("summary").notNull(),
+    focusAreas: jsonb("focus_areas").$type<string[]>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("coach_insights_user_created_idx").on(table.userId, table.createdAt),
+    uniqueIndex("coach_insights_replay_unique").on(table.replayId),
+  ],
+);
+
+export const coachTrainingItems = pgTable(
+  "coach_training_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    insightId: uuid("insight_id").references(() => coachInsights.id, {
+      onDelete: "set null",
+    }),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    durationMinutes: integer("duration_minutes"),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("coach_training_items_user_sort_idx").on(table.userId, table.sortOrder),
+  ],
+);
+
 export const notifications = pgTable(
   "notifications",
   {
@@ -868,7 +1038,7 @@ export const matchRelations = relations(matches, ({ one, many }) => ({
   replays: many(replays),
 }));
 
-export const replayRelations = relations(replays, ({ one }) => ({
+export const replayRelations = relations(replays, ({ one, many }) => ({
   booking: one(bookings, {
     fields: [replays.bookingId],
     references: [bookings.id],
@@ -885,7 +1055,58 @@ export const replayRelations = relations(replays, ({ one }) => ({
     fields: [replays.matchId],
     references: [matches.id],
   }),
+  coachInsights: many(coachInsights),
 }));
+
+export const replayCreditBalanceRelations = relations(
+  replayCreditBalances,
+  ({ one }) => ({
+    user: one(user, {
+      fields: [replayCreditBalances.userId],
+      references: [user.id],
+    }),
+  }),
+);
+
+export const coachSubscriptionRelations = relations(
+  coachSubscriptions,
+  ({ one }) => ({
+    user: one(user, {
+      fields: [coachSubscriptions.userId],
+      references: [user.id],
+    }),
+  }),
+);
+
+export const coachInsightRelations = relations(coachInsights, ({ one, many }) => ({
+  user: one(user, {
+    fields: [coachInsights.userId],
+    references: [user.id],
+  }),
+  replay: one(replays, {
+    fields: [coachInsights.replayId],
+    references: [replays.id],
+  }),
+  booking: one(bookings, {
+    fields: [coachInsights.bookingId],
+    references: [bookings.id],
+  }),
+  trainingItems: many(coachTrainingItems),
+}));
+
+export const coachTrainingItemRelations = relations(
+  coachTrainingItems,
+  ({ one }) => ({
+    user: one(user, {
+      fields: [coachTrainingItems.userId],
+      references: [user.id],
+    }),
+    insight: one(coachInsights, {
+      fields: [coachTrainingItems.insightId],
+      references: [coachInsights.id],
+    }),
+  }),
+);
 
 export const notificationRelations = relations(notifications, ({ one }) => ({
   booking: one(bookings, {

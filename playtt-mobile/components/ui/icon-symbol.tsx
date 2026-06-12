@@ -19,6 +19,7 @@ const MAPPING = {
   calendar: 'event',
   'chart.bar.fill': 'bar-chart',
   'person.fill': 'person',
+  'book.fill': 'menu-book',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
 } as IconMapping;

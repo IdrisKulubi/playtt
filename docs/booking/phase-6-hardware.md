@@ -11,3 +11,7 @@
 
 - Phase 5 access working
 - Hardware provider configs per `location_id`
+
+## Procurement
+
+Physical device list, brands, and wiring: [`../hardware/pod-hardware-guide.md`](../hardware/pod-hardware-guide.md)
