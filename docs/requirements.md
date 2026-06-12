@@ -51,6 +51,8 @@ The system is built as a single-location MVP but designed for Multi-Tenant SaaS 
 * **REQ-5.1:** An in-pod tablet (or the user's mobile app) must display a digital scoreboard UI.
 * **REQ-5.2:** Scoreboard button presses must update the local state and sync via WebSockets to a main TV display in the pod.
 * **REQ-5.3:** "Instant Replay" trigger: When a user hits the physical/digital "Replay" button, the system must ping the local NVR/Camera IP to export the last 30 seconds of video and upload it to an AWS S3/Supabase Storage bucket tied to the `user_id`.
+* **REQ-5.4:** Replay capture requires a prepaid clip credit (10-clip packs). No credits → block capture with in-app purchase path.
+* **REQ-5.5:** Coach subscription (independent of clip packs) analyzes ready replays and surfaces training guidance in the mobile Coach tab. See `playtt-mobile/docs/design-system/coach-and-replays.md`.
 
 ---
 
@@ -74,6 +76,12 @@ The system is built as a single-location MVP but designed for Multi-Tenant SaaS 
 * `hardware_configs` (id, location_id, lock_api_key, light_api_key)
 * `bookings` (id, user_id, resource_id, start_time, end_time, total_price, payment_status, access_code)
 * `replays` (id, booking_id, user_id, video_url, timestamp)
+
+## 7.1 Hardware procurement
+
+See **[`docs/hardware/pod-hardware-guide.md`](hardware/pod-hardware-guide.md)** for per-item specs, recommended brands (TTLock, Shelly, Hikvision, etc.), quantities per pod, and how each device connects to the PlayTT API.
+
+---
 
 ## 8. Development Phases
 

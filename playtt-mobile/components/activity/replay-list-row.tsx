@@ -71,6 +71,7 @@ export function ReplayListRow({
               day: "numeric",
               month: "short",
             })}
+            {replay.coachReviewed ? " · Reviewed" : ""}
           </Text>
         </View>
         <IconSymbol name="chevron.right" size={18} color={theme.muted} />

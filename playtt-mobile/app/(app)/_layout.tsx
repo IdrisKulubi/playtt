@@ -85,6 +85,8 @@ export default function AppLayout() {
       <Stack.Screen name="account/notifications" />
       <Stack.Screen name="account/help" />
       <Stack.Screen name="account/legal" />
+      <Stack.Screen name="coach/buy-replays" />
+      <Stack.Screen name="coach/subscribe" />
     </Stack>
   )
 }

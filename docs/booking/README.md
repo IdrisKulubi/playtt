@@ -38,6 +38,7 @@ flowchart LR
 | 4 | [phase-4-payment.md](./phase-4-payment.md) | Implemented | M-Pesa / Paystack |
 | 5 | [phase-5-access.md](./phase-5-access.md) | Documented | PIN / unlock card |
 | 6 | [phase-6-hardware.md](./phase-6-hardware.md) | Documented | TTLock, lighting |
+| — | [../hardware/pod-hardware-guide.md](../hardware/pod-hardware-guide.md) | Published | Procurement + integration BOM |
 | 7 | [phase-7-user-complete.md](./phase-7-user-complete.md) | Implemented | Full player app shell (pre-hardware) |
 
 ## Shared contracts

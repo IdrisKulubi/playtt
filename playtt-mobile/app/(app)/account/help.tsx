@@ -30,6 +30,16 @@ const FAQ = [
     question: "Need help at the venue?",
     answer: "Message support at hello@theplaytt.com and we will assist you.",
   },
+  {
+    question: "How do clip packs work?",
+    answer:
+      "Buy a 10-clip pack in Activity or Coach. Each clip captures the last 30 seconds when you press Replay during a session.",
+  },
+  {
+    question: "What is Coach?",
+    answer:
+      "Coach is a monthly subscription that reviews your captured clips and suggests drills to practice. Clip packs are sold separately.",
+  },
 ]
 
 export default function HelpScreen() {

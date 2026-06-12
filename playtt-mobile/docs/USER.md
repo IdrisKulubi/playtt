@@ -27,6 +27,8 @@ Hardware (TTLock, lights, real replays) ships after this shell is complete.
 | Understand my activity | Stats dashboard (preview data until API) |
 | Know how to enter the pod | Access card on upcoming confirmed booking (preview PIN) |
 | Relive sessions | Replay library (sample clips until camera pipeline) |
+| Capture highlights | Buy clip packs; trigger replays at venue (credits gate) |
+| Improve with Coach | Coach subscription: clip analysis + training guidance |
 | Control preferences | Notification prefs stub, help, legal, sign out |
 
 ---
@@ -37,7 +39,8 @@ Hardware (TTLock, lights, real replays) ships after this shell is complete.
 |-----|-------|---------|
 | **Home** | `(tabs)/index` | Next session hero, quick actions, stats teaser |
 | **Bookings** | `(tabs)/bookings` | Upcoming \| Past segments → detail sheet |
-| **Activity** | `(tabs)/activity` | Highlights + stats segments |
+| **Activity** | `(tabs)/activity` | Highlights + stats; clip balance |
+| **Coach** | `(tabs)/coach` | Subscription, insights, training |
 | **Account** | `(tabs)/account` | Profile, settings stack, support |
 
 Stack screens (pushed from tabs):
@@ -51,6 +54,8 @@ Stack screens (pushed from tabs):
 | Notifications | `(app)/account/notifications` | stub (local) |
 | Help | `(app)/account/help` | static |
 | Legal | `(app)/account/legal` | static |
+| Buy clip pack | `(app)/coach/buy-replays` | live / preview |
+| Subscribe to Coach | `(app)/coach/subscribe` | live / preview |
 
 ---
 
@@ -67,6 +72,12 @@ Stack screens (pushed from tabs):
 | Edit booking | modifications API |
 | Pay hold | payments API |
 | Profile | `GET /api/user/me` |
+| Replay credits | `GET /api/replays/credits` |
+| Buy clip pack | `POST /api/replays/credits/purchase` |
+| Replay library | `GET /api/replays/mine` |
+| Coach status | `GET /api/coach/status` |
+| Coach subscribe | `POST /api/coach/subscribe` |
+| Coach insights | `GET /api/coach/insights` |
 
 ### Preview / mock data (P1)
 
@@ -76,6 +87,8 @@ Stack screens (pushed from tabs):
 | Replay library | `lib/mock/mock-replays.ts` | "Sample" |
 | Entry code | `lib/mock/mock-access.ts` | "Preview entry code" |
 | Home stats teaser | mock-player-stats | "Preview" |
+| Clip balance | `lib/mock/mock-replay-credits.ts` | "Preview" |
+| Coach insights / training | `lib/mock/mock-coach.ts` | "Preview" |
 
 ### Stub (P2)
 
@@ -110,7 +123,7 @@ Stack screens (pushed from tabs):
 
 - Real TTLock / Bluetooth unlock
 - Lighting automation
-- NVR replay upload
+- NVR replay upload (capture API + worker stub in place; full camera pipeline TBD)
 - Push notification delivery (prefs UI only)
 - Admin analytics
 - Phone OTP login
@@ -138,4 +151,5 @@ Stack screens (pushed from tabs):
 - [PRODUCT.md](./PRODUCT.md) — product principles
 - [design-system/booking-ux.md](./design-system/booking-ux.md) — booking flow
 - [design-system/ux-blueprint.md](./design-system/ux-blueprint.md) — funnel overview
+- [design-system/coach-and-replays.md](./design-system/coach-and-replays.md) — Coach tab + clip credits
 - [../../docs/booking/phase-7-user-complete.md](../../docs/booking/phase-7-user-complete.md) — implementation index

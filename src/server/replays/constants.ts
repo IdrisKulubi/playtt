@@ -1,0 +1,3 @@
+export const REPLAY_PACK_CREDITS = 10
+export const REPLAY_PACK_PRICE_KES = 1200
+export const REPLAY_CLIP_DURATION_SECONDS = 30
