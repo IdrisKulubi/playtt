@@ -3,7 +3,7 @@ import { Redirect, router, useLocalSearchParams } from "expo-router"
 import { useEffect, useRef, useState } from "react"
 import { AuthForm } from "@/components/auth/auth-form"
 import { AuthShell } from "@/components/auth/auth-shell"
-import { AuthFormSkeleton } from "@/components/ui/skeleton"
+import { useSplashHold } from "@/hooks/use-splash-hold"
 import { useSession } from "@/lib/auth-client"
 import { authDebug, authDebugError } from "@/lib/auth-debug"
 import { getStoredAuth, waitForStoredAuth } from "@/lib/auth-helpers"
@@ -121,12 +121,10 @@ export default function IndexScreen() {
     isRedirecting ||
     !welcomeChecked
 
+  useSplashHold(isBootstrapping, "index-auth-bootstrap")
+
   if (isBootstrapping) {
-    return (
-      <AuthShell subtitle={mode === "sign-in" ? "Sign in to PlayTT" : "Create your PlayTT account"}>
-        <AuthFormSkeleton surface="product" />
-      </AuthShell>
-    )
+    return null
   }
 
   if (!hasSeenWelcome) {

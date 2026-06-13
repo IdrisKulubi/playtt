@@ -1,19 +1,12 @@
 import { Redirect, Stack, useFocusEffect } from "expo-router"
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { View } from "react-native"
+import { useCallback, useEffect, useState } from "react"
 
-import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
-import { AuthFormSkeleton } from "@/components/ui/skeleton"
-import { useProductTheme, useSkeletonSurface } from "@/hooks/use-product-theme"
+import { useSplashHold } from "@/hooks/use-splash-hold"
 import { getStoredAuth } from "@/lib/auth-helpers"
 import { ONBOARDING_ROUTE } from "@/lib/auth-navigation"
 import { fetchCurrentUser } from "@/lib/user-api"
 
 export default function AppLayout() {
-  const theme = useProductTheme()
-  const skeletonSurface = useSkeletonSurface()
-  const styles = useMemo(() => createAppScreenStyles(theme), [theme])
-
   const [gate, setGate] = useState<"loading" | "auth" | "onboarding" | "app">(
     "loading",
   )
@@ -57,20 +50,19 @@ export default function AppLayout() {
     }, []),
   )
 
-  if (gate === "loading") {
-    return (
-      <View style={styles.loadingGate}>
-        <AuthFormSkeleton surface={skeletonSurface} />
-      </View>
-    )
-  }
+  const holdSplash = gate === "loading" || gate === "auth" || gate === "onboarding"
+  useSplashHold(holdSplash, "app-auth-gate")
 
-  if (gate === "auth") {
-    return <Redirect href="/?mode=sign-in" />
-  }
+  if (gate === "loading" || gate === "auth" || gate === "onboarding") {
+    if (gate === "auth") {
+      return <Redirect href="/?mode=sign-in" />
+    }
 
-  if (gate === "onboarding") {
-    return <Redirect href={ONBOARDING_ROUTE} />
+    if (gate === "onboarding") {
+      return <Redirect href={ONBOARDING_ROUTE} />
+    }
+
+    return null
   }
 
   return (
