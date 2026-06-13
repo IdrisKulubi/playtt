@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { HomeHero } from "@/components/home/home-hero"
 import { HomeLinksSection } from "@/components/home/home-links-section"
 import { NextSessionTicket } from "@/components/home/next-session-ticket"
+import { VenueCard } from "@/components/booking/venue-card"
 import { BookingDetailSheet } from "@/components/booking/booking-detail-sheet"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { HomeTicketSkeleton } from "@/components/ui/skeleton"
@@ -19,6 +20,7 @@ import {
   useProductTheme,
   useSkeletonSurface,
 } from "@/hooks/use-product-theme"
+import { PRIMARY_VENUE } from "@/lib/venue-assets"
 
 const UPCOMING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -146,6 +148,12 @@ export default function AppHomeScreen() {
               booking={upcomingBooking}
               embedded
               onPress={() => setSelectedBookingId(upcomingBooking.id)}
+            />
+          ) : showBookCta ? (
+            <VenueCard
+              location={PRIMARY_VENUE}
+              compact
+              onPress={() => router.push("/(app)/book")}
             />
           ) : null}
         </HomeHero>

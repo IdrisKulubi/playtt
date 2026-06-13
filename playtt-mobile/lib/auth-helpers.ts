@@ -1,6 +1,7 @@
 import * as SecureStore from "expo-secure-store"
 
 import type { AppleAuthUser } from "@/lib/auth-api"
+import { authDebug, authDebugError } from "@/lib/auth-debug"
 import { authClient } from "@/lib/auth-client"
 import {
   clearCachedSessionRoute,
@@ -85,6 +86,11 @@ async function clearBetterAuthStorage() {
 }
 
 export async function storeAppleSession(user: AppleAuthUser, token: string) {
+  authDebug("store-apple-session:start", {
+    userId: user.id,
+    tokenLength: token.length,
+  })
+
   await clearBetterAuthStorage()
 
   const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
@@ -98,6 +104,20 @@ export async function storeAppleSession(user: AppleAuthUser, token: string) {
   )
   await SecureStore.setItemAsync(AUTH_KEYS.sessionToken, token)
   await SecureStore.setItemAsync(AUTH_KEYS.userId, user.id)
+
+  const stored = await getStoredAuth()
+  authDebug("store-apple-session:done", {
+    stored: Boolean(stored?.token),
+    source: stored?.source,
+    userId: stored?.userId,
+  })
+
+  if (!stored?.token) {
+    authDebugError(
+      "store-apple-session:verify-failed",
+      new Error("Token not readable immediately after store"),
+    )
+  }
 }
 
 export async function getCurrentUserId() {
@@ -127,16 +147,20 @@ export async function isAuthenticated() {
 }
 
 export async function clearSession() {
+  authDebug("clear-session:start")
+
   try {
     await authClient.signOut()
-  } catch {
-    // Local cleanup should still happen if the backend is unreachable.
+  } catch (error) {
+    authDebugError("clear-session:sign-out-failed", error)
   }
 
   await Promise.all(
     Object.values(AUTH_KEYS).map((key) => SecureStore.deleteItemAsync(key))
   )
   await clearCachedSessionRoute()
+
+  authDebug("clear-session:done")
 }
 
 export async function getLastKnownAuthenticatedRoute() {
@@ -144,6 +168,7 @@ export async function getLastKnownAuthenticatedRoute() {
 }
 
 export async function waitForStoredAuth(timeoutMs = 3000) {
+  authDebug("wait-for-stored-auth:start", { timeoutMs })
   const startedAt = Date.now()
 
   while (Date.now() - startedAt < timeoutMs) {
@@ -151,12 +176,20 @@ export async function waitForStoredAuth(timeoutMs = 3000) {
 
     const stored = await getStoredAuth()
     if (stored?.token) {
+      authDebug("wait-for-stored-auth:found", {
+        source: stored.source,
+        userId: stored.userId,
+        elapsedMs: Date.now() - startedAt,
+      })
       return stored
     }
 
     await new Promise((resolve) => setTimeout(resolve, 250))
   }
 
+  authDebug("wait-for-stored-auth:timeout", {
+    elapsedMs: Date.now() - startedAt,
+  })
   return null
 }
 

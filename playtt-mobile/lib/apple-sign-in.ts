@@ -1,5 +1,7 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 
+import { authDebug, authDebugError } from '@/lib/auth-debug';
+
 export class AppleSignInCanceledError extends Error {
   constructor() {
     super('Apple sign in was canceled.');
@@ -19,6 +21,8 @@ export async function isAppleSignInAvailable() {
 }
 
 export async function signInWithApple(): Promise<AppleSignInResult> {
+  authDebug('apple-native:start')
+
   try {
     const credential = await AppleAuthentication.signInAsync({
       requestedScopes: [
@@ -28,8 +32,16 @@ export async function signInWithApple(): Promise<AppleSignInResult> {
     });
 
     if (!credential.identityToken) {
+      authDebugError('apple-native:missing-token', new Error('No identity token from Apple'))
       throw new Error('Apple sign in did not return an identity token.');
     }
+
+    authDebug('apple-native:success', {
+      hasAuthorizationCode: Boolean(credential.authorizationCode),
+      hasEmail: Boolean(credential.email),
+      hasFullName: Boolean(credential.fullName),
+      identityTokenLength: credential.identityToken.length,
+    })
 
     return {
       identityToken: credential.identityToken,
@@ -44,9 +56,11 @@ export async function signInWithApple(): Promise<AppleSignInResult> {
       'code' in error &&
       error.code === 'ERR_REQUEST_CANCELED'
     ) {
+      authDebug('apple-native:canceled')
       throw new AppleSignInCanceledError();
     }
 
+    authDebugError('apple-native:failed', error)
     throw error;
   }
 }

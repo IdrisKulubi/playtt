@@ -1,5 +1,6 @@
 import type { AppleSignInResult } from '@/lib/apple-sign-in';
 import { ApiError } from '@/lib/api-error';
+import { authDebug, authDebugError } from '@/lib/auth-debug';
 import { formatApiFailure, getFriendlyErrorMessage } from '@/lib/api-errors';
 import { authClient } from '@/lib/auth-client';
 import { getApiBaseUrl } from '@/lib/env';
@@ -108,6 +109,14 @@ function getErrorMessage(data: unknown) {
 export async function signInWithAppleApi(
   credential: AppleSignInResult,
 ): Promise<AppleAuthResponse> {
+  authDebug('apple-api:request-start', {
+    apiBaseUrl: getApiBaseUrl(),
+    hasIdentityToken: Boolean(credential.identityToken),
+    hasAuthorizationCode: Boolean(credential.authorizationCode),
+    hasEmail: Boolean(credential.email),
+    hasFullName: Boolean(credential.fullName),
+  })
+
   const response = await fetch(`${getApiBaseUrl()}/api/apple/sign-in`, {
     method: 'POST',
     headers: {
@@ -124,9 +133,19 @@ export async function signInWithAppleApi(
   const text = await response.text();
   const data = text ? safeJsonParse(text) : null;
 
+  authDebug('apple-api:response', {
+    status: response.status,
+    ok: response.ok,
+    hasData: Boolean(data),
+  })
+
   if (!response.ok) {
     const rawMessage =
       getErrorMessage(data) || `Apple sign in failed with status ${response.status}`;
+    authDebugError('apple-api:request-failed', new Error(rawMessage), {
+      status: response.status,
+      code: getErrorCode(data),
+    })
     throw new ApiError({
       status: response.status,
       code: getErrorCode(data),
@@ -148,6 +167,9 @@ export async function signInWithAppleApi(
     !data.data ||
     typeof data.data !== 'object'
   ) {
+    authDebugError('apple-api:unexpected-response', new Error('Unexpected Apple auth response shape'), {
+      hasSuccess: Boolean(data && typeof data === 'object' && 'success' in data && data.success),
+    })
     throw new Error('Apple sign in returned an unexpected response.');
   }
 
@@ -161,10 +183,18 @@ export async function signInWithAppleApi(
     typeof token !== 'string' ||
     !token.trim()
   ) {
+    authDebugError('apple-api:invalid-session', new Error('Missing user or token in Apple auth response'))
     throw new Error('Apple sign in returned an invalid session.');
   }
 
   const userRecord = user as Record<string, unknown>;
+
+  authDebug('apple-api:success', {
+    userId: String(userRecord.id),
+    isNewUser: Boolean(payload.isNewUser),
+    tokenLength: token.length,
+    emailVerified: Boolean(userRecord.emailVerified),
+  })
 
   return {
     user: {

@@ -1,6 +1,7 @@
 import { router } from "expo-router"
 
 import { apiFetch } from "@/lib/api-client"
+import { authDebug, authDebugError } from "@/lib/auth-debug"
 import { AUTHENTICATED_HOME } from "@/lib/auth-navigation"
 import { setCachedSessionRoute } from "@/lib/session-cache"
 
@@ -48,20 +49,38 @@ export async function fetchCurrentUser() {
 }
 
 export async function resolvePostAuthRoute() {
+  authDebug("resolve-post-auth-route:start")
   const response = await fetchCurrentUser()
-  return response.data?.route ?? AUTHENTICATED_HOME
+  const route = response.data?.route ?? AUTHENTICATED_HOME
+  authDebug("resolve-post-auth-route:done", { route })
+  return route
 }
 
 export async function routeAfterAuth() {
-  const response = await fetchCurrentUser()
-  const route = response.data?.route ?? AUTHENTICATED_HOME
+  authDebug("route-after-auth:start")
 
-  await setCachedSessionRoute({
-    userId: response.data?.user?.id,
-    route,
-  })
+  try {
+    const response = await fetchCurrentUser()
+    const route = response.data?.route ?? AUTHENTICATED_HOME
 
-  router.replace(route as never)
+    authDebug("route-after-auth:resolved", {
+      route,
+      userId: response.data?.user?.id,
+      onboardingCompletedAt: response.data?.user?.onboardingCompletedAt,
+    })
+
+    await setCachedSessionRoute({
+      userId: response.data?.user?.id,
+      route,
+    })
+
+    authDebug("route-after-auth:navigate", { route })
+    router.replace(route as never)
+    authDebug("route-after-auth:done")
+  } catch (error) {
+    authDebugError("route-after-auth:failed", error)
+    throw error
+  }
 }
 
 export async function patchOnboarding(body: Record<string, unknown>) {

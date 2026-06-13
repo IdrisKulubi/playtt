@@ -5,6 +5,7 @@ import { AuthFormSkeleton } from "@/components/ui/skeleton"
 import { OnboardingProfileForm } from "@/components/onboarding/onboarding-profile-form"
 import { OnboardingSurveyForm } from "@/components/onboarding/onboarding-survey-form"
 import { useSession } from "@/lib/auth-client"
+import { getStoredAuth } from "@/lib/auth-helpers"
 import { AUTHENTICATED_HOME } from "@/lib/auth-navigation"
 import { fetchCurrentUser, type UserProfile } from "@/lib/user-api"
 
@@ -12,18 +13,45 @@ export default function OnboardingScreen() {
   const { data: session, isPending } = useSession()
   const [step, setStep] = useState<1 | 2>(1)
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [hasStoredAuth, setHasStoredAuth] = useState<boolean | null>(null)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
+
+  const isAuthed = Boolean(session) || hasStoredAuth === true
+
+  useEffect(() => {
+    let mounted = true
+
+    async function checkStoredAuth() {
+      const stored = await getStoredAuth()
+      if (mounted) {
+        setHasStoredAuth(Boolean(stored?.token))
+      }
+    }
+
+    void checkStoredAuth()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   useEffect(() => {
     let mounted = true
 
     async function loadProfile() {
-      if (!session) {
+      if (isPending || hasStoredAuth === null) {
+        return
+      }
+
+      const stored = await getStoredAuth()
+      if (!session && !stored?.token) {
         if (mounted) {
           setIsLoadingProfile(false)
         }
         return
       }
+
+      setIsLoadingProfile(true)
 
       try {
         const response = await fetchCurrentUser()
@@ -46,9 +74,9 @@ export default function OnboardingScreen() {
     return () => {
       mounted = false
     }
-  }, [session])
+  }, [session, isPending, hasStoredAuth])
 
-  if (isPending || isLoadingProfile) {
+  if (isPending || hasStoredAuth === null || isLoadingProfile) {
     return (
       <AuthShell subtitle="Setting up your account">
         <AuthFormSkeleton surface="product" />
@@ -56,13 +84,16 @@ export default function OnboardingScreen() {
     )
   }
 
-  if (!session) {
+  if (!isAuthed) {
     return <Redirect href="/?mode=sign-in" />
   }
 
   if (profile?.onboardingCompletedAt) {
     return <Redirect href={AUTHENTICATED_HOME} />
   }
+
+  const initialName =
+    profile?.name ?? session?.user.name ?? ""
 
   if (step === 1) {
     return (
@@ -71,7 +102,7 @@ export default function OnboardingScreen() {
         subtitle="We use this to personalize bookings and venue updates."
       >
         <OnboardingProfileForm
-          initialName={profile?.name ?? session.user.name ?? ""}
+          initialName={initialName}
           onComplete={() => setStep(2)}
         />
       </AuthShell>
@@ -87,4 +118,3 @@ export default function OnboardingScreen() {
     </AuthShell>
   )
 }
-

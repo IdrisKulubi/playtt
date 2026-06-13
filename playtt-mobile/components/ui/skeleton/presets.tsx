@@ -13,6 +13,8 @@ import {
   type SkeletonSurface,
 } from "./skeleton"
 
+import { SESSION_TICKET_THUMB_SIZE } from "@/components/booking/session-ticket-shell"
+
 type PresetProps = {
   surface?: SkeletonSurface
 }
@@ -32,16 +34,23 @@ export function AuthFormSkeleton({ surface = "product" }: PresetProps) {
 export function VenueCardSkeleton({ surface = "product" }: PresetProps) {
   return (
     <SkeletonGroup gap="md" style={styles.venueCard}>
-      <Skeleton width="35%" height={28} surface={surface} />
       <View
         style={[
+          styles.ticketRow,
           styles.cardShell,
           surface === "product" ? styles.cardShellProduct : styles.cardShellDark,
         ]}
       >
-        <Skeleton width="55%" height={18} surface={surface} />
-        <SkeletonText width="85%" surface={surface} />
-        <Skeleton width="30%" height={12} surface={surface} />
+        <Skeleton
+          width={SESSION_TICKET_THUMB_SIZE}
+          height={SESSION_TICKET_THUMB_SIZE}
+          borderRadius={PlayTTRadius.lg}
+          surface={surface}
+        />
+        <SkeletonGroup gap="xs" style={styles.flex}>
+          <Skeleton width="55%" height={16} surface={surface} />
+          <SkeletonText width="85%" surface={surface} />
+        </SkeletonGroup>
       </View>
       <Skeleton height={52} borderRadius={PlayTTRadius.pill} surface={surface} />
     </SkeletonGroup>
@@ -109,19 +118,26 @@ export function TimingPanelSkeleton({ surface = "product" }: PresetProps) {
 export function BookingListSkeleton({ surface = "dark" }: PresetProps) {
   return (
     <SkeletonGroup gap="md">
-      <Skeleton width="45%" height={28} surface={surface} />
       {Array.from({ length: 3 }).map((_, index) => (
         <View
           key={index}
           style={[
+            styles.ticketRow,
             styles.bookingCard,
             surface === "product" ? styles.cardShellProduct : styles.cardShellDark,
           ]}
         >
-          <Skeleton width="60%" height={18} surface={surface} />
-          <Skeleton width="75%" height={14} surface={surface} />
-          <Skeleton width="90%" height={13} surface={surface} />
-          <Skeleton width="25%" height={14} surface={surface} />
+          <Skeleton
+            width={SESSION_TICKET_THUMB_SIZE}
+            height={SESSION_TICKET_THUMB_SIZE}
+            borderRadius={PlayTTRadius.lg}
+            surface={surface}
+          />
+          <SkeletonGroup gap="xs" style={styles.flex}>
+            <Skeleton width="70%" height={15} surface={surface} />
+            <Skeleton width="50%" height={13} surface={surface} />
+            <Skeleton width="85%" height={13} surface={surface} />
+          </SkeletonGroup>
         </View>
       ))}
     </SkeletonGroup>
@@ -183,10 +199,19 @@ export function HomeTicketSkeleton({
         !embedded && shellStyle,
       ]}
     >
-      <Skeleton width="28%" height={12} surface={surface} />
-      <Skeleton width="70%" height={22} surface={surface} />
-      <Skeleton width="55%" height={15} surface={surface} />
-      <Skeleton width="40%" height={13} surface={surface} />
+      <View style={styles.ticketRow}>
+        <Skeleton
+          width={SESSION_TICKET_THUMB_SIZE}
+          height={SESSION_TICKET_THUMB_SIZE}
+          borderRadius={PlayTTRadius.lg}
+          surface={surface}
+        />
+        <SkeletonGroup gap="xs" style={styles.flex}>
+          <Skeleton width="75%" height={15} surface={surface} />
+          <Skeleton width="50%" height={13} surface={surface} />
+          <Skeleton width="65%" height={13} surface={surface} />
+        </SkeletonGroup>
+      </View>
     </View>
   )
 }
@@ -238,8 +263,12 @@ const styles = StyleSheet.create({
   bookingCard: {
     borderRadius: 12,
     borderWidth: 1,
-    padding: PlayTTSpacing.md,
-    gap: PlayTTSpacing.xs,
+    padding: PlayTTSpacing.sm,
+  },
+  ticketRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: PlayTTSpacing.sm,
   },
   detail: {
     padding: PlayTTSpacing.xl,
@@ -255,8 +284,7 @@ const styles = StyleSheet.create({
   },
   homeTicket: {
     borderRadius: PlayTTRadius.lg,
-    padding: PlayTTSpacing.md,
-    gap: PlayTTSpacing.sm,
+    padding: PlayTTSpacing.sm,
   },
   homeTicketStandalone: {
     borderWidth: 1,
