@@ -89,7 +89,7 @@ export function RequestMatchSheet({
     onSubmitted?.()
     toast.success(
       player
-        ? `Request sent to ${player.name}.`
+        ? `Request sent to ${player.name}`
         : "Your play request is live for nearby players.",
     )
   }

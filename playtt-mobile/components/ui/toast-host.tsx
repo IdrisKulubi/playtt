@@ -1,14 +1,21 @@
 import { useEffect, useMemo, useState } from "react"
 import { Pressable, StyleSheet, Text, View } from "react-native"
-import Animated, { FadeInUp, FadeOutUp } from "react-native-reanimated"
+import Animated, {
+  Easing,
+  FadeInUp,
+  FadeOutUp,
+} from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { IconSymbol } from "@/components/ui/icon-symbol"
 import {
   PlayTTColors,
+  PlayTTElevation,
   PlayTTFontFamilies,
   PlayTTRadius,
   PlayTTSpacing,
 } from "@/constants/playtt-tokens"
+import { useColorScheme } from "@/hooks/use-color-scheme"
 import { useProductTheme } from "@/hooks/use-product-theme"
 import {
   setToastListener,
@@ -17,29 +24,48 @@ import {
 } from "@/lib/toast"
 
 const TOAST_DURATION_MS = 4200
+const ENTER_MS = 240
+const EXIT_MS = 200
 
-function getVariantStyles(
+type ToastIconName =
+  | "checkmark.circle.fill"
+  | "xmark.circle.fill"
+  | "info.circle.fill"
+
+type VariantConfig = {
+  icon: ToastIconName
+  iconColor: string
+  iconBackground: string
+}
+
+function getVariantConfig(
   variant: ToastVariant,
-  cardBackground: string,
-): { backgroundColor: string; borderColor: string; accentColor: string } {
+  isDark: boolean,
+): VariantConfig {
   switch (variant) {
-    case "error":
-      return {
-        backgroundColor: "#2a1418",
-        borderColor: "rgba(255, 59, 48, 0.45)",
-        accentColor: PlayTTColors.destructive,
-      }
     case "success":
       return {
-        backgroundColor: "#10241a",
-        borderColor: "rgba(0, 255, 102, 0.35)",
-        accentColor: PlayTTColors.success,
+        icon: "checkmark.circle.fill",
+        iconColor: isDark ? "#5ee6a0" : "#0f9d58",
+        iconBackground: isDark
+          ? "rgba(94, 230, 160, 0.12)"
+          : "rgba(15, 157, 88, 0.1)",
+      }
+    case "error":
+      return {
+        icon: "xmark.circle.fill",
+        iconColor: isDark ? "#ff6961" : PlayTTColors.destructive,
+        iconBackground: isDark
+          ? "rgba(255, 105, 97, 0.12)"
+          : "rgba(255, 59, 48, 0.08)",
       }
     case "info":
       return {
-        backgroundColor: cardBackground,
-        borderColor: "rgba(0, 183, 255, 0.35)",
-        accentColor: PlayTTColors.primary,
+        icon: "info.circle.fill",
+        iconColor: PlayTTColors.primary,
+        iconBackground: isDark
+          ? "rgba(0, 183, 255, 0.14)"
+          : "rgba(0, 183, 255, 0.1)",
       }
   }
 }
@@ -47,6 +73,8 @@ function getVariantStyles(
 export function ToastHost() {
   const insets = useSafeAreaInsets()
   const theme = useProductTheme()
+  const colorScheme = useColorScheme()
+  const isDark = colorScheme === "dark"
   const [toast, setToast] = useState<ToastPayload | null>(null)
 
   const styles = useMemo(
@@ -54,29 +82,28 @@ export function ToastHost() {
       StyleSheet.create({
         host: {
           position: "absolute",
-          left: PlayTTSpacing.md,
-          right: PlayTTSpacing.md,
+          left: PlayTTSpacing.lg,
+          right: PlayTTSpacing.lg,
           zIndex: 1000,
         },
         toast: {
-          borderWidth: 1,
+          borderWidth: StyleSheet.hairlineWidth,
           borderRadius: PlayTTRadius.lg,
           paddingVertical: PlayTTSpacing.sm,
-          paddingHorizontal: PlayTTSpacing.md,
+          paddingHorizontal: PlayTTSpacing.sm,
           flexDirection: "row",
-          alignItems: "flex-start",
+          alignItems: "center",
           gap: PlayTTSpacing.sm,
-          shadowColor: "#000",
-          shadowOpacity: 0.22,
-          shadowRadius: 12,
-          shadowOffset: { width: 0, height: 8 },
-          elevation: 8,
+          backgroundColor: theme.card,
+          borderColor: theme.border,
+          ...(isDark ? PlayTTElevation.soft : PlayTTElevation.productCard),
         },
-        accent: {
-          width: 4,
-          alignSelf: "stretch",
-          borderRadius: PlayTTRadius.pill,
-          marginVertical: 2,
+        iconWrap: {
+          width: 32,
+          height: 32,
+          borderRadius: PlayTTRadius.md,
+          alignItems: "center",
+          justifyContent: "center",
         },
         message: {
           flex: 1,
@@ -86,17 +113,13 @@ export function ToastHost() {
           fontFamily: PlayTTFontFamilies.medium,
         },
         dismiss: {
-          paddingHorizontal: 2,
-          marginTop: -2,
-        },
-        dismissLabel: {
-          color: theme.muted,
-          fontSize: 22,
-          lineHeight: 22,
-          fontFamily: PlayTTFontFamilies.regular,
+          width: 32,
+          height: 32,
+          alignItems: "center",
+          justifyContent: "center",
         },
       }),
-    [theme.foreground, theme.muted],
+    [isDark, theme.border, theme.card, theme.foreground],
   )
 
   useEffect(() => {
@@ -127,33 +150,42 @@ export function ToastHost() {
     return null
   }
 
-  const variantStyle = getVariantStyles(toast.variant, theme.card)
+  const variant = getVariantConfig(toast.variant, isDark)
 
   return (
-    <View pointerEvents="box-none" style={[styles.host, { top: insets.top + 8 }]}>
+    <View pointerEvents="box-none" style={[styles.host, { top: insets.top + 10 }]}>
       <Animated.View
-        entering={FadeInUp.duration(220)}
-        exiting={FadeOutUp.duration(180)}
-        style={[
-          styles.toast,
-          {
-            backgroundColor: variantStyle.backgroundColor,
-            borderColor: variantStyle.borderColor,
-          },
-        ]}
+        entering={FadeInUp.duration(ENTER_MS).easing(
+          Easing.out(Easing.cubic),
+        )}
+        exiting={FadeOutUp.duration(EXIT_MS).easing(Easing.in(Easing.cubic))}
+        style={styles.toast}
       >
         <View
-          style={[styles.accent, { backgroundColor: variantStyle.accentColor }]}
-        />
-        <Text style={styles.message}>{toast.message}</Text>
+          style={[
+            styles.iconWrap,
+            { backgroundColor: variant.iconBackground },
+          ]}
+        >
+          <IconSymbol
+            name={variant.icon}
+            size={18}
+            color={variant.iconColor}
+          />
+        </View>
+
+        <Text style={styles.message} numberOfLines={3}>
+          {toast.message}
+        </Text>
+
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Dismiss notification"
-          hitSlop={8}
+          hitSlop={6}
           onPress={() => setToast(null)}
           style={styles.dismiss}
         >
-          <Text style={styles.dismissLabel}>×</Text>
+          <IconSymbol name="xmark" size={16} color={theme.muted} />
         </Pressable>
       </Animated.View>
     </View>

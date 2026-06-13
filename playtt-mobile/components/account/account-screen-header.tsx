@@ -1,9 +1,8 @@
-import { router } from "expo-router"
 import { useMemo } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
 
+import { ScreenBackButton } from "@/components/navigation/screen-back-button"
 import {
-  PlayTTColors,
   PlayTTFontFamilies,
   PlayTTSpacing,
 } from "@/constants/playtt-tokens"
@@ -23,11 +22,6 @@ function createStyles(theme: ProductThemeColors) {
       paddingHorizontal: PlayTTSpacing.lg,
       paddingTop: PlayTTSpacing.sm,
     },
-    back: {
-      fontSize: 14,
-      fontFamily: PlayTTFontFamilies.semiBold,
-      color: PlayTTColors.primary,
-    },
     headerTitle: {
       fontSize: 16,
       fontFamily: PlayTTFontFamilies.semiBold,
@@ -45,9 +39,7 @@ export function AccountScreenHeader({ title }: AccountScreenHeaderProps) {
 
   return (
     <View style={styles.header}>
-      <Pressable onPress={() => router.back()} hitSlop={8}>
-        <Text style={styles.back}>Back</Text>
-      </Pressable>
+      <ScreenBackButton />
       <Text style={styles.headerTitle}>{title}</Text>
       <View style={styles.spacer} />
     </View>
