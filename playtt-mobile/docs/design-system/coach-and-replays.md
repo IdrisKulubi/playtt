@@ -40,7 +40,7 @@ Configurable pricing (server constants, not hardcoded in UI):
 | Bookings | `(tabs)/bookings` | Sessions |
 | Activity | `(tabs)/activity` | Watch replays + stats; clip balance |
 | **Community** | `(tabs)/community` | Find players, open requests (preview) |
-| Account | `(tabs)/account` | Settings; manage Coach billing link |
+| Account | `(tabs)/account` | Account sub-tab: profile and sign out. Settings sub-tab: Coach link, notifications, help, legal |
 
 Coach content lives on **Home → Coach** sub-tab. `(tabs)/coach` redirects to `homeTab=coach` for deep links.
 
@@ -95,12 +95,13 @@ If no credits: pod shows calm message; app deep-links to buy pack.
 
 ### Coach tab shell
 
-Coach renders inside **Home → Coach** sub-tab. Mirror Activity layout:
+Coach renders inside **Home → Coach** sub-tab:
 
-- Intro band: one-line intro + Preview badge (pre-live).
-- Segment control: **Insights** | **Training**.
-- Subscription band when inactive: `Start Coach` + price.
-- Insight detail in bottom sheet (not chat UI).
+- Segment control: **Chat** | **Insights** | **Training** (Chat is default in preview).
+- **Chat (preview):** conversational coach demo via `lib/coach-chat-api.ts` and `lib/mock/mock-coach-chat.ts`. Production replaces mock with `POST /api/coach/chat`.
+- **Insights / Training:** intro band, subscription band when inactive, clip balance row, bottom-sheet detail (unchanged).
+
+Preview phase intentionally uses a calm chat UI for Coach demo. Avoid purple gradients, sparkles, and generic AI-dashboard chrome.
 
 ### Activity tab changes
 
@@ -132,9 +133,9 @@ Say **Clip pack**, **Coach**, **Your entry code**. Never NVR, AI assistant, or r
 
 ### Anti-patterns
 
-- No chat-first coach UI, streaks, badges, KPI hero grids.
-- No sparkles / purple AI-dashboard chrome.
+- No streaks, badges, KPI hero grids, or purple AI-dashboard chrome.
 - No hiding Preview badges during mock phase.
+- Chat UI is allowed in preview only; production chat must stay PlayTT-voice (specific TT guidance, no hype).
 
 ---
 
@@ -152,6 +153,7 @@ Say **Clip pack**, **Coach**, **Your entry code**. Never NVR, AI assistant, or r
 | GET | `/api/coach/insights` | List insights |
 | GET | `/api/coach/insights/[id]` | Detail + training items |
 | GET | `/api/coach/training` | Active training rows |
+| POST | `/api/coach/chat` | Coach chat reply (future; mobile uses mock in preview) |
 
 Payment webhooks handle `product_type`: `booking` | `replay_pack` | `coach_subscription`.
 
@@ -173,7 +175,7 @@ Existing `replays` table unchanged; traceability via ledger metadata.
 
 ## Mock data contract
 
-1. Modules: `lib/mock/mock-coach.ts`, `lib/mock/mock-replay-credits.ts`, `lib/mock/mock-community.ts`.
+1. Modules: `lib/mock/mock-coach.ts`, `lib/mock/mock-replay-credits.ts`, `lib/mock/mock-community.ts`, `lib/mock/mock-coach-chat.ts`.
 2. Gated by `USE_MOCK_PLAYER_DATA` in `mock-config.ts`.
 3. Coach surfaces: **Preview** badge. Replay clips: **Sample** badge.
 4. Purchase CTAs disabled with Preview label until live Paystack ships.

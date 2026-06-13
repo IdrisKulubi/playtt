@@ -1,50 +1,44 @@
-import { router, useFocusEffect } from "expo-router"
-import { useCallback, useMemo, useRef, useState } from "react"
-import {
-  Alert,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native"
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Alert, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
-import { AccountProfileHeader } from "@/components/account/account-profile-header"
-import { AccountRow } from "@/components/account/account-row"
-import { AccountSection } from "@/components/account/account-section"
+import { AccountProfilePanel } from "@/components/account/account-profile-panel"
+import { AccountSettingsPanel } from "@/components/account/account-settings-panel"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
-import { Button } from "@/components/ui/button"
 import {
-  AccountHubSkeleton,
-  SkeletonGate,
-} from "@/components/ui/skeleton"
-import { FLOATING_TAB_BAR_CLEARANCE } from "@/constants/navigation-layout"
-import { PlayTTColors, PlayTTFontFamilies } from "@/constants/playtt-tokens"
-import {
-  canChangePassword,
-  formatPersonalDetailsPreview,
-  getOAuthProviderLabel,
-} from "@/lib/account-utils"
+  AccountSubnav,
+  type AccountTab,
+} from "@/components/navigation/account-subnav"
 import { clearSession } from "@/lib/auth-helpers"
-import { goToSignIn, goToWelcome } from "@/lib/auth-navigation"
+import { goToSignIn } from "@/lib/auth-navigation"
 import { fetchCurrentUser, type UserProfile } from "@/lib/user-api"
-import {
-  useProductTheme,
-  useSkeletonSurface,
-} from "@/hooks/use-product-theme"
+import { useProductTheme } from "@/hooks/use-product-theme"
+
+function parseAccountTab(value: string | string[] | undefined): AccountTab {
+  const raw = Array.isArray(value) ? value[0] : value
+  return raw === "settings" ? "settings" : "account"
+}
 
 export default function AccountScreen() {
   const theme = useProductTheme()
-  const skeletonSurface = useSkeletonSurface()
   const styles = useMemo(() => createAppScreenStyles(theme), [theme])
+  const { accountTab: accountTabParam } = useLocalSearchParams<{
+    accountTab?: string
+  }>()
+  const [accountTab, setAccountTab] = useState<AccountTab>(() =>
+    parseAccountTab(accountTabParam),
+  )
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const hasLoadedRef = useRef(false)
+
+  useEffect(() => {
+    setAccountTab(parseAccountTab(accountTabParam))
+  }, [accountTabParam])
 
   const loadProfile = useCallback(async (silent = false) => {
     if (silent) {
@@ -70,9 +64,11 @@ export default function AccountScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void loadProfile(hasLoadedRef.current)
-      hasLoadedRef.current = true
-    }, [loadProfile]),
+      if (accountTab === "account") {
+        void loadProfile(hasLoadedRef.current)
+        hasLoadedRef.current = true
+      }
+    }, [accountTab, loadProfile]),
   )
 
   function goToVerifyEmail() {
@@ -108,137 +104,26 @@ export default function AccountScreen() {
     setIsSigningOut(false)
   }
 
-  const oauthLabel = getOAuthProviderLabel(profile?.authMethods)
-  const showChangePassword = canChangePassword(profile?.authMethods)
-  const showSecuritySection = showChangePassword || Boolean(oauthLabel)
-
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        contentContainerStyle={[
-          styles.accountScroll,
-          { paddingBottom: FLOATING_TAB_BAR_CLEARANCE },
-        ]}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+      <AccountSubnav value={accountTab} onChange={setAccountTab} />
+
+      <View style={{ flex: 1 }}>
+        {accountTab === "account" ? (
+          <AccountProfilePanel
+            profile={profile}
+            isLoading={isLoading}
+            isRefreshing={isRefreshing}
+            isSigningOut={isSigningOut}
             onRefresh={() => void loadProfile(true)}
-            tintColor={PlayTTColors.primary}
+            onRetry={() => void loadProfile(false)}
+            onVerifyEmail={goToVerifyEmail}
+            onSignOutPress={handleSignOutPress}
           />
-        }
-      >
-        <SkeletonGate
-          loading={isLoading && !profile}
-          skeleton={<AccountHubSkeleton surface={skeletonSurface} />}
-        >
-          {profile ? (
-            <>
-              <AccountProfileHeader
-                profile={profile}
-                onVerifyPress={
-                  profile.emailVerified ? undefined : goToVerifyEmail
-                }
-              />
-
-              <AccountSection title="Profile">
-                <AccountRow
-                  title="Personal details"
-                  subtitle={formatPersonalDetailsPreview(profile)}
-                  onPress={() => router.push("/(app)/account/edit-profile")}
-                  accessibilityHint="Edit your name, phone, and skill level"
-                  isLast
-                />
-              </AccountSection>
-
-              {showSecuritySection ? (
-                <AccountSection
-                  title="Security"
-                  description={
-                    !showChangePassword && oauthLabel ? oauthLabel : undefined
-                  }
-                >
-                  {showChangePassword ? (
-                    <AccountRow
-                      title="Change password"
-                      subtitle="Update your sign-in password"
-                      onPress={() =>
-                        router.push("/(app)/account/change-password")
-                      }
-                      accessibilityHint="Opens the change password screen"
-                      isLast
-                    />
-                  ) : null}
-                </AccountSection>
-              ) : null}
-
-              <AccountSection title="Settings">
-                <AccountRow
-                  title="Coach"
-                  subtitle="Subscription and clip packs"
-                  onPress={() =>
-                    router.push({
-                      pathname: "/(app)/(tabs)",
-                      params: { homeTab: "coach" },
-                    })
-                  }
-                />
-                <AccountRow
-                  title="Replay intro"
-                  subtitle="View the welcome walkthrough"
-                  onPress={() => goToWelcome(true)}
-                />
-                <AccountRow
-                  title="Notifications"
-                  subtitle="Reminders and booking updates"
-                  onPress={() => router.push("/(app)/account/notifications")}
-                />
-                <AccountRow
-                  title="Help"
-                  subtitle="FAQs and support"
-                  onPress={() => router.push("/(app)/account/help")}
-                />
-                <AccountRow
-                  title="Legal"
-                  subtitle="Terms and privacy"
-                  onPress={() => router.push("/(app)/account/legal")}
-                  isLast
-                />
-              </AccountSection>
-
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Sign out"
-                accessibilityState={{ disabled: isSigningOut }}
-                disabled={isSigningOut}
-                onPress={handleSignOutPress}
-                style={styles.signOut}
-              >
-                <Text style={styles.signOutLabel}>
-                  {isSigningOut ? "Signing out…" : "Sign out"}
-                </Text>
-              </Pressable>
-            </>
-          ) : (
-            <View style={styles.empty}>
-              <Text style={[localStyles.emptyTitle, { color: theme.foreground }]}>
-                Could not load your account.
-              </Text>
-              <Button
-                label="Try again"
-                surface="product"
-                onPress={() => void loadProfile(false)}
-              />
-            </View>
-          )}
-        </SkeletonGate>
-      </ScrollView>
+        ) : (
+          <AccountSettingsPanel />
+        )}
+      </View>
     </SafeAreaView>
   )
 }
-
-const localStyles = StyleSheet.create({
-  emptyTitle: {
-    fontSize: 16,
-    fontFamily: PlayTTFontFamilies.medium,
-  },
-})

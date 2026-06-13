@@ -28,7 +28,7 @@ Hardware (TTLock, lights, real replays) ships after this shell is complete.
 | Know how to enter the pod | Access card on upcoming confirmed booking (preview PIN) |
 | Relive sessions | Replay library (sample clips until camera pipeline) |
 | Capture highlights | Buy clip packs; trigger replays at venue (credits gate) |
-| Improve with Coach | Coach sub-tab on Home: clip analysis + training guidance |
+| Improve with Coach | Home → Coach: interactive chat demo (preview), plus insights and training |
 | Find a partner | Community tab: nearby players + match requests (preview) |
 | Control preferences | Notification prefs stub, help, legal, sign out |
 
@@ -40,13 +40,15 @@ Hardware (TTLock, lights, real replays) ships after this shell is complete.
 
 | Tab | Route | Purpose |
 |-----|-------|---------|
-| **Home** | `(tabs)/index` | Play sub-tab: next session hero, book CTA, quick links. Coach sub-tab: subscription, insights, training |
+| **Home** | `(tabs)/index` | Play sub-tab: next session hero, book CTA, quick links. Coach sub-tab: **Chat** (preview), Insights, Training |
 | **Bookings** | `(tabs)/bookings` | Upcoming \| Past segments → detail sheet |
 | **Activity** | `(tabs)/activity` | Highlights + stats; clip balance |
 | **Community** | `(tabs)/community` | Find players, open requests, request a match (preview) |
-| **Account** | `(tabs)/account` | Profile, settings stack, support |
+| **Account** | `(tabs)/account` | **Account** sub-tab: profile, security, sign out. **Settings** sub-tab: coach, notifications, help, legal, replay intro |
 
 Home top sub-tabs (Uber-style): **Play** \| **Coach**. Coach is no longer a bottom tab; `(tabs)/coach` redirects to Home with `homeTab=coach`.
+
+Account top sub-tabs: **Account** \| **Settings**. Coach link lives under Settings (`accountTab=settings` for deep links).
 
 Floating liquid-glass bottom bar on all tab screens. Scroll content includes bottom clearance for the bar.
 
@@ -97,6 +99,7 @@ Stack screens (pushed from tabs):
 | Community players / requests | `lib/mock/mock-community.ts` | "Preview" |
 | Clip balance | `lib/mock/mock-replay-credits.ts` | "Preview" |
 | Coach insights / training | `lib/mock/mock-coach.ts` | "Preview" |
+| Coach chat | `lib/mock/mock-coach-chat.ts` | "Preview" |
 
 ### Stub (P2)
 

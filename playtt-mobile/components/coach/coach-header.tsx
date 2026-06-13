@@ -9,18 +9,16 @@ import {
   PlayTTFontFamilies,
 } from "@/constants/playtt-tokens"
 import { useProductTheme } from "@/hooks/use-product-theme"
-import type { CoachStatus } from "@/lib/coach-types"
-
-type CoachSegment = "insights" | "training"
+import type { CoachSegment, CoachStatus } from "@/lib/coach-types"
 
 type CoachHeaderProps = {
-  segment: CoachSegment
+  segment: Exclude<CoachSegment, "chat">
   status: CoachStatus
   clipBalance?: number | null
   onBuyClips?: () => void
 }
 
-const INTRO_COPY: Record<CoachSegment, string> = {
+const INTRO_COPY: Record<Exclude<CoachSegment, "chat">, string> = {
   insights: "What to work on from your clips",
   training: "Drills picked for your game",
 }

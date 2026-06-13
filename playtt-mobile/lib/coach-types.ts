@@ -1,3 +1,5 @@
+export type CoachSegment = "chat" | "insights" | "training"
+
 export type CoachStatus = {
   isActive: boolean
   planLabel: string
