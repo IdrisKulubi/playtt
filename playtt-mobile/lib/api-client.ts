@@ -63,7 +63,7 @@ export async function apiFetch<T>(
         }),
       })
 
-      if (shouldClearSession(error)) {
+      if (token && shouldClearSession(error)) {
         await sessionExpiredHandler?.()
       }
 

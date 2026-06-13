@@ -181,10 +181,7 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
         { provider: 'google', callbackURL: '/' },
         {
           onSuccess: async () => {
-            const stored = await waitForStoredAuth();
-            if (stored?.token) {
-              await routeAfterAuth();
-            }
+            await completeSignIn();
             setIsLoading(false);
           },
           onError: (ctx) => {
@@ -203,11 +200,11 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
     setIsLoading(true);
 
     try {
-      console.log('[PlayTT auth] Apple sign-in via /api/apple/sign-in');
       const credential = await signInWithApple();
       const result = await signInWithAppleApi(credential);
 
       await storeAppleSession(result.user, result.token);
+      await waitForStoredAuth();
       await routeAfterAuth();
       setIsLoading(false);
     } catch (error) {

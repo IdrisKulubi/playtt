@@ -77,7 +77,16 @@ export async function getAuthToken() {
   return stored?.token ?? null
 }
 
+async function clearBetterAuthStorage() {
+  await Promise.all([
+    SecureStore.deleteItemAsync(AUTH_KEYS.sessionData),
+    SecureStore.deleteItemAsync(AUTH_KEYS.cookie),
+  ])
+}
+
 export async function storeAppleSession(user: AppleAuthUser, token: string) {
+  await clearBetterAuthStorage()
+
   const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
 
   await SecureStore.setItemAsync(

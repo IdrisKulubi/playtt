@@ -1,6 +1,5 @@
 import {
   getPaymentCallbackUrl,
-  getPaymentReturnUrl,
   kesToPaystackAmount,
   PAYSTACK_CURRENCY,
 } from "@/server/payments/constants"
@@ -141,7 +140,7 @@ export async function applyBookingModification(input: {
     deltaAmount: quoted.quote.deltaAmount,
     requiresPayment: true,
     authorizationUrl: initialized.authorization_url,
-    returnUrl: getPaymentReturnUrl(),
+    returnUrl: getPaymentCallbackUrl(input.bookingId),
     displayText: "Complete payment for your booking changes.",
   }
 }

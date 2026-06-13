@@ -1,5 +1,4 @@
 import {
-  getPaymentReturnUrl,
   getProductPaymentCallbackUrl,
   kesToPaystackAmount,
   PAYSTACK_CURRENCY,
@@ -94,7 +93,7 @@ export async function initiateReplayPackPurchase(userId: string) {
     status: "pending",
     displayText: "You will be redirected to a secure checkout page.",
     authorizationUrl: initialized.authorization_url,
-    returnUrl: getPaymentReturnUrl(),
+    returnUrl: getProductPaymentCallbackUrl("replay_pack"),
   }
 }
 
