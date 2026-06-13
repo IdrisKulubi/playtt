@@ -5,7 +5,7 @@ import { AuthForm } from "@/components/auth/auth-form"
 import { AuthShell } from "@/components/auth/auth-shell"
 import { AuthFormSkeleton } from "@/components/ui/skeleton"
 import { useSession } from "@/lib/auth-client"
-import { AUTHENTICATED_HOME } from "@/lib/auth-navigation"
+import { waitForStoredAuth } from "@/lib/auth-helpers"
 import { toast } from "@/lib/toast"
 import { resolvePostAuthRoute } from "@/lib/user-api"
 
@@ -37,6 +37,14 @@ export default function IndexScreen() {
       setIsResolvingRoute(true)
 
       try {
+        const stored = await waitForStoredAuth()
+        if (!stored?.token) {
+          if (mounted) {
+            setPostAuthRoute(null)
+          }
+          return
+        }
+
         const route = await resolvePostAuthRoute()
         if (mounted) {
           setPostAuthRoute(route)
@@ -44,7 +52,7 @@ export default function IndexScreen() {
       } catch (error) {
         if (mounted) {
           toast.apiError(error, "Could not load your account. Try again.")
-          setPostAuthRoute(AUTHENTICATED_HOME)
+          setPostAuthRoute(null)
         }
       } finally {
         if (mounted) {

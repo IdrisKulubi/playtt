@@ -1,5 +1,5 @@
-import { Redirect, Stack } from "expo-router"
-import { useEffect, useMemo, useState } from "react"
+import { Redirect, Stack, useFocusEffect } from "expo-router"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
 
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
@@ -18,44 +18,44 @@ export default function AppLayout() {
     "loading",
   )
 
-  useEffect(() => {
-    let mounted = true
+  const resolveGate = useCallback(async () => {
+    const stored = await getStoredAuth()
 
-    async function resolveGate() {
-      const stored = await getStoredAuth()
+    if (!stored?.token) {
+      setGate("auth")
+      return
+    }
 
-      if (!stored?.token) {
-        if (mounted) {
-          setGate("auth")
-        }
+    try {
+      const response = await fetchCurrentUser()
+
+      if (!response.data?.user?.onboardingCompletedAt) {
+        setGate("onboarding")
         return
       }
 
-      try {
-        const response = await fetchCurrentUser()
-        if (!mounted) {
-          return
-        }
-
-        if (!response.data?.user?.onboardingCompletedAt) {
-          setGate("onboarding")
-          return
-        }
-
-        setGate("app")
-      } catch {
-        if (mounted) {
-          setGate("app")
-        }
-      }
-    }
-
-    void resolveGate()
-
-    return () => {
-      mounted = false
+      setGate("app")
+    } catch {
+      setGate("app")
     }
   }, [])
+
+  useEffect(() => {
+    void resolveGate()
+  }, [resolveGate])
+
+  useFocusEffect(
+    useCallback(() => {
+      async function checkStoredAuth() {
+        const stored = await getStoredAuth()
+        if (!stored?.token) {
+          setGate("auth")
+        }
+      }
+
+      void checkStoredAuth()
+    }, []),
+  )
 
   if (gate === "loading") {
     return (

@@ -1,7 +1,7 @@
 "use client"
 
 import { CheckCircleIcon } from "@phosphor-icons/react"
-import { useCallback } from "react"
+import { useCallback, useEffect } from "react"
 
 import { BrandMark } from "@/components/layout/brand-mark"
 import { Button } from "@/components/ui/button"
@@ -20,6 +20,14 @@ export function PaymentCompleteClient({
     window.location.href = getPaymentCompleteDeepLink(bookingId)
   }, [bookingId])
 
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      openApp()
+    }, 500)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [openApp])
+
   return (
     <main className="dark flex min-h-screen items-center justify-center bg-background px-6 py-12 text-center text-foreground">
       <div className="flex w-full max-w-md flex-col items-center gap-8">
@@ -36,8 +44,8 @@ export function PaymentCompleteClient({
             </h1>
             <p className="text-sm leading-6 text-muted-foreground">
               {confirmed
-                ? "Your booking is confirmed. Tap ✕ to return to PlayTT."
-                : "Tap ✕ to return to PlayTT and check your booking."}
+                ? "Returning to PlayTT…"
+                : "Returning to PlayTT to check your booking…"}
             </p>
           </div>
         </div>
@@ -52,7 +60,8 @@ export function PaymentCompleteClient({
             Open PlayTT
           </Button>
           <p className="text-xs text-muted-foreground">
-            If the button does not work, close this window with ✕ at the top.
+            If you are not redirected automatically, tap Open PlayTT or close
+            this window with ✕ at the top.
           </p>
         </div>
       </div>

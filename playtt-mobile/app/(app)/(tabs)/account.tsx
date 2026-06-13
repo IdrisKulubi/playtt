@@ -102,6 +102,7 @@ export default function AccountScreen() {
   async function handleSignOut() {
     setIsSigningOut(true)
     await clearSession()
+    router.dismissAll()
     router.replace("/?mode=sign-in")
     setIsSigningOut(false)
   }
