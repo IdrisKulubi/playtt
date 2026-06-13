@@ -1,13 +1,15 @@
 import type { AuthMode } from "@/constants/auth-theme"
-import { Redirect, useLocalSearchParams } from "expo-router"
-import { useEffect, useState } from "react"
+import { Redirect, router, useLocalSearchParams } from "expo-router"
+import { useEffect, useRef, useState } from "react"
 import { AuthForm } from "@/components/auth/auth-form"
 import { AuthShell } from "@/components/auth/auth-shell"
 import { AuthFormSkeleton } from "@/components/ui/skeleton"
 import { useSession } from "@/lib/auth-client"
-import { waitForStoredAuth } from "@/lib/auth-helpers"
+import { authDebug, authDebugError } from "@/lib/auth-debug"
+import { getStoredAuth, waitForStoredAuth } from "@/lib/auth-helpers"
 import { toast } from "@/lib/toast"
 import { resolvePostAuthRoute } from "@/lib/user-api"
+import { getHasSeenWelcome } from "@/lib/welcome-storage"
 
 function parseAuthMode(mode: string | string[] | undefined): AuthMode {
   const value = Array.isArray(mode) ? mode[0] : mode
@@ -19,45 +21,90 @@ export default function IndexScreen() {
   const { mode: modeParam } = useLocalSearchParams<{ mode?: string }>()
   const initialMode = parseAuthMode(modeParam)
   const [mode, setMode] = useState<AuthMode>(initialMode)
-  const [postAuthRoute, setPostAuthRoute] = useState<string | null>(null)
   const [isResolvingRoute, setIsResolvingRoute] = useState(false)
+  const [welcomeChecked, setWelcomeChecked] = useState(false)
+  const [hasSeenWelcome, setHasSeenWelcomeState] = useState(true)
+  const [isRedirecting, setIsRedirecting] = useState(false)
+  const didNavigateRef = useRef(false)
+  const isResolvingRef = useRef(false)
 
   useEffect(() => {
     let mounted = true
 
-    async function resolveRoute() {
-      if (!session) {
+    async function checkWelcome() {
+      const stored = await getStoredAuth()
+      if (stored?.token) {
         if (mounted) {
-          setPostAuthRoute(null)
-          setIsResolvingRoute(false)
+          setWelcomeChecked(true)
         }
         return
       }
 
-      setIsResolvingRoute(true)
+      const seen = await getHasSeenWelcome()
+      if (mounted) {
+        setHasSeenWelcomeState(seen)
+        setWelcomeChecked(true)
+      }
+    }
+
+    void checkWelcome()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (isPending || isResolvingRef.current || didNavigateRef.current) {
+      return
+    }
+
+    let mounted = true
+    isResolvingRef.current = true
+
+    async function resolveRoute() {
+      const stored = session ? await waitForStoredAuth() : await getStoredAuth()
+
+      authDebug("index:resolve-route", {
+        hasBetterAuthSession: Boolean(session),
+        storedAuthFound: Boolean(stored?.token),
+        storedAuthSource: stored?.source,
+      })
+
+      if (!stored?.token) {
+        if (mounted) {
+          setIsResolvingRoute(false)
+        }
+        isResolvingRef.current = false
+        return
+      }
+
+      if (mounted) {
+        setIsResolvingRoute(true)
+      }
 
       try {
-        const stored = await waitForStoredAuth()
-        if (!stored?.token) {
-          if (mounted) {
-            setPostAuthRoute(null)
-          }
+        const route = await resolvePostAuthRoute()
+        authDebug("index:resolve-route-success", { route })
+
+        if (!mounted || didNavigateRef.current) {
           return
         }
 
-        const route = await resolvePostAuthRoute()
-        if (mounted) {
-          setPostAuthRoute(route)
-        }
+        didNavigateRef.current = true
+        setIsRedirecting(true)
+        router.replace(route as never)
       } catch (error) {
+        authDebugError("index:resolve-route-failed", error)
         if (mounted) {
           toast.apiError(error, "Could not load your account. Try again.")
-          setPostAuthRoute(null)
         }
+        didNavigateRef.current = false
       } finally {
         if (mounted) {
           setIsResolvingRoute(false)
         }
+        isResolvingRef.current = false
       }
     }
 
@@ -66,9 +113,15 @@ export default function IndexScreen() {
     return () => {
       mounted = false
     }
-  }, [session])
+  }, [session, isPending])
 
-  if (isPending || (session && isResolvingRoute)) {
+  const isBootstrapping =
+    isPending ||
+    isResolvingRoute ||
+    isRedirecting ||
+    !welcomeChecked
+
+  if (isBootstrapping) {
     return (
       <AuthShell subtitle={mode === "sign-in" ? "Sign in to PlayTT" : "Create your PlayTT account"}>
         <AuthFormSkeleton surface="product" />
@@ -76,8 +129,8 @@ export default function IndexScreen() {
     )
   }
 
-  if (session && postAuthRoute) {
-    return <Redirect href={postAuthRoute as never} />
+  if (!hasSeenWelcome) {
+    return <Redirect href="/welcome" />
   }
 
   const subtitle =
@@ -89,4 +142,3 @@ export default function IndexScreen() {
     </AuthShell>
   )
 }
-

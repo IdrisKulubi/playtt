@@ -1,20 +1,17 @@
 import { router, useFocusEffect } from "expo-router"
 import { useCallback, useMemo, useState } from "react"
-import { Pressable, ScrollView, Text, View } from "react-native"
+import { ScrollView, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { BookingDetailSheet } from "@/components/booking/booking-detail-sheet"
+import { BookingSessionCard } from "@/components/booking/booking-session-card"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { Button } from "@/components/ui/button"
 import { SegmentControl } from "@/components/ui/segment-control"
 import { BookingListSkeleton, SkeletonGate } from "@/components/ui/skeleton"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { fetchMyBookings } from "@/lib/booking-api"
 import type { UserBookingSummary } from "@/lib/booking-types"
-import {
-  formatBookingStatus,
-  formatKes,
-  formatTimeRange,
-} from "@/lib/booking-utils"
 import {
   useProductTheme,
   useSkeletonSurface,
@@ -89,26 +86,16 @@ export default function BookingsScreen() {
               ) : null}
             </View>
           ) : (
-            <>
+            <View style={{ gap: PlayTTSpacing.md }}>
               {bookings.map((booking) => (
-                <Pressable
+                <BookingSessionCard
                   key={booking.id}
+                  booking={booking}
+                  showPrice
                   onPress={() => setSelectedBookingId(booking.id)}
-                  style={styles.card}
-                >
-                  <Text style={styles.cardTitle}>{booking.locationName}</Text>
-                  <Text style={styles.cardMuted}>
-                    {formatTimeRange(booking.startTime, booking.endTime)}
-                  </Text>
-                  <Text style={styles.cardSubtle}>
-                    {formatBookingStatus(booking.status, booking.paymentStatus)}
-                  </Text>
-                  <Text style={styles.cardPrice}>
-                    {formatKes(booking.totalAmount, booking.currency)}
-                  </Text>
-                </Pressable>
+                />
               ))}
-            </>
+            </View>
           )}
         </SkeletonGate>
       </ScrollView>

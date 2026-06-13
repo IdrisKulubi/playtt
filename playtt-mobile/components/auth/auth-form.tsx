@@ -15,6 +15,7 @@ import {
   signInWithApple,
 } from '@/lib/apple-sign-in';
 import { sendVerificationOtp, signInWithAppleApi } from '@/lib/auth-api';
+import { authDebug, authDebugError } from '@/lib/auth-debug';
 import { formatAuthError } from '@/lib/auth-errors';
 import { toast } from '@/lib/toast';
 import { authClient, refreshSession } from '@/lib/auth-client';
@@ -78,9 +79,15 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
   }
 
   async function completeSignIn() {
+    authDebug('complete-sign-in:start');
     await refreshSession();
-    await waitForStoredAuth();
+    const stored = await waitForStoredAuth();
+    authDebug('complete-sign-in:stored-auth', {
+      found: Boolean(stored?.token),
+      source: stored?.source,
+    });
     await routeAfterAuth();
+    authDebug('complete-sign-in:done');
   }
 
   async function handleEmailSignIn() {
@@ -198,21 +205,37 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
 
   async function handleAppleSignIn() {
     setIsLoading(true);
+    authDebug('apple-flow:start');
 
     try {
       const credential = await signInWithApple();
       const result = await signInWithAppleApi(credential);
 
+      authDebug('apple-flow:store-session-start', {
+        userId: result.user.id,
+        isNewUser: result.isNewUser,
+      });
       await storeAppleSession(result.user, result.token);
-      await waitForStoredAuth();
+
+      const stored = await waitForStoredAuth();
+      if (!stored?.token) {
+        throw new Error('Apple sign in saved no local session. Check SecureStore.');
+      }
+
+      authDebug('apple-flow:route-after-auth-start', {
+        source: stored.source,
+      });
       await routeAfterAuth();
+      authDebug('apple-flow:success');
       setIsLoading(false);
     } catch (error) {
       if (error instanceof AppleSignInCanceledError) {
+        authDebug('apple-flow:canceled');
         setIsLoading(false);
         return;
       }
 
+      authDebugError('apple-flow:failed', error);
       toast.apiError(error, 'Apple sign in failed.');
       setIsLoading(false);
     }

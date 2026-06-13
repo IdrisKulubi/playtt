@@ -27,6 +27,7 @@ import {
   getOAuthProviderLabel,
 } from "@/lib/account-utils"
 import { clearSession } from "@/lib/auth-helpers"
+import { goToSignIn, goToWelcome } from "@/lib/auth-navigation"
 import { fetchCurrentUser, type UserProfile } from "@/lib/user-api"
 import {
   useProductTheme,
@@ -102,8 +103,7 @@ export default function AccountScreen() {
   async function handleSignOut() {
     setIsSigningOut(true)
     await clearSession()
-    router.dismissAll()
-    router.replace("/?mode=sign-in")
+    goToSignIn()
     setIsSigningOut(false)
   }
 
@@ -172,6 +172,11 @@ export default function AccountScreen() {
                   title="Coach"
                   subtitle="Subscription and clip packs"
                   onPress={() => router.push("/(app)/(tabs)/coach")}
+                />
+                <AccountRow
+                  title="Replay intro"
+                  subtitle="View the welcome walkthrough"
+                  onPress={() => goToWelcome(true)}
                 />
                 <AccountRow
                   title="Notifications"

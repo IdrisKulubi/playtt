@@ -1,6 +1,6 @@
 import { router } from "expo-router"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Pressable, ScrollView, Text, View } from "react-native"
+import { ScrollView, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { BookingCheckoutBar } from "@/components/booking/booking-checkout-bar"
@@ -8,6 +8,7 @@ import { BookingConfirmSheet } from "@/components/booking/booking-confirm-sheet"
 import { BookingPaymentStep } from "@/components/booking/booking-payment-step"
 import { BookingProgress } from "@/components/booking/booking-progress"
 import { createBookingFlowStyles } from "@/components/booking/booking-theme"
+import { VenueCard } from "@/components/booking/venue-card"
 import { GroupSizeSheet } from "@/components/booking/group-size-sheet"
 import { TimingPanel } from "@/components/booking/timing-panel"
 import { Button } from "@/components/ui/button"
@@ -342,25 +343,20 @@ export function BookingFlow() {
           {step === "location" ? (
             <View style={styles.section}>
               <Text style={styles.heading}>Choose a venue</Text>
-              {locations.map((location) => {
-                const selected = location.id === selectedLocationId
-                return (
-                  <Pressable
-                    key={location.id}
-                    onPress={() => {
-                      setSelectedLocationId(location.id)
-                      setSelectedSlot(null)
-                      setQuote(null)
-                      setGroupConfirmed(false)
-                      setStep("timing")
-                    }}
-                    style={[styles.card, selected && styles.cardSelected]}
-                  >
-                    <Text style={styles.cardTitle}>{location.name}</Text>
-                    <Text style={styles.cardBody}>{location.address}</Text>
-                  </Pressable>
-                )
-              })}
+              {locations.map((location) => (
+                <VenueCard
+                  key={location.id}
+                  location={location}
+                  selected={location.id === selectedLocationId}
+                  onPress={() => {
+                    setSelectedLocationId(location.id)
+                    setSelectedSlot(null)
+                    setQuote(null)
+                    setGroupConfirmed(false)
+                    setStep("timing")
+                  }}
+                />
+              ))}
             </View>
           ) : null}
 

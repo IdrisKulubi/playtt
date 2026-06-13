@@ -1,4 +1,5 @@
 import { ApiError } from "@/lib/api-error"
+import { authDebug, authDebugError } from "@/lib/auth-debug"
 import { formatApiFailure, getFriendlyErrorMessage } from "@/lib/api-errors"
 import { getApiBaseUrl } from "@/lib/env"
 import { getAuthToken } from "@/lib/auth-helpers"
@@ -39,6 +40,12 @@ export async function apiFetch<T>(
       headers.set("authorization", `Bearer ${token}`)
     }
 
+    authDebug("api-fetch:start", {
+      path,
+      hasToken: Boolean(token),
+      tokenLength: token?.length,
+    })
+
     const response = await fetch(`${getApiBaseUrl()}${path}`, {
       ...init,
       headers,
@@ -64,6 +71,11 @@ export async function apiFetch<T>(
       })
 
       if (token && shouldClearSession(error)) {
+        authDebugError("api-fetch:session-expired", error, {
+          path,
+          status: error.status,
+          code: error.code,
+        })
         await sessionExpiredHandler?.()
       }
 

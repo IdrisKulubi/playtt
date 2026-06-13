@@ -2,6 +2,7 @@ import { useMemo } from "react"
 import { Pressable, ScrollView, Text, View } from "react-native"
 
 import { createTimingPanelStyles } from "@/components/booking/booking-theme"
+import { VenueCard } from "@/components/booking/venue-card"
 import { Button } from "@/components/ui/button"
 import { SlotListSkeleton } from "@/components/ui/skeleton"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
@@ -64,9 +65,7 @@ export function TimingPanel({
     <View style={[styles.root, compact && styles.rootCompact]}>
       <View style={styles.header}>
         {location ? (
-          <View style={styles.venueChip}>
-            <Text style={styles.venueChipLabel}>{location.name}</Text>
-          </View>
+          <VenueCard location={location} compact />
         ) : null}
 
         <Text style={styles.heading}>{heading}</Text>
