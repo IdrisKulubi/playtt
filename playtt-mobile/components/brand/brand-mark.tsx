@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { PlayTTSpacing } from '@/constants/playtt-tokens';
 
-const LOGO_ASPECT = 1129 / 674;
+const LOGO_ASPECT = 404 / 300;
 
 type BrandMarkProps = {
   size?: 'default' | 'compact';
@@ -21,7 +21,7 @@ export function BrandMark({
   return (
     <View style={styles.container} accessibilityRole="header">
       <Image
-        source={require('@/assets/images/playtt-logo.png')}
+        source={require('@/assets/images/logo.png')}
         style={{ width: logoWidth, height: logoHeight }}
         contentFit="contain"
         accessibilityLabel="PlayTT"
