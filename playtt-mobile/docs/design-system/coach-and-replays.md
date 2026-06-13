@@ -36,11 +36,13 @@ Configurable pricing (server constants, not hardcoded in UI):
 
 | Tab | Route | Purpose |
 |-----|-------|---------|
-| Home | `(tabs)/index` | Booking-first |
+| Home | `(tabs)/index` | Play + Coach sub-tabs (Coach moved off bottom bar) |
 | Bookings | `(tabs)/bookings` | Sessions |
 | Activity | `(tabs)/activity` | Watch replays + stats; clip balance |
-| **Coach** | `(tabs)/coach` | Subscription, insights, training |
+| **Community** | `(tabs)/community` | Find players, open requests (preview) |
 | Account | `(tabs)/account` | Settings; manage Coach billing link |
+
+Coach content lives on **Home → Coach** sub-tab. `(tabs)/coach` redirects to `homeTab=coach` for deep links.
 
 ### Stack screens
 
@@ -64,7 +66,7 @@ Configurable pricing (server constants, not hardcoded in UI):
 
 ### Subscribe to Coach
 
-1. Player taps **Start Coach** on Coach tab.
+1. Player taps **Start Coach** on Home → Coach sub-tab.
 2. Full screen or sheet: plan summary + monthly price.
 3. `POST /api/coach/subscribe` → Paystack subscription.
 4. Webhook sets `coach_subscriptions.status = active`.
@@ -93,7 +95,7 @@ If no credits: pod shows calm message; app deep-links to buy pack.
 
 ### Coach tab shell
 
-Mirror Activity layout:
+Coach renders inside **Home → Coach** sub-tab. Mirror Activity layout:
 
 - Intro band: one-line intro + Preview badge (pre-live).
 - Segment control: **Insights** | **Training**.
@@ -171,7 +173,7 @@ Existing `replays` table unchanged; traceability via ledger metadata.
 
 ## Mock data contract
 
-1. Modules: `lib/mock/mock-coach.ts`, `lib/mock/mock-replay-credits.ts`.
+1. Modules: `lib/mock/mock-coach.ts`, `lib/mock/mock-replay-credits.ts`, `lib/mock/mock-community.ts`.
 2. Gated by `USE_MOCK_PLAYER_DATA` in `mock-config.ts`.
 3. Coach surfaces: **Preview** badge. Replay clips: **Sample** badge.
 4. Purchase CTAs disabled with Preview label until live Paystack ships.

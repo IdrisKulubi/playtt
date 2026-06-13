@@ -4,7 +4,6 @@ import { useMemo } from "react"
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native"
 
 import { IconSymbol } from "@/components/ui/icon-symbol"
-import { PreviewBadge } from "@/components/ui/preview-badge"
 import {
   PlayTTFontFamilies,
   PlayTTSpacing,
@@ -12,8 +11,6 @@ import {
 import { useProductTheme } from "@/hooks/use-product-theme"
 import type { UserBookingSummary } from "@/lib/booking-types"
 import { formatLastSessionLabel, formatSecondSessionLabel } from "@/lib/booking-utils"
-import { MOCK_PLAYER_STATS } from "@/lib/mock/mock-player-stats"
-import { MOCK_REPLAYS } from "@/lib/mock/mock-replays"
 
 type HomeLinkRowProps = {
   title: string
@@ -104,6 +101,7 @@ type HomeLinksSectionProps = {
   secondUpcomingBooking?: UserBookingSummary | null
   lastPastBooking?: UserBookingSummary | null
   onOpenBooking?: (bookingId: string) => void
+  onOpenCoach?: () => void
 }
 
 export function HomeLinksSection({
@@ -112,10 +110,9 @@ export function HomeLinksSection({
   secondUpcomingBooking = null,
   lastPastBooking = null,
   onOpenBooking,
+  onOpenCoach,
 }: HomeLinksSectionProps) {
   const theme = useProductTheme()
-  const stats = MOCK_PLAYER_STATS
-  const latestReplay = MOCK_REPLAYS[0]
 
   const styles = useMemo(
     () =>
@@ -172,13 +169,14 @@ export function HomeLinksSection({
         />
       ) : null}
 
-      <HomeLinkRow
-        title="See your highlights"
-        subtitle={`${stats.hoursPlayed}h on the table · ${latestReplay?.title ?? "Replays"}`}
-        onPress={() => router.push("/(app)/(tabs)/activity")}
-        trailing={<PreviewBadge />}
-        isLast
-      />
+      {onOpenCoach ? (
+        <HomeLinkRow
+          title="Open Coach"
+          subtitle="Insights, training, and clip packs"
+          onPress={onOpenCoach}
+          isLast
+        />
+      ) : null}
     </View>
   )
 }

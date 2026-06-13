@@ -20,6 +20,7 @@ import {
   AccountHubSkeleton,
   SkeletonGate,
 } from "@/components/ui/skeleton"
+import { FLOATING_TAB_BAR_CLEARANCE } from "@/constants/navigation-layout"
 import { PlayTTColors, PlayTTFontFamilies } from "@/constants/playtt-tokens"
 import {
   canChangePassword,
@@ -114,7 +115,10 @@ export default function AccountScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
-        contentContainerStyle={styles.accountScroll}
+        contentContainerStyle={[
+          styles.accountScroll,
+          { paddingBottom: FLOATING_TAB_BAR_CLEARANCE },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -171,7 +175,12 @@ export default function AccountScreen() {
                 <AccountRow
                   title="Coach"
                   subtitle="Subscription and clip packs"
-                  onPress={() => router.push("/(app)/(tabs)/coach")}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(app)/(tabs)",
+                      params: { homeTab: "coach" },
+                    })
+                  }
                 />
                 <AccountRow
                   title="Replay intro"
