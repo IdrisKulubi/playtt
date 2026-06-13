@@ -23,6 +23,11 @@ const MAPPING = {
   'person.2.fill': 'people',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  'chevron.left': 'arrow-back',
+  'checkmark.circle.fill': 'check-circle',
+  'xmark.circle.fill': 'cancel',
+  'info.circle.fill': 'info',
+  xmark: 'close',
 } as IconMapping;
 
 /**

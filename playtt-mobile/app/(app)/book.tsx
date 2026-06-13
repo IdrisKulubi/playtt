@@ -1,12 +1,11 @@
 import { useMemo } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { router } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 
 import { BookingFlow } from "@/components/booking/booking-flow"
+import { ScreenBackButton } from "@/components/navigation/screen-back-button"
 import {
-  PlayTTColors,
   PlayTTFontFamilies,
   PlayTTSpacing,
 } from "@/constants/playtt-tokens"
@@ -29,11 +28,6 @@ export default function BookScreen() {
           paddingTop: PlayTTSpacing.sm,
           paddingBottom: PlayTTSpacing.xs,
         },
-        back: {
-          fontSize: 14,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: PlayTTColors.primary,
-        },
         title: {
           fontSize: 16,
           fontFamily: PlayTTFontFamilies.semiBold,
@@ -50,9 +44,7 @@ export default function BookScreen() {
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <StatusBar style={theme.statusBar} />
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.back}>Back</Text>
-        </Pressable>
+        <ScreenBackButton />
         <Text style={styles.title}>Book a session</Text>
         <View style={styles.spacer} />
       </View>

@@ -1,13 +1,13 @@
 import { router, useLocalSearchParams } from "expo-router"
 import { useEffect, useMemo, useState } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { BookingEditFlow } from "@/components/booking/booking-edit-flow"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
+import { ScreenBackButton } from "@/components/navigation/screen-back-button"
 import { BookingDetailSkeleton } from "@/components/ui/skeleton"
 import {
-  PlayTTColors,
   PlayTTFontFamilies,
   PlayTTSpacing,
 } from "@/constants/playtt-tokens"
@@ -29,11 +29,6 @@ export default function BookingEditScreen() {
           justifyContent: "space-between",
           paddingHorizontal: PlayTTSpacing.lg,
           paddingTop: PlayTTSpacing.sm,
-        },
-        back: {
-          fontSize: 14,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: PlayTTColors.primary,
         },
         headerTitle: {
           fontSize: 16,
@@ -97,9 +92,7 @@ export default function BookingEditScreen() {
   return (
     <SafeAreaView style={screenStyles.safeArea}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.back}>Back</Text>
-        </Pressable>
+        <ScreenBackButton />
         <Text style={styles.headerTitle}>Edit booking</Text>
         <View style={styles.spacer} />
       </View>

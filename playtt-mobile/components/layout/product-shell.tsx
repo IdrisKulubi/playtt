@@ -1,14 +1,14 @@
-import { router } from 'expo-router';
-import { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ReactNode } from "react"
+import { StyleSheet, Text, View } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 
+import { ScreenBackButton } from "@/components/navigation/screen-back-button"
 import {
   PlayTTColors,
   PlayTTFontFamilies,
   PlayTTSpacing,
   PlayTTTypography,
-} from '@/constants/playtt-tokens';
+} from "@/constants/playtt-tokens"
 
 type ProductShellProps = {
   title: string;
@@ -20,13 +20,9 @@ export function ProductShell({ title, description, children }: ProductShellProps
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          onPress={() => router.back()}
-          style={styles.backButton}>
-          <Text style={styles.backLabel}>Back</Text>
-        </Pressable>
+        <View style={styles.backRow}>
+          <ScreenBackButton />
+        </View>
         <Text style={styles.title}>{title}</Text>
         {description ? <Text style={styles.description}>{description}</Text> : null}
         {children}
@@ -45,15 +41,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: PlayTTSpacing.xl,
     paddingTop: PlayTTSpacing.md,
   },
-  backButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: PlayTTSpacing.xs,
+  backRow: {
     marginBottom: PlayTTSpacing.lg,
-  },
-  backLabel: {
-    ...PlayTTTypography.label,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.primary,
   },
   title: {
     ...PlayTTTypography.headline,

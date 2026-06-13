@@ -1,13 +1,13 @@
-import { router, useLocalSearchParams } from "expo-router"
+import { useLocalSearchParams } from "expo-router"
 import { useEffect, useMemo, useState } from "react"
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
+import { ScrollView, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { BookingDetailContent } from "@/components/booking/booking-detail-content"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
+import { ScreenBackButton } from "@/components/navigation/screen-back-button"
 import { BookingDetailSkeleton } from "@/components/ui/skeleton"
 import {
-  PlayTTColors,
   PlayTTFontFamilies,
   PlayTTSpacing,
 } from "@/constants/playtt-tokens"
@@ -32,11 +32,6 @@ export default function BookingDetailScreen() {
           justifyContent: "space-between",
           paddingHorizontal: PlayTTSpacing.lg,
           paddingTop: PlayTTSpacing.sm,
-        },
-        back: {
-          fontSize: 14,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: PlayTTColors.primary,
         },
         headerTitle: {
           fontSize: 16,
@@ -95,9 +90,7 @@ export default function BookingDetailScreen() {
   return (
     <SafeAreaView style={screenStyles.safeArea}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.back}>Back</Text>
-        </Pressable>
+        <ScreenBackButton />
         <Text style={styles.headerTitle}>Booking</Text>
         <View style={styles.spacer} />
       </View>
