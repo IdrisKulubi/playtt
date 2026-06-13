@@ -9,6 +9,7 @@ import { ReplayLibrary } from "@/components/activity/replay-library"
 import { ClipPackPurchaseSheet } from "@/components/coach/clip-pack-purchase-sheet"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { SegmentControl } from "@/components/ui/segment-control"
+import { FLOATING_TAB_BAR_CLEARANCE } from "@/constants/navigation-layout"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useProductTheme } from "@/hooks/use-product-theme"
 import { fetchReplayCredits } from "@/lib/replay-credits-api"
@@ -39,7 +40,7 @@ export default function ActivityScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { gap: PlayTTSpacing.lg, paddingBottom: PlayTTSpacing["2xl"] },
+          { gap: PlayTTSpacing.lg, paddingBottom: FLOATING_TAB_BAR_CLEARANCE },
         ]}
       >
         <ActivityHeader

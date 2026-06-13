@@ -28,20 +28,27 @@ Hardware (TTLock, lights, real replays) ships after this shell is complete.
 | Know how to enter the pod | Access card on upcoming confirmed booking (preview PIN) |
 | Relive sessions | Replay library (sample clips until camera pipeline) |
 | Capture highlights | Buy clip packs; trigger replays at venue (credits gate) |
-| Improve with Coach | Coach subscription: clip analysis + training guidance |
+| Improve with Coach | Coach sub-tab on Home: clip analysis + training guidance |
+| Find a partner | Community tab: nearby players + match requests (preview) |
 | Control preferences | Notification prefs stub, help, legal, sign out |
 
 ---
 
 ## Information architecture
 
+### Bottom tabs (5)
+
 | Tab | Route | Purpose |
 |-----|-------|---------|
-| **Home** | `(tabs)/index` | Next session hero, quick actions, stats teaser |
+| **Home** | `(tabs)/index` | Play sub-tab: next session hero, book CTA, quick links. Coach sub-tab: subscription, insights, training |
 | **Bookings** | `(tabs)/bookings` | Upcoming \| Past segments → detail sheet |
 | **Activity** | `(tabs)/activity` | Highlights + stats; clip balance |
-| **Coach** | `(tabs)/coach` | Subscription, insights, training |
+| **Community** | `(tabs)/community` | Find players, open requests, request a match (preview) |
 | **Account** | `(tabs)/account` | Profile, settings stack, support |
+
+Home top sub-tabs (Uber-style): **Play** \| **Coach**. Coach is no longer a bottom tab; `(tabs)/coach` redirects to Home with `homeTab=coach`.
+
+Floating liquid-glass bottom bar on all tab screens. Scroll content includes bottom clearance for the bar.
 
 Stack screens (pushed from tabs):
 
@@ -87,6 +94,7 @@ Stack screens (pushed from tabs):
 | Replay library | `lib/mock/mock-replays.ts` | "Sample" |
 | Entry code | `lib/mock/mock-access.ts` | "Preview entry code" |
 | Home stats teaser | mock-player-stats | "Preview" |
+| Community players / requests | `lib/mock/mock-community.ts` | "Preview" |
 | Clip balance | `lib/mock/mock-replay-credits.ts` | "Preview" |
 | Coach insights / training | `lib/mock/mock-coach.ts` | "Preview" |
 

@@ -1,26 +1,22 @@
-import { router, useFocusEffect } from "expo-router"
-import { useCallback, useMemo, useState } from "react"
-import { RefreshControl, ScrollView } from "react-native"
+import { useFocusEffect, useLocalSearchParams } from "expo-router"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
-import { HomeHero } from "@/components/home/home-hero"
-import { HomeLinksSection } from "@/components/home/home-links-section"
-import { NextSessionTicket } from "@/components/home/next-session-ticket"
-import { VenueCard } from "@/components/booking/venue-card"
+import { CoachHomePanel } from "@/components/coach/coach-home-panel"
+import { PlayHomePanel } from "@/components/home/play-home-panel"
 import { BookingDetailSheet } from "@/components/booking/booking-detail-sheet"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
-import { HomeTicketSkeleton } from "@/components/ui/skeleton"
-import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import {
+  HomeSubnav,
+  type HomeTab,
+} from "@/components/navigation/home-subnav"
 import {
   fetchMyBookings,
   fetchStartingPriceHint,
 } from "@/lib/booking-api"
 import type { UserBookingSummary } from "@/lib/booking-types"
-import {
-  useProductTheme,
-  useSkeletonSurface,
-} from "@/hooks/use-product-theme"
-import { PRIMARY_VENUE } from "@/lib/venue-assets"
+import { useProductTheme } from "@/hooks/use-product-theme"
 
 const UPCOMING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -55,10 +51,16 @@ function findLastPastBooking(bookings: UserBookingSummary[]) {
   )
 }
 
+function parseHomeTab(value: string | string[] | undefined): HomeTab {
+  const raw = Array.isArray(value) ? value[0] : value
+  return raw === "coach" ? "coach" : "play"
+}
+
 export default function AppHomeScreen() {
   const theme = useProductTheme()
-  const skeletonSurface = useSkeletonSurface()
   const styles = useMemo(() => createAppScreenStyles(theme), [theme])
+  const { homeTab: homeTabParam } = useLocalSearchParams<{ homeTab?: string }>()
+  const [homeTab, setHomeTab] = useState<HomeTab>(() => parseHomeTab(homeTabParam))
 
   const [upcomingBooking, setUpcomingBooking] =
     useState<UserBookingSummary | null>(null)
@@ -72,6 +74,10 @@ export default function AppHomeScreen() {
   const [isLoadingUpcoming, setIsLoadingUpcoming] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setHomeTab(parseHomeTab(homeTabParam))
+  }, [homeTabParam])
 
   const loadHome = useCallback(async (silent = false) => {
     if (silent) {
@@ -115,57 +121,33 @@ export default function AppHomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void loadHome()
-    }, [loadHome]),
+      if (homeTab === "play") {
+        void loadHome()
+      }
+    }, [homeTab, loadHome]),
   )
 
-  const showBookCta = !isLoadingUpcoming && upcomingBooking === null
-
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { gap: PlayTTSpacing.md, paddingBottom: PlayTTSpacing["2xl"] },
-        ]}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={() => void loadHome(true)}
-            tintColor={theme.foreground}
-          />
-        }
-      >
-        <HomeHero
-          showBookCta={showBookCta}
-          startingPriceLabel={startingPriceLabel}
-          onBook={() => router.push("/(app)/book")}
-        >
-          {isLoadingUpcoming ? (
-            <HomeTicketSkeleton surface={skeletonSurface} embedded />
-          ) : upcomingBooking ? (
-            <NextSessionTicket
-              booking={upcomingBooking}
-              embedded
-              onPress={() => setSelectedBookingId(upcomingBooking.id)}
-            />
-          ) : showBookCta ? (
-            <VenueCard
-              location={PRIMARY_VENUE}
-              compact
-              onPress={() => router.push("/(app)/book")}
-            />
-          ) : null}
-        </HomeHero>
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+      <HomeSubnav value={homeTab} onChange={setHomeTab} />
 
-        <HomeLinksSection
-          showBookAnother={Boolean(upcomingBooking)}
-          upcomingBooking={upcomingBooking}
-          secondUpcomingBooking={secondUpcomingBooking}
-          lastPastBooking={lastPastBooking}
-          onOpenBooking={setSelectedBookingId}
-        />
-      </ScrollView>
+      <View style={{ flex: 1 }}>
+        {homeTab === "play" ? (
+          <PlayHomePanel
+            upcomingBooking={upcomingBooking}
+            secondUpcomingBooking={secondUpcomingBooking}
+            lastPastBooking={lastPastBooking}
+            startingPriceLabel={startingPriceLabel}
+            isLoadingUpcoming={isLoadingUpcoming}
+            isRefreshing={isRefreshing}
+            onRefresh={() => void loadHome(true)}
+            onOpenBooking={setSelectedBookingId}
+            onOpenCoach={() => setHomeTab("coach")}
+          />
+        ) : (
+          <CoachHomePanel isActive={homeTab === "coach"} />
+        )}
+      </View>
 
       <BookingDetailSheet
         visible={selectedBookingId !== null}

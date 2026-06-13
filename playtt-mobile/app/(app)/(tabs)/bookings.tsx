@@ -9,6 +9,7 @@ import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { Button } from "@/components/ui/button"
 import { SegmentControl } from "@/components/ui/segment-control"
 import { BookingListSkeleton, SkeletonGate } from "@/components/ui/skeleton"
+import { FLOATING_TAB_BAR_CLEARANCE } from "@/constants/navigation-layout"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { fetchMyBookings } from "@/lib/booking-api"
 import type { UserBookingSummary } from "@/lib/booking-types"
@@ -57,7 +58,12 @@ export default function BookingsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingBottom: FLOATING_TAB_BAR_CLEARANCE },
+        ]}
+      >
         <Text style={styles.title}>My bookings</Text>
 
         <SegmentControl
