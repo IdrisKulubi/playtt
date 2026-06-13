@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { RefreshControl, ScrollView, Text, View } from "react-native"
 
+import { CoachChatPanel } from "@/components/coach/coach-chat-panel"
 import { CoachHeader } from "@/components/coach/coach-header"
 import { CoachInsightsPanel } from "@/components/coach/coach-insights-panel"
 import { ClipPackPurchaseSheet } from "@/components/coach/clip-pack-purchase-sheet"
@@ -8,8 +9,8 @@ import { CoachSubscribeSheet } from "@/components/coach/coach-subscribe-sheet"
 import { CoachSubscriptionBand } from "@/components/coach/coach-subscription-band"
 import { CoachTrainingPanel } from "@/components/coach/coach-training-panel"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
+import { GlassSegmentControl } from "@/components/ui/glass-segment-control"
 import { Button } from "@/components/ui/button"
-import { SegmentControl } from "@/components/ui/segment-control"
 import { SkeletonGate } from "@/components/ui/skeleton"
 import { FLOATING_TAB_BAR_CLEARANCE } from "@/constants/navigation-layout"
 import {
@@ -21,11 +22,11 @@ import {
   fetchCoachStatus,
   fetchCoachTraining,
 } from "@/lib/coach-api"
-import type { CoachInsight, CoachStatus, CoachTrainingItem } from "@/lib/coach-types"
+import type { CoachInsight, CoachSegment, CoachStatus, CoachTrainingItem } from "@/lib/coach-types"
 import { fetchReplayCredits } from "@/lib/replay-credits-api"
 import { useProductTheme } from "@/hooks/use-product-theme"
 
-type CoachSegment = "insights" | "training"
+export type { CoachSegment } from "@/lib/coach-types"
 
 function CoachScreenSkeleton() {
   const theme = useProductTheme()
@@ -52,7 +53,7 @@ type CoachHomePanelProps = {
 export function CoachHomePanel({ isActive }: CoachHomePanelProps) {
   const theme = useProductTheme()
   const styles = useMemo(() => createAppScreenStyles(theme), [theme])
-  const [segment, setSegment] = useState<CoachSegment>("insights")
+  const [segment, setSegment] = useState<CoachSegment>("chat")
   const [status, setStatus] = useState<CoachStatus | null>(null)
   const [insights, setInsights] = useState<CoachInsight[]>([])
   const [training, setTraining] = useState<CoachTrainingItem[]>([])
@@ -110,82 +111,101 @@ export function CoachHomePanel({ isActive }: CoachHomePanelProps) {
     cancelAtPeriodEnd: false,
   }
 
+  const segmentControl = (
+    <View
+      style={{
+        paddingHorizontal: PlayTTSpacing.xl,
+        paddingTop: PlayTTSpacing.xs,
+        paddingBottom: PlayTTSpacing.xs,
+      }}
+    >
+      <GlassSegmentControl
+        value={segment}
+        options={[
+          { value: "chat", label: "Chat" },
+          { value: "insights", label: "Insights" },
+          { value: "training", label: "Training" },
+        ]}
+        onChange={setSegment}
+      />
+    </View>
+  )
+
   return (
     <>
-      <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          {
-            gap: PlayTTSpacing.lg,
-            paddingTop: PlayTTSpacing.md,
-            paddingBottom: FLOATING_TAB_BAR_CLEARANCE,
-          },
-        ]}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={() => void loadCoach(true)}
-            tintColor={theme.foreground}
-          />
-        }
-      >
-        <SkeletonGate loading={isLoading} skeleton={<CoachScreenSkeleton />}>
-          {loadError ? (
-            <View style={{ gap: PlayTTSpacing.md }}>
-              <Text
-                style={{
-                  fontSize: 15,
-                  fontFamily: PlayTTFontFamilies.regular,
-                  color: theme.muted,
-                  lineHeight: 22,
-                }}
-              >
-                Could not load Coach. Pull to refresh or try again.
-              </Text>
-              <Button
-                label="Try again"
-                variant="outline"
-                surface="product"
-                productTheme={theme}
-                onPress={() => void loadCoach()}
-              />
-            </View>
-          ) : (
-            <>
-              <CoachHeader
-                segment={segment}
-                status={coachStatus}
-                clipBalance={clipBalance}
-                onBuyClips={() => setClipSheetOpen(true)}
-              />
+      <View style={{ flex: 1 }}>
+        {segmentControl}
 
-              <CoachSubscriptionBand
-                status={coachStatus}
-                onSubscribe={() => setSubscribeSheetOpen(true)}
+        {segment === "chat" ? (
+          <CoachChatPanel />
+        ) : (
+          <ScrollView
+            contentContainerStyle={[
+              styles.scroll,
+              {
+                gap: PlayTTSpacing.lg,
+                paddingTop: PlayTTSpacing.md,
+                paddingBottom: FLOATING_TAB_BAR_CLEARANCE,
+              },
+            ]}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={() => void loadCoach(true)}
+                tintColor={theme.foreground}
               />
-
-              <SegmentControl
-                value={segment}
-                options={[
-                  { value: "insights", label: "Insights" },
-                  { value: "training", label: "Training" },
-                ]}
-                onChange={setSegment}
-              />
-
-              {segment === "insights" ? (
-                <CoachInsightsPanel insights={insights} status={coachStatus} />
+            }
+          >
+            <SkeletonGate loading={isLoading} skeleton={<CoachScreenSkeleton />}>
+              {loadError ? (
+                <View style={{ gap: PlayTTSpacing.md }}>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontFamily: PlayTTFontFamilies.regular,
+                      color: theme.muted,
+                      lineHeight: 22,
+                    }}
+                  >
+                    Could not load Coach. Pull to refresh or try again.
+                  </Text>
+                  <Button
+                    label="Try again"
+                    variant="outline"
+                    surface="product"
+                    productTheme={theme}
+                    onPress={() => void loadCoach()}
+                  />
+                </View>
               ) : (
-                <CoachTrainingPanel
-                  items={training}
-                  status={coachStatus}
-                  onViewInsights={() => setSegment("insights")}
-                />
+                <>
+                  <CoachHeader
+                    segment={segment}
+                    status={coachStatus}
+                    clipBalance={clipBalance}
+                    onBuyClips={() => setClipSheetOpen(true)}
+                  />
+
+                  <CoachSubscriptionBand
+                    status={coachStatus}
+                    onSubscribe={() => setSubscribeSheetOpen(true)}
+                  />
+
+                  {segment === "insights" ? (
+                    <CoachInsightsPanel insights={insights} status={coachStatus} />
+                  ) : (
+                    <CoachTrainingPanel
+                      items={training}
+                      status={coachStatus}
+                      onViewInsights={() => setSegment("insights")}
+                    />
+                  )}
+                </>
               )}
-            </>
-          )}
-        </SkeletonGate>
-      </ScrollView>
+            </SkeletonGate>
+          </ScrollView>
+        )}
+      </View>
 
       <ClipPackPurchaseSheet
         visible={clipSheetOpen}
