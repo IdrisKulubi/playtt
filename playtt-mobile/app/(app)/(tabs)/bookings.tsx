@@ -7,7 +7,7 @@ import { BookingDetailSheet } from "@/components/booking/booking-detail-sheet"
 import { BookingSessionCard } from "@/components/booking/booking-session-card"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { Button } from "@/components/ui/button"
-import { SegmentControl } from "@/components/ui/segment-control"
+import { GlassSegmentControl } from "@/components/ui/glass-segment-control"
 import { BookingListSkeleton, SkeletonGate } from "@/components/ui/skeleton"
 import { FLOATING_TAB_BAR_CLEARANCE } from "@/constants/navigation-layout"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
@@ -66,7 +66,7 @@ export default function BookingsScreen() {
       >
         <Text style={styles.title}>My bookings</Text>
 
-        <SegmentControl
+        <GlassSegmentControl
           value={filter}
           options={[
             { value: "upcoming", label: "Upcoming" },
