@@ -3,7 +3,8 @@ import { router } from "expo-router"
 import { apiFetch } from "@/lib/api-client"
 import { authDebug, authDebugError } from "@/lib/auth-debug"
 import { AUTHENTICATED_HOME } from "@/lib/auth-navigation"
-import { setCachedSessionRoute } from "@/lib/session-cache"
+import { getCachedSessionRoute, setCachedSessionRoute } from "@/lib/session-cache"
+import { isTransientApiError } from "@/lib/api-errors"
 
 export type UserAuthMethods = {
   providers: ("credential" | "google" | "apple")[]
@@ -50,10 +51,28 @@ export async function fetchCurrentUser() {
 
 export async function resolvePostAuthRoute() {
   authDebug("resolve-post-auth-route:start")
-  const response = await fetchCurrentUser()
-  const route = response.data?.route ?? AUTHENTICATED_HOME
-  authDebug("resolve-post-auth-route:done", { route })
-  return route
+
+  try {
+    const response = await fetchCurrentUser()
+    const route = response.data?.route ?? AUTHENTICATED_HOME
+
+    await setCachedSessionRoute({
+      userId: response.data?.user?.id,
+      route,
+    })
+
+    authDebug("resolve-post-auth-route:done", { route })
+    return route
+  } catch (error) {
+    if (isTransientApiError(error)) {
+      const cached = await getCachedSessionRoute()
+      const route = cached?.route ?? AUTHENTICATED_HOME
+      authDebug("resolve-post-auth-route:offline-fallback", { route })
+      return route
+    }
+
+    throw error
+  }
 }
 
 export async function routeAfterAuth() {

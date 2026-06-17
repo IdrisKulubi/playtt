@@ -39,15 +39,8 @@ export default function AppLayout() {
 
   useFocusEffect(
     useCallback(() => {
-      async function checkStoredAuth() {
-        const stored = await getStoredAuth()
-        if (!stored?.token) {
-          setGate("auth")
-        }
-      }
-
-      void checkStoredAuth()
-    }, []),
+      void resolveGate()
+    }, [resolveGate]),
   )
 
   const holdSplash = gate === "loading" || gate === "auth" || gate === "onboarding"

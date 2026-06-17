@@ -66,6 +66,32 @@ export function formatApiFailure(input: {
   return input.message
 }
 
+export function isTransientApiError(error: unknown) {
+  if (error instanceof ApiError) {
+    if (error.code === "NETWORK_ERROR" || error.code === "TIMEOUT") {
+      return true
+    }
+
+    return (
+      error.status === 0 ||
+      error.status === 408 ||
+      error.status === 502 ||
+      error.status === 503 ||
+      error.status === 504
+    )
+  }
+
+  if (error instanceof Error) {
+    if (error.name === "AbortError") {
+      return true
+    }
+
+    return isNetworkMessage(error.message)
+  }
+
+  return false
+}
+
 export function getFriendlyErrorMessage(
   error: unknown,
   fallback = "Something went wrong. Please try again.",
