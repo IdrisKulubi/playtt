@@ -1,6 +1,6 @@
 import { ApiError } from "@/lib/api-error"
 import { authDebug, authDebugError } from "@/lib/auth-debug"
-import { formatApiFailure, getFriendlyErrorMessage } from "@/lib/api-errors"
+import { formatApiFailure, getFriendlyErrorMessage, isTransientApiError } from "@/lib/api-errors"
 import { getApiBaseUrl } from "@/lib/env"
 import { getAuthToken } from "@/lib/auth-helpers"
 
@@ -120,6 +120,10 @@ export async function apiFetch<T>(
 }
 
 function shouldClearSession(error: ApiError) {
+  if (isTransientApiError(error)) {
+    return false
+  }
+
   if (error.code && AUTH_FAILURE_CODES.has(error.code)) {
     return true
   }

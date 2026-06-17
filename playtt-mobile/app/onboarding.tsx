@@ -88,6 +88,10 @@ export default function OnboardingScreen() {
     return <Redirect href="/?mode=sign-in" />
   }
 
+  if (!profile && hasStoredAuth) {
+    return <Redirect href={AUTHENTICATED_HOME} />
+  }
+
   if (profile?.onboardingCompletedAt) {
     return <Redirect href={AUTHENTICATED_HOME} />
   }

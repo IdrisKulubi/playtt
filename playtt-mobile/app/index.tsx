@@ -6,7 +6,7 @@ import { AuthShell } from "@/components/auth/auth-shell"
 import { useSplashHold } from "@/hooks/use-splash-hold"
 import { useSession } from "@/lib/auth-client"
 import { authDebug, authDebugError } from "@/lib/auth-debug"
-import { getStoredAuth, waitForStoredAuth } from "@/lib/auth-helpers"
+import { getStoredAuth, getLastKnownAuthenticatedRoute, waitForStoredAuth } from "@/lib/auth-helpers"
 import { toast } from "@/lib/toast"
 import { resolvePostAuthRoute } from "@/lib/user-api"
 import { getHasSeenWelcome } from "@/lib/welcome-storage"
@@ -96,6 +96,15 @@ export default function IndexScreen() {
         router.replace(route as never)
       } catch (error) {
         authDebugError("index:resolve-route-failed", error)
+
+        if (mounted && stored?.token) {
+          const route = await getLastKnownAuthenticatedRoute()
+          didNavigateRef.current = true
+          setIsRedirecting(true)
+          router.replace(route as never)
+          return
+        }
+
         if (mounted) {
           toast.apiError(error, "Could not load your account. Try again.")
         }
