@@ -1,15 +1,11 @@
 import { useMemo } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { Text, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { createCheckoutBarStyles } from "@/components/booking/booking-theme"
 import { Button } from "@/components/ui/button"
-import { LiquidGlassShell } from "@/components/ui/liquid-glass-shell"
-import { resolveColorScheme } from "@/constants/theme"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useColorScheme } from "@/hooks/use-color-scheme"
 import { useProductTheme } from "@/hooks/use-product-theme"
-import { canUseLiquidGlass } from "@/lib/liquid-glass"
 import type { BookingQuote, SlotAvailability } from "@/lib/booking-types"
 import { formatSlotSummary } from "@/lib/booking-utils"
 
@@ -32,8 +28,6 @@ export function BookingCheckoutBar({
 }: BookingCheckoutBarProps) {
   const insets = useSafeAreaInsets()
   const theme = useProductTheme()
-  const colorScheme = resolveColorScheme(useColorScheme())
-  const useNativeGlass = canUseLiquidGlass()
   const styles = useMemo(() => createCheckoutBarStyles(theme), [theme])
 
   if (!visible) return null
@@ -42,24 +36,7 @@ export function BookingCheckoutBar({
   const currency = quote?.currency ?? selectedSlot.price.currency
 
   return (
-    <View
-      style={[
-        styles.bar,
-        !useNativeGlass && styles.barFallback,
-        { paddingBottom: Math.max(insets.bottom, PlayTTSpacing.sm) },
-      ]}
-    >
-      <LiquidGlassShell
-        colorScheme={colorScheme}
-        style={StyleSheet.absoluteFill}
-        shape="rectangle"
-        borderRadius={0}
-        variant="regular"
-        blurIntensity={72}
-        showBorder={!useNativeGlass}
-        borderColor={theme.border}
-      />
-
+    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, PlayTTSpacing.sm) }]}>
       <View style={styles.content}>
         <View style={styles.summary}>
           <Text style={styles.summaryText} numberOfLines={2}>

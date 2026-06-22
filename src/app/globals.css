@@ -449,6 +449,40 @@
   .ghost-on-azure {
     @apply inline-flex items-center justify-center rounded-[var(--radius-pill)] border-2 border-primary-foreground bg-transparent px-6 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-primary-foreground transition hover:bg-primary-foreground/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-primary;
   }
+
+  .marketing-hero-band {
+    @apply relative -mx-6 overflow-hidden border-b border-border bg-[var(--background-elevated)] px-6 pb-10 pt-2 lg:-mx-10 lg:px-10 lg:pb-16 lg:pt-6;
+    border-bottom-left-radius: 28px;
+    border-bottom-right-radius: 28px;
+  }
+
+  .marketing-trust-strip {
+    @apply flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground;
+  }
+
+  .marketing-trust-strip__item {
+    @apply flex items-center gap-2;
+  }
+
+  .marketing-trust-strip__separator {
+    @apply text-border;
+  }
+
+  .venue-ticket-card {
+    @apply flex items-center gap-4 rounded-[var(--radius-card)] border border-border bg-card p-4 transition hover:border-primary/30 hover:bg-[var(--background-elevated)];
+  }
+
+  .venue-ticket-card__thumb {
+    @apply relative size-[4.5rem] shrink-0 overflow-hidden rounded-[var(--radius-field)] border border-border bg-[var(--background-elevated)];
+  }
+
+  .venue-card {
+    @apply flex min-w-[13rem] shrink-0 snap-start flex-col gap-4 rounded-[var(--radius-card)] border border-border bg-card p-5 transition hover:border-primary/30 hover:bg-[var(--background-elevated)] sm:min-w-[14rem];
+  }
+
+  .venue-card__thumb {
+    @apply relative aspect-[4/3] w-full overflow-hidden rounded-[var(--radius-field)] border border-border bg-[var(--background-elevated)];
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

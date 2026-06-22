@@ -7,6 +7,7 @@ const footerLinks = {
     { label: "Book", href: "/book" },
     { label: "Locations", href: "#locations" },
     { label: "How it works", href: "#how-it-works" },
+    { label: "Create account", href: "/sign-up" },
   ],
   Company: [
     { label: "About", href: "#" },
@@ -29,7 +30,7 @@ export function SiteFooter() {
       <div className="section-shell py-12 lg:py-16">
         <div className="grid gap-10 lg:grid-cols-[1.4fr_repeat(4,minmax(0,1fr))] lg:gap-8">
           <div className="space-y-4 lg:col-span-1">
-            <BrandMark caption="Private pods. On your schedule." />
+            <BrandMark caption="Autonomous Table Tennis. Anytime." />
             <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
               Premium, self-serve table tennis — reserve a pod, play on your
               terms.

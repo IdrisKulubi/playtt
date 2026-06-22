@@ -342,15 +342,11 @@ export function createCheckoutBarStyles(theme: ProductThemeColors) {
       left: 0,
       right: 0,
       bottom: 0,
-      paddingHorizontal: PlayTTSpacing.lg,
-      paddingTop: PlayTTSpacing.sm,
-      backgroundColor: "transparent",
-      overflow: "hidden",
-    },
-    barFallback: {
       borderTopWidth: 1,
       borderTopColor: theme.border,
       backgroundColor: theme.card,
+      paddingHorizontal: PlayTTSpacing.lg,
+      paddingTop: PlayTTSpacing.sm,
     },
     content: {
       flexDirection: "row",
