@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ArrowRightIcon } from "@phosphor-icons/react/dist/ssr";
 
-import { HeroRallyScene } from "@/components/home/hero-rally-scene";
 import { HeroSectionMotion } from "@/components/home/hero-section-motion";
 import { Button } from "@/components/ui/button";
 import type { LocationSummary } from "@/server/bookings/types";
@@ -17,52 +16,45 @@ interface HeroSectionProps {
 }
 
 export function HeroSection({ featuredLocation }: HeroSectionProps) {
+  const venueName = featuredLocation?.name ?? "PlayTT Hurlingham";
+
   return (
     <HeroSectionMotion>
-      <div className="section-shell hero-rally-shell relative flex min-h-[calc(100svh-5rem)] flex-col justify-center py-8 lg:py-10">
-        <div className="hero-rally-layout">
-          <header className="hero-rally-copy max-w-2xl space-y-6 lg:space-y-7">
-            <p className="section-label" data-hero-eyebrow>
-              Nairobi · Private pods
-            </p>
-            <div className="space-y-4">
-              <h1
-                id="hero-heading"
-                className="text-4xl font-semibold tracking-[-0.04em] text-foreground sm:text-5xl lg:text-[3.75rem] lg:leading-[1.04]"
-              >
-                <span className="hero-line">
-                  <span className="hero-line__inner">Make time for</span>
-                </span>
-                <span className="hero-line">
-                  <span className="hero-line__inner">
-                    <span className="hero-word hero-word--coral">your rally.</span>
-                  </span>
-                </span>
-              </h1>
-              <p
-                data-hero-subcopy
-                className="max-w-[38ch] text-base leading-relaxed text-muted-foreground sm:text-lg"
-              >
-                Come as you are. Pick a private pod, bring your people, and let
-                the next hour belong to you.
+      <div className="hero-words-shell">
+        <div className="hero-words-layout">
+          <header className="hero-words-copy">
+            <div className="hero-words-meta">
+              <p className="section-label" data-hero-eyebrow>
+                Nairobi · Private pods
               </p>
-              <p
-                data-hero-tagline
-                className="text-sm font-medium text-foreground/80"
-              >
-                Open late. Easy to book. Better with friends.
+              <p className="hero-words-availability" data-hero-availability>
+                <span>Tonight at</span>
+                <strong>{venueName}</strong>
               </p>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="hero-words-main">
+              <h1 id="hero-heading" className="hero-words-heading">
+                <span className="hero-line">
+                  <span className="hero-line__inner">Make time</span>
+                </span>
+                <span className="hero-line">
+                  <span className="hero-line__inner">
+                    for your <span className="hero-word hero-word--cream">rally.</span>
+                  </span>
+                </span>
+              </h1>
+              <p data-hero-subcopy className="hero-words-subcopy">
+                Your own table, your own people, your own time. Book a private
+                pod and play when the mood strikes.
+              </p>
+            </div>
+
+            <div className="hero-words-actions">
               <div data-hero-cta-primary>
-                <Button
-                  asChild
-                  size="lg"
-                  className="min-w-44 rounded-full bg-[#fff5da] text-[#17140f] hover:bg-[#cbff61]"
-                >
+                <Button asChild size="lg" className="hero-words-primary min-w-48">
                   <Link href="/book" data-hero-action>
-                    Book now
+                    Book your rally
                     <ArrowRightIcon className="size-4" />
                   </Link>
                 </Button>
@@ -72,7 +64,7 @@ export function HeroSection({ featuredLocation }: HeroSectionProps) {
                   asChild
                   size="lg"
                   variant="outline"
-                  className="min-w-44 rounded-full border-[#fff5da]/35 text-[#fff5da] hover:border-[#cbff61] hover:bg-[#cbff61] hover:text-[#17140f]"
+                  className="hero-words-secondary min-w-44"
                 >
                   <Link href="/sign-up" data-hero-action>
                     Create account
@@ -81,28 +73,31 @@ export function HeroSection({ featuredLocation }: HeroSectionProps) {
               </div>
             </div>
 
-            <ul className="marketing-trust-strip" data-hero-trust>
+            <ul className="hero-words-trust" data-hero-trust>
               {trustSignals.map((signal, index) => (
-                <li key={signal} className="marketing-trust-strip__item">
-                  {index > 0 ? (
-                    <span
-                      aria-hidden
-                      className="marketing-trust-strip__separator"
-                    >
-                      ·
-                    </span>
-                  ) : null}
-                  <span>{signal}</span>
+                <li key={signal}>
+                  {index > 0 ? <span aria-hidden>·</span> : null}
+                  {signal}
                 </li>
               ))}
             </ul>
           </header>
+        </div>
 
-          <div className="hero-rally-visual" data-hero-rally-visual>
-            <HeroRallyScene
-              locationName={featuredLocation?.name ?? null}
-              locationSlug={featuredLocation?.slug ?? null}
-            />
+        <div className="hero-words-ticker" aria-hidden>
+          <div className="hero-words-ticker__track" data-hero-ticker>
+            <div className="hero-words-ticker__group">
+              <span>PRIVATE PODS · PLAY ON YOUR TERMS · </span>
+              <span>PRIVATE PODS · PLAY ON YOUR TERMS · </span>
+              <span>PRIVATE PODS · PLAY ON YOUR TERMS · </span>
+              <span>PRIVATE PODS · PLAY ON YOUR TERMS · </span>
+            </div>
+            <div className="hero-words-ticker__group">
+              <span>PRIVATE PODS · PLAY ON YOUR TERMS · </span>
+              <span>PRIVATE PODS · PLAY ON YOUR TERMS · </span>
+              <span>PRIVATE PODS · PLAY ON YOUR TERMS · </span>
+              <span>PRIVATE PODS · PLAY ON YOUR TERMS · </span>
+            </div>
           </div>
         </div>
       </div>

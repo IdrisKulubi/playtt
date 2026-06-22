@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { BrandMark } from "@/components/layout/brand-mark";
 import { MarketingMobileNav } from "@/components/layout/marketing-mobile-nav";
+import { MarketingNavMotion } from "@/components/layout/marketing-nav-motion";
 
 interface MarketingNavLink {
   label: string;
@@ -25,36 +26,37 @@ export function MarketingShell({
   return (
     <main className="dark relative min-h-screen bg-background text-foreground">
       <div className="flex min-h-screen flex-col">
-        <div className="app-shell py-8 pb-0">
-          <header className="shell-header glass-panel-strong sticky top-4 z-20 flex items-center justify-between gap-3 px-4 py-3.5 sm:gap-4 sm:px-6 sm:py-4">
-            <div className="flex min-w-0 items-center gap-2">
+        <div className="marketing-nav-wrap">
+          <MarketingNavMotion>
+            <div className="marketing-nav__inner">
+              <div className="marketing-nav__brand" data-nav-reveal>
               <BrandMark />
               {navLinks.length > 0 ? (
                 <MarketingMobileNav navLinks={navLinks} />
               ) : null}
-            </div>
+              </div>
 
-            {navLinks.length > 0 ? (
-              <nav
-                aria-label="Main"
-                className="hidden items-center gap-5 lg:flex"
-              >
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    className="shell-nav-link"
-                    href={link.href}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              </nav>
-            ) : null}
+              {navLinks.length > 0 ? (
+                <nav aria-label="Main" className="marketing-nav__links">
+                  {navLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      className="marketing-nav__link"
+                      data-nav-action
+                      data-nav-reveal
+                      href={link.href}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </nav>
+              ) : null}
 
-            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-              {actions}
+              <div className="marketing-nav__actions" data-nav-reveal>
+                {actions}
+              </div>
             </div>
-          </header>
+          </MarketingNavMotion>
         </div>
 
         <div className="flex flex-1 flex-col gap-10">{children}</div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 import { cn } from "@/lib/utils";
 
@@ -31,11 +32,18 @@ export function BrandMark({
     >
       <span
         className={cn(
-          "inline-flex items-center justify-center rounded-full border border-border bg-secondary font-semibold text-primary",
-          compact ? "size-10 text-sm" : "size-12 text-base",
+          "inline-flex items-center justify-center overflow-hidden",
+          compact ? "size-9" : "size-11",
         )}
       >
-        TT
+        <Image
+          src="/logo.png"
+          alt=""
+          width={96}
+          height={96}
+          className="size-full object-contain"
+          priority
+        />
       </span>
       <span className="min-w-0">
         <span

@@ -17,14 +17,19 @@ interface LocationsSectionProps {
 }
 
 export function LocationsSection({ locations }: LocationsSectionProps) {
+  const featured = locations[0] ?? null;
+
   return (
     <LocationsMotion>
       <section id="locations" aria-labelledby="locations-heading" className="locations-atlas">
         <div className="section-shell locations-atlas__shell">
           <header className="locations-atlas__heading" data-locations-heading>
             <p className="section-label">Nairobi, on your terms</p>
-            <h2 id="locations-heading">Your next table is already waiting.</h2>
-            <p>Choose a pod, choose a time, then make an ordinary evening a little more alive.</p>
+            <h2 id="locations-heading">Meet you at <span>the table.</span></h2>
+            <div className="locations-atlas__intro">
+              <p>Private pods, real availability, and one very good plan for tonight.</p>
+              <p><strong>{locations.length}</strong> live {locations.length === 1 ? "pod" : "pods"} in Nairobi</p>
+            </div>
           </header>
 
           {locations.length === 0 ? (
@@ -33,15 +38,30 @@ export function LocationsSection({ locations }: LocationsSectionProps) {
             </div>
           ) : (
             <div className="locations-atlas__body">
-              <div className="locations-atlas__map" aria-label="PlayTT pod locations in Nairobi">
+              <div className="locations-atlas__map" data-locations-map aria-label="PlayTT pod locations in Nairobi">
                 <svg className="locations-atlas__map-lines" viewBox="0 0 800 500" aria-hidden>
                   <path data-locations-path d="M88 365 C202 278 284 396 404 214 S610 148 716 295" />
                   <path d="M96 92 L706 406" />
                   <path d="M172 435 L606 65" />
+                  <circle data-locations-orbit cx="420" cy="246" r="138" />
+                  <circle data-locations-orbit cx="420" cy="246" r="88" />
                 </svg>
                 <p className="locations-atlas__map-label">PlayTT pod network</p>
+                <p className="locations-atlas__map-status"><span data-locations-status-dot /> Live in Nairobi</p>
+                {featured ? (
+                  <div className="locations-atlas__featured" data-locations-featured>
+                    <span className="locations-atlas__pulse locations-atlas__pulse--one" data-locations-pulse />
+                    <span className="locations-atlas__pulse locations-atlas__pulse--two" data-locations-pulse />
+                    <p>Now reserving</p>
+                    <h3>{featured.name}</h3>
+                    <span>{featured.address}</span>
+                    <Link href={`/book?venue=${featured.slug}`} className="locations-atlas__featured-action">
+                      Reserve a rally <ArrowUpRightIcon aria-hidden />
+                    </Link>
+                  </div>
+                ) : null}
                 {locations.map((location, index) => {
-                  const position = markerPositions[index % markerPositions.length];
+                  const position = index === 0 ? { left: "54%", top: "50%" } : markerPositions[index % markerPositions.length];
                   return (
                     <Link
                       key={location.id}
@@ -51,7 +71,7 @@ export function LocationsSection({ locations }: LocationsSectionProps) {
                       style={position}
                     >
                       <span className="locations-atlas__marker-dot"><MapPinIcon weight="fill" /></span>
-                      <span>{location.name}</span>
+                      <span className={index === 0 ? "sr-only" : undefined}>{location.name}</span>
                     </Link>
                   );
                 })}
