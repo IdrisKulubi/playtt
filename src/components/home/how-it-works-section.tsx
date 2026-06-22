@@ -1,78 +1,96 @@
-import {
-  CalendarBlankIcon,
-  MapPinIcon,
-  UsersIcon,
-} from "@phosphor-icons/react/dist/ssr";
+import Link from "next/link";
+import Image from "next/image";
 
-const steps = [
+import { HowItWorksMotion } from "@/components/home/how-it-works-motion";
+
+const steps: Array<{
+  id: string;
+  title: string;
+  body: string;
+  image: string;
+  kicker: string;
+}> = [
   {
-    id: "1",
-    title: "Choose a venue",
-    body: "Pick the pod closest to you — see address and table setup before you book.",
-    icon: MapPinIcon,
+    id: "01",
+    kicker: "Find your table",
+    title: "Choose your pod",
+    body: "Pick a private PlayTT pod close to you. The room is yours, not a shared court.",
+    image: "/images/venue.jpeg",
   },
   {
-    id: "2",
-    title: "Pick a time",
-    body: "See open slots in real time and choose a 30- or 60-minute session.",
-    icon: CalendarBlankIcon,
+    id: "02",
+    kicker: "Make it yours",
+    title: "Lock in a time",
+    body: "See live slots, choose your session, then let the evening take shape around it.",
+    image: "/images/time.jpeg",
   },
   {
-    id: "3",
-    title: "Confirm & play",
-    body: "Set your group size, review the total, then check in contactless when you arrive.",
-    icon: UsersIcon,
+    id: "03",
+    kicker: "You are on",
+    title: "Confirm and play",
+    body: "Review once, reserve in seconds, and arrive to a table that is ready for your rally.",
+    image: "/images/confirm.jpeg",
   },
-] as const;
+];
 
 export function HowItWorksSection() {
   return (
-    <section
-      id="how-it-works"
-      aria-labelledby="how-heading"
-      className="border-t border-border py-16 lg:py-24"
-    >
-      <div className="section-shell space-y-12 lg:space-y-16">
-        <header className="max-w-xl space-y-3">
-          <div className="marketing-accent-bar" />
-          <h2
-            id="how-heading"
-            className="text-3xl font-semibold tracking-[-0.03em] text-foreground sm:text-4xl"
-          >
-            How it works
-          </h2>
-          <p className="text-muted-foreground">
-            From venue to table in three calm steps.
-          </p>
-        </header>
+    <HowItWorksMotion>
+      <section id="how-it-works" aria-labelledby="how-heading" className="how-rally-section">
+        <div className="section-shell how-rally-shell">
+          <header className="how-rally-heading" data-how-heading>
+            <p className="section-label">One good plan, three easy moves</p>
+            <h2 id="how-heading">From “we should play” to first serve.</h2>
+            <p>Follow the rally. Your booking takes less time than choosing who serves first.</p>
+          </header>
 
-        <ol className="grid gap-6 lg:grid-cols-3 lg:gap-6">
-          {steps.map((step) => {
-            const Icon = step.icon;
+          <div className="how-rally-list">
+            <div className="how-rally-rail" data-how-rail aria-hidden />
+            <div className="how-rally-ball" data-how-ball aria-hidden />
+            <ol>
+              {steps.map((step, index) => (
+              <li key={step.id} className={`how-rally-stage how-rally-stage--${index + 1}`} data-how-stage>
+                <div className="how-rally-step-copy" data-how-copy>
+                  <p className="how-rally-step-number">{step.id}</p>
+                  <p className="how-rally-step-kicker">{step.kicker}</p>
+                  <h3>{step.title}</h3>
+                  <p>{step.body}</p>
+                  {index === 0 ? (
+                    <Link href="#locations" className="how-rally-link">
+                      See our pods <span aria-hidden>↗</span>
+                    </Link>
+                  ) : null}
+                  {index === 1 ? (
+                    <Link href="/book" className="how-rally-link">
+                      See live times <span aria-hidden>↗</span>
+                    </Link>
+                  ) : null}
+                  {index === 2 ? (
+                    <Link href="/sign-up" className="how-rally-link">
+                      Create your account <span aria-hidden>↗</span>
+                    </Link>
+                  ) : null}
+                </div>
 
-            return (
-              <li key={step.id}>
-                <article className="premium-card flex h-full flex-col gap-5 p-6">
-                  <span className="text-sm font-semibold tabular-nums text-primary">
-                    {step.id}
-                  </span>
-                  <div className="flex items-center gap-3">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-[var(--background-elevated)] text-primary">
-                      <Icon className="size-5" weight="bold" />
-                    </span>
-                    <h3 className="text-xl font-semibold tracking-[-0.02em] text-foreground">
-                      {step.title}
-                    </h3>
+                <div className="how-rally-phone" data-how-phone aria-label={`${step.title} booking screen`}>
+                  <div className="how-rally-phone__speaker" />
+                  <div className="how-rally-phone__screen">
+                    <Image
+                      src={step.image}
+                      alt={`${step.title} in the PlayTT mobile app`}
+                      width={720}
+                      height={1536}
+                      sizes="(min-width: 1024px) 256px, 208px"
+                      className="size-full object-cover"
+                    />
                   </div>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {step.body}
-                  </p>
-                </article>
+                </div>
               </li>
-            );
-          })}
-        </ol>
-      </div>
-    </section>
+              ))}
+            </ol>
+          </div>
+        </div>
+      </section>
+    </HowItWorksMotion>
   );
 }

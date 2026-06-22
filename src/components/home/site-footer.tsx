@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { BrandMark } from "@/components/layout/brand-mark";
+import { SiteFooterMotion } from "@/components/home/site-footer-motion";
 
 const footerLinks = {
   Product: [
@@ -26,10 +27,12 @@ const footerLinks = {
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-border bg-[var(--background)]">
-      <div className="section-shell py-12 lg:py-16">
-        <div className="grid gap-10 lg:grid-cols-[1.4fr_repeat(4,minmax(0,1fr))] lg:gap-8">
-          <div className="space-y-4 lg:col-span-1">
+    <SiteFooterMotion>
+      <div className="site-footer">
+        <div className="section-shell site-footer__shell">
+          <p className="site-footer__word" data-footer-word aria-hidden>PLAYTT</p>
+          <div className="site-footer__grid">
+          <div className="space-y-4 lg:col-span-1" data-footer-group>
             <BrandMark caption="Autonomous Table Tennis. Anytime." />
             <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
               Premium, self-serve table tennis — reserve a pod, play on your
@@ -38,7 +41,7 @@ export function SiteFooter() {
           </div>
 
           {Object.entries(footerLinks).map(([title, links]) => (
-            <nav key={title} aria-label={title} className="space-y-3">
+            <nav key={title} aria-label={title} className="space-y-3" data-footer-group>
               <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground">
                 {title}
               </h3>
@@ -58,11 +61,12 @@ export function SiteFooter() {
           ))}
         </div>
 
-        <div className="shell-divider mt-10 flex flex-col gap-3 pt-8 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        <div className="site-footer__base" data-footer-base>
           <p>© 2026 PlayTT. All rights reserved.</p>
           <p>Built in Nairobi</p>
         </div>
+        </div>
       </div>
-    </footer>
+    </SiteFooterMotion>
   );
 }

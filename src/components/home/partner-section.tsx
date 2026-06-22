@@ -1,32 +1,30 @@
 import Link from "next/link";
 import { ArrowRightIcon } from "@phosphor-icons/react/dist/ssr";
 
+import { GetStartedMotion } from "@/components/home/get-started-motion";
+
 export function PartnerSection() {
   return (
-    <section
-      id="partners"
-      aria-labelledby="partner-heading"
-      className="azure-block py-16 lg:py-24"
-    >
-      <div className="section-shell">
-        <div className="mx-auto max-w-2xl space-y-6 text-center lg:max-w-3xl">
-          <div className="marketing-accent-bar mx-auto" />
-          <h2
-            id="partner-heading"
-            className="text-3xl font-semibold tracking-[-0.03em] sm:text-4xl"
-          >
-            Ready when you are
-          </h2>
-          <p className="mx-auto max-w-lg text-base leading-relaxed text-primary-foreground/85">
-            Create an account to book sessions, manage your schedule, and pick up
-            where you left off — on web or mobile.
-          </p>
-          <Link href="/sign-up" className="ghost-on-azure inline-flex items-center">
-            Create account
-            <ArrowRightIcon className="ml-2 size-4" />
-          </Link>
+    <GetStartedMotion>
+      <section id="get-started" aria-labelledby="get-started-heading" className="closing-cta">
+        <div className="closing-cta__surface" data-cta-surface>
+          <span className="closing-cta__ball closing-cta__ball--one" data-cta-ball aria-hidden />
+          <span className="closing-cta__ball closing-cta__ball--two" data-cta-ball aria-hidden />
+          <div className="section-shell closing-cta__shell">
+            <p className="section-label" data-cta-content>Your table is calling</p>
+            <h2 id="get-started-heading" data-cta-content>
+              Bring the people.<br />
+              <span>We’ll bring the rally.</span>
+            </h2>
+            <div className="closing-cta__bottom" data-cta-content>
+              <p>Make a free PlayTT account to manage bookings, invite your crew, and be ready when the mood strikes.</p>
+              <Link href="/sign-up" className="closing-cta__action group">
+                Sign up free <ArrowRightIcon aria-hidden />
+              </Link>
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </GetStartedMotion>
   );
 }
