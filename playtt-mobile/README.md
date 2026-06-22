@@ -25,24 +25,6 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
-## Liquid Glass (iOS 26+)
-
-Navigation chrome uses [`@expo/ui`](https://docs.expo.dev/guides/expo-ui-swift-ui/) SwiftUI primitives with the `glassEffect` modifier on iOS 26+.
-
-| Environment | What you get |
-|-------------|--------------|
-| **Expo Go** (SDK 54) | Blur / opaque fallbacks — the app runs normally, but native Liquid Glass is not available |
-| **Development build** (`npx expo run:ios`) | Full Liquid Glass on iOS 26+ |
-| Android / web / iOS &lt; 26 | Blur or opaque fallbacks |
-
-To see native Liquid Glass, create a dev build (not Expo Go):
-
-```bash
-npx expo run:ios
-```
-
-Requires **Xcode 26+** and an **iOS 26** simulator or device.
-
 ## Get a fresh project
 
 When you're ready, run:

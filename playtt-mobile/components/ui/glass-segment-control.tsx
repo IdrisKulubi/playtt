@@ -1,4 +1,4 @@
-import { type ComponentType, useMemo } from "react"
+import { useMemo } from "react"
 import { Pressable, StyleSheet, Text, View } from "react-native"
 
 import {
@@ -6,13 +6,11 @@ import {
   liquidGlassFallbackFill,
 } from "@/components/ui/liquid-glass-fallback"
 import { Colors, resolveColorScheme } from "@/constants/theme"
-import { ProductThemes } from "@/constants/product-theme"
 import {
   PlayTTFontFamilies,
   PlayTTRadius,
 } from "@/constants/playtt-tokens"
 import { useColorScheme } from "@/hooks/use-color-scheme"
-import { getGlassSegmentControlSwift } from "@/lib/load-expo-ui"
 
 type GlassSegmentControlProps<T extends string> = {
   value: T
@@ -25,59 +23,40 @@ export function GlassSegmentControl<T extends string>({
   options,
   onChange,
 }: GlassSegmentControlProps<T>) {
-  const SwiftSegmentControl = getGlassSegmentControlSwift()
-  if (SwiftSegmentControl) {
-    const Segment = SwiftSegmentControl as unknown as ComponentType<
-      GlassSegmentControlProps<T>
-    >
-    return <Segment value={value} options={options} onChange={onChange} />
-  }
-
-  return (
-    <GlassSegmentControlFallback
-      value={value}
-      options={options}
-      onChange={onChange}
-    />
-  )
-}
-
-function GlassSegmentControlFallback<T extends string>({
-  value,
-  options,
-  onChange,
-}: GlassSegmentControlProps<T>) {
   const colorScheme = resolveColorScheme(useColorScheme())
-  const productTheme = ProductThemes[colorScheme]
   const palette = Colors[colorScheme]
 
   const styles = useMemo(
     () =>
       StyleSheet.create({
         pill: {
-          borderRadius: PlayTTRadius.lg,
+          borderRadius: PlayTTRadius.pill,
           overflow: "hidden",
           borderWidth: StyleSheet.hairlineWidth,
-          borderColor: productTheme.border,
+          borderColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.12)"
+              : "rgba(10, 22, 40, 0.08)",
         },
         row: {
           flexDirection: "row",
           padding: 3,
           gap: 2,
+          minHeight: 32,
         },
         segment: {
           flex: 1,
-          paddingVertical: 6,
-          paddingHorizontal: 4,
-          borderRadius: PlayTTRadius.md,
+          paddingVertical: 5,
+          paddingHorizontal: 6,
+          borderRadius: PlayTTRadius.pill,
           alignItems: "center",
           justifyContent: "center",
         },
         segmentActive: {
           backgroundColor:
             colorScheme === "dark"
-              ? "rgba(255, 255, 255, 0.1)"
-              : "rgba(10, 22, 40, 0.08)",
+              ? "rgba(255, 255, 255, 0.14)"
+              : "rgba(10, 22, 40, 0.1)",
         },
         label: {
           fontSize: 12,
@@ -89,14 +68,14 @@ function GlassSegmentControlFallback<T extends string>({
           color: palette.tabIconSelected,
         },
       }),
-    [colorScheme, palette.tabIconDefault, palette.tabIconSelected, productTheme.border],
+    [colorScheme, palette.tabIconDefault, palette.tabIconSelected],
   )
 
   return (
     <View style={styles.pill}>
       <LiquidGlassFallback
         colorScheme={colorScheme}
-        intensity={64}
+        intensity={80}
         style={liquidGlassFallbackFill}
       />
 

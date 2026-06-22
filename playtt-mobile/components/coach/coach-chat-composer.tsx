@@ -7,17 +7,13 @@ import {
   View,
 } from "react-native"
 
-import { LiquidGlassShell } from "@/components/ui/liquid-glass-shell"
-import { resolveColorScheme } from "@/constants/theme"
 import {
   PlayTTColors,
   PlayTTFontFamilies,
   PlayTTSpacing,
   PlayTTRadius,
 } from "@/constants/playtt-tokens"
-import { useColorScheme } from "@/hooks/use-color-scheme"
 import { useProductTheme } from "@/hooks/use-product-theme"
-import { canUseLiquidGlass } from "@/lib/liquid-glass"
 
 type CoachChatComposerProps = {
   value: string
@@ -35,8 +31,6 @@ export function CoachChatComposer({
   isSending = false,
 }: CoachChatComposerProps) {
   const theme = useProductTheme()
-  const colorScheme = resolveColorScheme(useColorScheme())
-  const useNativeGlass = canUseLiquidGlass()
   const canSend = value.trim().length > 0 && !disabled && !isSending
 
   const styles = useMemo(
@@ -49,10 +43,6 @@ export function CoachChatComposer({
           paddingHorizontal: PlayTTSpacing.xl,
           paddingTop: PlayTTSpacing.xs,
           paddingBottom: PlayTTSpacing.xs,
-          backgroundColor: "transparent",
-          overflow: "hidden",
-        },
-        rootFallback: {
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: theme.border,
           backgroundColor: theme.background,
@@ -92,58 +82,41 @@ export function CoachChatComposer({
           fontFamily: PlayTTFontFamilies.semiBold,
           color: canSend ? PlayTTColors.primaryForeground : theme.muted,
         },
-        content: {
-          flexDirection: "row",
-          alignItems: "flex-end",
-          gap: PlayTTSpacing.xs,
-          flex: 1,
-        },
       }),
     [canSend, theme],
   )
 
   return (
-    <View style={[styles.root, !useNativeGlass && styles.rootFallback]}>
-      <LiquidGlassShell
-        colorScheme={colorScheme}
-        style={StyleSheet.absoluteFill}
-        shape="rectangle"
-        borderRadius={0}
-        variant="regular"
-        blurIntensity={72}
-      />
-
-      <View style={styles.content}>
-        <View style={styles.inputWrap}>
-          <TextInput
-            value={value}
-            onChangeText={onChange}
-            placeholder="Ask your coach…"
-            placeholderTextColor={theme.muted}
-            style={styles.input}
-            multiline
-            editable={!disabled && !isSending}
-            returnKeyType="send"
-            onSubmitEditing={() => {
-              if (canSend) {
-                onSend()
-              }
-            }}
-          />
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Send message"
-          disabled={!canSend}
-          onPress={onSend}
-          style={({ pressed }) => [
-            styles.send,
-            pressed && canSend && styles.sendPressed,
-          ]}
-        >
-          <Text style={styles.sendLabel}>{isSending ? "…" : "Send"}</Text>
-        </Pressable>
+    <View style={styles.root}>
+      <View style={styles.inputWrap}>
+        <TextInput
+          value={value}
+          onChangeText={onChange}
+          placeholder="Ask your coach…"
+          placeholderTextColor={theme.muted}
+          style={styles.input}
+          multiline
+          editable={!disabled && !isSending}
+          returnKeyType="send"
+          onSubmitEditing={() => {
+            if (canSend) {
+              onSend()
+            }
+          }}
+        />
       </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Send message"
+        disabled={!canSend}
+        onPress={onSend}
+        style={({ pressed }) => [
+          styles.send,
+          pressed && canSend && styles.sendPressed,
+        ]}
+      >
+        <Text style={styles.sendLabel}>{isSending ? "…" : "Send"}</Text>
+      </Pressable>
     </View>
   )
 }

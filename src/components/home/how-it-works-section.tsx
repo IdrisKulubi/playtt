@@ -1,10 +1,14 @@
-import { CalendarBlankIcon, MapPinIcon, PlayIcon } from "@phosphor-icons/react/dist/ssr";
+import {
+  CalendarBlankIcon,
+  MapPinIcon,
+  UsersIcon,
+} from "@phosphor-icons/react/dist/ssr";
 
 const steps = [
   {
     id: "1",
-    title: "Find a venue",
-    body: "Pick the pod closest to you — Westlands, Kilimani, and more.",
+    title: "Choose a venue",
+    body: "Pick the pod closest to you — see address and table setup before you book.",
     icon: MapPinIcon,
   },
   {
@@ -12,13 +16,12 @@ const steps = [
     title: "Pick a time",
     body: "See open slots in real time and choose a 30- or 60-minute session.",
     icon: CalendarBlankIcon,
-    featured: true,
   },
   {
     id: "3",
-    title: "Play",
-    body: "Check in contactless, grab a paddle, and hit the table.",
-    icon: PlayIcon,
+    title: "Confirm & play",
+    body: "Set your group size, review the total, then check in contactless when you arrive.",
+    icon: UsersIcon,
   },
 ] as const;
 
@@ -39,53 +42,31 @@ export function HowItWorksSection() {
             How it works
           </h2>
           <p className="text-muted-foreground">
-            From discovery to the table in three steps.
+            From venue to table in three calm steps.
           </p>
         </header>
 
-        <ol className="grid gap-8 lg:grid-cols-3 lg:gap-6">
+        <ol className="grid gap-6 lg:grid-cols-3 lg:gap-6">
           {steps.map((step) => {
             const Icon = step.icon;
-            const featured = "featured" in step && step.featured;
 
             return (
               <li key={step.id}>
-                <article
-                  className={
-                    featured
-                      ? "flex h-full flex-col gap-6 rounded-[var(--radius-card)] border border-border bg-card p-6"
-                      : "flex h-full flex-col space-y-4 rounded-[var(--radius-card)] border border-border bg-card p-6"
-                  }
-                >
-                  <div className="space-y-4">
-                    <span className="text-sm font-semibold tabular-nums text-primary">
-                      {step.id}
+                <article className="premium-card flex h-full flex-col gap-5 p-6">
+                  <span className="text-sm font-semibold tabular-nums text-primary">
+                    {step.id}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-[var(--background-elevated)] text-primary">
+                      <Icon className="size-5" weight="bold" />
                     </span>
-                    <div className="flex items-center gap-3">
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-[var(--background-elevated)] text-primary">
-                        <Icon className="size-5" weight="bold" />
-                      </span>
-                      <h3 className="text-xl font-semibold tracking-[-0.02em] text-foreground">
-                        {step.title}
-                      </h3>
-                    </div>
-                    <p className="text-sm leading-relaxed text-muted-foreground">
-                      {step.body}
-                    </p>
+                    <h3 className="text-xl font-semibold tracking-[-0.02em] text-foreground">
+                      {step.title}
+                    </h3>
                   </div>
-
-                  {featured ? (
-                    <div
-                      aria-hidden
-                      className="relative mt-auto min-h-40 overflow-hidden rounded-[var(--radius-field)] border border-border bg-[var(--background-elevated)]"
-                    >
-                      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/15 via-transparent to-transparent">
-                        <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                          Pod interior
-                        </span>
-                      </div>
-                    </div>
-                  ) : null}
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {step.body}
+                  </p>
                 </article>
               </li>
             );

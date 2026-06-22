@@ -1,5 +1,4 @@
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs"
-import type { SFSymbol } from "sf-symbols-typescript"
 import * as Haptics from "expo-haptics"
 import { useCallback, useMemo } from "react"
 import {
@@ -22,10 +21,7 @@ import {
   PlayTTRadius,
   PlayTTSpacing,
 } from "@/constants/playtt-tokens"
-import { ProductThemes } from "@/constants/product-theme"
 import { useColorScheme } from "@/hooks/use-color-scheme"
-import { getGlassTabBarSwift } from "@/lib/load-expo-ui"
-import { TAB_SYSTEM_ICONS } from "@/lib/liquid-glass"
 
 const VISIBLE_TAB_NAMES = [
   "index",
@@ -35,7 +31,16 @@ const VISIBLE_TAB_NAMES = [
   "account",
 ] as const
 
-const TAB_ICON_SIZE = 22
+const TAB_ICON_SIZE = 20
+const ACTIVE_ICON_RING_SIZE = 36
+
+const TAB_SYSTEM_ICONS = {
+  index: "house.fill",
+  bookings: "calendar",
+  activity: "chart.bar.fill",
+  community: "person.2.fill",
+  account: "person.fill",
+} as const
 
 type TabBarOptions = {
   title?: string
@@ -50,24 +55,10 @@ function isVisibleTab(routeName: string): routeName is (typeof VISIBLE_TAB_NAMES
   return (VISIBLE_TAB_NAMES as readonly string[]).includes(routeName)
 }
 
-function getTabSystemIcon(routeName: (typeof VISIBLE_TAB_NAMES)[number]): SFSymbol {
-  return TAB_SYSTEM_ICONS[routeName]
-}
-
-export function GlassTabBar(props: BottomTabBarProps) {
-  const SwiftTabBar = getGlassTabBarSwift()
-  if (SwiftTabBar) {
-    return <SwiftTabBar {...props} />
-  }
-
-  return <GlassTabBarFallback {...props} />
-}
-
-function GlassTabBarFallback({ state, descriptors, navigation }: BottomTabBarProps) {
+export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets()
   const colorScheme = resolveColorScheme(useColorScheme())
   const palette = Colors[colorScheme]
-  const productTheme = ProductThemes[colorScheme]
 
   const visibleRoutes = useMemo(
     () =>
@@ -87,68 +78,69 @@ function GlassTabBarFallback({ state, descriptors, navigation }: BottomTabBarPro
           left: 0,
           right: 0,
           bottom: 0,
-          paddingHorizontal: PlayTTSpacing.sm,
+          paddingHorizontal: PlayTTSpacing.md,
           paddingTop: PlayTTSpacing.xs,
         },
         pill: {
-          borderRadius: PlayTTRadius.panel,
+          borderRadius: PlayTTRadius.pill,
           overflow: "hidden",
           borderWidth: StyleSheet.hairlineWidth,
-          borderColor: productTheme.border,
+          borderColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.12)"
+              : "rgba(10, 22, 40, 0.08)",
           ...Platform.select({
             ios: {
-              shadowColor: colorScheme === "dark" ? "#020810" : "#0a1628",
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: colorScheme === "dark" ? 0.45 : 0.12,
-              shadowRadius: 24,
+              shadowColor: colorScheme === "dark" ? "#000000" : "#0a1628",
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: colorScheme === "dark" ? 0.35 : 0.1,
+              shadowRadius: 16,
             },
             android: {
-              elevation: 12,
+              elevation: 10,
             },
             default: {},
           }),
         },
         row: {
           flexDirection: "row",
-          alignItems: "center",
+          alignItems: "flex-end",
           justifyContent: "space-around",
-          paddingVertical: PlayTTSpacing.xs,
+          paddingVertical: 6,
           paddingHorizontal: PlayTTSpacing.xs,
-          minHeight: 54,
+          minHeight: 44,
         },
         tab: {
           flex: 1,
           alignItems: "center",
-          justifyContent: "center",
-          paddingVertical: PlayTTSpacing.xs,
+          justifyContent: "flex-end",
         },
-        tabInner: {
+        iconSlot: {
+          width: ACTIVE_ICON_RING_SIZE,
+          height: ACTIVE_ICON_RING_SIZE,
           alignItems: "center",
           justifyContent: "center",
-          gap: 2,
-          paddingHorizontal: 4,
-          paddingVertical: PlayTTSpacing.xs,
-          borderRadius: PlayTTRadius.lg,
+          borderRadius: ACTIVE_ICON_RING_SIZE / 2,
         },
-        tabInnerActive: {
+        iconSlotActive: {
           backgroundColor:
             colorScheme === "dark"
-              ? "rgba(255, 255, 255, 0.08)"
-              : "rgba(10, 22, 40, 0.06)",
+              ? "rgba(255, 255, 255, 0.14)"
+              : "rgba(10, 22, 40, 0.1)",
         },
         label: {
-          fontSize: 10,
+          marginTop: 2,
+          fontSize: 9,
           fontFamily: PlayTTFontFamilies.medium,
           color: palette.tabIconDefault,
           textAlign: "center",
         },
         labelActive: {
-          fontSize: 10,
           fontFamily: PlayTTFontFamilies.semiBold,
           color: palette.tabIconSelected,
         },
       }),
-    [colorScheme, palette.tabIconDefault, palette.tabIconSelected, productTheme.border],
+    [colorScheme, palette.tabIconDefault, palette.tabIconSelected],
   )
 
   const bottomPadding = Math.max(insets.bottom, PlayTTSpacing.sm)
@@ -187,7 +179,7 @@ function GlassTabBarFallback({ state, descriptors, navigation }: BottomTabBarPro
       <View style={styles.pill}>
         <LiquidGlassFallback
           colorScheme={colorScheme}
-          intensity={80}
+          intensity={95}
           style={liquidGlassFallbackFill}
         />
 
@@ -215,7 +207,7 @@ function GlassTabBarFallback({ state, descriptors, navigation }: BottomTabBarPro
                 onLongPress={() => handleTabLongPress(route.key)}
                 style={styles.tab}
               >
-                <View style={[styles.tabInner, isFocused && styles.tabInnerActive]}>
+                <View style={[styles.iconSlot, isFocused && styles.iconSlotActive]}>
                   {tabOptions.tabBarIcon?.({
                     focused: isFocused,
                     color: iconColor,
@@ -223,19 +215,19 @@ function GlassTabBarFallback({ state, descriptors, navigation }: BottomTabBarPro
                   }) ?? (
                     <IconSymbol
                       size={TAB_ICON_SIZE}
-                      name={getTabSystemIcon(route.name)}
+                      name={TAB_SYSTEM_ICONS[route.name]}
                       color={iconColor}
                     />
                   )}
-                  <Text
-                    style={[styles.label, isFocused && styles.labelActive]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.85}
-                  >
-                    {label}
-                  </Text>
                 </View>
+                <Text
+                  style={[styles.label, isFocused && styles.labelActive]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.85}
+                >
+                  {label}
+                </Text>
               </Pressable>
             )
           })}
