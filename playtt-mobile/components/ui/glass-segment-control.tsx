@@ -1,15 +1,18 @@
-import { BlurView } from "expo-blur"
-import { useMemo } from "react"
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native"
+import { type ComponentType, useMemo } from "react"
+import { Pressable, StyleSheet, Text, View } from "react-native"
 
+import {
+  LiquidGlassFallback,
+  liquidGlassFallbackFill,
+} from "@/components/ui/liquid-glass-fallback"
 import { Colors, resolveColorScheme } from "@/constants/theme"
 import { ProductThemes } from "@/constants/product-theme"
 import {
   PlayTTFontFamilies,
   PlayTTRadius,
-  PlayTTSpacing,
 } from "@/constants/playtt-tokens"
 import { useColorScheme } from "@/hooks/use-color-scheme"
+import { getGlassSegmentControlSwift } from "@/lib/load-expo-ui"
 
 type GlassSegmentControlProps<T extends string> = {
   value: T
@@ -18,6 +21,28 @@ type GlassSegmentControlProps<T extends string> = {
 }
 
 export function GlassSegmentControl<T extends string>({
+  value,
+  options,
+  onChange,
+}: GlassSegmentControlProps<T>) {
+  const SwiftSegmentControl = getGlassSegmentControlSwift()
+  if (SwiftSegmentControl) {
+    const Segment = SwiftSegmentControl as unknown as ComponentType<
+      GlassSegmentControlProps<T>
+    >
+    return <Segment value={value} options={options} onChange={onChange} />
+  }
+
+  return (
+    <GlassSegmentControlFallback
+      value={value}
+      options={options}
+      onChange={onChange}
+    />
+  )
+}
+
+function GlassSegmentControlFallback<T extends string>({
   value,
   options,
   onChange,
@@ -34,12 +59,6 @@ export function GlassSegmentControl<T extends string>({
           overflow: "hidden",
           borderWidth: StyleSheet.hairlineWidth,
           borderColor: productTheme.border,
-        },
-        androidFallback: {
-          backgroundColor:
-            colorScheme === "dark"
-              ? "rgba(16, 27, 43, 0.88)"
-              : "rgba(255, 255, 255, 0.88)",
         },
         row: {
           flexDirection: "row",
@@ -75,15 +94,11 @@ export function GlassSegmentControl<T extends string>({
 
   return (
     <View style={styles.pill}>
-      {Platform.OS === "ios" ? (
-        <BlurView
-          intensity={64}
-          tint={colorScheme === "dark" ? "dark" : "light"}
-          style={StyleSheet.absoluteFill}
-        />
-      ) : (
-        <View style={[StyleSheet.absoluteFill, styles.androidFallback]} />
-      )}
+      <LiquidGlassFallback
+        colorScheme={colorScheme}
+        intensity={64}
+        style={liquidGlassFallbackFill}
+      />
 
       <View style={styles.row}>
         {options.map((option) => {

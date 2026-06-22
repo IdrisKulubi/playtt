@@ -1,7 +1,7 @@
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs"
-import { BlurView } from "expo-blur"
+import type { SFSymbol } from "sf-symbols-typescript"
 import * as Haptics from "expo-haptics"
-import { useMemo } from "react"
+import { useCallback, useMemo } from "react"
 import {
   Platform,
   Pressable,
@@ -11,6 +11,11 @@ import {
 } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { IconSymbol } from "@/components/ui/icon-symbol"
+import {
+  LiquidGlassFallback,
+  liquidGlassFallbackFill,
+} from "@/components/ui/liquid-glass-fallback"
 import { Colors, resolveColorScheme } from "@/constants/theme"
 import {
   PlayTTFontFamilies,
@@ -19,6 +24,8 @@ import {
 } from "@/constants/playtt-tokens"
 import { ProductThemes } from "@/constants/product-theme"
 import { useColorScheme } from "@/hooks/use-color-scheme"
+import { getGlassTabBarSwift } from "@/lib/load-expo-ui"
+import { TAB_SYSTEM_ICONS } from "@/lib/liquid-glass"
 
 const VISIBLE_TAB_NAMES = [
   "index",
@@ -43,14 +50,32 @@ function isVisibleTab(routeName: string): routeName is (typeof VISIBLE_TAB_NAMES
   return (VISIBLE_TAB_NAMES as readonly string[]).includes(routeName)
 }
 
-export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+function getTabSystemIcon(routeName: (typeof VISIBLE_TAB_NAMES)[number]): SFSymbol {
+  return TAB_SYSTEM_ICONS[routeName]
+}
+
+export function GlassTabBar(props: BottomTabBarProps) {
+  const SwiftTabBar = getGlassTabBarSwift()
+  if (SwiftTabBar) {
+    return <SwiftTabBar {...props} />
+  }
+
+  return <GlassTabBarFallback {...props} />
+}
+
+function GlassTabBarFallback({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets()
   const colorScheme = resolveColorScheme(useColorScheme())
   const palette = Colors[colorScheme]
   const productTheme = ProductThemes[colorScheme]
 
   const visibleRoutes = useMemo(
-    () => state.routes.filter((route) => isVisibleTab(route.name)),
+    () =>
+      state.routes.filter(
+        (route): route is (typeof state.routes)[number] & {
+          name: (typeof VISIBLE_TAB_NAMES)[number]
+        } => isVisibleTab(route.name),
+      ),
     [state.routes],
   )
 
@@ -82,12 +107,6 @@ export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProp
             },
             default: {},
           }),
-        },
-        androidFallback: {
-          backgroundColor:
-            colorScheme === "dark"
-              ? "rgba(16, 27, 43, 0.94)"
-              : "rgba(255, 255, 255, 0.94)",
         },
         row: {
           flexDirection: "row",
@@ -134,18 +153,43 @@ export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProp
 
   const bottomPadding = Math.max(insets.bottom, PlayTTSpacing.sm)
 
+  const handleTabPress = useCallback(
+    (routeKey: string, routeName: string, routeParams: object | undefined, isFocused: boolean) => {
+      if (process.env.EXPO_OS === "ios") {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+      }
+
+      const event = navigation.emit({
+        type: "tabPress",
+        target: routeKey,
+        canPreventDefault: true,
+      })
+
+      if (!isFocused && !event.defaultPrevented) {
+        navigation.navigate(routeName, routeParams)
+      }
+    },
+    [navigation],
+  )
+
+  const handleTabLongPress = useCallback(
+    (routeKey: string) => {
+      navigation.emit({
+        type: "tabLongPress",
+        target: routeKey,
+      })
+    },
+    [navigation],
+  )
+
   return (
     <View style={[styles.wrapper, { paddingBottom: bottomPadding }]}>
       <View style={styles.pill}>
-        {Platform.OS === "ios" ? (
-          <BlurView
-            intensity={80}
-            tint={colorScheme === "dark" ? "dark" : "light"}
-            style={StyleSheet.absoluteFill}
-          />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, styles.androidFallback]} />
-        )}
+        <LiquidGlassFallback
+          colorScheme={colorScheme}
+          intensity={80}
+          style={liquidGlassFallbackFill}
+        />
 
         <View style={styles.row}>
           {visibleRoutes.map((route) => {
@@ -154,29 +198,6 @@ export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProp
             const tabOptions = options as TabBarOptions
             const label = tabOptions.title ?? route.name
             const isFocused = state.index === routeIndex
-
-            const onPress = () => {
-              if (process.env.EXPO_OS === "ios") {
-                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-              }
-
-              const event = navigation.emit({
-                type: "tabPress",
-                target: route.key,
-                canPreventDefault: true,
-              })
-
-              if (!isFocused && !event.defaultPrevented) {
-                navigation.navigate(route.name, route.params)
-              }
-            }
-
-            const onLongPress = () => {
-              navigation.emit({
-                type: "tabLongPress",
-                target: route.key,
-              })
-            }
 
             const iconColor = isFocused
               ? palette.tabIconSelected
@@ -188,8 +209,10 @@ export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProp
                 accessibilityRole="button"
                 accessibilityState={isFocused ? { selected: true } : {}}
                 accessibilityLabel={label}
-                onPress={onPress}
-                onLongPress={onLongPress}
+                onPress={() =>
+                  handleTabPress(route.key, route.name, route.params, isFocused)
+                }
+                onLongPress={() => handleTabLongPress(route.key)}
                 style={styles.tab}
               >
                 <View style={[styles.tabInner, isFocused && styles.tabInnerActive]}>
@@ -197,7 +220,13 @@ export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProp
                     focused: isFocused,
                     color: iconColor,
                     size: TAB_ICON_SIZE,
-                  })}
+                  }) ?? (
+                    <IconSymbol
+                      size={TAB_ICON_SIZE}
+                      name={getTabSystemIcon(route.name)}
+                      color={iconColor}
+                    />
+                  )}
                   <Text
                     style={[styles.label, isFocused && styles.labelActive]}
                     numberOfLines={1}
