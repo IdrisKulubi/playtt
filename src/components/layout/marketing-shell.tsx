@@ -23,9 +23,9 @@ export function MarketingShell({
   footer,
 }: MarketingShellProps) {
   return (
-    <main className="dark relative min-h-screen text-foreground">
+    <main className="dark relative min-h-screen bg-background text-foreground">
       <div className="flex min-h-screen flex-col">
-        <div className="app-shell flex flex-1 flex-col gap-10">
+        <div className="app-shell py-8 pb-0">
           <header className="shell-header glass-panel-strong sticky top-4 z-20 flex items-center justify-between gap-3 px-4 py-3.5 sm:gap-4 sm:px-6 sm:py-4">
             <div className="flex min-w-0 items-center gap-2">
               <BrandMark />
@@ -55,9 +55,9 @@ export function MarketingShell({
               {actions}
             </div>
           </header>
-
-          {children}
         </div>
+
+        <div className="flex flex-1 flex-col gap-10">{children}</div>
 
         {footer}
       </div>

@@ -12,7 +12,7 @@ import { getBookingBootstrapData } from "@/server/bookings/service";
 const navLinks = [
   { label: "Locations", href: "#locations" },
   { label: "How it works", href: "#how-it-works" },
-  { label: "Partners", href: "#partners" },
+  { label: "Get started", href: "#get-started" },
 ] as const;
 
 export default async function Page() {
