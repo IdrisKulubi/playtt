@@ -17,7 +17,7 @@ export function AuthShell({ children, title, description }: AuthShellProps) {
     <AuthShellMotion>
       <main className="dark auth-experience">
         <div className="auth-home-mark" data-auth-reveal>
-          <BrandMark tone="dark" caption="Private pods. Book fast." />
+          <BrandMark tone="dark" />
         </div>
 
         <div className="auth-experience__shell">
