@@ -137,8 +137,9 @@ export function SignUpForm() {
           variant="outline"
           onClick={handleGoogleSignIn}
           disabled={isLoading}
-          className="w-full justify-center"
+          className="auth-google-button w-full justify-center"
           type="button"
+          data-auth-action
         >
           <GoogleLogoIcon className="size-4" weight="bold" />
           Continue with Google
@@ -151,7 +152,7 @@ export function SignUpForm() {
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="field-cluster"
+            className="field-cluster auth-signup-grid"
           >
             <FormField
               control={form.control}
@@ -270,7 +271,12 @@ export function SignUpForm() {
               )}
             />
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="auth-submit-button w-full"
+              disabled={isLoading}
+              data-auth-action
+            >
               {isLoading ? (
                 <CircleNotchIcon className="size-4 animate-spin" />
               ) : null}
