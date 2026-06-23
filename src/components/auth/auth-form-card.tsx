@@ -25,7 +25,7 @@ export function AuthFormCard({
   status,
 }: AuthFormCardProps) {
   return (
-    <Card className="auth-form-card">
+    <Card className="auth-form-card" data-auth-form>
       <CardHeader className="space-y-4">
         {status}
         <div className="space-y-2">
