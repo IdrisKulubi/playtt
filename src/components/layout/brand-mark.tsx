@@ -13,7 +13,7 @@ interface BrandMarkProps {
 
 export function BrandMark({
   href = "/",
-  caption = "Autonomous Table Tennis. Anytime.",
+  caption = "Private Table Tennis,on your schedule",
   size = "default",
   tone = "dark",
   className,
