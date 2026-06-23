@@ -51,7 +51,7 @@ export function SiteFooter() {
 
           <div className="site-footer__grid">
             <div className="space-y-4 lg:col-span-1" data-footer-group>
-              <BrandMark caption="Autonomous Table Tennis. Anytime." />
+              <BrandMark />
               <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
                 Premium, self-serve table tennis. Reserve a pod, play on your
                 terms.

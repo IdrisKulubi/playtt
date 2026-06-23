@@ -4,6 +4,7 @@ import { AccessibilityInfo, StyleSheet, Text, View } from "react-native"
 import Animated, { FadeIn } from "react-native-reanimated"
 
 import { Button } from "@/components/ui/button"
+import { PLAYTT_TAGLINE } from "@/constants/brand"
 import {
   PlayTTFontFamilies,
   PlayTTSpacing,
@@ -85,9 +86,7 @@ export function HomeHero({
     ? "Book your next session"
     : "Your next session"
 
-  const tagline = showBookCta
-    ? "Private table tennis, on your schedule."
-    : null
+  const tagline = showBookCta ? PLAYTT_TAGLINE : null
 
   return (
     <Animated.View

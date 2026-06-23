@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 
+import { PLAYTT_TAGLINE } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 interface BrandMarkProps {
@@ -13,7 +14,7 @@ interface BrandMarkProps {
 
 export function BrandMark({
   href = "/",
-  caption = "Private Table Tennis,on your schedule",
+  caption = PLAYTT_TAGLINE,
   size = "default",
   tone = "dark",
   className,

@@ -12,7 +12,7 @@
 
 ## Core Identity Locks
 - Name: `PlayTT`
-- Tagline: `Autonomous Table Tennis. Anytime.`
+- Tagline: `Book a pod. Play on.`
 - Product rule: dark mode only.
 - Accent rule: electric azure is the hero brand color and must remain the primary call-to-action signal.
 - Tone rule: premium calm, concise, low hype, action-first.

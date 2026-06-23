@@ -11,6 +11,7 @@ import {
   ViewToken,
 } from "react-native"
 
+import { PLAYTT_TAGLINE } from "@/constants/brand"
 import { WelcomeBall } from "@/components/welcome/illustrations/welcome-ball"
 import { WelcomePaddles } from "@/components/welcome/illustrations/welcome-paddles"
 import { WelcomeTable } from "@/components/welcome/illustrations/welcome-table"
@@ -23,7 +24,7 @@ import {
 const SLIDES: WelcomeSlideData[] = [
   {
     id: "welcome",
-    headline: "Private table tennis, on your schedule.",
+    headline: PLAYTT_TAGLINE,
     body: "Premium self-serve pods you book and walk into — no front desk.",
     illustration: <WelcomeBall />,
   },
