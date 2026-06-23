@@ -36,6 +36,8 @@ export function HeroSectionMotion({ children }: HeroSectionMotionProps) {
       const ctaSecondary = scope.querySelector("[data-hero-cta-secondary]");
       const trust = scope.querySelector("[data-hero-trust]");
       const ticker = scope.querySelector("[data-hero-ticker]");
+      const phoneVisual = scope.querySelector("[data-hero-phone-visual]");
+      const phone = scope.querySelector("[data-hero-phone-device]");
 
       const targets = [
         eyebrow,
@@ -46,6 +48,8 @@ export function HeroSectionMotion({ children }: HeroSectionMotionProps) {
         ctaSecondary,
         trust,
         ticker,
+        phoneVisual,
+        phone,
       ].filter(Boolean);
 
       if (prefersReducedMotion) {
@@ -60,6 +64,14 @@ export function HeroSectionMotion({ children }: HeroSectionMotionProps) {
       gsap.set([ctaPrimary, ctaSecondary], { scale: 0.96, opacity: 0 });
       gsap.set(trust, { opacity: 0 });
       gsap.set(ticker, { yPercent: 100, opacity: 0 });
+      gsap.set(phoneVisual, { opacity: 0, y: 44 });
+      gsap.set(phone, {
+        rotate: 7,
+        rotateY: -19,
+        rotateX: 6,
+        transformPerspective: 1200,
+        transformOrigin: "50% 65%",
+      });
 
       const timeline = gsap.timeline({ defaults: { ease: MARKETING_EASE_OUT } });
 
@@ -87,6 +99,16 @@ export function HeroSectionMotion({ children }: HeroSectionMotionProps) {
       );
       timeline.to(trust, { opacity: 1, duration: MARKETING_DURATION_SM }, 0.8);
       timeline.to(ticker, { yPercent: 0, opacity: 1, duration: MARKETING_DURATION_MD }, 0.56);
+      timeline.to(
+        phoneVisual,
+        { y: 0, opacity: 1, duration: 0.78, ease: "power4.out" },
+        0.34
+      );
+      timeline.to(
+        phone,
+        { rotate: 3, rotateY: -12, rotateX: 3, duration: 0.9, ease: "power4.out" },
+        0.4
+      );
 
       if (ticker) {
         gsap.to(ticker, {
@@ -96,6 +118,49 @@ export function HeroSectionMotion({ children }: HeroSectionMotionProps) {
           repeat: -1,
         });
       }
+
+      if (phone instanceof HTMLElement) {
+        gsap.to(phone, {
+          y: -13,
+          duration: 2.7,
+          ease: "sine.inOut",
+          yoyo: true,
+          repeat: -1,
+        });
+      }
+
+      const cleanPhoneTilt =
+        phone instanceof HTMLElement && window.matchMedia("(pointer: fine)").matches
+          ? (() => {
+              const rotateX = gsap.quickTo(phone, "rotateX", {
+                duration: 0.6,
+                ease: "power3.out",
+              });
+              const rotateY = gsap.quickTo(phone, "rotateY", {
+                duration: 0.6,
+                ease: "power3.out",
+              });
+              const onMove = (event: PointerEvent) => {
+                const bounds = phone.getBoundingClientRect();
+                const horizontal = (event.clientX - bounds.left) / bounds.width - 0.5;
+                const vertical = (event.clientY - bounds.top) / bounds.height - 0.5;
+                rotateY(-12 + horizontal * 9);
+                rotateX(3 - vertical * 7);
+              };
+              const onLeave = () => {
+                rotateY(-12);
+                rotateX(3);
+              };
+
+              phone.addEventListener("pointermove", onMove);
+              phone.addEventListener("pointerleave", onLeave);
+
+              return () => {
+                phone.removeEventListener("pointermove", onMove);
+                phone.removeEventListener("pointerleave", onLeave);
+              };
+            })()
+          : () => undefined;
 
       const cleanupActions = window.matchMedia("(pointer: fine)").matches
         ? gsap.utils.toArray<HTMLElement>("[data-hero-action]").map((action) => {
@@ -135,7 +200,10 @@ export function HeroSectionMotion({ children }: HeroSectionMotionProps) {
           })
         : [];
 
-      return () => cleanupActions.forEach((cleanup) => cleanup());
+      return () => {
+        cleanPhoneTilt();
+        cleanupActions.forEach((cleanup) => cleanup());
+      };
     },
     { scope: sectionRef, dependencies: [prefersReducedMotion] }
   );

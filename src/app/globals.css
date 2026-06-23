@@ -628,6 +628,15 @@
     border-bottom-right-radius: 28px;
   }
 
+  .home-scroll-flow {
+    @apply flex flex-col gap-10;
+  }
+
+  .home-scroll-flow > [data-home-scroll-section] {
+    transform-origin: center top;
+    scroll-margin-top: 5rem;
+  }
+
   .hero-stage {
     @apply relative overflow-hidden;
     --hero-cream: #fff5da;
@@ -643,11 +652,11 @@
   }
 
   .hero-words-layout {
-    @apply relative z-10 mx-auto flex w-full max-w-[96rem] items-center;
+    @apply relative z-10 mx-auto grid w-full max-w-[96rem] items-center gap-8 lg:grid-cols-[minmax(0,1.32fr)_minmax(20rem,0.68fr)] lg:gap-4;
   }
 
   .hero-words-copy {
-    @apply flex w-full max-w-[78rem] flex-col;
+    @apply flex w-full max-w-[52rem] flex-col;
   }
 
   .hero-words-meta {
@@ -729,6 +738,62 @@
 
   .hero-words-ticker__group {
     @apply flex shrink-0;
+  }
+
+  .hero-phone-visual {
+    @apply relative hidden w-full max-w-[22rem] justify-self-end pb-12 pt-5 lg:block;
+    perspective: 1200px;
+  }
+
+  .hero-phone-device {
+    @apply relative ml-auto aspect-[0.5] w-[min(100%,19rem)] rounded-[3.05rem] border-[0.7rem] border-[#111419] bg-[#111419] p-1;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+
+  .hero-phone-device::after {
+    content: "";
+    @apply pointer-events-none absolute inset-1 rounded-[2.25rem] border border-[#fff5da]/20;
+  }
+
+  .hero-phone-device__edge {
+    @apply absolute -right-[0.78rem] top-[8%] h-[76%] w-[0.82rem] rounded-r-lg;
+    background: #343c46;
+    transform: translateZ(-6px);
+  }
+
+  .hero-phone-device__button {
+    @apply absolute -left-[0.84rem] z-10 w-[0.15rem] rounded-l-sm;
+    background: #424b58;
+  }
+
+  .hero-phone-device__button--top {
+    top: 26%;
+    height: 7%;
+  }
+
+  .hero-phone-device__button--bottom {
+    top: 37%;
+    height: 12%;
+  }
+
+  .hero-phone-device__camera {
+    @apply absolute left-1/2 top-3 z-20 flex h-6 w-[5.6rem] -translate-x-1/2 items-center justify-end rounded-full bg-[#111419] pr-2.5;
+  }
+
+  .hero-phone-device__camera span {
+    @apply size-2 rounded-full border border-[#4f5a69];
+    background: #202833;
+  }
+
+  .hero-phone-device__screen {
+    @apply size-full overflow-hidden rounded-[2.25rem] bg-[#07111d];
+  }
+
+  @media (max-width: 1023px) {
+    .hero-words-copy {
+      @apply max-w-[52rem];
+    }
   }
 
   .hero-line {
@@ -919,15 +984,15 @@
   }
 
   .how-rally-phone {
-    @apply relative mx-auto w-52 rotate-[-5deg] rounded-[2.1rem] bg-[#17140f] p-2.5 shadow-[14px_16px_0_#ff866b] sm:mx-0 lg:w-64;
+    @apply relative mx-auto w-52 rotate-[-5deg] rounded-[2.1rem] bg-[#17140f] p-2.5 sm:mx-0 lg:w-64;
   }
 
   .how-rally-stage--2 .how-rally-phone {
-    @apply rotate-[5deg] shadow-[14px_16px_0_#b9d7ff];
+    @apply rotate-[5deg];
   }
 
   .how-rally-stage--3 .how-rally-phone {
-    @apply rotate-[-3deg] shadow-[14px_16px_0_#cbff61];
+    @apply rotate-[-3deg];
   }
 
   .how-rally-phone__speaker {

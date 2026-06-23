@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { HeroSection } from "@/components/home/hero-section";
+import { HomeScrollMotion } from "@/components/home/home-scroll-motion";
 import { HowItWorksSection } from "@/components/home/how-it-works-section";
 import { LocationsSection } from "@/components/home/locations-section";
 import { PartnerSection } from "@/components/home/partner-section";
@@ -46,10 +47,18 @@ export default async function Page() {
       }
       footer={<SiteFooter />}
     >
-      <HeroSection featuredLocation={featuredLocation} />
-      <HowItWorksSection />
-      <LocationsSection locations={locations} />
-      <PartnerSection />
+      <HomeScrollMotion>
+        <HeroSection featuredLocation={featuredLocation} />
+        <div data-home-scroll-section>
+          <HowItWorksSection />
+        </div>
+        <div data-home-scroll-section>
+          <LocationsSection locations={locations} />
+        </div>
+        <div data-home-scroll-section>
+          <PartnerSection />
+        </div>
+      </HomeScrollMotion>
     </MarketingShell>
   );
 }
