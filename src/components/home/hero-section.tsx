@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRightIcon } from "@phosphor-icons/react/dist/ssr";
 
 import { HeroSectionMotion } from "@/components/home/hero-section-motion";
@@ -82,6 +83,34 @@ export function HeroSection({ featuredLocation }: HeroSectionProps) {
               ))}
             </ul>
           </header>
+
+          <div className="hero-phone-visual" data-hero-phone-visual>
+            <div className="hero-phone-device" data-hero-phone-device>
+              <span className="hero-phone-device__edge" aria-hidden />
+              <span
+                className="hero-phone-device__button hero-phone-device__button--top"
+                aria-hidden
+              />
+              <span
+                className="hero-phone-device__button hero-phone-device__button--bottom"
+                aria-hidden
+              />
+              <div className="hero-phone-device__camera" aria-hidden>
+                <span />
+              </div>
+              <div className="hero-phone-device__screen">
+                <Image
+                  src="/hero.jpeg"
+                  alt="PlayTT mobile booking screen showing times at PlayTT Hurlingham"
+                  width={774}
+                  height={1548}
+                  priority
+                  sizes="(min-width: 1024px) 31vw, 72vw"
+                  className="size-full object-cover"
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="hero-words-ticker" aria-hidden>

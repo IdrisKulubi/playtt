@@ -21,14 +21,19 @@ export function SiteFooterMotion({ children }: { children: ReactNode }) {
     const base = scope.querySelector("[data-footer-base]");
 
     if (prefersReducedMotion) {
-      gsap.set([word, ...groups, base], { clearProps: "all", opacity: 1 });
+      gsap.set([scope, word, ...groups, base], { clearProps: "all", opacity: 1 });
       return;
     }
 
     const timeline = gsap.timeline({ scrollTrigger: { trigger: scope, start: "top 82%", once: true } });
-    timeline.fromTo(word, { yPercent: 120, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.85, ease: MARKETING_EASE_OUT });
-    timeline.fromTo(groups, { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, stagger: 0.08, ease: MARKETING_EASE_OUT }, 0.28);
-    timeline.fromTo(base, { opacity: 0 }, { opacity: 1, duration: 0.45 }, 0.7);
+    timeline.fromTo(
+      scope,
+      { y: 64, opacity: 0, scale: 0.985, clipPath: "inset(0 0 10% 0)" },
+      { y: 0, opacity: 1, scale: 1, clipPath: "inset(0 0 0% 0)", duration: 0.88, ease: "power4.out" }
+    );
+    timeline.fromTo(word, { yPercent: 120, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.85, ease: MARKETING_EASE_OUT }, 0.1);
+    timeline.fromTo(groups, { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, stagger: 0.08, ease: MARKETING_EASE_OUT }, 0.32);
+    timeline.fromTo(base, { opacity: 0 }, { opacity: 1, duration: 0.45 }, 0.72);
   }, { scope: ref, dependencies: [prefersReducedMotion] });
 
   return <footer ref={ref}>{children}</footer>;
