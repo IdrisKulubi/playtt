@@ -354,6 +354,14 @@
     @apply min-w-0 pb-20 md:pb-0;
   }
 
+  .player-shell--booking {
+    overflow-x: clip;
+  }
+
+  .player-shell__main--booking {
+    @apply pb-24 md:pb-0;
+  }
+
   .player-shell__header {
     @apply sticky top-0 z-20 flex min-h-16 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8;
   }
@@ -392,7 +400,17 @@
   }
 
   .booking-console {
-    @apply mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8;
+    @apply mx-auto w-full max-w-6xl py-0;
+  }
+
+  .booking-console--with-mobile-action {
+    padding-bottom: calc(11rem + env(safe-area-inset-bottom));
+  }
+
+  @media (min-width: 1024px) {
+    .booking-console--with-mobile-action {
+      padding-bottom: 0;
+    }
   }
 
   .booking-console__grid {
@@ -538,7 +556,7 @@
   }
 
   .booking-mobile-bar {
-    @apply fixed bottom-0 left-0 right-0 z-40 px-4 py-3 supports-[padding:max(0px)]:pb-[max(0.75rem,env(safe-area-inset-bottom))];
+    @apply fixed bottom-[5.25rem] left-0 right-0 z-50 px-4 py-4 supports-[padding:max(1rem)]:pb-[max(1rem,env(safe-area-inset-bottom))];
     background-color: var(--booking-bar-bg);
     color: var(--booking-bar-fg);
   }

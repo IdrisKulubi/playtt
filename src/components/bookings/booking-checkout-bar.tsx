@@ -35,7 +35,7 @@ export function BookingCheckoutBar({
 
   return (
     <div className="booking-mobile-bar lg:hidden">
-      <div className="mx-auto flex max-w-lg items-center justify-between gap-3">
+      <div className="mx-auto flex min-h-14 max-w-lg items-center justify-between gap-3">
         <div className="min-w-0">
           {step === "timing" && selectedSlot ? (
             <>
@@ -58,10 +58,10 @@ export function BookingCheckoutBar({
           ) : null}
         </div>
         <Button
-          size="sm"
+          size="lg"
           variant="secondary"
           disabled={disabled}
-          className="shrink-0 rounded-full border-0 bg-[var(--booking-bar-fg)] px-5 text-[var(--booking-bar-bg)] hover:bg-[var(--booking-bar-fg)]/90 disabled:opacity-50"
+          className="h-12 shrink-0 rounded-full border-0 bg-[var(--booking-bar-fg)] px-6 text-sm text-[var(--booking-bar-bg)] hover:bg-[var(--booking-bar-fg)]/90 disabled:opacity-50"
           onClick={onPrimaryAction}
         >
           {primaryLabel}
