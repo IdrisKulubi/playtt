@@ -1,7 +1,7 @@
 "use client"
 
 import { format, isSameDay, isToday } from "date-fns"
-import { ArrowLeftIcon } from "@phosphor-icons/react"
+import { ArrowLeftIcon, MapPinIcon } from "@phosphor-icons/react"
 
 import { SlotRow } from "@/components/bookings/slot-row"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,7 @@ interface TimingPanelProps {
   selectedSlot: SlotAvailability | null
   isPending: boolean
   nowMs: number
+  canChangeVenue: boolean
   onBack: () => void
   onDateChange: (value: string) => void
   onShowExtendedDates: () => void
@@ -39,6 +40,7 @@ export function TimingPanel({
   selectedSlot,
   isPending,
   nowMs,
+  canChangeVenue,
   onBack,
   onDateChange,
   onShowExtendedDates,
@@ -47,24 +49,35 @@ export function TimingPanel({
   onSlotSelect,
 }: TimingPanelProps) {
   return (
-    <section className="booking-stage mx-auto w-full max-w-lg sm:max-w-xl">
-      <div className="product-shell-header flex items-center gap-2 px-4 py-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-9 shrink-0 rounded-full"
-          onClick={onBack}
-          aria-label="Back to venues"
-        >
-          <ArrowLeftIcon className="size-5" />
-        </Button>
-        <h2 className="min-w-0 flex-1 truncate text-center text-base font-semibold text-foreground">
-          {location?.name ?? "Select time"}
-        </h2>
-        <span className="size-9 shrink-0" aria-hidden />
+    <section className="booking-stage booking-timing-stage">
+      <div className="booking-stage__intro">
+        <div>
+          <p className="booking-stage__eyebrow">Step 1 of 3</p>
+          <h2>When do you want to play?</h2>
+          <p>Choose a day and an available time.</p>
+        </div>
+        {canChangeVenue ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="booking-venue-change"
+            onClick={onBack}
+          >
+            <ArrowLeftIcon className="size-4" />
+            Change venue
+          </Button>
+        ) : null}
       </div>
 
-      <div className="-mx-1 mt-2 overflow-x-auto px-4 pb-1">
+      <div className="booking-venue-chip">
+        <MapPinIcon className="size-4" weight="fill" />
+        <span>{location?.name ?? "Your venue"}</span>
+        {location?.address ? (
+          <small>{location.address}</small>
+        ) : null}
+      </div>
+
+      <div className="mt-5 overflow-x-auto px-5 pb-1 sm:px-6">
         <div className="flex min-w-max items-end gap-0">
           {dateStripDays.map((d) => {
             const key = format(d, "yyyy-MM-dd")
@@ -95,7 +108,7 @@ export function TimingPanel({
         </div>
       </div>
 
-      <div className="px-4 pt-4">
+      <div className="px-5 pt-5 sm:px-6">
         <div
           className="segmented-control"
           role="group"
@@ -119,7 +132,7 @@ export function TimingPanel({
       </div>
 
       {showDatePicker ? (
-        <div className="px-4 pt-3">
+        <div className="px-5 pt-3 sm:px-6">
           <label className="sr-only" htmlFor="booking-date-fallback">
             Pick a date
           </label>
@@ -135,13 +148,17 @@ export function TimingPanel({
         <button
           type="button"
           onClick={onShowDatePicker}
-          className="px-4 pt-3 text-xs text-primary hover:underline"
+          className="px-5 pt-3 text-xs font-medium text-primary hover:underline sm:px-6"
         >
           Choose another date
         </button>
       )}
 
-      <ul className="booking-slot-list mx-4 mt-4 max-h-[min(26rem,52vh)] overflow-y-auto sm:max-h-[min(30rem,58vh)]">
+      <div className="booking-slots-heading">
+        <span>Available times</span>
+        <span>{durationMinutes} min sessions</span>
+      </div>
+      <ul className="booking-slot-list mx-5 mt-3 max-h-[min(26rem,52vh)] overflow-y-auto sm:mx-6 sm:max-h-[min(30rem,58vh)]">
         {slots.length === 0 ? (
           <li className="px-4 py-10 text-center text-sm text-muted-foreground">
             {isPending ? "Loading…" : "No times this day."}

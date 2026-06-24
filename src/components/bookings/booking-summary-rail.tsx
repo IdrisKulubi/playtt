@@ -1,6 +1,10 @@
 import { format } from "date-fns";
 
-import type { BookingQuote, LocationSummary, SlotAvailability } from "@/server/bookings/types";
+import type {
+  BookingQuote,
+  LocationSummary,
+  SlotAvailability,
+} from "@/server/bookings/types";
 
 interface BookingSummaryRailProps {
   location: LocationSummary | null;
@@ -17,24 +21,56 @@ export function BookingSummaryRail({
   quote,
   stepLabel,
 }: BookingSummaryRailProps) {
+  const activeStep =
+    stepLabel === "Review booking" ? 3 : stepLabel === "Pick a time" ? 1 : 0;
+
   return (
-    <aside className="hidden w-full max-w-xs space-y-3 xl:block xl:sticky xl:top-24 xl:self-start">
-      <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-        {stepLabel}
-      </p>
+    <aside className="booking-summary-rail">
+      <div className="booking-summary-rail__progress" aria-label="Booking progress">
+        {["Time", "Players", "Review"].map((label, index) => (
+          <span
+            key={label}
+            className={
+              index <= activeStep
+                ? "booking-progress__item booking-progress__item--active"
+                : "booking-progress__item"
+            }
+          >
+            <b>{index + 1}</b>
+            {label}
+          </span>
+        ))}
+      </div>
+
       <div className="booking-summary">
-        <p className="text-xs text-muted-foreground">Venue</p>
-        <p className="font-medium text-foreground">{location?.name ?? "—"}</p>
-        <p className="mt-3 text-xs text-muted-foreground">Time</p>
-        <p className="font-medium text-foreground">
-          {selectedSlot ? format(new Date(selectedSlot.startsAt), "EEE d MMM, h:mm a") : "—"}
-        </p>
-        <p className="mt-3 text-xs text-muted-foreground">Players</p>
-        <p className="font-medium text-foreground">{groupSize}</p>
-        <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">Total</p>
-        <p className="text-lg font-semibold tabular-nums text-foreground">
-          {quote ? `${quote.currency} ${quote.totalAmount.toLocaleString()}` : "—"}
-        </p>
+        <p className="booking-summary__eyebrow">Your session</p>
+        <dl>
+          <div>
+            <dt>Venue</dt>
+            <dd>{location?.name ?? "Not selected"}</dd>
+          </div>
+          <div>
+            <dt>Time</dt>
+            <dd>
+              {selectedSlot
+                ? format(new Date(selectedSlot.startsAt), "EEE d MMM, h:mm a")
+                : "Choose a time"}
+            </dd>
+          </div>
+          <div>
+            <dt>Players</dt>
+            <dd>{groupSize} players</dd>
+          </div>
+        </dl>
+
+        <div className="booking-summary__total">
+          <span>Total</span>
+          <strong>
+            {quote
+              ? `${quote.currency} ${quote.totalAmount.toLocaleString()}`
+              : "Calculated next"}
+          </strong>
+        </div>
       </div>
     </aside>
   );

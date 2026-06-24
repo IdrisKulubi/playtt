@@ -326,20 +326,175 @@
     @apply rounded-[var(--radius-card)] border border-border bg-card shadow-[var(--elevation-soft)];
   }
 
+  .player-shell {
+    @apply min-h-svh bg-background text-foreground md:grid md:grid-cols-[15rem_minmax(0,1fr)];
+  }
+
+  .player-shell__sidebar {
+    @apply sticky top-0 hidden h-svh flex-col border-r border-border bg-[var(--background-elevated)] px-5 py-6 md:flex;
+  }
+
+  .player-shell__nav {
+    @apply mt-10 space-y-1;
+  }
+
+  .player-shell__nav-link {
+    @apply flex h-11 items-center gap-3 rounded-[var(--radius-field)] px-3 text-sm font-medium text-muted-foreground transition hover:bg-primary/8 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary;
+  }
+
+  .player-shell__nav-link--active {
+    @apply bg-primary text-primary-foreground shadow-sm;
+  }
+
+  .player-shell__book-link {
+    @apply mt-auto inline-flex h-11 items-center justify-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:-translate-y-0.5 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background-elevated)];
+  }
+
+  .player-shell__main {
+    @apply min-w-0 pb-20 md:pb-0;
+  }
+
+  .player-shell__header {
+    @apply sticky top-0 z-20 flex min-h-16 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8;
+  }
+
+  .player-shell__header h1 {
+    @apply truncate text-lg font-semibold tracking-[-0.03em] text-foreground;
+  }
+
+  .player-shell__eyebrow {
+    @apply mb-0.5 text-[0.62rem] font-semibold uppercase tracking-[0.15em] text-primary;
+  }
+
+  .player-shell__header-action {
+    @apply inline-flex h-9 items-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 md:hidden;
+  }
+
+  .player-shell__content {
+    @apply mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8;
+  }
+
+  .player-shell__mobile-nav {
+    @apply fixed bottom-3 left-4 right-4 z-40 flex items-end justify-around rounded-[var(--radius-panel)] border border-border bg-card/95 px-1 py-2 shadow-[var(--elevation-panel)] backdrop-blur-sm md:hidden;
+  }
+
+  .player-shell__mobile-link {
+    @apply flex min-w-0 flex-1 flex-col items-center gap-1 rounded-[var(--radius-field)] px-1 py-1.5 text-[0.62rem] font-medium text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary;
+  }
+
+  .player-shell__mobile-link--active {
+    @apply bg-primary/12 text-primary;
+  }
+
   .booking-stage {
-    @apply overflow-hidden bg-background;
+    @apply overflow-hidden rounded-[var(--radius-card)] border border-border bg-card;
+    box-shadow: var(--elevation-soft);
+  }
+
+  .booking-console {
+    @apply mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8;
+  }
+
+  .booking-console__grid {
+    @apply grid gap-6 xl:grid-cols-[minmax(0,1fr)_19rem] xl:gap-8;
+  }
+
+  .booking-stage__intro {
+    @apply flex flex-col gap-4 border-b border-border px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6;
+  }
+
+  .booking-stage__eyebrow,
+  .booking-summary__eyebrow {
+    @apply text-[0.68rem] font-semibold uppercase tracking-[0.15em] text-primary;
+  }
+
+  .booking-stage__intro h2 {
+    @apply mt-2 text-2xl font-semibold tracking-[-0.035em] text-foreground;
+  }
+
+  .booking-stage__intro p:last-child {
+    @apply mt-1 text-sm leading-6 text-muted-foreground;
+  }
+
+  .booking-venue-change {
+    @apply shrink-0 rounded-full border border-border bg-background text-foreground hover:border-primary/40 hover:bg-primary/8;
+  }
+
+  .booking-venue-chip {
+    @apply mx-5 mt-4 flex items-center gap-2 rounded-[var(--radius-field)] border border-primary/20 bg-primary/8 px-3 py-2.5 text-sm font-medium text-foreground sm:mx-6;
+  }
+
+  .booking-venue-chip svg {
+    @apply shrink-0 text-primary;
+  }
+
+  .booking-venue-chip small {
+    @apply ml-auto hidden text-xs font-normal text-muted-foreground md:block;
   }
 
   .booking-summary {
-    @apply rounded-[var(--radius-field)] border border-border bg-[var(--background-elevated)] p-4 text-sm;
+    @apply rounded-[var(--radius-card)] border border-border bg-card p-5 text-sm;
+    box-shadow: var(--elevation-soft);
+  }
+
+  .booking-summary dl {
+    @apply mt-5 space-y-4;
+  }
+
+  .booking-summary dl div {
+    @apply space-y-1;
+  }
+
+  .booking-summary dt {
+    @apply text-xs text-muted-foreground;
+  }
+
+  .booking-summary dd {
+    @apply font-medium text-foreground;
+  }
+
+  .booking-summary__total {
+    @apply mt-5 flex items-end justify-between border-t border-border pt-4;
+  }
+
+  .booking-summary__total span {
+    @apply text-xs text-muted-foreground;
+  }
+
+  .booking-summary__total strong {
+    @apply text-base font-semibold tabular-nums text-foreground;
+  }
+
+  .booking-summary-rail {
+    @apply hidden w-full space-y-4 xl:sticky xl:top-24 xl:block xl:self-start;
+  }
+
+  .booking-summary-rail__progress {
+    @apply flex items-center gap-2 px-1 text-xs text-muted-foreground;
+  }
+
+  .booking-progress__item {
+    @apply flex items-center gap-1.5;
+  }
+
+  .booking-progress__item b {
+    @apply flex size-5 items-center justify-center rounded-full border border-border text-[0.62rem] font-semibold;
+  }
+
+  .booking-progress__item--active {
+    @apply text-foreground;
+  }
+
+  .booking-progress__item--active b {
+    @apply border-primary bg-primary text-primary-foreground;
   }
 
   .booking-date-tab {
-    @apply relative flex shrink-0 flex-col items-center px-3 py-2 text-sm font-medium transition;
+    @apply relative flex shrink-0 flex-col items-center rounded-[var(--radius-field)] px-3 py-2 text-sm font-medium transition;
   }
 
   .booking-date-tab--active {
-    @apply text-foreground;
+    @apply bg-primary text-primary-foreground;
   }
 
   .booking-date-tab:not(.booking-date-tab--active) {
@@ -347,19 +502,19 @@
   }
 
   .booking-date-tab__dot {
-    @apply mb-1 size-1.5 rounded-full bg-transparent;
+    @apply mb-1 size-1.5 rounded-full bg-current opacity-35;
   }
 
   .booking-date-tab--active .booking-date-tab__dot {
-    @apply bg-primary;
+    @apply opacity-100;
   }
 
   .booking-slot-list {
-    @apply divide-y divide-border border-y border-border;
+    @apply divide-y divide-border overflow-hidden rounded-[var(--radius-field)] border border-border;
   }
 
   .booking-slot-row {
-    @apply flex w-full items-center gap-3 px-4 py-3.5 text-left transition sm:gap-4;
+    @apply flex w-full items-center gap-3 bg-background px-4 py-4 text-left transition sm:gap-4;
   }
 
   .booking-slot-row:not(:disabled):hover {
@@ -371,7 +526,15 @@
   }
 
   .booking-slot-row--selected {
-    @apply bg-primary/[0.08];
+    @apply bg-primary/10;
+  }
+
+  .booking-slots-heading {
+    @apply mt-6 flex items-center justify-between px-5 text-sm font-semibold text-foreground sm:px-6;
+  }
+
+  .booking-slots-heading span:last-child {
+    @apply text-xs font-normal text-muted-foreground;
   }
 
   .booking-mobile-bar {
@@ -385,11 +548,11 @@
   }
 
   .product-shell-header {
-    @apply border-b border-border bg-background;
+    @apply border-b border-border bg-background/95;
   }
 
   .venue-thumb {
-    @apply flex size-14 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary text-primary sm:size-16;
+    @apply flex size-14 shrink-0 items-center justify-center rounded-[var(--radius-field)] border border-primary/20 bg-primary/8 text-primary sm:size-16;
   }
 
   .segmented-control {
