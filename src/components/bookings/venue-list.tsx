@@ -10,7 +10,14 @@ interface VenueListProps {
 
 export function VenueList({ locations, selectedLocationId, onSelect }: VenueListProps) {
   return (
-    <section className="booking-stage mx-auto w-full max-w-lg sm:max-w-xl">
+    <section className="booking-stage booking-venue-stage">
+      <div className="booking-stage__intro">
+        <div>
+          <p className="booking-stage__eyebrow">Step 1 of 3</p>
+          <h2>Where do you want to play?</h2>
+          <p>Pick a PlayTT venue to see available sessions.</p>
+        </div>
+      </div>
       <ul className="divide-y divide-border">
         {locations.map((location) => {
           const active = location.id === selectedLocationId;

@@ -40,7 +40,9 @@ const stepLabels: Record<BookingStep, string> = {
 export function BookingConsole({ locations }: BookingConsoleProps) {
   const { data: session } = authClient.useSession()
   const [isPending, startTransition] = useTransition()
-  const [step, setStep] = useState<BookingStep>("location")
+  const [step, setStep] = useState<BookingStep>(
+    locations.length === 1 ? "timing" : "location"
+  )
   const [selectedLocationId, setSelectedLocationId] = useState(
     locations[0]?.id ?? ""
   )
@@ -113,9 +115,7 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
   const selectedSlotIsFuture =
     selectedSlot && !isSlotStartInPast(selectedSlot.startsAt, nowMs)
 
-  const showMobileBar =
-    (step === "timing" && selectedSlotIsFuture) ||
-    (step === "checkout" && Boolean(displayQuote))
+  const showMobileBar = step === "checkout" && Boolean(displayQuote)
 
   function handleLocationSelect(locationId: string) {
     setSelectedLocationId(locationId)
@@ -279,8 +279,10 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
     selectedSlot?.price.currency ?? displayQuote?.currency ?? "KES"
 
   return (
-    <div className={`space-y-6 ${showMobileBar ? "pb-28 lg:pb-0" : ""}`}>
-      <div className="grid gap-6 xl:grid-cols-[0.72fr_0.28fr]">
+    <div
+      className={`booking-console space-y-6 ${showMobileBar ? "pb-28 lg:pb-0" : ""}`}
+    >
+      <div className="booking-console__grid">
         <div className="space-y-6">
           {step === "location" ? (
             <VenueList
@@ -303,6 +305,7 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
               selectedSlot={selectedSlot}
               isPending={isPending}
               nowMs={nowMs}
+              canChangeVenue={locations.length > 1}
               onBack={() => setStep("location")}
               onDateChange={handleDateChange}
               onShowExtendedDates={() => setShowExtendedDates(true)}
@@ -352,19 +355,15 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
       />
 
       <BookingCheckoutBar
-        step={step === "checkout" ? "checkout" : "timing"}
+        step="checkout"
         selectedSlot={selectedSlotIsFuture ? selectedSlot : null}
         durationMinutes={durationMinutes}
         quote={displayQuote}
         disabled={step === "checkout" && (isPending || !session?.user?.id)}
         onPrimaryAction={() => {
-          if (step === "timing") {
-            setGroupSheetOpen(true)
-            return
-          }
           handleCreateBooking()
         }}
-        primaryLabel={step === "checkout" ? "Confirm" : "Check out"}
+        primaryLabel="Book this slot"
       />
     </div>
   )

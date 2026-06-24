@@ -55,6 +55,9 @@ export function SlotRow({
         ) : (
           <span className="hidden flex-1 sm:block" aria-hidden />
         )}
+        <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+          {slot.price.currency} {slot.price.totalAmount.toLocaleString()}
+        </span>
         <span className="flex size-8 shrink-0 items-center justify-center text-primary sm:ml-auto">
           {selected && !startInPast ? (
             <CheckCircleIcon className="size-6" weight="fill" />

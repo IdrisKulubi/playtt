@@ -36,37 +36,42 @@ export function GroupSizeSheet({
 }: GroupSizeSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-[var(--radius-panel)] px-0 pb-8">
-        <SheetHeader className="border-b border-border px-4 pb-4 text-center">
-          <SheetTitle className="text-base font-semibold">Group size</SheetTitle>
-          <SheetDescription className="sr-only">
-            Choose how many players will join this session.
+      <SheetContent
+        side="bottom"
+        className="rounded-t-[var(--radius-panel)] px-4 pb-5 sm:!top-1/2 sm:!bottom-auto sm:!left-1/2 sm:!right-auto sm:!max-h-[calc(100svh-3rem)] sm:!w-[min(28rem,calc(100vw-2rem))] sm:!translate-x-[-50%] sm:!translate-y-[-50%] sm:overflow-y-auto sm:rounded-[var(--radius-panel)]"
+      >
+        <SheetHeader className="px-0 pb-4 text-left">
+          <SheetTitle className="text-lg font-semibold">Who is joining?</SheetTitle>
+          <SheetDescription className="text-xs leading-5">
+            Choose the number of players for this session.
           </SheetDescription>
         </SheetHeader>
 
-        <ul className="divide-y divide-border">
+        <ul className="grid grid-cols-3 gap-2">
           {GROUP_SIZE_OPTIONS.map((size) => {
             const active = size === groupSize;
             const surcharge = Math.max(0, size - INCLUDED_PLAYERS) * EXTRA_PLAYER_SURCHARGE;
 
             return (
-              <li key={size}>
+              <li key={size} className="last:col-start-2">
                 <button
                   type="button"
                   onClick={() => onGroupSizeChange(size)}
-                  className={`flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition ${
-                    active ? "bg-primary text-primary-foreground" : "hover:bg-[var(--surface-soft)]"
+                  className={`flex min-h-[4.9rem] w-full flex-col items-start justify-between rounded-[var(--radius-field)] border px-3 py-2.5 text-left transition ${
+                    active
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background hover:border-primary/35 hover:bg-primary/5"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <UsersThreeIcon
-                      className={`size-5 ${active ? "text-primary-foreground" : "text-muted-foreground"}`}
+                      className={`size-4 ${active ? "text-primary-foreground" : "text-muted-foreground"}`}
                       weight={active ? "fill" : "regular"}
                     />
-                    <span className="font-medium">{size} players</span>
+                    <span className="text-sm font-semibold">{size} players</span>
                   </div>
                   <span
-                    className={`text-sm tabular-nums ${active ? "text-primary-foreground/80" : "text-muted-foreground"}`}
+                    className={`text-xs tabular-nums ${active ? "text-primary-foreground/78" : "text-muted-foreground"}`}
                   >
                     {surcharge > 0 ? `+${currency} ${surcharge.toLocaleString()}` : "Included"}
                   </span>
@@ -76,13 +81,13 @@ export function GroupSizeSheet({
           })}
         </ul>
 
-        <p className="px-4 pt-3 text-center text-xs text-muted-foreground">
+        <p className="pt-3 text-xs text-muted-foreground">
           Base rate includes up to {INCLUDED_PLAYERS} players.
         </p>
 
-        <div className="px-4 pt-4">
+        <div className="pt-4">
           <Button onClick={onContinue} size="lg" className="w-full rounded-full">
-            Continue for {groupSize} players
+            Continue with {groupSize} players
           </Button>
         </div>
       </SheetContent>
