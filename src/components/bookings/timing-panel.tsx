@@ -77,7 +77,21 @@ export function TimingPanel({
         ) : null}
       </div>
 
-      <div className="mt-5 overflow-x-auto px-5 pb-1 sm:px-6">
+      <div className="px-5 pt-5 sm:hidden">
+        <label className="mb-2 block text-xs font-semibold text-muted-foreground" htmlFor="booking-date-mobile">
+          Date
+        </label>
+        <input
+          id="booking-date-mobile"
+          type="date"
+          min={format(new Date(), "yyyy-MM-dd")}
+          value={selectedDate}
+          onChange={(event) => onDateChange(event.target.value)}
+          className="surface-inset w-full rounded-[var(--radius-field)] border border-border px-3 py-3 text-sm font-medium text-foreground"
+        />
+      </div>
+
+      <div className="mt-5 hidden overflow-x-auto px-5 pb-1 sm:block sm:px-6">
         <div className="flex min-w-max items-end gap-0">
           {dateStripDays.map((d) => {
             const key = format(d, "yyyy-MM-dd")
@@ -132,7 +146,7 @@ export function TimingPanel({
       </div>
 
       {showDatePicker ? (
-        <div className="px-5 pt-3 sm:px-6">
+        <div className="hidden px-5 pt-3 sm:block sm:px-6">
           <label className="sr-only" htmlFor="booking-date-fallback">
             Pick a date
           </label>
@@ -148,7 +162,7 @@ export function TimingPanel({
         <button
           type="button"
           onClick={onShowDatePicker}
-          className="px-5 pt-3 text-xs font-medium text-primary hover:underline sm:px-6"
+          className="hidden px-5 pt-3 text-xs font-medium text-primary hover:underline sm:inline-block sm:px-6"
         >
           Choose another date
         </button>

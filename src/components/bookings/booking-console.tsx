@@ -280,7 +280,7 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
 
   return (
     <div
-      className={`booking-console space-y-6 ${showMobileBar ? "pb-28 lg:pb-0" : ""}`}
+      className={`booking-console space-y-6 ${showMobileBar ? "booking-console--with-mobile-action" : ""}`}
     >
       <div className="booking-console__grid">
         <div className="space-y-6">

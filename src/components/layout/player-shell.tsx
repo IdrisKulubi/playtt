@@ -39,8 +39,11 @@ export function PlayerShell({
   children,
 }: PlayerShellProps) {
   const pathname = usePathname();
+  const isBookingFlow = pathname === "/book";
 
   useGSAP(() => {
+    if (isBookingFlow) return;
+
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
     ).matches;
@@ -54,10 +57,10 @@ export function PlayerShell({
       delay: 0.08,
       ease: "power3.out",
     });
-  }, []);
+  }, [isBookingFlow]);
 
   return (
-    <main className="player-shell">
+    <main className={isBookingFlow ? "player-shell player-shell--booking" : "player-shell"}>
       <aside className="player-shell__sidebar">
         <BrandMark size="compact" tone="light" />
         <nav aria-label="Player navigation" className="player-shell__nav">
@@ -89,7 +92,14 @@ export function PlayerShell({
         </Link>
       </aside>
 
-      <section className="player-shell__main" data-player-shell-content>
+      <section
+        className={
+          isBookingFlow
+            ? "player-shell__main player-shell__main--booking"
+            : "player-shell__main"
+        }
+        data-player-shell-content
+      >
         <header className="player-shell__header">
           <div className="flex min-w-0 items-center gap-3">
             {backHref ? (
@@ -104,9 +114,11 @@ export function PlayerShell({
               <h1>{title}</h1>
             </div>
           </div>
-          <Link href="/book" className="player-shell__header-action">
-            Book
-          </Link>
+          {!isBookingFlow ? (
+            <Link href="/book" className="player-shell__header-action">
+              Book
+            </Link>
+          ) : null}
         </header>
 
         <div className="player-shell__content">{children}</div>
