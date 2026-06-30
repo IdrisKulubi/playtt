@@ -1,13 +1,11 @@
-import Link from "next/link";
-
 import { HeroSection } from "@/components/home/hero-section";
 import { HomeScrollMotion } from "@/components/home/home-scroll-motion";
 import { HowItWorksSection } from "@/components/home/how-it-works-section";
 import { LocationsSection } from "@/components/home/locations-section";
 import { PartnerSection } from "@/components/home/partner-section";
 import { SiteFooter } from "@/components/home/site-footer";
+import { MarketingNavActions } from "@/components/layout/marketing-nav-actions";
 import { MarketingShell } from "@/components/layout/marketing-shell";
-import { Button } from "@/components/ui/button";
 import { getBookingBootstrapData } from "@/server/bookings/service";
 
 const navLinks = [
@@ -23,28 +21,7 @@ export default async function Page() {
   return (
     <MarketingShell
       navLinks={[...navLinks]}
-      actions={
-        <>
-          <Link
-            href="/sign-in"
-            className="marketing-nav__sign-in hidden sm:inline"
-            data-nav-action
-          >
-            Sign in
-          </Link>
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="marketing-nav__create hidden sm:inline-flex"
-          >
-            <Link href="/sign-up" data-nav-action>Create account</Link>
-          </Button>
-          <Button asChild size="sm" className="marketing-nav__book">
-            <Link href="/book" data-nav-action>Book now</Link>
-          </Button>
-        </>
-      }
+      actions={<MarketingNavActions />}
       footer={<SiteFooter />}
     >
       <HomeScrollMotion>

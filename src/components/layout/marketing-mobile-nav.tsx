@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { ListIcon } from "@phosphor-icons/react";
 
+import {
+  MarketingMobileGuestLinks,
+  MarketingMobileUserLinks,
+} from "@/components/layout/marketing-mobile-auth-links";
+import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -22,6 +27,8 @@ interface MarketingMobileNavProps {
 }
 
 export function MarketingMobileNav({ navLinks }: MarketingMobileNavProps) {
+  const { data: session, isPending } = authClient.useSession();
+
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -55,15 +62,14 @@ export function MarketingMobileNav({ navLinks }: MarketingMobileNavProps) {
         </nav>
 
         <div className="mt-auto flex flex-col gap-3 border-t border-border p-6">
-          <Button asChild variant="outline" className="w-full">
-            <Link href="/sign-up">Create account</Link>
-          </Button>
-          <Link
-            href="/sign-in"
-            className="text-center text-sm font-medium text-muted-foreground transition hover:text-foreground"
-          >
-            Sign in
-          </Link>
+          {!isPending && session?.user ? (
+            <MarketingMobileUserLinks
+              name={session.user.name}
+              email={session.user.email}
+            />
+          ) : (
+            <MarketingMobileGuestLinks />
+          )}
         </div>
       </SheetContent>
     </Sheet>
