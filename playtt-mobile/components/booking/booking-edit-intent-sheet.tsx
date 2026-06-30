@@ -25,8 +25,8 @@ const OPTIONS: { id: EditIntent; label: string; description: string }[] = [
   },
   {
     id: "players",
-    label: "Add players",
-    description: "Bring more friends (no removals)",
+    label: "Change players",
+    description: "Add or reduce players before the cutoff",
   },
 ]
 

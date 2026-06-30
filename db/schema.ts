@@ -470,6 +470,50 @@ export const bookingModifications = pgTable(
   ],
 );
 
+export const bookingCreditBalances = pgTable("booking_credit_balances", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  balanceAmount: numeric("balance_amount", { precision: 12, scale: 2 })
+    .default("0")
+    .notNull(),
+  currency: text("currency").default("KES").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const bookingCreditLedger = pgTable(
+  "booking_credit_ledger",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    bookingId: uuid("booking_id").references(() => bookings.id, {
+      onDelete: "set null",
+    }),
+    bookingModificationId: uuid("booking_modification_id").references(
+      () => bookingModifications.id,
+      { onDelete: "set null" },
+    ),
+    deltaAmount: numeric("delta_amount", { precision: 12, scale: 2 }).notNull(),
+    currency: text("currency").default("KES").notNull(),
+    reason: text("reason").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("booking_credit_ledger_user_created_idx").on(
+      table.userId,
+      table.createdAt,
+    ),
+    index("booking_credit_ledger_booking_idx").on(table.bookingId),
+  ],
+);
+
 export const payments = pgTable(
   "payments",
   {
@@ -879,6 +923,11 @@ export const userRelations = relations(user, ({ many, one }) => ({
     references: [locations.id],
   }),
   bookings: many(bookings),
+  bookingCreditBalance: one(bookingCreditBalances, {
+    fields: [user.id],
+    references: [bookingCreditBalances.userId],
+  }),
+  bookingCreditLedger: many(bookingCreditLedger),
   payments: many(payments),
   replays: many(replays),
   notifications: many(notifications),
@@ -940,6 +989,7 @@ export const bookingRelations = relations(bookings, ({ one, many }) => ({
   }),
   payments: many(payments),
   modifications: many(bookingModifications),
+  creditLedger: many(bookingCreditLedger),
   statusHistory: many(bookingStatusHistory),
   accessCredentials: many(accessCredentials),
   sessionEvents: many(sessionEvents),
@@ -950,7 +1000,7 @@ export const bookingRelations = relations(bookings, ({ one, many }) => ({
 
 export const bookingModificationRelations = relations(
   bookingModifications,
-  ({ one }) => ({
+  ({ one, many }) => ({
     booking: one(bookings, {
       fields: [bookingModifications.bookingId],
       references: [bookings.id],
@@ -962,6 +1012,35 @@ export const bookingModificationRelations = relations(
     payment: one(payments, {
       fields: [bookingModifications.paymentId],
       references: [payments.id],
+    }),
+    creditLedger: many(bookingCreditLedger),
+  }),
+);
+
+export const bookingCreditBalanceRelations = relations(
+  bookingCreditBalances,
+  ({ one }) => ({
+    user: one(user, {
+      fields: [bookingCreditBalances.userId],
+      references: [user.id],
+    }),
+  }),
+);
+
+export const bookingCreditLedgerRelations = relations(
+  bookingCreditLedger,
+  ({ one }) => ({
+    user: one(user, {
+      fields: [bookingCreditLedger.userId],
+      references: [user.id],
+    }),
+    booking: one(bookings, {
+      fields: [bookingCreditLedger.bookingId],
+      references: [bookings.id],
+    }),
+    modification: one(bookingModifications, {
+      fields: [bookingCreditLedger.bookingModificationId],
+      references: [bookingModifications.id],
     }),
   }),
 );

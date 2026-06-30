@@ -217,6 +217,7 @@ export async function listBookingsForUser(input: {
   userId: string
   filter?: BookingListFilter
 }): Promise<UserBookingSummary[]> {
+  await runBookingExpirySweep()
   return listUserBookings(input)
 }
 

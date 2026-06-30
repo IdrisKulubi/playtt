@@ -2,6 +2,8 @@ import { and, eq } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import {
+  bookingCreditBalances,
+  bookingCreditLedger,
   bookingModifications,
   bookingStatusHistory,
   bookings,
@@ -34,7 +36,9 @@ export async function getEditableBookingForUser(input: {
       pricingRuleSnapshot: bookings.pricingRuleSnapshot,
     })
     .from(bookings)
-    .where(and(eq(bookings.id, input.bookingId), eq(bookings.userId, input.userId)))
+    .where(
+      and(eq(bookings.id, input.bookingId), eq(bookings.userId, input.userId))
+    )
     .limit(1)
 
   if (!row) {
@@ -60,8 +64,8 @@ export async function getModificationById(input: {
     .where(
       and(
         eq(bookingModifications.id, input.modificationId),
-        eq(bookingModifications.userId, input.userId),
-      ),
+        eq(bookingModifications.userId, input.userId)
+      )
     )
     .limit(1)
 
@@ -110,8 +114,10 @@ export async function attachPaymentToModification(input: {
 export async function applyModificationToBooking(input: {
   modificationId: string
   afterSnapshot: ModificationSnapshot
+  creditAmount?: string
 }) {
   const after = input.afterSnapshot
+  const creditAmount = Number(input.creditAmount ?? "0")
 
   await db.transaction(async (tx) => {
     const [modification] = await tx
@@ -158,6 +164,45 @@ export async function applyModificationToBooking(input: {
         source: "booking_modification",
       },
     })
+
+    if (creditAmount > 0) {
+      await tx
+        .insert(bookingCreditBalances)
+        .values({
+          userId: modification.userId,
+          balanceAmount: "0",
+          currency: modification.currency,
+        })
+        .onConflictDoNothing()
+
+      const [balanceRow] = await tx
+        .select()
+        .from(bookingCreditBalances)
+        .where(eq(bookingCreditBalances.userId, modification.userId))
+        .for("update")
+        .limit(1)
+
+      const currentBalance = Number(balanceRow?.balanceAmount ?? "0")
+      const nextBalance = currentBalance + creditAmount
+
+      await tx
+        .update(bookingCreditBalances)
+        .set({
+          balanceAmount: nextBalance.toFixed(2),
+          currency: modification.currency,
+          updatedAt: new Date(),
+        })
+        .where(eq(bookingCreditBalances.userId, modification.userId))
+
+      await tx.insert(bookingCreditLedger).values({
+        userId: modification.userId,
+        bookingId: modification.bookingId,
+        bookingModificationId: modification.id,
+        deltaAmount: creditAmount.toFixed(2),
+        currency: modification.currency,
+        reason: "booking_reduction",
+      })
+    }
   })
 }
 
