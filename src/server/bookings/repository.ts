@@ -32,6 +32,7 @@ function mapBookingRow(row: {
   totalAmount: string;
   locationId: string;
   locationName: string;
+  locationAddress: string;
   resourceId: string;
   resourceName: string;
   expiresAt: Date | null;
@@ -50,6 +51,7 @@ function mapBookingRow(row: {
     totalAmount: String(row.totalAmount),
     locationId: row.locationId,
     locationName: row.locationName,
+    locationAddress: row.locationAddress,
     resourceId: row.resourceId,
     resourceName: row.resourceName,
     expiresAt: row.expiresAt?.toISOString() ?? null,
@@ -248,6 +250,7 @@ export async function listUserBookings(input: {
       totalAmount: bookings.totalAmount,
       locationId: bookings.locationId,
       locationName: locations.name,
+      locationAddress: locations.address,
       resourceId: bookings.resourceId,
       resourceName: resources.name,
       expiresAt: bookings.expiresAt,
@@ -288,6 +291,7 @@ export async function getUserBookingById(input: {
       totalAmount: bookings.totalAmount,
       locationId: bookings.locationId,
       locationName: locations.name,
+      locationAddress: locations.address,
       resourceId: bookings.resourceId,
       resourceName: resources.name,
       expiresAt: bookings.expiresAt,
