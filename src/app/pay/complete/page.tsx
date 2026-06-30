@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 type PaymentCompletePageProps = {
   searchParams: Promise<{
     bookingId?: string
+    client?: string
     reference?: string
     trxref?: string
   }>
@@ -21,10 +22,15 @@ export default async function PaymentCompletePage({
   const params = await searchParams
   const reference = params.reference ?? params.trxref
   const { bookingId } = params
+  const client = params.client === "web" ? "web" : "mobile"
 
   const { confirmed } = await confirmPaymentFromCallback(reference)
 
   return (
-    <PaymentCompleteClient bookingId={bookingId} confirmed={confirmed} />
+    <PaymentCompleteClient
+      bookingId={bookingId}
+      client={client}
+      confirmed={confirmed}
+    />
   )
 }

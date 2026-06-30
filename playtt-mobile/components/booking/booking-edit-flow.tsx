@@ -39,13 +39,13 @@ function pickSlotForDate(
   slots: SlotAvailability[],
   dateKey: string,
   preferredStartIso: string | null,
-  nowMs: number,
+  nowMs: number
 ) {
   const available = slots.filter(
     (slot) =>
       slot.startsAt.startsWith(dateKey) &&
       slot.isAvailable &&
-      !isSlotStartInPast(slot.startsAt, nowMs),
+      !isSlotStartInPast(slot.startsAt, nowMs)
   )
 
   if (available.length === 0) {
@@ -73,11 +73,11 @@ export function BookingEditFlow({
   const [addPlayers, setAddPlayers] = useState(false)
 
   const [selectedDateKey, setSelectedDateKey] = useState(
-    toDateKey(new Date(booking.startTime)),
+    toDateKey(new Date(booking.startTime))
   )
   const [selectedStartIso, setSelectedStartIso] = useState(booking.startTime)
   const [groupSize, setGroupSize] = useState<GroupSize>(
-    booking.groupSize as GroupSize,
+    booking.groupSize as GroupSize
   )
   const [slots, setSlots] = useState<SlotAvailability[]>([])
   const [isLoadingSlots, setIsLoadingSlots] = useState(false)
@@ -92,7 +92,7 @@ export function BookingEditFlow({
 
   const dateStrip = useMemo(
     () => buildDateStripAround(new Date(booking.startTime), 7),
-    [booking.startTime],
+    [booking.startTime]
   )
 
   const location = useMemo<LocationSummary>(
@@ -104,15 +104,13 @@ export function BookingEditFlow({
       address: "",
       resources: [],
     }),
-    [booking.locationId, booking.locationName],
+    [booking.locationId, booking.locationName]
   )
 
   const durationMinutes = booking.durationMinutes as 30 | 60
-  const minGroupSize = booking.groupSize as GroupSize
-
   const selectedSlot = useMemo(
     () => slots.find((slot) => slot.startsAt === selectedStartIso) ?? null,
-    [selectedStartIso, slots],
+    [selectedStartIso, slots]
   )
 
   const resetState = useCallback(() => {
@@ -138,25 +136,21 @@ export function BookingEditFlow({
     setTimeout(() => onClose(), 350)
   }, [onClose])
 
-  const {
-    isApplying,
-    isConfirming,
-    confirmLabel,
-    applyModificationResult,
-  } = useModificationCheckout({
-    bookingId: booking.id,
-    onApplied: async () => {
-      setStep("closed")
+  const { isApplying, isConfirming, confirmLabel, applyModificationResult } =
+    useModificationCheckout({
+      bookingId: booking.id,
+      onApplied: async () => {
+        setStep("closed")
 
-      const updated = await fetchBookingById(booking.id)
-      if (updated) {
-        onUpdated(updated)
-      }
-      toast.success("Booking updated.")
+        const updated = await fetchBookingById(booking.id)
+        if (updated) {
+          onUpdated(updated)
+        }
+        toast.success("Booking updated.")
 
-      scheduleParentClose()
-    },
-  })
+        scheduleParentClose()
+      },
+    })
 
   const wasVisibleRef = useRef(false)
 
@@ -201,7 +195,7 @@ export function BookingEditFlow({
         data,
         selectedDateKey,
         preferred || null,
-        Date.now(),
+        Date.now()
       )
 
       if (nextSlot) {
@@ -326,7 +320,7 @@ export function BookingEditFlow({
     const timeChanged = changeTime && selectedStartIso !== booking.startTime
 
     if (!playersChanged && !timeChanged) {
-      toast.info("Add at least one more player to continue.")
+      toast.info("Pick a different group size to continue.")
       return
     }
 
@@ -395,10 +389,9 @@ export function BookingEditFlow({
         visible={visible && step === "players"}
         groupSize={groupSize}
         currency={booking.currency}
-        minGroupSize={minGroupSize}
-        title="Add players"
+        title="Change players"
         continueLabel="Continue"
-        hint="You can add players, not remove them."
+        hint="You can reduce players until 2 hours before play. If the total drops, PlayTT keeps the difference as credit on your account."
         onClose={handleClose}
         onGroupSizeChange={setGroupSize}
         onContinue={handlePlayersContinue}

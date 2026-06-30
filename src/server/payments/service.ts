@@ -38,7 +38,7 @@ function assertBookingPayable(booking: {
     throw new PaymentServiceError(
       "BOOKING_ALREADY_PAID",
       "This booking is already paid.",
-      409,
+      409
     )
   }
 
@@ -46,7 +46,7 @@ function assertBookingPayable(booking: {
     throw new PaymentServiceError(
       "BOOKING_EXPIRED",
       "This booking hold has expired. Pick another slot.",
-      410,
+      410
     )
   }
 
@@ -54,7 +54,7 @@ function assertBookingPayable(booking: {
     throw new PaymentServiceError(
       "BOOKING_CANCELLED",
       "This booking was cancelled.",
-      409,
+      409
     )
   }
 
@@ -62,7 +62,7 @@ function assertBookingPayable(booking: {
     throw new PaymentServiceError(
       "BOOKING_NOT_PAYABLE",
       "This booking cannot be paid right now.",
-      409,
+      409
     )
   }
 
@@ -70,13 +70,13 @@ function assertBookingPayable(booking: {
     throw new PaymentServiceError(
       "BOOKING_EXPIRED",
       "This booking hold has expired. Pick another slot.",
-      410,
+      410
     )
   }
 }
 
 function getAuthorizationUrlFromPayload(
-  rawPayload: Record<string, unknown> | null | undefined,
+  rawPayload: Record<string, unknown> | null | undefined
 ) {
   if (!rawPayload) {
     return null
@@ -100,7 +100,7 @@ async function tryConfirmFromVerify(reference: string) {
     throw new PaymentServiceError(
       "BOOKING_ALREADY_PAID",
       "This booking is already paid.",
-      409,
+      409
     )
   }
 
@@ -113,6 +113,7 @@ function buildResult(input: {
   displayText: string
   booking: BookingPaymentContext
   authorizationUrl?: string
+  client?: "web" | "mobile"
 }): InitiatePaymentResult {
   return {
     method: "hosted",
@@ -121,13 +122,16 @@ function buildResult(input: {
     displayText: input.displayText,
     expiresAt: input.booking.expiresAt?.toISOString() ?? null,
     bookingId: input.booking.id,
-    returnUrl: getPaymentCallbackUrl(input.booking.id),
+    returnUrl: getPaymentCallbackUrl(input.booking.id, {
+      client: input.client,
+    }),
     authorizationUrl: input.authorizationUrl,
   }
 }
 
 async function initiateHostedPayment(
   booking: BookingPaymentContext,
+  options?: { client?: "web" | "mobile" }
 ): Promise<InitiatePaymentResult> {
   const latestPayment = await findLatestPaymentForBooking(booking.id)
 
@@ -141,7 +145,7 @@ async function initiateHostedPayment(
     }
 
     const authorizationUrl = getAuthorizationUrlFromPayload(
-      latestPayment.rawPayload as Record<string, unknown> | null,
+      latestPayment.rawPayload as Record<string, unknown> | null
     )
 
     if (authorizationUrl) {
@@ -151,6 +155,7 @@ async function initiateHostedPayment(
         displayText: "Complete payment in the secure checkout.",
         booking,
         authorizationUrl,
+        client: options?.client,
       })
     }
   }
@@ -164,10 +169,13 @@ async function initiateHostedPayment(
       email: booking.userEmail,
       amount,
       currency: PAYSTACK_CURRENCY,
-      callbackUrl: getPaymentCallbackUrl(booking.id),
+      callbackUrl: getPaymentCallbackUrl(booking.id, {
+        client: options?.client,
+      }),
       metadata: {
         bookingId: booking.id,
         userId: booking.userId,
+        client: options?.client ?? "mobile",
       },
     })
   } catch (error) {
@@ -196,7 +204,21 @@ async function initiateHostedPayment(
     displayText: "You will be redirected to a secure checkout page.",
     booking,
     authorizationUrl: initialized.authorization_url,
+    client: options?.client,
   })
+}
+
+function parsePaymentClient(body: unknown): "web" | "mobile" | undefined {
+  if (
+    body &&
+    typeof body === "object" &&
+    "client" in body &&
+    (body.client === "web" || body.client === "mobile")
+  ) {
+    return body.client
+  }
+
+  return undefined
 }
 
 export async function initiateBookingPayment(input: {
@@ -204,8 +226,6 @@ export async function initiateBookingPayment(input: {
   userId: string
   body: unknown
 }): Promise<InitiatePaymentResult> {
-  void input.body
-
   await runBookingExpirySweep()
 
   const booking = await getBookingPaymentContext({
@@ -217,13 +237,15 @@ export async function initiateBookingPayment(input: {
     throw new PaymentServiceError(
       "BOOKING_NOT_FOUND",
       "We could not find that booking.",
-      404,
+      404
     )
   }
 
   assertBookingPayable(booking)
 
-  return initiateHostedPayment(booking)
+  return initiateHostedPayment(booking, {
+    client: parsePaymentClient(input.body),
+  })
 }
 
 export async function getBookingPaymentStatus(input: {
@@ -241,7 +263,7 @@ export async function getBookingPaymentStatus(input: {
     throw new PaymentServiceError(
       "BOOKING_NOT_FOUND",
       "We could not find that booking.",
-      404,
+      404
     )
   }
 
@@ -254,7 +276,7 @@ export async function getBookingPaymentStatus(input: {
   ) {
     try {
       const transaction = await verifyPaystackTransaction(
-        latestPayment.providerReference,
+        latestPayment.providerReference
       )
 
       if (transaction.status === "success") {
@@ -315,9 +337,7 @@ export async function handlePaystackWebhookEvent(input: {
       : null
 
   const paymentType =
-    metadata && "paymentType" in metadata
-      ? String(metadata.paymentType)
-      : null
+    metadata && "paymentType" in metadata ? String(metadata.paymentType) : null
 
   if (paymentType === "replay_pack") {
     const result = await confirmReplayPackPurchase({

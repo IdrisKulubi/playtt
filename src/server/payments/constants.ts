@@ -19,8 +19,14 @@ export function getPaymentReturnUrl() {
   return `${getAppBaseUrl()}${PAYMENT_COMPLETE_PATH}`
 }
 
-export function getPaymentCallbackUrl(bookingId: string) {
+export function getPaymentCallbackUrl(
+  bookingId: string,
+  options?: { client?: "web" | "mobile" }
+) {
   const params = new URLSearchParams({ bookingId })
+  if (options?.client) {
+    params.set("client", options.client)
+  }
   return `${getPaymentReturnUrl()}?${params.toString()}`
 }
 

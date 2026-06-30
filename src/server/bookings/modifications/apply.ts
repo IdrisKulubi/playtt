@@ -32,8 +32,9 @@ export async function applyBookingModification(input: {
 }) {
   const quoted = await quoteBookingModification(input)
   const delta = Number(quoted.quote.deltaAmount)
+  const credit = Number(quoted.quote.creditAmount)
 
-  if (delta === 0) {
+  if (delta <= 0) {
     const modification = await insertPendingModification({
       bookingId: input.bookingId,
       userId: input.userId,
@@ -47,13 +48,19 @@ export async function applyBookingModification(input: {
     await applyModificationToBooking({
       modificationId: modification.id,
       afterSnapshot: quoted.afterSnapshot,
+      creditAmount: quoted.quote.creditAmount,
     })
 
     return {
       modificationId: modification.id,
       status: "applied" as const,
       deltaAmount: quoted.quote.deltaAmount,
+      creditAmount: quoted.quote.creditAmount,
       requiresPayment: false,
+      displayText:
+        credit > 0
+          ? "Booking updated. The lower total is held as account credit with PlayTT."
+          : "Booking updated.",
     }
   }
 
@@ -66,7 +73,7 @@ export async function applyBookingModification(input: {
     throw new BookingModificationError(
       "BOOKING_NOT_FOUND",
       "We could not find that booking.",
-      404,
+      404
     )
   }
 
@@ -80,7 +87,7 @@ export async function applyBookingModification(input: {
     throw new BookingModificationError(
       "PAYMENT_INIT_FAILED",
       "Your account needs an email address to pay.",
-      400,
+      400
     )
   }
 
@@ -138,6 +145,7 @@ export async function applyBookingModification(input: {
     modificationId: modification.id,
     status: "pending_payment" as const,
     deltaAmount: quoted.quote.deltaAmount,
+    creditAmount: quoted.quote.creditAmount,
     requiresPayment: true,
     authorizationUrl: initialized.authorization_url,
     returnUrl: getPaymentCallbackUrl(input.bookingId),
@@ -150,9 +158,8 @@ export async function getModificationStatus(input: {
   modificationId: string
   userId: string
 }) {
-  const { getModificationById } = await import(
-    "@/server/bookings/modifications/repository"
-  )
+  const { getModificationById } =
+    await import("@/server/bookings/modifications/repository")
 
   const modification = await getModificationById({
     modificationId: input.modificationId,
@@ -163,7 +170,7 @@ export async function getModificationStatus(input: {
     throw new BookingModificationError(
       "MODIFICATION_NOT_FOUND",
       "We could not find that change request.",
-      404,
+      404
     )
   }
 

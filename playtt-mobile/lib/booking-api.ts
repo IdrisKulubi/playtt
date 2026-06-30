@@ -159,7 +159,7 @@ export async function initiateBookingPayment(bookingId: string) {
     `/api/bookings/${bookingId}/pay`,
     {
       method: "POST",
-      body: JSON.stringify({}),
+      body: JSON.stringify({ client: "mobile" }),
     },
   )
 

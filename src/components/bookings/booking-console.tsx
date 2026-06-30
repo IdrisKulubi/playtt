@@ -23,9 +23,11 @@ import { VenueList } from "@/components/bookings/venue-list"
 import { authClient } from "@/lib/auth-client"
 import type {
   BookingQuote,
+  CreatePendingBookingResult,
   LocationSummary,
   SlotAvailability,
 } from "@/server/bookings/types"
+import type { InitiatePaymentResult } from "@/server/payments/types"
 
 interface BookingConsoleProps {
   locations: LocationSummary[]
@@ -57,6 +59,10 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
   const [availability, setAvailability] = useState<SlotAvailability[]>([])
   const [quote, setQuote] = useState<BookingQuote | null>(null)
   const [notes, setNotes] = useState("")
+  const [paymentDisplayText, setPaymentDisplayText] = useState<string | null>(
+    null
+  )
+  const [isRedirectingToPayment, setIsRedirectingToPayment] = useState(false)
   const [showExtendedDates, setShowExtendedDates] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [groupSheetOpen, setGroupSheetOpen] = useState(false)
@@ -138,6 +144,7 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
 
   function handleSlotSelect(slot: SlotAvailability) {
     setQuote(null)
+    setPaymentDisplayText(null)
     setSelectedSlot(slot)
     setGroupSheetOpen(true)
   }
@@ -203,6 +210,7 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
 
     startTransition(async () => {
       setQuote(null)
+      setPaymentDisplayText(null)
       const result = await getBookingQuoteAction({
         locationId: selectedLocationId,
         resourceId: selectedResourceId,
@@ -240,6 +248,7 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
     }
 
     startTransition(async () => {
+      setPaymentDisplayText(null)
       const result = await createPendingBookingAction({
         userId: session.user.id,
         locationId: selectedLocationId,
@@ -255,24 +264,48 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
         return
       }
 
-      toast.success("Reservation saved.")
-      setNotes("")
-      setSelectedSlot(null)
-      setQuote(null)
-      setStep("timing")
-      setGroupSheetOpen(false)
+      await startPaystackCheckout(result.data)
+    })
+  }
 
-      const refreshedAvailability = await getAvailabilityAction({
-        locationId: selectedLocationId,
-        date: selectedDate,
-        durationMinutes,
-        groupSize,
+  async function startPaystackCheckout(booking: CreatePendingBookingResult) {
+    setIsRedirectingToPayment(true)
+
+    try {
+      const response = await fetch(`/api/bookings/${booking.bookingId}/pay`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ client: "web" }),
       })
 
-      if (refreshedAvailability.success) {
-        setAvailability(refreshedAvailability.data)
+      const payload = (await response.json().catch(() => null)) as {
+        data?: InitiatePaymentResult
+        message?: string
+      } | null
+
+      if (!response.ok) {
+        throw new Error(payload?.message ?? "Could not start payment.")
       }
-    })
+
+      const payment = payload?.data
+
+      if (!payment?.authorizationUrl) {
+        throw new Error("Payment checkout URL was missing.")
+      }
+
+      setPaymentDisplayText(payment.displayText)
+      toast.success("Opening secure checkout.")
+      window.location.href = payment.authorizationUrl
+      return
+    } catch (error) {
+      setIsRedirectingToPayment(false)
+      toast.error(
+        error instanceof Error ? error.message : "Could not start payment."
+      )
+      return
+    }
   }
 
   const currency =
@@ -324,8 +357,16 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
               quote={displayQuote}
               notes={notes}
               userEmail={session?.user?.email}
-              isPending={isPending}
+              isPending={isPending || isRedirectingToPayment}
               canConfirm={Boolean(session?.user?.id)}
+              paymentDisplayText={paymentDisplayText}
+              confirmLabel={
+                isRedirectingToPayment
+                  ? "Opening Paystack..."
+                  : isPending
+                    ? "Preparing checkout..."
+                    : "Pay with Paystack"
+              }
               onBack={() => {
                 setStep("timing")
                 setGroupSheetOpen(true)
@@ -359,11 +400,14 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
         selectedSlot={selectedSlotIsFuture ? selectedSlot : null}
         durationMinutes={durationMinutes}
         quote={displayQuote}
-        disabled={step === "checkout" && (isPending || !session?.user?.id)}
+        disabled={
+          step === "checkout" &&
+          (isPending || isRedirectingToPayment || !session?.user?.id)
+        }
         onPrimaryAction={() => {
           handleCreateBooking()
         }}
-        primaryLabel="Book this slot"
+        primaryLabel={isRedirectingToPayment ? "Opening..." : "Pay now"}
       />
     </div>
   )

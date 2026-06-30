@@ -5,10 +5,7 @@ import { createGroupSizeSheetStyles } from "@/components/booking/booking-theme"
 import { Button } from "@/components/ui/button"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { useProductTheme } from "@/hooks/use-product-theme"
-import {
-  GROUP_SIZE_OPTIONS,
-  type GroupSize,
-} from "@/lib/booking-types"
+import { GROUP_SIZE_OPTIONS, type GroupSize } from "@/lib/booking-types"
 import {
   EXTRA_PLAYER_SURCHARGE,
   INCLUDED_PLAYERS,
@@ -24,7 +21,7 @@ type GroupSizeSheetProps = {
   onGroupSizeChange: (size: GroupSize) => void
   onContinue: () => void
   loading?: boolean
-  /** Edit mode: only show sizes from minGroupSize through 8. */
+  /** Edit mode: optionally limit the smallest visible group size. */
   minGroupSize?: GroupSize
   title?: string
   continueLabel?: string
@@ -51,7 +48,7 @@ export function GroupSizeSheet({
       minGroupSize
         ? GROUP_SIZE_OPTIONS.filter((size) => size >= minGroupSize)
         : GROUP_SIZE_OPTIONS,
-    [minGroupSize],
+    [minGroupSize]
   )
 
   const defaultHint = `Base rate includes up to ${INCLUDED_PLAYERS} players. Extra players are ${formatKes(EXTRA_PLAYER_SURCHARGE, currency)} each.`

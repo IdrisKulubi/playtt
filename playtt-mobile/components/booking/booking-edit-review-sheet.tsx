@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useProductTheme, useSkeletonSurface } from "@/hooks/use-product-theme"
-import type { ModificationPreview, UserBookingSummary } from "@/lib/booking-types"
+import type {
+  ModificationPreview,
+  UserBookingSummary,
+} from "@/lib/booking-types"
 import { formatKes, formatTimeRange } from "@/lib/booking-utils"
 
 type BookingEditReviewSheetProps = {
@@ -26,7 +29,7 @@ function formatSummaryLine(
   endTime: string,
   groupSize: number,
   total: string,
-  currency: string,
+  currency: string
 ) {
   return `${formatTimeRange(startTime, endTime)} · ${groupSize} players · ${formatKes(total, currency)}`
 }
@@ -51,14 +54,11 @@ export function BookingEditReviewSheet({
     booking.endTime,
     booking.groupSize,
     booking.totalAmount,
-    booking.currency,
+    booking.currency
   )
 
   const delta = preview ? Number(preview.deltaAmount) : 0
-  const savings =
-    preview && Number(preview.newTotal) < Number(preview.currentTotal)
-      ? Number(preview.currentTotal) - Number(preview.newTotal)
-      : 0
+  const credit = preview ? Number(preview.creditAmount) : 0
 
   const ctaLabel =
     isConfirming || isApplying
@@ -69,9 +69,7 @@ export function BookingEditReviewSheet({
 
   return (
     <BottomSheet visible={visible} title="Review changes" onClose={onClose}>
-      <Text style={styles.anchor}>
-        {booking.locationName} · Same venue
-      </Text>
+      <Text style={styles.anchor}>{booking.locationName} · Same venue</Text>
 
       <View style={styles.diffBlock}>
         <View style={styles.diffRow}>
@@ -94,17 +92,18 @@ export function BookingEditReviewSheet({
                 preview.newEndTime,
                 preview.newGroupSize,
                 preview.newTotal,
-                preview.currency,
+                preview.currency
               )}
             </Text>
           )}
         </View>
       </View>
 
-      {preview && savings > 0 ? (
+      {preview && credit > 0 ? (
         <Text style={styles.savingsNote}>
           New total {formatKes(preview.newTotal, preview.currency)} (
-          {formatKes(String(savings), preview.currency)} less, no refund).
+          {formatKes(preview.creditAmount, preview.currency)} kept as PlayTT
+          credit).
         </Text>
       ) : null}
 
@@ -117,7 +116,11 @@ export function BookingEditReviewSheet({
             </Text>
           </View>
         ) : (
-          <Text style={styles.savingsNote}>No extra payment needed.</Text>
+          <Text style={styles.savingsNote}>
+            {credit > 0
+              ? "No extra payment needed. The difference stays on your PlayTT account."
+              : "No extra payment needed."}
+          </Text>
         )
       ) : isQuoting ? (
         <Text style={styles.savingsNote}>Calculating new total…</Text>

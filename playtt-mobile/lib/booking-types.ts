@@ -81,6 +81,7 @@ export type ModificationPreview = {
   currentTotal: string
   newTotal: string
   deltaAmount: string
+  creditAmount: string
   requiresPayment: boolean
   changeType: string
   newGroupSize: number
@@ -95,6 +96,7 @@ export type ModificationApplyResult = {
   modificationId: string
   status: "applied" | "pending_payment"
   deltaAmount: string
+  creditAmount: string
   requiresPayment: boolean
   authorizationUrl?: string
   returnUrl?: string

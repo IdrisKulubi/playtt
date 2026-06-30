@@ -46,7 +46,11 @@ function toSnapshot(input: {
   }
 }
 
-function resolveChangeType(input: ModificationInput, timeChanged: boolean, groupChanged: boolean) {
+function resolveChangeType(
+  input: ModificationInput,
+  timeChanged: boolean,
+  groupChanged: boolean
+) {
   if (timeChanged && groupChanged) {
     return "combined"
   }
@@ -76,21 +80,13 @@ export async function quoteBookingModification(input: {
     throw new BookingModificationError(
       "BOOKING_NOT_FOUND",
       "We could not find that booking.",
-      404,
+      404
     )
   }
 
   assertBookingEditable(booking)
 
   const nextGroupSize = input.body.groupSize ?? booking.groupSize
-
-  if (nextGroupSize < booking.groupSize) {
-    throw new BookingModificationError(
-      "GROUP_SIZE_DECREASE",
-      "You can only add players, not remove them.",
-      400,
-    )
-  }
 
   let nextStart = booking.startTime
   let nextEnd = booking.endTime
@@ -100,7 +96,7 @@ export async function quoteBookingModification(input: {
   if (input.body.startTimeIso) {
     const { start, end } = buildDateTimeRange(
       input.body.startTimeIso,
-      booking.durationMinutes,
+      booking.durationMinutes
     )
 
     const roundedStart = roundDateToSlot(start)
@@ -109,7 +105,7 @@ export async function quoteBookingModification(input: {
       throw new BookingModificationError(
         "INVALID_SLOT",
         "Bookings must start on a 30-minute boundary.",
-        400,
+        400
       )
     }
 
@@ -117,7 +113,7 @@ export async function quoteBookingModification(input: {
       throw new BookingModificationError(
         "INVALID_SLOT",
         "Bookings must start and end on the same day.",
-        400,
+        400
       )
     }
 
@@ -125,17 +121,19 @@ export async function quoteBookingModification(input: {
       throw new BookingModificationError(
         "BOOKING_IN_PAST",
         "Bookings must be made for a future time.",
-        400,
+        400
       )
     }
 
-    const activeResources = await listActiveResourcesByLocation(booking.locationId)
+    const activeResources = await listActiveResourcesByLocation(
+      booking.locationId
+    )
 
     if (activeResources.length === 0) {
       throw new BookingModificationError(
         "SLOT_UNAVAILABLE",
         "That time slot is no longer available.",
-        409,
+        409
       )
     }
 
@@ -153,8 +151,8 @@ export async function quoteBookingModification(input: {
             (blocked) =>
               blocked.resourceId === resource.id &&
               blocked.startTime < end &&
-              blocked.endTime > start,
-          ),
+              blocked.endTime > start
+          )
       )
       .map((resource) => resource.id)
 
@@ -162,11 +160,13 @@ export async function quoteBookingModification(input: {
       throw new BookingModificationError(
         "SLOT_UNAVAILABLE",
         "That time slot is no longer available.",
-        409,
+        409
       )
     }
 
-    const preferredResourceId = availableResourceIds.includes(booking.resourceId)
+    const preferredResourceId = availableResourceIds.includes(
+      booking.resourceId
+    )
       ? booking.resourceId
       : availableResourceIds[0]
 
@@ -180,11 +180,7 @@ export async function quoteBookingModification(input: {
     input.body.notes !== undefined && input.body.notes !== (booking.notes ?? "")
 
   if (!timeChanged && !groupChanged && !notesChanged) {
-    throw new BookingModificationError(
-      "NO_CHANGE",
-      "Nothing to update.",
-      400,
-    )
+    throw new BookingModificationError("NO_CHANGE", "Nothing to update.", 400)
   }
 
   const quote = calculateBookingQuote({
@@ -198,7 +194,8 @@ export async function quoteBookingModification(input: {
 
   const currentTotal = Number(booking.totalAmount)
   const newTotal = quote.totalAmount
-  const deltaAmount = Math.max(0, newTotal - currentTotal)
+  const deltaAmount = newTotal - currentTotal
+  const creditAmount = Math.max(0, currentTotal - newTotal)
 
   const nextNotes =
     input.body.notes !== undefined
@@ -241,6 +238,7 @@ export async function quoteBookingModification(input: {
       newTotal: newTotal.toFixed(2),
       deltaAmount: deltaAmount.toFixed(2),
       requiresPayment: deltaAmount > 0,
+      creditAmount: creditAmount.toFixed(2),
       changeType: resolveChangeType(input.body, timeChanged, groupChanged),
       newGroupSize: nextGroupSize,
       newStartTime: nextStart.toISOString(),
