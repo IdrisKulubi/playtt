@@ -29,7 +29,7 @@ type AuthMethods = Awaited<ReturnType<typeof getUserAuthMethods>>
 const skillLabels: Record<string, string> = {
   beginner: "Beginner",
   intermediate: "Intermediate",
-  advanced: "Advanced",
+  pro: "Pro",
 }
 
 function getInitials(name: string) {
@@ -373,10 +373,9 @@ export default async function AccountPage() {
           <SettingsSection title="Profile">
             <ActionRow
               title="Personal details"
-              copy="Edit name, phone, and skill level in PlayTT mobile."
-              href="/account"
+              copy="Edit your name, phone, and playing level."
+              href="/account/edit-profile"
               icon={UserCircleIcon}
-              disabled
             />
             <ActionRow
               title="Verify email"
@@ -385,7 +384,7 @@ export default async function AccountPage() {
                   ? "Your email is verified."
                   : "Confirm your email for booking receipts and recovery."
               }
-              href={`/verify-email?email=${encodeURIComponent(profile.email)}`}
+              href={`/account/verify-email?email=${encodeURIComponent(profile.email)}`}
               icon={EnvelopeSimpleIcon}
               disabled={profile.emailVerified}
             />
@@ -400,27 +399,28 @@ export default async function AccountPage() {
             />
             <ActionRow
               title="Notifications"
-              copy="Reminders and booking updates are managed in the app."
-              href="/account"
+              copy="Choose reminders, replay alerts, and booking updates."
+              href="/account/notifications"
               icon={BellIcon}
-              disabled
             />
           </SettingsSection>
 
           <SettingsSection title="Security and support">
             <ActionRow
               title="Password and sign-in"
-              copy="Password changes are available from the mobile app settings."
-              href="/account"
+              copy={
+                authMethods.hasPassword
+                  ? "Change your password and keep your account secure."
+                  : "Review the sign-in method connected to this account."
+              }
+              href="/account/change-password"
               icon={LockKeyIcon}
-              disabled
             />
             <ActionRow
               title="Help"
-              copy="FAQs, support, terms, and privacy live in PlayTT mobile."
-              href="/account"
+              copy="FAQs and support for bookings, payments, replays, and Coach."
+              href="/account/help"
               icon={QuestionIcon}
-              disabled
             />
           </SettingsSection>
         </div>
