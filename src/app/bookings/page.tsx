@@ -88,7 +88,12 @@ function BookingCard({ booking }: { booking: UserBookingSummary }) {
           </div>
 
           <h2 className="mt-4 text-xl font-semibold tracking-[-0.03em] text-foreground">
-            {booking.locationName}
+            <Link
+              href={`/bookings/${booking.id}`}
+              className="transition hover:text-primary"
+            >
+              {booking.locationName}
+            </Link>
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {booking.resourceName}
@@ -110,9 +115,14 @@ function BookingCard({ booking }: { booking: UserBookingSummary }) {
           </div>
         </div>
 
-        {booking.status === "pending" && booking.paymentStatus === "unpaid" ? (
-          <BookingPaymentButton bookingId={booking.id} />
-        ) : null}
+        <div className="flex flex-col gap-2 md:items-end">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/bookings/${booking.id}`}>View session</Link>
+          </Button>
+          {booking.status === "pending" && booking.paymentStatus === "unpaid" ? (
+            <BookingPaymentButton bookingId={booking.id} />
+          ) : null}
+        </div>
       </div>
     </article>
   )

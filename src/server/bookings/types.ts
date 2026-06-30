@@ -79,6 +79,7 @@ export interface UserBookingSummary {
   totalAmount: string;
   locationId: string;
   locationName: string;
+  locationAddress: string;
   resourceId: string;
   resourceName: string;
   expiresAt: string | null;
