@@ -1,0 +1,294 @@
+{
+  "contractVersion": 1,
+  "description": "Mobile-facing HTTP contracts verified against current Expo consumers and Next.js route producers.",
+  "authModes": {
+    "public": "No session is required.",
+    "session-or-bearer": "The producer accepts the web session or the mobile Bearer token through getSessionWithBearerFallback."
+  },
+  "endpoints": [
+    {
+      "id": "user.me.get",
+      "method": "GET",
+      "pathTemplate": "/api/user/me",
+      "routeFile": "src/app/api/user/me/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/user-api.ts", "playtt-mobile/app/index.tsx", "playtt-mobile/app/onboarding.tsx", "playtt-mobile/app/(app)/_layout.tsx", "playtt-mobile/app/(app)/(tabs)/account.tsx"],
+      "successFixture": "fixtures/user.me.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/user-not-found.json", "fixtures/errors/user-error.json"],
+      "notes": ["response.data.session is produced but not declared by CurrentUserResponse and is additive for mobile.", "Nullable profile fields and authMethods are additive user fields."]
+    },
+    {
+      "id": "user.onboarding.patch",
+      "method": "PATCH",
+      "pathTemplate": "/api/user/onboarding",
+      "routeFile": "src/app/api/user/onboarding/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/user-api.ts", "playtt-mobile/components/onboarding/onboarding-profile-form.tsx", "playtt-mobile/components/onboarding/onboarding-survey-form.tsx"],
+      "successFixture": "fixtures/user.onboarding.patch.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/phone-in-use.json", "fixtures/errors/user-error.json"],
+      "notes": ["The request is a step-discriminated union; the fixture represents step 1.", "earlyAdopterOptIn defaults to false on step 2."]
+    },
+    {
+      "id": "user.profile.patch",
+      "method": "PATCH",
+      "pathTemplate": "/api/user/profile",
+      "routeFile": "src/app/api/user/profile/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/user-api.ts", "playtt-mobile/components/account/profile-edit-form.tsx"],
+      "successFixture": "fixtures/user.profile.patch.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/phone-in-use.json", "fixtures/errors/user-error.json"],
+      "notes": ["Nullable profile fields are additive and must remain tolerated by mobile."]
+    },
+    {
+      "id": "bookings.bootstrap.get",
+      "method": "GET",
+      "pathTemplate": "/api/bookings/bootstrap",
+      "routeFile": "src/app/api/bookings/bootstrap/route.ts",
+      "authMode": "public",
+      "mobileConsumers": ["playtt-mobile/lib/booking-api.ts", "playtt-mobile/components/booking/booking-flow.tsx"],
+      "successFixture": "fixtures/bookings.bootstrap.get.success.json",
+      "errorFixtures": ["fixtures/errors/booking-error.json"],
+      "notes": ["Location timezone is an IANA timezone identifier.", "resources is an additive collection and may contain more than one active resource."]
+    },
+    {
+      "id": "bookings.availability.get",
+      "method": "GET",
+      "pathTemplate": "/api/bookings/availability?locationId={locationId}&date={date}&durationMinutes={durationMinutes}&groupSize={groupSize}",
+      "routeFile": "src/app/api/bookings/availability/route.ts",
+      "authMode": "public",
+      "mobileConsumers": ["playtt-mobile/lib/booking-api.ts", "playtt-mobile/components/booking/booking-flow.tsx", "playtt-mobile/components/booking/booking-edit-flow.tsx"],
+      "successFixture": "fixtures/bookings.availability.get.success.json",
+      "errorFixtures": ["fixtures/errors/validation-error.json", "fixtures/errors/booking-error.json"],
+      "notes": ["Slot and price money fields are JSON numbers.", "pricingRuleSnapshot is opaque and additive."]
+    },
+    {
+      "id": "bookings.quote.get",
+      "method": "GET",
+      "pathTemplate": "/api/bookings/quote?locationId={locationId}&resourceId={resourceId}&startTimeIso={startTimeIso}&durationMinutes={durationMinutes}&groupSize={groupSize}",
+      "routeFile": "src/app/api/bookings/quote/route.ts",
+      "authMode": "public",
+      "mobileConsumers": ["playtt-mobile/lib/booking-api.ts", "playtt-mobile/components/booking/booking-flow.tsx"],
+      "successFixture": "fixtures/bookings.quote.get.success.json",
+      "errorFixtures": ["fixtures/errors/validation-error.json", "fixtures/errors/slot-unavailable.json"],
+      "notes": ["Quote money fields are JSON numbers.", "pricingRuleSnapshot is opaque and additive."]
+    },
+    {
+      "id": "bookings.create.post",
+      "method": "POST",
+      "pathTemplate": "/api/bookings",
+      "routeFile": "src/app/api/bookings/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/booking-api.ts", "playtt-mobile/components/booking/booking-flow.tsx"],
+      "successFixture": "fixtures/bookings.create.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/onboarding-incomplete.json", "fixtures/errors/validation-error.json", "fixtures/errors/slot-unavailable.json"],
+      "notes": ["Success status is 201.", "Persisted booking money is represented as a decimal string.", "notes is optional."]
+    },
+    {
+      "id": "bookings.mine.get",
+      "method": "GET",
+      "pathTemplate": "/api/bookings/mine?filter={all|upcoming|past}",
+      "routeFile": "src/app/api/bookings/mine/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/booking-api.ts", "playtt-mobile/app/(app)/(tabs)/index.tsx", "playtt-mobile/app/(app)/(tabs)/bookings.tsx"],
+      "successFixture": "fixtures/bookings.mine.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/booking-error.json"],
+      "notes": ["Unknown filters are treated as all by the producer.", "locationAddress is produced but omitted by the current mobile UserBookingSummary type and is additive."]
+    },
+    {
+      "id": "bookings.detail.get",
+      "method": "GET",
+      "pathTemplate": "/api/bookings/{bookingId}",
+      "routeFile": "src/app/api/bookings/[id]/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/booking-api.ts", "playtt-mobile/app/(app)/booking/[id]/index.tsx", "playtt-mobile/components/booking/booking-detail-sheet.tsx", "playtt-mobile/hooks/use-payment-checkout.ts", "playtt-mobile/hooks/use-modification-checkout.ts"],
+      "successFixture": "fixtures/bookings.detail.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/booking-not-found.json"],
+      "notes": ["Booking money is represented as decimal strings.", "locationAddress is additive for the current mobile type."]
+    },
+    {
+      "id": "bookings.pay.post",
+      "method": "POST",
+      "pathTemplate": "/api/bookings/{bookingId}/pay",
+      "routeFile": "src/app/api/bookings/[id]/pay/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/booking-api.ts", "playtt-mobile/hooks/use-payment-checkout.ts"],
+      "successFixture": "fixtures/bookings.pay.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/payment-error.json"],
+      "notes": ["authorizationUrl is optional in the producer type but required by the current hosted-checkout UI to proceed.", "The request body may be empty."]
+    },
+    {
+      "id": "bookings.payment.get",
+      "method": "GET",
+      "pathTemplate": "/api/bookings/{bookingId}/payment",
+      "routeFile": "src/app/api/bookings/[id]/payment/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/booking-api.ts", "playtt-mobile/hooks/use-payment-checkout.ts"],
+      "successFixture": "fixtures/bookings.payment.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/payment-error.json"],
+      "notes": ["reference, providerStatus, displayText, and expiresAt are nullable."]
+    },
+    {
+      "id": "bookings.cancel.post",
+      "method": "POST",
+      "pathTemplate": "/api/bookings/{bookingId}/cancel",
+      "routeFile": "src/app/api/bookings/[id]/cancel/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/booking-api.ts", "playtt-mobile/components/booking/booking-cancel-actions.tsx"],
+      "successFixture": "fixtures/bookings.cancel.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/booking-not-found.json", "fixtures/errors/booking-not-cancellable.json"],
+      "notes": ["The current mobile function ignores the success body."]
+    },
+    {
+      "id": "bookings.modifications.quote.post",
+      "method": "POST",
+      "pathTemplate": "/api/bookings/{bookingId}/modifications/quote",
+      "routeFile": "src/app/api/bookings/[id]/modifications/quote/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/booking-api.ts", "playtt-mobile/components/booking/booking-edit-flow.tsx"],
+      "successFixture": "fixtures/bookings.modifications.quote.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/booking-not-found.json"],
+      "notes": ["Modification money fields are decimal strings.", "Request fields are optional individually but the producer validator enforces a meaningful change."]
+    },
+    {
+      "id": "bookings.modifications.apply.post",
+      "method": "POST",
+      "pathTemplate": "/api/bookings/{bookingId}/modifications/apply",
+      "routeFile": "src/app/api/bookings/[id]/modifications/apply/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/booking-api.ts", "playtt-mobile/components/booking/booking-edit-flow.tsx", "playtt-mobile/hooks/use-modification-checkout.ts"],
+      "successFixture": "fixtures/bookings.modifications.apply.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/booking-not-found.json"],
+      "notes": ["authorizationUrl, returnUrl, and displayText are conditional and appear only when payment is required."]
+    },
+    {
+      "id": "bookings.modifications.status.get",
+      "method": "GET",
+      "pathTemplate": "/api/bookings/{bookingId}/modifications/{modificationId}",
+      "routeFile": "src/app/api/bookings/[id]/modifications/[modId]/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/booking-api.ts", "playtt-mobile/hooks/use-modification-checkout.ts"],
+      "successFixture": "fixtures/bookings.modifications.status.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/modification-not-found.json"],
+      "notes": ["status is forward-compatible text; applied is the mobile decision field."]
+    },
+    {
+      "id": "replays.credits.get",
+      "method": "GET",
+      "pathTemplate": "/api/replays/credits",
+      "routeFile": "src/app/api/replays/credits/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/replay-credits-api.ts", "playtt-mobile/app/(app)/(tabs)/activity.tsx", "playtt-mobile/components/coach/coach-home-panel.tsx"],
+      "successFixture": "fixtures/replays.credits.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/replay-error.json"],
+      "notes": ["This network path is dormant while USE_MOCK_PLAYER_DATA is true.", "Credit and KES price fields are JSON numbers."]
+    },
+    {
+      "id": "replays.credits.purchase.post",
+      "method": "POST",
+      "pathTemplate": "/api/replays/credits/purchase",
+      "routeFile": "src/app/api/replays/credits/purchase/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/replay-credits-api.ts", "playtt-mobile/components/coach/clip-pack-purchase-sheet.tsx"],
+      "successFixture": "fixtures/replays.credits.purchase.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/payment-error.json", "fixtures/errors/replay-error.json"],
+      "notes": ["The purchase UI is preview-only while USE_MOCK_PLAYER_DATA is true.", "authorizationUrl is optional in the producer type."]
+    },
+    {
+      "id": "coach.status.get",
+      "method": "GET",
+      "pathTemplate": "/api/coach/status",
+      "routeFile": "src/app/api/coach/status/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/coach-api.ts", "playtt-mobile/components/coach/coach-home-panel.tsx", "playtt-mobile/components/coach/coach-subscription-band.tsx"],
+      "successFixture": "fixtures/coach.status.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/coach-error.json"],
+      "notes": ["This network path is dormant while USE_MOCK_PLAYER_DATA is true.", "planId is produced by the server but omitted by the current mobile CoachStatus type and is additive."]
+    },
+    {
+      "id": "coach.subscribe.post",
+      "method": "POST",
+      "pathTemplate": "/api/coach/subscribe",
+      "routeFile": "src/app/api/coach/subscribe/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/coach-api.ts", "playtt-mobile/components/coach/coach-subscribe-sheet.tsx"],
+      "successFixture": "fixtures/coach.subscribe.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/payment-error.json", "fixtures/errors/coach-error.json"],
+      "notes": ["The subscription UI is preview-only while USE_MOCK_PLAYER_DATA is true.", "authorizationUrl is optional in the producer type."]
+    },
+    {
+      "id": "coach.cancel.post",
+      "method": "POST",
+      "pathTemplate": "/api/coach/cancel",
+      "routeFile": "src/app/api/coach/cancel/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/coach-api.ts", "playtt-mobile/components/coach/coach-subscribe-sheet.tsx"],
+      "successFixture": "fixtures/coach.cancel.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/no-subscription.json", "fixtures/errors/coach-error.json"],
+      "notes": ["The current mobile function ignores the success body."]
+    },
+    {
+      "id": "coach.insights.get",
+      "method": "GET",
+      "pathTemplate": "/api/coach/insights",
+      "routeFile": "src/app/api/coach/insights/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/coach-api.ts", "playtt-mobile/components/coach/coach-insights-panel.tsx"],
+      "successFixture": "fixtures/coach.insights.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/coach-error.json"],
+      "notes": ["This network path is dormant while USE_MOCK_PLAYER_DATA is true."]
+    },
+    {
+      "id": "coach.insights.detail.get",
+      "method": "GET",
+      "pathTemplate": "/api/coach/insights/{insightId}",
+      "routeFile": "src/app/api/coach/insights/[id]/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/coach-api.ts", "playtt-mobile/components/coach/coach-insight-detail-sheet.tsx"],
+      "successFixture": "fixtures/coach.insights.detail.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/insight-not-found.json", "fixtures/errors/coach-error.json"],
+      "notes": ["This network path is dormant while USE_MOCK_PLAYER_DATA is true.", "training may be empty."]
+    },
+    {
+      "id": "coach.training.get",
+      "method": "GET",
+      "pathTemplate": "/api/coach/training",
+      "routeFile": "src/app/api/coach/training/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/coach-api.ts", "playtt-mobile/components/coach/coach-training-panel.tsx"],
+      "successFixture": "fixtures/coach.training.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/coach-error.json"],
+      "notes": ["This network path is dormant while USE_MOCK_PLAYER_DATA is true.", "insightId, durationMinutes, and completedAt are nullable."]
+    }
+  ],
+  "producerConsumerDrift": [
+    {
+      "kind": "response-shape-drift",
+      "method": "PATCH",
+      "pathTemplate": "/api/user/onboarding",
+      "routeFile": "src/app/api/user/onboarding/route.ts",
+      "mobileConsumer": "playtt-mobile/lib/user-api.ts",
+      "note": "The producer's onboarding success user omits emailVerified, while OnboardingPatchResponse reuses UserProfile where emailVerified is required. Current form callers do not read the returned user, so this is latent rather than user-visible."
+    },
+    {
+      "kind": "producer-without-mobile-consumer",
+      "method": "POST",
+      "pathTemplate": "/api/replays/request",
+      "routeFile": "src/app/api/replays/request/route.ts",
+      "note": "The producer exists, but no current playtt-mobile source calls this endpoint; it is intentionally excluded from endpoints."
+    },
+    {
+      "kind": "producer-without-mobile-consumer",
+      "method": "GET",
+      "pathTemplate": "/api/replays/mine",
+      "routeFile": "src/app/api/replays/mine/route.ts",
+      "note": "The producer exists, but Activity currently renders mock replay data and no current mobile source calls this endpoint; it is intentionally excluded from endpoints."
+    },
+    {
+      "kind": "mobile-consumer-without-producer",
+      "method": "POST",
+      "pathTemplate": "/api/coach/chat",
+      "mobileConsumer": "playtt-mobile/lib/coach-chat-api.ts",
+      "note": "The mobile call is dormant while USE_MOCK_PLAYER_DATA is true, and no src/app/api/coach/chat/route.ts exists."
+    }
+  ]
+}

@@ -11,17 +11,17 @@ import {
 import { initiateReplayPackPurchase } from "@/server/replays/service"
 
 export async function POST(req: NextRequest) {
-  const session = await getSessionWithBearerFallback(req)
-
-  if (!session) {
-    return replayError({
-      code: "UNAUTHENTICATED",
-      message: "Sign in is required.",
-      status: 401,
-    })
-  }
-
   try {
+    const session = await getSessionWithBearerFallback(req)
+
+    if (!session) {
+      return replayError({
+        code: "UNAUTHENTICATED",
+        message: "Sign in is required.",
+        status: 401,
+      })
+    }
+
     const result = await initiateReplayPackPurchase(session.user.id)
     return replayJson(result)
   } catch (error) {

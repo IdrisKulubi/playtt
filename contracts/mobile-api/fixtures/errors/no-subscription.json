@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"coach.cancel.post","case":"no-subscription","request":{"headers":{"authorization":"Bearer <token>"}},"response":{"status":404,"body":{"code":"NO_SUBSCRIPTION","message":"You do not have an active Coach subscription."}}}

@@ -9,17 +9,17 @@ import {
 import { getReplayCreditsStatus } from "@/server/replays/service"
 
 export async function GET(req: NextRequest) {
-  const session = await getSessionWithBearerFallback(req)
-
-  if (!session) {
-    return replayError({
-      code: "UNAUTHENTICATED",
-      message: "Sign in is required.",
-      status: 401,
-    })
-  }
-
   try {
+    const session = await getSessionWithBearerFallback(req)
+
+    if (!session) {
+      return replayError({
+        code: "UNAUTHENTICATED",
+        message: "Sign in is required.",
+        status: 401,
+      })
+    }
+
     const credits = await getReplayCreditsStatus(session.user.id)
     return replayJson({ credits })
   } catch (error) {

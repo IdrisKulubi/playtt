@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"user.me.get","case":"user-not-found","request":{"headers":{"authorization":"Bearer <token>"}},"response":{"status":404,"body":{"code":"USER_NOT_FOUND","message":"User profile not found."}}}

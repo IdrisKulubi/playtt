@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
+import { ZodError } from "zod/v3"
 
+import { mapDomainOrUnexpectedError } from "@/server/http/error-mapping"
 import { ReplayServiceError } from "@/server/replays/errors"
 
 export function replayJson<T>(data: T, status = 200) {
@@ -18,25 +20,22 @@ export function replayError(input: {
 }
 
 export function mapReplayServiceError(error: unknown) {
-  if (error instanceof ReplayServiceError) {
+  if (error instanceof ZodError) {
     return replayError({
-      code: error.code,
-      message: error.message,
-      status: error.status,
-    })
-  }
-
-  if (error instanceof Error) {
-    return replayError({
-      code: "REPLAY_ERROR",
-      message: error.message,
+      code: "VALIDATION_ERROR",
+      message: error.issues[0]?.message ?? "Invalid replay request.",
       status: 400,
     })
   }
 
-  return replayError({
-    code: "REPLAY_ERROR",
-    message: "Something went wrong while processing the replay request.",
-    status: 500,
-  })
+  return replayError(
+    mapDomainOrUnexpectedError(
+      error,
+      (input): input is ReplayServiceError => input instanceof ReplayServiceError,
+      {
+        code: "REPLAY_ERROR",
+        message: "Something went wrong while processing the replay request.",
+      },
+    ),
+  )
 }

@@ -8,10 +8,12 @@ description: Documents how to install, run, lint, build, and database-manage bot
 PlayTT has two independent apps and no root workspace orchestrator. The repo root
 `package.json` is the web/API/DB app; `playtt-mobile/package.json` is the Expo app.
 Install and run each app from its own directory.
+The root app pins pnpm `10.17.1` through `packageManager`; use Corepack or the
+same pnpm version so an incompatible wrapper does not try to replace `node_modules`.
 
 ## Prerequisites
 
-1. Node.js installed
+1. Node.js 22.18 or newer installed
 2. `.env.local` at repo root with at least `POSTGRES_URL` (see [env-reference.md](env-reference.md))
 3. Run web and mobile in **separate terminals**
 
@@ -36,21 +38,26 @@ If `pnpm` is not on PATH but Node Corepack is available, prefix commands with
 
 ### Database commands (repo root)
 
-| Script             | Command            |
-| ------------------ | ------------------ |
-| Generate migration | `pnpm db:generate` |
-| Apply migrations   | `pnpm db:migrate`  |
-| Drizzle Studio     | `pnpm db:studio`   |
-| Seed phase 1       | `pnpm db:seed`     |
-| Validate migration files | `pnpm db:validate` |
-| Require zero migration drift | `pnpm db:validate:strict` |
-| Test migration validator | `pnpm test:db` |
+| Script                       | Command                    |
+| ---------------------------- | -------------------------- |
+| Generate migration           | `pnpm db:generate`         |
+| Apply migrations             | `pnpm db:migrate`          |
+| Drizzle Studio               | `pnpm db:studio`           |
+| Seed phase 1                 | `pnpm db:seed`             |
+| Validate migration files     | `pnpm db:validate`         |
+| Require zero migration drift | `pnpm db:validate:strict`  |
+| Offline DB safety tests      | `pnpm test:db`             |
+| PostgreSQL concurrency tests | `pnpm test:db:integration` |
 
 Database commands require `POSTGRES_URL` in `.env.local`.
 The validation and validator-test commands are repository-only and do not use
 `POSTGRES_URL`. If the bundled `pnpm` wrapper attempts a dependency reinstall,
 run their direct Node equivalents documented in
 `docs/database/migration-integrity.md`.
+The integration suite requires explicit test-only database variables and a
+confirmation sentinel; see `docs/database/disposable-postgres-tests.md`. It does
+not load `.env.local`. Node 22.18 or newer is the supported baseline for the
+repository's dependency-free Node test commands.
 
 ## Mobile (`playtt-mobile/`)
 

@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"coach.status.get","case":"active","request":{"headers":{"authorization":"Bearer <token>"}},"response":{"status":200,"body":{"data":{"status":{"isActive":true,"planLabel":"Coach","monthlyPriceKes":1500,"currentPeriodEnd":"2026-09-16T00:00:00.000Z","cancelAtPeriodEnd":false,"planId":"coach_monthly"}}}}}

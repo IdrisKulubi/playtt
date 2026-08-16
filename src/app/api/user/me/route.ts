@@ -6,53 +6,58 @@ import {
   getUserAuthMethods,
   serializeUserProfile,
 } from "@/server/users/profile"
+import { mapUserRouteError } from "@/server/users/http"
 
 export async function GET(req: NextRequest) {
-  const resolvedSession = await getSessionWithBearerFallback(req)
+  try {
+    const resolvedSession = await getSessionWithBearerFallback(req)
 
-  if (!resolvedSession) {
+    if (!resolvedSession) {
+      return NextResponse.json(
+        {
+          code: "UNAUTHENTICATED",
+          message: "Sign in is required.",
+        },
+        { status: 401 },
+      )
+    }
+
+    const profile = await getUserProfileById(resolvedSession.user.id)
+
+    if (!profile) {
+      return NextResponse.json(
+        {
+          code: "USER_NOT_FOUND",
+          message: "User profile not found.",
+        },
+        { status: 404 },
+      )
+    }
+
+    const authMethods = await getUserAuthMethods(resolvedSession.user.id)
+
     return NextResponse.json(
       {
-        code: "UNAUTHENTICATED",
-        message: "Sign in is required.",
+        data: {
+          user: {
+            ...serializeUserProfile(profile),
+            authMethods,
+          },
+          session: {
+            id: resolvedSession.session.id,
+            userId: resolvedSession.session.userId,
+            expiresAt: resolvedSession.session.expiresAt.toISOString(),
+          },
+          route: resolvePostAuthRoute(profile.onboardingCompletedAt),
+        },
       },
-      { status: 401 },
-    )
-  }
-
-  const profile = await getUserProfileById(resolvedSession.user.id)
-
-  if (!profile) {
-    return NextResponse.json(
       {
-        code: "USER_NOT_FOUND",
-        message: "User profile not found.",
+        headers: {
+          "cache-control": "no-store",
+        },
       },
-      { status: 404 },
     )
+  } catch (error) {
+    return mapUserRouteError(error)
   }
-
-  const authMethods = await getUserAuthMethods(resolvedSession.user.id)
-
-  return NextResponse.json(
-    {
-      data: {
-        user: {
-          ...serializeUserProfile(profile),
-          authMethods,
-        },
-        session: {
-          id: resolvedSession.session.id,
-          userId: resolvedSession.session.userId,
-          expiresAt: resolvedSession.session.expiresAt.toISOString(),
-        },
-        route: resolvePostAuthRoute(profile.onboardingCompletedAt),
-      },
-    },
-    {
-      headers: {
-        "cache-control": "no-store",
-      },
-    },
-  )
 }

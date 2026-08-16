@@ -18,20 +18,32 @@ export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const secret = process.env.REPLAY_WEBHOOK_SECRET?.trim()
-  const provided = req.headers.get("x-playtt-replay-secret")
-
-  if (!secret || provided !== secret) {
-    return replayError({
-      code: "UNAUTHORIZED",
-      message: "Invalid replay webhook secret.",
-      status: 401,
-    })
-  }
-
   try {
+    const secret = process.env.REPLAY_WEBHOOK_SECRET?.trim()
+    const provided = req.headers.get("x-playtt-replay-secret")
+
+    if (!secret || provided !== secret) {
+      return replayError({
+        code: "UNAUTHORIZED",
+        message: "Invalid replay webhook secret.",
+        status: 401,
+      })
+    }
+
+    let requestBody: unknown
+
+    try {
+      requestBody = await req.json()
+    } catch {
+      return replayError({
+        code: "INVALID_BODY",
+        message: "Invalid request body.",
+        status: 400,
+      })
+    }
+
     const { id } = await context.params
-    const body = bodySchema.parse(await req.json())
+    const body = bodySchema.parse(requestBody)
     const replay = await markReplayReady({
       replayId: id,
       videoUrl: body.videoUrl,

@@ -50,8 +50,8 @@ export async function getLastPackPurchaseAt(userId: string) {
       and(
         eq(productPayments.userId, userId),
         eq(productPayments.productType, "replay_pack"),
-        eq(productPayments.status, "paid"),
-      ),
+        eq(productPayments.status, "paid")
+      )
     )
     .orderBy(desc(productPayments.paidAt))
     .limit(1)
@@ -89,8 +89,8 @@ export async function findProductPaymentByReference(reference: string) {
     .where(
       and(
         eq(productPayments.provider, "paystack"),
-        eq(productPayments.providerReference, reference),
-      ),
+        eq(productPayments.providerReference, reference)
+      )
     )
     .limit(1)
 
@@ -133,6 +133,93 @@ export async function creditPackPurchase(input: {
     })
 
     return nextBalance
+  })
+}
+
+export async function confirmAndCreditPackPurchase(input: {
+  productPaymentId: string
+  paidAt: Date
+  providerEventId?: string | null
+  rawPayload: Record<string, unknown>
+}) {
+  return db.transaction(async (tx) => {
+    const [payment] = await tx
+      .select()
+      .from(productPayments)
+      .where(eq(productPayments.id, input.productPaymentId))
+      .for("update")
+      .limit(1)
+
+    if (!payment) {
+      return "payment_not_found" as const
+    }
+
+    if (payment.status !== "paid") {
+      const [claimed] = await tx
+        .update(productPayments)
+        .set({
+          status: "paid",
+          paidAt: input.paidAt,
+          providerEventId: input.providerEventId ?? payment.providerEventId,
+          rawPayload: input.rawPayload,
+        })
+        .where(
+          and(
+            eq(productPayments.id, payment.id),
+            eq(productPayments.status, payment.status)
+          )
+        )
+        .returning({ id: productPayments.id })
+
+      if (!claimed) {
+        throw new Error(
+          "Product payment status changed while confirming pack purchase."
+        )
+      }
+    }
+
+    const [existingCredit] = await tx
+      .select({ id: replayCreditLedger.id })
+      .from(replayCreditLedger)
+      .where(
+        and(
+          eq(replayCreditLedger.productPaymentId, payment.id),
+          eq(replayCreditLedger.reason, "pack_purchase")
+        )
+      )
+      .limit(1)
+
+    if (existingCredit) {
+      return "already_credited" as const
+    }
+
+    await tx
+      .insert(replayCreditBalances)
+      .values({ userId: payment.userId, balance: 0 })
+      .onConflictDoNothing()
+
+    const [balanceRow] = await tx
+      .select()
+      .from(replayCreditBalances)
+      .where(eq(replayCreditBalances.userId, payment.userId))
+      .for("update")
+      .limit(1)
+
+    const nextBalance = (balanceRow?.balance ?? 0) + REPLAY_PACK_CREDITS
+
+    await tx
+      .update(replayCreditBalances)
+      .set({ balance: nextBalance, updatedAt: new Date() })
+      .where(eq(replayCreditBalances.userId, payment.userId))
+
+    await tx.insert(replayCreditLedger).values({
+      userId: payment.userId,
+      delta: REPLAY_PACK_CREDITS,
+      reason: "pack_purchase",
+      productPaymentId: payment.id,
+    })
+
+    return "credited" as const
   })
 }
 
@@ -211,7 +298,7 @@ export async function getActiveBookingForReplay(input: {
     .from(bookings)
     .innerJoin(locations, eq(bookings.locationId, locations.id))
     .where(
-      and(eq(bookings.id, input.bookingId), eq(bookings.userId, input.userId)),
+      and(eq(bookings.id, input.bookingId), eq(bookings.userId, input.userId))
     )
     .limit(1)
 

@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"*","case":"validation-error","request":{},"response":{"status":400,"body":{"code":"VALIDATION_ERROR","message":"Invalid request data."}}}

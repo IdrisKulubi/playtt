@@ -1,0 +1,138 @@
+name: Quality
+
+"on":
+  pull_request:
+  push:
+    branches:
+      - master
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  web-quality:
+    name: Web quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.17.1
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.18.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint web app
+        run: pnpm lint
+
+      - name: Type-check web app
+        run: pnpm typecheck
+
+      - name: Run database safety tests
+        run: pnpm test:db
+
+      - name: Test HTTP error mapping
+        run: pnpm test:http
+
+      - name: Validate mobile API contracts
+        run: pnpm test:contracts
+
+      - name: Validate migration integrity
+        run: pnpm db:validate
+
+  postgres-concurrency:
+    name: PostgreSQL concurrency
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: playtt_ci
+          POSTGRES_PASSWORD: playtt_ci
+          POSTGRES_DB: playtt_ci
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U playtt_ci -d playtt_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PLAYTT_TEST_DATABASE_URL: postgresql://playtt_ci:playtt_ci@127.0.0.1:${{ job.services.postgres.ports[5432] }}/playtt_ci
+      PLAYTT_TEST_DATABASE_CONFIRM: CREATE_AND_DROP_ISOLATED_PLAYTT_TEST_SCHEMA
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.17.1
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.18.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run PostgreSQL concurrency tests
+        run: pnpm test:db:integration
+
+  mobile-quality:
+    name: Mobile quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      CI: "true"
+      EXPO_NO_TELEMETRY: "1"
+
+    defaults:
+      run:
+        working-directory: playtt-mobile
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.18.0
+          cache: npm
+          cache-dependency-path: playtt-mobile/package-lock.json
+
+      - name: Install mobile dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint mobile app
+        run: npm run lint
+
+      - name: Type-check mobile app
+        run: npm run typecheck

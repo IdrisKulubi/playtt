@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"*","case":"user-error","request":{"headers":{"authorization":"Bearer <token>"}},"response":{"status":500,"body":{"code":"USER_ERROR","message":"Something went wrong while processing the user request."}}}

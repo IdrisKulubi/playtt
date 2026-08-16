@@ -71,6 +71,114 @@ export async function activateCoachSubscription(input: {
   return row
 }
 
+export async function confirmCoachSubscriptionActivation(input: {
+  paymentId: string
+  userId: string
+  paidAt: Date
+  providerEventId?: string | null
+  rawPayload: Record<string, unknown>
+}) {
+  const periodEnd = new Date()
+  periodEnd.setDate(periodEnd.getDate() + COACH_SUBSCRIPTION_PERIOD_DAYS)
+
+  return db.transaction(async (tx) => {
+    const [lockedPayment] = await tx
+      .select({
+        productType: productPayments.productType,
+        status: productPayments.status,
+      })
+      .from(productPayments)
+      .where(
+        and(
+          eq(productPayments.id, input.paymentId),
+          eq(productPayments.userId, input.userId)
+        )
+      )
+      .for("update")
+      .limit(1)
+
+    if (!lockedPayment || lockedPayment.productType !== "coach_subscription") {
+      return "state_changed" as const
+    }
+
+    if (lockedPayment.status === "paid") {
+      const [existingSubscription] = await tx
+        .select({ id: coachSubscriptions.id })
+        .from(coachSubscriptions)
+        .where(eq(coachSubscriptions.userId, input.userId))
+        .limit(1)
+
+      if (existingSubscription) {
+        return "already_confirmed" as const
+      }
+
+      const [recoveredSubscription] = await tx
+        .insert(coachSubscriptions)
+        .values({
+          userId: input.userId,
+          status: "active",
+          planId: COACH_PLAN_ID,
+          currentPeriodEnd: periodEnd,
+          cancelAtPeriodEnd: false,
+        })
+        .onConflictDoNothing()
+        .returning({ id: coachSubscriptions.id })
+
+      return recoveredSubscription
+        ? ("confirmed" as const)
+        : ("already_confirmed" as const)
+    }
+
+    if (lockedPayment.status !== "pending") {
+      return "state_changed" as const
+    }
+
+    const [claimedPayment] = await tx
+      .update(productPayments)
+      .set({
+        status: "paid",
+        paidAt: input.paidAt,
+        providerEventId: input.providerEventId ?? null,
+        rawPayload: input.rawPayload,
+      })
+      .where(
+        and(
+          eq(productPayments.id, input.paymentId),
+          eq(productPayments.userId, input.userId),
+          eq(productPayments.productType, "coach_subscription"),
+          eq(productPayments.status, "pending")
+        )
+      )
+      .returning({ id: productPayments.id })
+
+    if (!claimedPayment) {
+      return "state_changed" as const
+    }
+
+    await tx
+      .insert(coachSubscriptions)
+      .values({
+        userId: input.userId,
+        status: "active",
+        planId: COACH_PLAN_ID,
+        currentPeriodEnd: periodEnd,
+        cancelAtPeriodEnd: false,
+      })
+      .onConflictDoUpdate({
+        target: coachSubscriptions.userId,
+        set: {
+          status: "active",
+          planId: COACH_PLAN_ID,
+          currentPeriodEnd: periodEnd,
+          cancelAtPeriodEnd: false,
+          updatedAt: new Date(),
+        },
+      })
+
+    return "confirmed" as const
+  })
+}
+
 export async function cancelCoachAtPeriodEnd(userId: string) {
   const [row] = await db
     .update(coachSubscriptions)
@@ -117,8 +225,8 @@ export async function getCoachInsightById(input: {
     .where(
       and(
         eq(coachInsights.id, input.insightId),
-        eq(coachInsights.userId, input.userId),
-      ),
+        eq(coachInsights.userId, input.userId)
+      )
     )
     .limit(1)
 
@@ -188,7 +296,7 @@ export async function insertCoachInsight(input: {
           description: item.description,
           durationMinutes: item.durationMinutes ?? null,
           sortOrder: item.sortOrder,
-        })),
+        }))
       )
     }
 
@@ -203,8 +311,8 @@ export async function findProductPaymentByReference(reference: string) {
     .where(
       and(
         eq(productPayments.provider, "paystack"),
-        eq(productPayments.providerReference, reference),
-      ),
+        eq(productPayments.providerReference, reference)
+      )
     )
     .limit(1)
 
@@ -231,7 +339,7 @@ export async function expireCoachSubscriptions() {
       and(
         eq(coachSubscriptions.status, "active"),
         eq(coachSubscriptions.cancelAtPeriodEnd, true),
-        lt(coachSubscriptions.currentPeriodEnd, now),
-      ),
+        lt(coachSubscriptions.currentPeriodEnd, now)
+      )
     )
 }

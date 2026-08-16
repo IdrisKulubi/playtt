@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "type": "module",
   "private": true,
+  "packageManager": "pnpm@10.17.1",
   "scripts": {
     "dev": "next dev",
     "dev:turbopack": "next dev --turbopack",
@@ -15,7 +16,10 @@
     "db:seed": "node --env-file=.env.local scripts/run-seed-phase1.mjs",
     "db:validate": "node scripts/validate-migrations.mjs",
     "db:validate:strict": "node scripts/validate-migrations.mjs --strict",
-    "test:db": "node --test scripts/validate-migrations.test.mjs",
+    "test:db": "node --test scripts/validate-migrations.test.mjs scripts/disposable-postgres.test.mjs src/server/bookings/database-errors.test.mjs",
+    "test:db:integration": "node --test --test-concurrency=1 scripts/integration/phase0-concurrency.test.mjs",
+    "test:http": "node --test src/server/http/error-mapping.test.mjs",
+    "test:contracts": "node --test scripts/validate-api-contracts.test.mjs && node scripts/validate-api-contracts.mjs",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit"
   },

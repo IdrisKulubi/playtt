@@ -15,18 +15,30 @@ const bodySchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
-  const session = await getSessionWithBearerFallback(req)
-
-  if (!session) {
-    return replayError({
-      code: "UNAUTHENTICATED",
-      message: "Sign in is required.",
-      status: 401,
-    })
-  }
-
   try {
-    const body = bodySchema.parse(await req.json())
+    const session = await getSessionWithBearerFallback(req)
+
+    if (!session) {
+      return replayError({
+        code: "UNAUTHENTICATED",
+        message: "Sign in is required.",
+        status: 401,
+      })
+    }
+
+    let requestBody: unknown
+
+    try {
+      requestBody = await req.json()
+    } catch {
+      return replayError({
+        code: "INVALID_BODY",
+        message: "Invalid request body.",
+        status: 400,
+      })
+    }
+
+    const body = bodySchema.parse(requestBody)
     const result = await requestReplayCapture({
       userId: session.user.id,
       bookingId: body.bookingId,
