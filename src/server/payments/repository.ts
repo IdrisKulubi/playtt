@@ -139,46 +139,40 @@ export async function markPaymentFailed(input: {
       status: "failed",
       rawPayload: input.rawPayload,
     })
-    .where(eq(payments.id, input.paymentId))
+    .where(and(eq(payments.id, input.paymentId), eq(payments.status, "pending")))
 }
 
 export async function expireStalePendingBookings() {
   const now = new Date()
 
-  const rows = await db
-    .select({ id: bookings.id })
-    .from(bookings)
-    .where(
-      and(
-        eq(bookings.status, "pending"),
-        eq(bookings.paymentStatus, "unpaid"),
-        isNotNull(bookings.expiresAt),
-        lt(bookings.expiresAt, now),
-      ),
-    )
+  return db.transaction(async (tx) => {
+    const expiredBookings = await tx
+      .update(bookings)
+      .set({ status: "expired" })
+      .where(
+        and(
+          eq(bookings.status, "pending"),
+          eq(bookings.paymentStatus, "unpaid"),
+          isNotNull(bookings.expiresAt),
+          lt(bookings.expiresAt, now),
+        ),
+      )
+      .returning({ id: bookings.id })
 
-  if (rows.length === 0) {
-    return 0
-  }
-
-  await db.transaction(async (tx) => {
-    for (const row of rows) {
-      await tx
-        .update(bookings)
-        .set({ status: "expired" })
-        .where(eq(bookings.id, row.id))
-
-      await tx.insert(bookingStatusHistory).values({
-        bookingId: row.id,
-        fromStatus: "pending",
-        toStatus: "expired",
-        reason: "payment_window_expired",
-        metadata: { source: "expire_stale_pending_bookings" },
-      })
+    if (expiredBookings.length > 0) {
+      await tx.insert(bookingStatusHistory).values(
+        expiredBookings.map((booking) => ({
+          bookingId: booking.id,
+          fromStatus: "pending" as const,
+          toStatus: "expired" as const,
+          reason: "payment_window_expired",
+          metadata: { source: "expire_stale_pending_bookings" },
+        })),
+      )
     }
-  })
 
-  return rows.length
+    return expiredBookings.length
+  })
 }
 
 export async function cancelUnpaidBooking(input: {
@@ -186,35 +180,43 @@ export async function cancelUnpaidBooking(input: {
   userId: string
 }) {
   return db.transaction(async (tx) => {
-    const [booking] = await tx
-      .select({
-        id: bookings.id,
-        status: bookings.status,
-        paymentStatus: bookings.paymentStatus,
-      })
-      .from(bookings)
-      .where(
-        and(eq(bookings.id, input.bookingId), eq(bookings.userId, input.userId)),
-      )
-      .limit(1)
-
-    if (!booking) {
-      return null
-    }
-
-    if (booking.status !== "pending" || booking.paymentStatus !== "unpaid") {
-      return booking
-    }
-
     const now = new Date()
 
-    await tx
+    const [cancelledBooking] = await tx
       .update(bookings)
       .set({
         status: "cancelled",
         cancelledAt: now,
       })
-      .where(eq(bookings.id, input.bookingId))
+      .where(
+        and(
+          eq(bookings.id, input.bookingId),
+          eq(bookings.userId, input.userId),
+          eq(bookings.status, "pending"),
+          eq(bookings.paymentStatus, "unpaid"),
+        ),
+      )
+      .returning({
+        id: bookings.id,
+        status: bookings.status,
+        paymentStatus: bookings.paymentStatus,
+      })
+
+    if (!cancelledBooking) {
+      const [currentBooking] = await tx
+        .select({
+          id: bookings.id,
+          status: bookings.status,
+          paymentStatus: bookings.paymentStatus,
+        })
+        .from(bookings)
+        .where(
+          and(eq(bookings.id, input.bookingId), eq(bookings.userId, input.userId)),
+        )
+        .limit(1)
+
+      return currentBooking ?? null
+    }
 
     await tx.insert(bookingStatusHistory).values({
       bookingId: input.bookingId,
@@ -225,9 +227,9 @@ export async function cancelUnpaidBooking(input: {
     })
 
     return {
-      id: booking.id,
-      status: "cancelled",
-      paymentStatus: booking.paymentStatus,
+      id: cancelledBooking.id,
+      status: cancelledBooking.status,
+      paymentStatus: cancelledBooking.paymentStatus,
     }
   })
 }

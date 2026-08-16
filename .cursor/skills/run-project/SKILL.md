@@ -42,8 +42,15 @@ If `pnpm` is not on PATH but Node Corepack is available, prefix commands with
 | Apply migrations   | `pnpm db:migrate`  |
 | Drizzle Studio     | `pnpm db:studio`   |
 | Seed phase 1       | `pnpm db:seed`     |
+| Validate migration files | `pnpm db:validate` |
+| Require zero migration drift | `pnpm db:validate:strict` |
+| Test migration validator | `pnpm test:db` |
 
 Database commands require `POSTGRES_URL` in `.env.local`.
+The validation and validator-test commands are repository-only and do not use
+`POSTGRES_URL`. If the bundled `pnpm` wrapper attempts a dependency reinstall,
+run their direct Node equivalents documented in
+`docs/database/migration-integrity.md`.
 
 ## Mobile (`playtt-mobile/`)
 

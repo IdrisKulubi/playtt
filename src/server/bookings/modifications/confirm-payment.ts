@@ -1,12 +1,9 @@
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import { bookingModifications, payments } from "@/db/schema"
 import { kesToPaystackAmount } from "@/server/payments/constants"
-import {
-  applyModificationToBooking,
-} from "@/server/bookings/modifications/repository"
-import type { ModificationSnapshot } from "@/server/bookings/modifications/types"
+import { applyModificationWithinTransaction } from "@/server/bookings/modifications/repository"
 import type { PaystackTransactionData } from "@/server/payments/types"
 
 export async function confirmModificationPayment(input: {
@@ -22,10 +19,6 @@ export async function confirmModificationPayment(input: {
 
   if (!payment) {
     return { confirmed: false, reason: "payment_not_found" as const }
-  }
-
-  if (payment.status === "paid") {
-    return { confirmed: true, reason: "already_confirmed" as const }
   }
 
   const modificationId =
@@ -59,8 +52,8 @@ export async function confirmModificationPayment(input: {
     return { confirmed: false, reason: "modification_not_found" as const }
   }
 
-  if (modification.status === "applied") {
-    return { confirmed: true, reason: "already_confirmed" as const }
+  if (modification.paymentId && modification.paymentId !== payment.id) {
+    return { confirmed: false, reason: "modification_not_found" as const }
   }
 
   const expectedAmount = kesToPaystackAmount(String(modification.deltaAmount))
@@ -80,22 +73,82 @@ export async function confirmModificationPayment(input: {
     ? new Date(input.transaction.paid_at)
     : new Date()
 
-  await db.transaction(async (tx) => {
-    await tx
-      .update(payments)
-      .set({
-        status: "paid",
-        paidAt,
-        providerEventId: input.providerEventId ?? payment.providerEventId,
-        rawPayload: input.transaction as unknown as Record<string, unknown>,
-      })
+  const result = await db.transaction(async (tx) => {
+    const [lockedPayment] = await tx
+      .select()
+      .from(payments)
       .where(eq(payments.id, payment.id))
+      .for("update")
+      .limit(1)
+
+    if (!lockedPayment) {
+      return "payment_not_found" as const
+    }
+
+    const applicationResult = await applyModificationWithinTransaction(tx, {
+      modificationId: modification.id,
+      paymentId: lockedPayment.id,
+    })
+
+    if (
+      applicationResult === "not_found" ||
+      applicationResult === "payment_mismatch"
+    ) {
+      return applicationResult
+    }
+
+    if (lockedPayment.status !== "paid") {
+      const [updatedPayment] = await tx
+        .update(payments)
+        .set({
+          status: "paid",
+          paidAt,
+          providerEventId:
+            input.providerEventId ?? lockedPayment.providerEventId,
+          rawPayload: input.transaction as unknown as Record<string, unknown>,
+        })
+        .where(
+          and(
+            eq(payments.id, lockedPayment.id),
+            eq(payments.status, lockedPayment.status)
+          )
+        )
+        .returning({ id: payments.id })
+
+      if (!updatedPayment) {
+        throw new Error("Payment status changed while confirming modification.")
+      }
+    }
+
+    if (applicationResult === "not_pending") {
+      return "paid_not_applied" as const
+    }
+
+    return applicationResult
   })
 
-  await applyModificationToBooking({
-    modificationId: modification.id,
-    afterSnapshot: modification.afterSnapshot as ModificationSnapshot,
-  })
+  if (result === "payment_not_found") {
+    return { confirmed: false, reason: "payment_not_found" as const }
+  }
+
+  if (result === "not_found") {
+    return { confirmed: false, reason: "modification_not_found" as const }
+  }
+
+  if (result === "payment_mismatch") {
+    return { confirmed: false, reason: "modification_not_found" as const }
+  }
+
+  if (result === "paid_not_applied") {
+    return {
+      confirmed: false,
+      reason: "payment_recorded_modification_not_applied" as const,
+    }
+  }
+
+  if (result === "already_applied") {
+    return { confirmed: true, reason: "already_confirmed" as const }
+  }
 
   return { confirmed: true, reason: "confirmed" as const }
 }

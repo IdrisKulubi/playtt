@@ -130,22 +130,6 @@ export async function getCurrentUserId() {
   return extractUserId(sessionData)
 }
 
-export async function getAuthHeaders() {
-  const token = await getAuthToken()
-
-  if (!token) {
-    return {}
-  }
-
-  return {
-    Authorization: `Bearer ${token}`,
-  }
-}
-
-export async function isAuthenticated() {
-  return Boolean(await getAuthToken())
-}
-
 export async function clearSession() {
   authDebug("clear-session:start")
 

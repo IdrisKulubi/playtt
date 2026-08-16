@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useSyncExternalStore } from "react"
 import { toast } from "sonner"
 
 type PreferenceKey = "sessionReminders" | "replayReady" | "bookingUpdates"
@@ -8,6 +8,7 @@ type PreferenceKey = "sessionReminders" | "replayReady" | "bookingUpdates"
 type NotificationPreferences = Record<PreferenceKey, boolean>
 
 const storageKey = "playtt-notification-preferences"
+const storageEvent = "playtt-notification-preferences-changed"
 
 const defaultPreferences: NotificationPreferences = {
   sessionReminders: true,
@@ -38,29 +39,18 @@ const preferenceRows: {
 ]
 
 export function AccountNotificationPreferences() {
-  const [preferences, setPreferences] =
-    useState<NotificationPreferences>(defaultPreferences)
-  const [loaded, setLoaded] = useState(false)
-
-  useEffect(() => {
-    const saved = window.localStorage.getItem(storageKey)
-
-    if (saved) {
-      try {
-        setPreferences({ ...defaultPreferences, ...JSON.parse(saved) })
-      } catch {
-        setPreferences(defaultPreferences)
-      }
-    }
-
-    setLoaded(true)
-  }, [])
+  const savedPreferences = useSyncExternalStore(
+    subscribeToPreferences,
+    readSavedPreferences,
+    () => "",
+  )
+  const preferences = parsePreferences(savedPreferences)
 
   function updatePreference(key: PreferenceKey, value: boolean) {
     const next = { ...preferences, [key]: value }
 
-    setPreferences(next)
     window.localStorage.setItem(storageKey, JSON.stringify(next))
+    window.dispatchEvent(new Event(storageEvent))
     toast.success("Notification preference saved.")
   }
 
@@ -90,7 +80,6 @@ export function AccountNotificationPreferences() {
               type="checkbox"
               className="size-5 rounded border-border accent-primary"
               checked={preferences[row.key]}
-              disabled={!loaded}
               onChange={(event) => updatePreference(row.key, event.target.checked)}
             />
           </label>
@@ -98,4 +87,30 @@ export function AccountNotificationPreferences() {
       </div>
     </section>
   )
+}
+
+function subscribeToPreferences(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange)
+  window.addEventListener(storageEvent, onStoreChange)
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange)
+    window.removeEventListener(storageEvent, onStoreChange)
+  }
+}
+
+function readSavedPreferences() {
+  return window.localStorage.getItem(storageKey) ?? ""
+}
+
+function parsePreferences(saved: string): NotificationPreferences {
+  if (!saved) {
+    return defaultPreferences
+  }
+
+  try {
+    return { ...defaultPreferences, ...JSON.parse(saved) }
+  } catch {
+    return defaultPreferences
+  }
 }

@@ -34,6 +34,7 @@ import {
   createPendingBookingSchema,
   locationAvailabilityInputSchema,
 } from "@/server/bookings/validators"
+import { isBookingOverlapConflict } from "@/server/bookings/database-errors"
 
 export async function getBookingBootstrapData(): Promise<{
   locations: LocationSummary[]
@@ -197,20 +198,28 @@ export async function createPendingBooking(
     groupSize: parsed.groupSize,
   })
 
-  return insertPendingBooking({
-    booking: {
-      ...parsed,
-      notes: parsed.notes || `Group size: ${parsed.groupSize}`,
-      start,
-      end,
-      currency: quote.currency,
-      subtotalAmount: quote.subtotalAmount.toFixed(2),
-      discountAmount: quote.discountAmount.toFixed(2),
-      totalAmount: quote.totalAmount.toFixed(2),
-      pricingRuleSnapshot: quote.pricingRuleSnapshot,
-      expiresAt: getPendingBookingExpiry(),
-    },
-  })
+  try {
+    return await insertPendingBooking({
+      booking: {
+        ...parsed,
+        notes: parsed.notes || `Group size: ${parsed.groupSize}`,
+        start,
+        end,
+        currency: quote.currency,
+        subtotalAmount: quote.subtotalAmount.toFixed(2),
+        discountAmount: quote.discountAmount.toFixed(2),
+        totalAmount: quote.totalAmount.toFixed(2),
+        pricingRuleSnapshot: quote.pricingRuleSnapshot,
+        expiresAt: getPendingBookingExpiry(),
+      },
+    })
+  } catch (error) {
+    if (isBookingOverlapConflict(error)) {
+      throw new Error("That time slot is no longer available.")
+    }
+
+    throw error
+  }
 }
 
 export async function listBookingsForUser(input: {

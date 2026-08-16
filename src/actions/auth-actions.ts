@@ -38,34 +38,6 @@ async function postToAuth(path: string, payload: Record<string, unknown>) {
   return data;
 }
 
-async function postToAuthWithFallbacks(
-  paths: string[],
-  payload: Record<string, unknown>,
-) {
-  let lastError: Error | null = null;
-
-  for (const path of paths) {
-    try {
-      return await postToAuth(path, payload);
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message.includes("status 404")
-      ) {
-        lastError = error;
-        continue;
-      }
-
-      throw error;
-    }
-  }
-
-  throw (
-    lastError ||
-    new Error("Auth request failed because no matching endpoint was found.")
-  );
-}
-
 function safeJsonParse(value: string) {
   try {
     return JSON.parse(value) as Record<string, unknown>;

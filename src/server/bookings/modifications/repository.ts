@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm"
+import { and, eq, isNull, or } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import {
@@ -11,6 +11,15 @@ import {
 } from "@/db/schema"
 import type { EditableBookingRow } from "@/server/bookings/modifications/eligibility"
 import type { ModificationSnapshot } from "@/server/bookings/modifications/types"
+
+type BookingTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
+
+export type ApplyModificationResult =
+  | "applied"
+  | "already_applied"
+  | "not_found"
+  | "not_pending"
+  | "payment_mismatch"
 
 export async function getEditableBookingForUser(input: {
   bookingId: string
@@ -105,10 +114,22 @@ export async function attachPaymentToModification(input: {
   modificationId: string
   paymentId: string
 }) {
-  await db
+  const [attached] = await db
     .update(bookingModifications)
     .set({ paymentId: input.paymentId })
-    .where(eq(bookingModifications.id, input.modificationId))
+    .where(
+      and(
+        eq(bookingModifications.id, input.modificationId),
+        eq(bookingModifications.status, "pending_payment"),
+        or(
+          isNull(bookingModifications.paymentId),
+          eq(bookingModifications.paymentId, input.paymentId)
+        )
+      )
+    )
+    .returning({ id: bookingModifications.id })
+
+  return Boolean(attached)
 }
 
 export async function applyModificationToBooking(input: {
@@ -116,94 +137,143 @@ export async function applyModificationToBooking(input: {
   afterSnapshot: ModificationSnapshot
   creditAmount?: string
 }) {
-  const after = input.afterSnapshot
-  const creditAmount = Number(input.creditAmount ?? "0")
+  return db.transaction((tx) => applyModificationWithinTransaction(tx, input))
+}
 
-  await db.transaction(async (tx) => {
-    const [modification] = await tx
+export async function applyModificationWithinTransaction(
+  tx: BookingTransaction,
+  input: {
+    modificationId: string
+    creditAmount?: string
+    paymentId?: string
+  }
+): Promise<ApplyModificationResult> {
+  const [modification] = await tx
+    .select()
+    .from(bookingModifications)
+    .where(eq(bookingModifications.id, input.modificationId))
+    .for("update")
+    .limit(1)
+
+  if (!modification) {
+    return "not_found"
+  }
+
+  if (
+    input.paymentId &&
+    modification.paymentId !== null &&
+    modification.paymentId !== input.paymentId
+  ) {
+    return "payment_mismatch"
+  }
+
+  if (modification.status === "applied") {
+    if (input.paymentId && modification.paymentId !== input.paymentId) {
+      return "payment_mismatch"
+    }
+    return "already_applied"
+  }
+
+  if (modification.status !== "pending_payment") {
+    return "not_pending"
+  }
+
+  const after = modification.afterSnapshot as ModificationSnapshot
+  const creditAmount = Number(input.creditAmount ?? "0")
+  const appliedAt = new Date()
+  const paymentCondition = input.paymentId
+    ? modification.paymentId === null
+      ? isNull(bookingModifications.paymentId)
+      : eq(bookingModifications.paymentId, input.paymentId)
+    : undefined
+
+  const [claimed] = await tx
+    .update(bookingModifications)
+    .set({
+      status: "applied",
+      appliedAt,
+      paymentId: input.paymentId ?? modification.paymentId,
+    })
+    .where(
+      and(
+        eq(bookingModifications.id, input.modificationId),
+        eq(bookingModifications.status, "pending_payment"),
+        paymentCondition
+      )
+    )
+    .returning({ id: bookingModifications.id })
+
+  if (!claimed) {
+    return "not_pending"
+  }
+
+  await tx
+    .update(bookings)
+    .set({
+      resourceId: after.resourceId,
+      startTime: new Date(after.startTime),
+      endTime: new Date(after.endTime),
+      durationMinutes: after.durationMinutes,
+      groupSize: after.groupSize,
+      subtotalAmount: after.subtotalAmount,
+      discountAmount: after.discountAmount,
+      totalAmount: after.totalAmount,
+      pricingRuleSnapshot: after.pricingRuleSnapshot,
+      notes: after.notes,
+    })
+    .where(eq(bookings.id, modification.bookingId))
+
+  await tx.insert(bookingStatusHistory).values({
+    bookingId: modification.bookingId,
+    fromStatus: "confirmed",
+    toStatus: "confirmed",
+    reason: "booking_modified",
+    metadata: {
+      modificationId: input.modificationId,
+      source: "booking_modification",
+    },
+  })
+
+  if (creditAmount > 0) {
+    await tx
+      .insert(bookingCreditBalances)
+      .values({
+        userId: modification.userId,
+        balanceAmount: "0",
+        currency: modification.currency,
+      })
+      .onConflictDoNothing()
+
+    const [balanceRow] = await tx
       .select()
-      .from(bookingModifications)
-      .where(eq(bookingModifications.id, input.modificationId))
+      .from(bookingCreditBalances)
+      .where(eq(bookingCreditBalances.userId, modification.userId))
+      .for("update")
       .limit(1)
 
-    if (!modification || modification.status === "applied") {
-      return
-    }
+    const currentBalance = Number(balanceRow?.balanceAmount ?? "0")
+    const nextBalance = currentBalance + creditAmount
 
     await tx
-      .update(bookings)
+      .update(bookingCreditBalances)
       .set({
-        resourceId: after.resourceId,
-        startTime: new Date(after.startTime),
-        endTime: new Date(after.endTime),
-        durationMinutes: after.durationMinutes,
-        groupSize: after.groupSize,
-        subtotalAmount: after.subtotalAmount,
-        discountAmount: after.discountAmount,
-        totalAmount: after.totalAmount,
-        pricingRuleSnapshot: after.pricingRuleSnapshot,
-        notes: after.notes,
-      })
-      .where(eq(bookings.id, modification.bookingId))
-
-    await tx
-      .update(bookingModifications)
-      .set({
-        status: "applied",
-        appliedAt: new Date(),
-      })
-      .where(eq(bookingModifications.id, input.modificationId))
-
-    await tx.insert(bookingStatusHistory).values({
-      bookingId: modification.bookingId,
-      fromStatus: "confirmed",
-      toStatus: "confirmed",
-      reason: "booking_modified",
-      metadata: {
-        modificationId: input.modificationId,
-        source: "booking_modification",
-      },
-    })
-
-    if (creditAmount > 0) {
-      await tx
-        .insert(bookingCreditBalances)
-        .values({
-          userId: modification.userId,
-          balanceAmount: "0",
-          currency: modification.currency,
-        })
-        .onConflictDoNothing()
-
-      const [balanceRow] = await tx
-        .select()
-        .from(bookingCreditBalances)
-        .where(eq(bookingCreditBalances.userId, modification.userId))
-        .for("update")
-        .limit(1)
-
-      const currentBalance = Number(balanceRow?.balanceAmount ?? "0")
-      const nextBalance = currentBalance + creditAmount
-
-      await tx
-        .update(bookingCreditBalances)
-        .set({
-          balanceAmount: nextBalance.toFixed(2),
-          currency: modification.currency,
-          updatedAt: new Date(),
-        })
-        .where(eq(bookingCreditBalances.userId, modification.userId))
-
-      await tx.insert(bookingCreditLedger).values({
-        userId: modification.userId,
-        bookingId: modification.bookingId,
-        bookingModificationId: modification.id,
-        deltaAmount: creditAmount.toFixed(2),
+        balanceAmount: nextBalance.toFixed(2),
         currency: modification.currency,
-        reason: "booking_reduction",
+        updatedAt: new Date(),
       })
-    }
-  })
+      .where(eq(bookingCreditBalances.userId, modification.userId))
+
+    await tx.insert(bookingCreditLedger).values({
+      userId: modification.userId,
+      bookingId: modification.bookingId,
+      bookingModificationId: modification.id,
+      deltaAmount: creditAmount.toFixed(2),
+      currency: modification.currency,
+      reason: "booking_reduction",
+    })
+  }
+
+  return "applied"
 }
 
 export async function getResourceName(resourceId: string) {
