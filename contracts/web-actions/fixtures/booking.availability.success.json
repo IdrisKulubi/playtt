@@ -1,0 +1,20 @@
+{
+  "contractVersion": 1,
+  "action": "booking.availability",
+  "case": "success",
+  "result": {
+    "success": true,
+    "data": {
+      "slots": [
+        {
+          "startsAt": "2026-08-18T15:00:00.000Z",
+          "endsAt": "2026-08-18T16:00:00.000Z",
+          "isAvailable": true,
+          "openTableCount": 1,
+          "price": 1500,
+          "currency": "KES"
+        }
+      ]
+    }
+  }
+}

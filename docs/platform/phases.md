@@ -5,6 +5,7 @@
 This is the release roadmap for the [PlayTT Platform Implementation Blueprint](./implementation.md). Each phase is an independently deployable increment with explicit prerequisites, outputs, tests, rollout controls, and rollback behavior. A phase is not complete because its code was merged; all exit gates must pass and evidence must be recorded.
 
 Detailed implementation and verification steps are in [phase-build-and-test.md](./phase-build-and-test.md).
+Day-to-day feature tracking and completion checkboxes are in the [master build checklist](./master-build-checklist.md).
 
 ## Delivery rules
 

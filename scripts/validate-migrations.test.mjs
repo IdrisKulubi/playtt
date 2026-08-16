@@ -73,12 +73,7 @@ test("current repository matches its explicit migration drift baseline", () => {
   const classified = classifyFindings(result)
 
   assert.deepEqual(classified.blocking, [])
-  assert.deepEqual(classified.acknowledged.map((item) => item.key).sort(), [
-    "JOURNAL_SNAPSHOT_MISSING:0001_user_onboarding",
-    "SQL_NOT_IN_JOURNAL:0002_booking_edits",
-    "SQL_NOT_IN_JOURNAL:0003_coach_replay_credits",
-    "SQL_NOT_IN_JOURNAL:0004_booking_credit_ledger",
-  ])
+  assert.deepEqual(classified.acknowledged, [])
 })
 
 test("detects an unjournaled migration", (context) => {

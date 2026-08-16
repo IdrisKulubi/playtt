@@ -10,6 +10,10 @@ import {
   getLocationAvailability,
 } from "@/server/bookings/service";
 import { getUserProfileById } from "@/server/users/onboarding";
+import {
+  coordinatePendingBookingCreation,
+  type PendingBookingActionInput,
+} from "@/actions/create-pending-booking-coordinator";
 
 export async function getBookingBootstrapAction() {
   try {
@@ -65,42 +69,13 @@ export async function getBookingQuoteAction(input: {
   }
 }
 
-export async function createPendingBookingAction(input: {
-  locationId: string;
-  resourceId: string;
-  startTimeIso: string;
-  durationMinutes: 30 | 60;
-  groupSize: 2 | 3 | 4 | 5 | 6 | 7 | 8;
-  notes?: string;
-}) {
-  try {
-    const session = await auth.api.getSession({ headers: await headers() });
-
-    if (!session?.user) {
-      return { success: false as const, message: "Sign in is required." };
-    }
-
-    const profile = await getUserProfileById(session.user.id);
-
-    if (!profile?.onboardingCompletedAt) {
-      return {
-        success: false as const,
-        message: "Complete your player profile before booking.",
-      };
-    }
-
-    const data = await createPendingBooking({
-      ...input,
-      userId: session.user.id,
-    });
-    return { success: true as const, data };
-  } catch (error) {
-    return {
-      success: false as const,
-      message:
-        error instanceof Error
-          ? error.message
-          : "Failed to create pending booking.",
-    };
-  }
+export async function createPendingBookingAction(
+  input: PendingBookingActionInput,
+) {
+  return coordinatePendingBookingCreation(input, {
+    createBooking: createPendingBooking,
+    getProfile: getUserProfileById,
+    getSession: async () =>
+      auth.api.getSession({ headers: await headers() }),
+  });
 }

@@ -81,21 +81,25 @@ async function installPhase0ConcurrencyDdl(sql, schemaName) {
   const bookings = sql(`${schemaName}.bookings`)
   const bookingStatusHistory = sql(`${schemaName}.booking_status_history`)
   const bookingModifications = sql(`${schemaName}.booking_modifications`)
+  const payments = sql(`${schemaName}.payments`)
   const bookingCreditBalances = sql(`${schemaName}.booking_credit_balances`)
   const bookingCreditLedger = sql(`${schemaName}.booking_credit_ledger`)
   const productPayments = sql(`${schemaName}.product_payments`)
   const replayCreditBalances = sql(`${schemaName}.replay_credit_balances`)
   const replayCreditLedger = sql(`${schemaName}.replay_credit_ledger`)
   const coachSubscriptions = sql(`${schemaName}.coach_subscriptions`)
+  const notifications = sql(`${schemaName}.notifications`)
 
   await sql`
     create table ${bookings} (
       id text primary key,
+      user_id text not null,
       resource_id text not null,
       status text not null,
       payment_status text not null,
       start_time timestamptz not null,
       end_time timestamptz not null,
+      cancelled_at timestamptz,
       revision integer not null default 0,
       constraint bookings_end_after_start check (end_time > start_time),
       constraint bookings_no_overlap_test
@@ -108,8 +112,26 @@ async function installPhase0ConcurrencyDdl(sql, schemaName) {
     create table ${bookingStatusHistory} (
       id bigint generated always as identity primary key,
       booking_id text not null references ${bookings}(id) on delete cascade,
+      from_status text,
       to_status text not null,
       reason text not null,
+      created_at timestamptz not null default now()
+    )
+  `
+
+  await sql`
+    create unique index booking_status_history_logical_unique
+      on ${bookingStatusHistory} (booking_id, to_status, reason)
+      where reason in ('payment_confirmed', 'payment_window_expired', 'user_cancelled')
+  `
+
+  await sql`
+    create table ${payments} (
+      id text primary key,
+      booking_id text not null references ${bookings}(id) on delete cascade,
+      user_id text not null,
+      status text not null default 'pending',
+      provider_reference text,
       created_at timestamptz not null default now()
     )
   `
@@ -145,6 +167,12 @@ async function installPhase0ConcurrencyDdl(sql, schemaName) {
   `
 
   await sql`
+    create unique index booking_credit_ledger_modification_reason_unique
+      on ${bookingCreditLedger} (booking_modification_id, reason)
+      where booking_modification_id is not null
+  `
+
+  await sql`
     create table ${productPayments} (
       id text primary key,
       user_id text not null,
@@ -171,6 +199,30 @@ async function installPhase0ConcurrencyDdl(sql, schemaName) {
       product_payment_id text references ${productPayments}(id) on delete set null,
       created_at timestamptz not null default now()
     )
+  `
+
+  await sql`
+    create unique index replay_credit_ledger_product_payment_reason_unique
+      on ${replayCreditLedger} (product_payment_id, reason)
+      where product_payment_id is not null
+  `
+
+  await sql`
+    create table ${notifications} (
+      id bigint generated always as identity primary key,
+      booking_id text not null references ${bookings}(id) on delete cascade,
+      user_id text not null,
+      channel text not null,
+      template_key text not null,
+      recipient text,
+      created_at timestamptz not null default now()
+    )
+  `
+
+  await sql`
+    create unique index notifications_booking_email_template_unique
+      on ${notifications} (booking_id, channel, template_key)
+      where channel = 'email' and template_key = 'booking_confirmed'
   `
 
   await sql`

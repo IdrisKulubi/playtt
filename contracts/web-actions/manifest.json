@@ -1,0 +1,64 @@
+{
+  "contractVersion": 1,
+  "description": "Web Server Action envelopes consumed by booking and auth UI.",
+  "envelope": {
+    "success": { "success": true, "data": {} },
+    "failure": { "success": false, "message": "Human-readable error." }
+  },
+  "actions": [
+    {
+      "id": "booking.bootstrap",
+      "actionFile": "src/actions/booking-actions.ts",
+      "exportName": "getBookingBootstrapAction",
+      "webConsumers": ["src/components/bookings/booking-console.tsx"],
+      "successFixture": "fixtures/booking.bootstrap.success.json",
+      "errorFixtures": ["fixtures/booking.bootstrap.failure.json"]
+    },
+    {
+      "id": "booking.availability",
+      "actionFile": "src/actions/booking-actions.ts",
+      "exportName": "getAvailabilityAction",
+      "webConsumers": ["src/components/bookings/booking-console.tsx"],
+      "successFixture": "fixtures/booking.availability.success.json",
+      "errorFixtures": ["fixtures/booking.availability.failure.json"]
+    },
+    {
+      "id": "booking.quote",
+      "actionFile": "src/actions/booking-actions.ts",
+      "exportName": "getBookingQuoteAction",
+      "webConsumers": ["src/components/bookings/booking-console.tsx"],
+      "successFixture": "fixtures/booking.quote.success.json",
+      "errorFixtures": ["fixtures/booking.quote.failure.json"]
+    },
+    {
+      "id": "booking.create",
+      "actionFile": "src/actions/booking-actions.ts",
+      "exportName": "createPendingBookingAction",
+      "webConsumers": ["src/components/bookings/booking-console.tsx"],
+      "successFixture": "fixtures/booking.create.success.json",
+      "errorFixtures": [
+        "fixtures/booking.create.unauthenticated.json",
+        "fixtures/booking.create.onboarding-incomplete.json"
+      ]
+    },
+    {
+      "id": "auth.sendVerificationEmail",
+      "actionFile": "src/actions/auth-actions.ts",
+      "exportName": "sendVerificationEmailAction",
+      "webConsumers": [
+        "src/components/account/account-verify-email-panel.tsx",
+        "src/components/auth/verify-email-form.tsx"
+      ],
+      "successFixture": "fixtures/auth.sendVerificationEmail.success.json",
+      "errorFixtures": ["fixtures/auth.sendVerificationEmail.failure.json"]
+    },
+    {
+      "id": "auth.requestPasswordReset",
+      "actionFile": "src/actions/auth-actions.ts",
+      "exportName": "requestPasswordResetAction",
+      "webConsumers": ["src/components/auth/request-password-reset-form.tsx"],
+      "successFixture": "fixtures/auth.requestPasswordReset.success.json",
+      "errorFixtures": ["fixtures/auth.requestPasswordReset.failure.json"]
+    }
+  ]
+}

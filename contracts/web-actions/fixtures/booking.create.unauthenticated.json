@@ -1,0 +1,9 @@
+{
+  "contractVersion": 1,
+  "action": "booking.create",
+  "case": "unauthenticated",
+  "result": {
+    "success": false,
+    "message": "Sign in is required."
+  }
+}

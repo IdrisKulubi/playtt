@@ -1,0 +1,9 @@
+{
+  "contractVersion": 1,
+  "action": "booking.bootstrap",
+  "case": "failure",
+  "result": {
+    "success": false,
+    "message": "Failed to load booking setup."
+  }
+}

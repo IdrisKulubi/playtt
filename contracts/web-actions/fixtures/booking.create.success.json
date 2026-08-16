@@ -1,0 +1,16 @@
+{
+  "contractVersion": 1,
+  "action": "booking.create",
+  "case": "success",
+  "result": {
+    "success": true,
+    "data": {
+      "bookingId": "018f4d65-3c1a-7f1d-9d54-6f547f24b111",
+      "status": "pending",
+      "paymentStatus": "unpaid",
+      "totalAmount": "1500.00",
+      "currency": "KES",
+      "expiresAt": "2026-08-16T12:15:00.000Z"
+    }
+  }
+}

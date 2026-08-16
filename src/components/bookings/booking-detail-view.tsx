@@ -15,6 +15,7 @@ import {
 } from "@phosphor-icons/react"
 
 import { BookingPaymentButton } from "@/components/bookings/booking-payment-button"
+import { BookingCancelHoldButton } from "@/components/bookings/booking-cancel-hold-button"
 import { BookingEditReviewSheet } from "@/components/bookings/booking-edit-review-sheet"
 import {
   type GroupSize,
@@ -267,6 +268,7 @@ export function BookingDetailView({
 
           <div className="mt-6 flex flex-wrap gap-2">
             {showPayment ? <BookingPaymentButton bookingId={booking.id} /> : null}
+            {showPayment ? <BookingCancelHoldButton booking={booking} /> : null}
 
             {booking.editable ? (
               <Button

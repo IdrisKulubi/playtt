@@ -1,0 +1,29 @@
+{
+  "contractVersion": 1,
+  "action": "booking.bootstrap",
+  "case": "success",
+  "result": {
+    "success": true,
+    "data": {
+      "locations": [
+        {
+          "id": "018f4d65-3c1a-7f1d-9d54-6f547f24b001",
+          "name": "PlayTT Hurlingham",
+          "slug": "hurlingham",
+          "timezone": "Africa/Nairobi",
+          "address": "Hurlingham, Nairobi",
+          "resources": [
+            {
+              "id": "018f4d65-3c1a-7f1d-9d54-6f547f24b002",
+              "locationId": "018f4d65-3c1a-7f1d-9d54-6f547f24b001",
+              "name": "Table 1",
+              "slug": "table-1",
+              "type": "table",
+              "capacity": 8
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "contractVersion": 1,
+  "action": "auth.sendVerificationEmail",
+  "case": "failure",
+  "result": {
+    "success": false,
+    "message": "Could not send verification email."
+  }
+}

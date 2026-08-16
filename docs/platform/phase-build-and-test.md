@@ -4,6 +4,8 @@
 
 This document is the execution checklist for [phases.md](./phases.md) and the [implementation blueprint](./implementation.md). Work must be completed in phase and work-package order unless an explicit dependency note permits overlap.
 
+Use the [master build checklist](./master-build-checklist.md) as the single feature-level progress board; use this playbook for the deeper build, test, rollout, and rollback steps.
+
 For every ticket:
 
 1. Record the owner, branch/PR, feature flag, affected contracts, migration ID, and rollback action.
@@ -60,6 +62,17 @@ Create GitHub Actions jobs that run independently and combine into a required `q
 
 ## Phase 0 - Stabilization and safety net
 
+### Implementation log - 2026-08-16 (local Phase 0 completion pass)
+
+Repository-only Phase 0 work landed in the working tree:
+
+- **P0-02 lineage:** `0000`–`0005` are journaled with chained snapshots; `acknowledgedMetadataDrift` is cleared; `pnpm db:validate:strict` passes; `pnpm db:replay-lineage` replays SQL, seeds twice, and checks fingerprint idempotency; CI `migration-empty` runs the replay on Postgres 16. **Live-migrate freeze:** do not run `pnpm db:migrate` on production/staging until live `__drizzle_migrations` rows and schema fingerprints are captured and reconciled.
+- **P0-04 identities:** migration `0005_phase0_idempotency` adds partial unique indexes for booking status history, booking credit ledger, replay credit ledger, and confirmation-email notifications. Confirmation email sends only after a successful notification insert.
+- **P0-01 contracts:** `contracts/web-actions/` freezes six Server Action envelopes with validator coverage in `pnpm test:contracts`; `docs/contracts/compatibility-matrix.md` documents unknown booking/payment/replay status handling with `pnpm test:compatibility`.
+- **P0-06 quality:** `.github/workflows/quality.yml` adds `migration-empty`, `web-build-e2e`, `mobile-test`, `quality-gate`, and git-tracked `secret-scan`. Playwright golden path (`e2e/golden-path.spec.ts`) uses `db/seed-test-e2e.sql` plus `.env.ci.example` dummy provider env. Mobile Jest/RNTL covers booking utils, API error mapping, and `WelcomeDots`.
+
+**Still outstanding (not local/repo evidence):** first hosted Actions green run, live environment fingerprints and ledger reconciliation, staging Paystack webhook, replay-ready staging callback, device/Maestro smoke, production provider credential smoke, and Phase 0 owner sign-off.
+
 ### Implementation log - 2026-08-16
 
 The first Phase 0 slice is implemented in the working tree:
@@ -67,7 +80,7 @@ The first Phase 0 slice is implemented in the working tree:
 - Booking creation now derives the user from the server session, enforces completed onboarding, and no longer accepts a client-controlled `userId`.
 - Paystack handler failures return HTTP 500 for provider retry, while raw-body signature verification and callback reconciliation remain unchanged.
 - The production expiry route fails closed when `CRON_SECRET` is absent.
-- Repository-only migration integrity checks now pin migrations `0000`-`0004`, preserve the custom exclusion/partial indexes, and have four passing Node tests. Strict validation intentionally remains blocked by the known journal/snapshot drift.
+- Repository-only migration integrity checks now pin migrations `0000`-`0005`, preserve custom exclusion/partial indexes, and pass strict validation with zero acknowledged drift. Empty-database replay is available via `pnpm db:replay-lineage`.
 - Root web lint and mobile lint/typecheck pass with installed tooling. The production build, browser tests, mobile component tests, and disposable-database integration suite are still outstanding.
 - Booking insertion now translates the PostgreSQL `bookings_no_overlap` exclusion violation into the stable `SLOT_UNAVAILABLE` response used by existing clients.
 - Payment confirmation, booking expiry, and unpaid cancellation now claim expected states conditionally; concurrent losers do not duplicate status history, confirmation email, or illegal transitions.
@@ -85,6 +98,9 @@ The first Phase 0 slice is implemented in the working tree:
 - Paystack webhook processing now verifies the exact raw body with a length-checked constant-time SHA-512 HMAC comparison before JSON parsing or dispatch. Missing configuration and handler failures return generic retryable 500 responses, invalid signatures never dispatch, and ten dependency-free cases cover altered/Unicode bodies, malformed signatures/payloads, missing secret, single dispatch, and handler rejection in CI.
 - Replay stub auto-completion now requires the exact `NVR_STUB_AUTO=true` flag outside production. Production ignores a mistakenly set flag so requests remain non-ready for the real pipeline, while a second execution-boundary guard throws before any database ready-state update or `playtt.local` placeholder URL publication; dependency-free policy tests run in CI.
 - The replay-ready callback now authenticates with constant-time SHA-256 digests before parsing, returns retryable 503 when its server secret is missing, and never marks a replay ready for unauthenticated, malformed, or invalid requests. Its pure processor enforces bounded credential-free HTTPS media URLs and trimmed bounded titles; executable tests preserve the current success envelope and single mark-ready call.
+- Booking Server Action authorization now runs through a pure dependency-injected coordinator. Four executable cases prove unauthenticated and incomplete-onboarding requests cannot reach booking creation, runtime-forged `userId` input is discarded in favor of the trusted session user, and existing `{ success, data | message }` results remain stable in CI without a live database.
+- Booking detail, payment start/status, cancellation, and modification quote/apply/status now share operation-specific entry points over a pure ownership coordinator. Three DB-free test groups exercise all seven real route projections: unauthenticated calls stop before route/body/domain work, runtime-forged identity fields cannot replace the server actor, and guessed booking/modification IDs remain paired with that actor in downstream calls. Existing API envelopes and mobile fixtures remain unchanged.
+- The existing explicit-sentinel disposable PostgreSQL suite now includes schema-qualified, predicate-equivalent ownership scenarios for booking detail, payment context before latest-payment lookup, cancellation mutation/history, editable-booking quote/apply lookup, and modification status `(id, user_id)` plus booking-ID matching. The minimal fixture DDL models only fields needed by those predicates. Offline guards, syntax, lint, and type-checking pass locally; the PostgreSQL assertions await the existing isolated PostgreSQL 16 CI job because no explicit disposable URL is configured. This is repository-predicate evidence, not an end-to-end route or full-migration-schema acceptance run.
 
 This log is progress evidence, not Phase 0 exit approval. The open checkboxes below remain authoritative until their complete acceptance evidence exists.
 
