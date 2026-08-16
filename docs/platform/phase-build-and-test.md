@@ -60,6 +60,21 @@ Create GitHub Actions jobs that run independently and combine into a required `q
 
 ## Phase 0 - Stabilization and safety net
 
+### Implementation log - 2026-08-16
+
+The first Phase 0 slice is implemented in the working tree:
+
+- Booking creation now derives the user from the server session, enforces completed onboarding, and no longer accepts a client-controlled `userId`.
+- Paystack handler failures return HTTP 500 for provider retry, while raw-body signature verification and callback reconciliation remain unchanged.
+- The production expiry route fails closed when `CRON_SECRET` is absent.
+- Repository-only migration integrity checks now pin migrations `0000`-`0004`, preserve the custom exclusion/partial indexes, and have four passing Node tests. Strict validation intentionally remains blocked by the known journal/snapshot drift.
+- Root web lint and mobile lint/typecheck pass with installed tooling. The production build, browser tests, mobile component tests, and disposable-database integration suite are still outstanding.
+- Booking insertion now translates the PostgreSQL `bookings_no_overlap` exclusion violation into the stable `SLOT_UNAVAILABLE` response used by existing clients.
+- Payment confirmation, booking expiry, and unpaid cancellation now claim expected states conditionally; concurrent losers do not duplicate status history, confirmation email, or illegal transitions.
+- Booking modification callbacks now lock and claim one modification, keeping application, payment, history, balance, and credit-ledger effects atomic. A successful charge that cannot apply is retained as paid and explicitly flagged for reconciliation.
+
+This log is progress evidence, not Phase 0 exit approval. The open checkboxes below remain authoritative until their complete acceptance evidence exists.
+
 ### Preconditions
 
 - [ ] Freeze schema changes unrelated to Phase 0.

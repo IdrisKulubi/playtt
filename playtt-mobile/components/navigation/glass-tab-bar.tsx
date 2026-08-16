@@ -67,7 +67,7 @@ export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProp
           name: (typeof VISIBLE_TAB_NAMES)[number]
         } => isVisibleTab(route.name),
       ),
-    [state.routes],
+    [state],
   )
 
   const styles = useMemo(

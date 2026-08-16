@@ -13,6 +13,9 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:seed": "node --env-file=.env.local scripts/run-seed-phase1.mjs",
+    "db:validate": "node scripts/validate-migrations.mjs",
+    "db:validate:strict": "node scripts/validate-migrations.mjs --strict",
+    "test:db": "node --test scripts/validate-migrations.test.mjs",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit"
   },

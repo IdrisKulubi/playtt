@@ -87,7 +87,7 @@ export function BookingConfirmSheet({
       ) : null}
 
       <Text style={styles.subcopy}>
-        Your table is held. We'll confirm soon.
+        Your table is held. We will confirm soon.
       </Text>
 
       <Button

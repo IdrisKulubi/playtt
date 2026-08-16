@@ -250,7 +250,6 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
     startTransition(async () => {
       setPaymentDisplayText(null)
       const result = await createPendingBookingAction({
-        userId: session.user.id,
         locationId: selectedLocationId,
         resourceId: selectedResourceId,
         startTimeIso: selectedSlot.startsAt,

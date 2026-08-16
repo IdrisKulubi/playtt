@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "description": "Repository-only migration integrity baseline. Acknowledged drift is a blocker for live metadata repair, not proof that any environment applied the SQL.",
+  "migrations": {
+    "0000_curvy_hiroim": {
+      "sha256": "e7ba47de4b5f845f7aa97767ed3bfe37cd3570d8ad84b90fc40d346b3f90f5cc"
+    },
+    "0001_user_onboarding": {
+      "sha256": "09d107da6130c61e2ede49bb4e2b301e1bc4234196ab8250014f01dab8aee044"
+    },
+    "0002_booking_edits": {
+      "sha256": "e0add4bc13ad612bc6f4bf50fde919fcf64f60aa8fc303609d6a6f78a16cebde"
+    },
+    "0003_coach_replay_credits": {
+      "sha256": "137030b367c1d0dc2e4dfede85d05cdadfaad34cd56ae9ff6117febf600e3553"
+    },
+    "0004_booking_credit_ledger": {
+      "sha256": "daf6c8c8826557fc4c0c0a25f6a48215447b6c02f4124639bbe89fe7e3e8afe7"
+    }
+  },
+  "acknowledgedMetadataDrift": [
+    "JOURNAL_SNAPSHOT_MISSING:0001_user_onboarding",
+    "SQL_NOT_IN_JOURNAL:0002_booking_edits",
+    "SQL_NOT_IN_JOURNAL:0003_coach_replay_credits",
+    "SQL_NOT_IN_JOURNAL:0004_booking_credit_ledger"
+  ],
+  "requiredCustomSql": [
+    {
+      "name": "bookings_no_overlap",
+      "migration": "0000_curvy_hiroim",
+      "patterns": [
+        "create\\s+extension\\s+if\\s+not\\s+exists\\s+btree_gist",
+        "add\\s+constraint\\s+\"bookings_no_overlap\"\\s+exclude\\s+using\\s+gist",
+        "tstzrange\\(\"start_time\",\\s*\"end_time\",\\s*'\\[\\)'\\)\\s+with\\s+&&",
+        "where\\s*\\(\"status\"\\s+in\\s*\\('pending',\\s*'confirmed'\\)\\)"
+      ]
+    },
+    {
+      "name": "payments_provider_event_unique",
+      "migration": "0000_curvy_hiroim",
+      "patterns": [
+        "create\\s+unique\\s+index\\s+\"payments_provider_event_unique\"",
+        "\\(\"provider\",\\s*\"provider_event_id\"\\)\\s+where\\s+\"provider_event_id\"\\s+is\\s+not\\s+null"
+      ]
+    },
+    {
+      "name": "access_credentials_external_reference_unique",
+      "migration": "0000_curvy_hiroim",
+      "patterns": [
+        "create\\s+unique\\s+index\\s+\"access_credentials_external_reference_unique\"",
+        "\\(\"provider\",\\s*\"external_reference\"\\)\\s+where\\s+\"external_reference\"\\s+is\\s+not\\s+null"
+      ]
+    }
+  ]
+}

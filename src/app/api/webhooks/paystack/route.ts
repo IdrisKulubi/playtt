@@ -24,6 +24,7 @@ export async function POST(req: Request) {
     await handlePaystackWebhookEvent(event)
   } catch (error) {
     console.error("[PAYSTACK WEBHOOK] Handler error:", error)
+    return new Response("Webhook processing failed", { status: 500 })
   }
 
   return new Response("OK", { status: 200 })

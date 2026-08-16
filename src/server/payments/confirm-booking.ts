@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm"
+import { and, eq, ne } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import { bookingStatusHistory, bookings, payments } from "@/db/schema"
@@ -67,7 +67,43 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
 
   const paymentMethod = mapPaystackChannelToPaymentMethod(input.transaction.channel)
 
-  await db.transaction(async (tx) => {
+  const transition = await db.transaction(async (tx) => {
+    const [confirmedBooking] = await tx
+      .update(bookings)
+      .set({
+        paymentStatus: "paid",
+        status: "confirmed",
+        confirmedAt: paidAt,
+      })
+      .where(
+        and(
+          eq(bookings.id, bookingContext.id),
+          eq(bookings.status, "pending"),
+          eq(bookings.paymentStatus, "unpaid"),
+        ),
+      )
+      .returning({ id: bookings.id })
+
+    if (!confirmedBooking) {
+      const [currentBooking] = await tx
+        .select({
+          status: bookings.status,
+          paymentStatus: bookings.paymentStatus,
+        })
+        .from(bookings)
+        .where(eq(bookings.id, bookingContext.id))
+        .limit(1)
+
+      if (
+        currentBooking?.status === "confirmed" &&
+        currentBooking.paymentStatus === "paid"
+      ) {
+        return "already_confirmed" as const
+      }
+
+      return "state_changed" as const
+    }
+
     await tx
       .update(payments)
       .set({
@@ -77,16 +113,9 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
         providerEventId: input.providerEventId ?? existingPayment.providerEventId,
         rawPayload: input.transaction as unknown as Record<string, unknown>,
       })
-      .where(eq(payments.id, existingPayment.id))
-
-    await tx
-      .update(bookings)
-      .set({
-        paymentStatus: "paid",
-        status: "confirmed",
-        confirmedAt: paidAt,
-      })
-      .where(eq(bookings.id, bookingContext.id))
+      .where(
+        and(eq(payments.id, existingPayment.id), ne(payments.status, "paid")),
+      )
 
     await tx.insert(bookingStatusHistory).values({
       bookingId: bookingContext.id,
@@ -98,7 +127,17 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
         reference: input.reference,
       },
     })
+
+    return "confirmed" as const
   })
+
+  if (transition === "already_confirmed") {
+    return { confirmed: true, reason: "already_confirmed" as const }
+  }
+
+  if (transition === "state_changed") {
+    return { confirmed: false, reason: "booking_state_changed" as const }
+  }
 
   void sendBookingConfirmationEmail({
     email: bookingContext.userEmail,

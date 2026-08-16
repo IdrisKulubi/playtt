@@ -1,11 +1,15 @@
 "use server";
 
+import { headers } from "next/headers";
+
+import { auth } from "../../auth";
 import {
   createPendingBooking,
   getBookingBootstrapData,
   getBookingQuote,
   getLocationAvailability,
 } from "@/server/bookings/service";
+import { getUserProfileById } from "@/server/users/onboarding";
 
 export async function getBookingBootstrapAction() {
   try {
@@ -62,7 +66,6 @@ export async function getBookingQuoteAction(input: {
 }
 
 export async function createPendingBookingAction(input: {
-  userId: string;
   locationId: string;
   resourceId: string;
   startTimeIso: string;
@@ -71,7 +74,25 @@ export async function createPendingBookingAction(input: {
   notes?: string;
 }) {
   try {
-    const data = await createPendingBooking(input);
+    const session = await auth.api.getSession({ headers: await headers() });
+
+    if (!session?.user) {
+      return { success: false as const, message: "Sign in is required." };
+    }
+
+    const profile = await getUserProfileById(session.user.id);
+
+    if (!profile?.onboardingCompletedAt) {
+      return {
+        success: false as const,
+        message: "Complete your player profile before booking.",
+      };
+    }
+
+    const data = await createPendingBooking({
+      ...input,
+      userId: session.user.id,
+    });
     return { success: true as const, data };
   } catch (error) {
     return {
