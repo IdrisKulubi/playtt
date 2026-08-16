@@ -9,17 +9,17 @@ import {
 import { getCoachTrainingForUser } from "@/server/coach/service"
 
 export async function GET(req: NextRequest) {
-  const session = await getSessionWithBearerFallback(req)
-
-  if (!session) {
-    return coachError({
-      code: "UNAUTHENTICATED",
-      message: "Sign in is required.",
-      status: 401,
-    })
-  }
-
   try {
+    const session = await getSessionWithBearerFallback(req)
+
+    if (!session) {
+      return coachError({
+        code: "UNAUTHENTICATED",
+        message: "Sign in is required.",
+        status: 401,
+      })
+    }
+
     const items = await getCoachTrainingForUser(session.user.id)
     return coachJson({ items })
   } catch (error) {

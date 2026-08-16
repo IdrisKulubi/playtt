@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"*","case":"phone-in-use","request":{"headers":{"authorization":"Bearer <token>"},"body":{"name":"Amani N.","skillLevel":"intermediate","phone":"0712 345 678"}},"response":{"status":409,"body":{"code":"PHONE_IN_USE","message":"That phone number is already linked to another account."}}}

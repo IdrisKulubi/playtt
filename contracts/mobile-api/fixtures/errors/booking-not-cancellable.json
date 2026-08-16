@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"bookings.cancel.post","case":"booking-not-cancellable","request":{"headers":{"authorization":"Bearer <token>"}},"response":{"status":409,"body":{"code":"BOOKING_NOT_CANCELLABLE","message":"Only unpaid pending bookings can be cancelled."}}}

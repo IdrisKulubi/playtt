@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"*","case":"coach-error","request":{"headers":{"authorization":"Bearer <token>"}},"response":{"status":500,"body":{"code":"COACH_ERROR","message":"Something went wrong while processing the coach request."}}}

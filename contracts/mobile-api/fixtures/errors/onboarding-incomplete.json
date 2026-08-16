@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"bookings.create.post","case":"onboarding-incomplete","request":{"headers":{"authorization":"Bearer <token>"}},"response":{"status":400,"body":{"code":"ONBOARDING_INCOMPLETE","message":"Complete your player profile before booking."}}}

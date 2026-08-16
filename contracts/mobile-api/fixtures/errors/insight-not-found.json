@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"coach.insights.detail.get","case":"insight-not-found","request":{"headers":{"authorization":"Bearer <token>"}},"response":{"status":404,"body":{"code":"INSIGHT_NOT_FOUND","message":"We could not find that insight."}}}

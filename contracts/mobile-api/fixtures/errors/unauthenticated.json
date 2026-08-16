@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"*","case":"unauthenticated","request":{"headers":{}},"response":{"status":401,"body":{"code":"UNAUTHENTICATED","message":"Sign in is required."}}}

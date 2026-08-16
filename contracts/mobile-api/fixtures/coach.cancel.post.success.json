@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"coach.cancel.post","case":"cancel-at-period-end","request":{"headers":{"authorization":"Bearer <token>"},"body":{}},"response":{"status":200,"body":{"data":{"cancelAtPeriodEnd":true,"currentPeriodEnd":"2026-09-16T00:00:00.000Z"}}}}

@@ -1,12 +1,8 @@
-import { eq } from "drizzle-orm"
-
-import db from "@/db/drizzle"
-import { productPayments } from "@/db/schema"
 import { kesToPaystackAmount } from "@/server/payments/constants"
 import type { PaystackTransactionData } from "@/server/payments/types"
 import { REPLAY_PACK_PRICE_KES } from "@/server/replays/constants"
 import {
-  creditPackPurchase,
+  confirmAndCreditPackPurchase,
   findProductPaymentByReference,
 } from "@/server/replays/repository"
 
@@ -21,12 +17,21 @@ export async function confirmReplayPackPurchase(input: {
     return { confirmed: false, reason: "payment_not_found" as const }
   }
 
-  if (existingPayment.status === "paid") {
-    return { confirmed: true, reason: "already_confirmed" as const }
-  }
-
   if (existingPayment.productType !== "replay_pack") {
     return { confirmed: false, reason: "invalid_product" as const }
+  }
+
+  if (existingPayment.status === "paid") {
+    await confirmAndCreditPackPurchase({
+      productPaymentId: existingPayment.id,
+      paidAt: existingPayment.paidAt ?? new Date(),
+      providerEventId: existingPayment.providerEventId,
+      rawPayload:
+        existingPayment.rawPayload ??
+        (input.transaction as unknown as Record<string, unknown>),
+    })
+
+    return { confirmed: true, reason: "already_confirmed" as const }
   }
 
   const expectedAmount = kesToPaystackAmount(REPLAY_PACK_PRICE_KES)
@@ -46,20 +51,20 @@ export async function confirmReplayPackPurchase(input: {
     ? new Date(input.transaction.paid_at)
     : new Date()
 
-  await db
-    .update(productPayments)
-    .set({
-      status: "paid",
-      paidAt,
-      providerEventId: input.providerEventId ?? existingPayment.providerEventId,
-      rawPayload: input.transaction as unknown as Record<string, unknown>,
-    })
-    .where(eq(productPayments.id, existingPayment.id))
-
-  await creditPackPurchase({
-    userId: existingPayment.userId,
+  const result = await confirmAndCreditPackPurchase({
     productPaymentId: existingPayment.id,
+    paidAt,
+    providerEventId: input.providerEventId,
+    rawPayload: input.transaction as unknown as Record<string, unknown>,
   })
+
+  if (result === "payment_not_found") {
+    return { confirmed: false, reason: "payment_not_found" as const }
+  }
+
+  if (result === "already_credited") {
+    return { confirmed: true, reason: "already_confirmed" as const }
+  }
 
   return { confirmed: true, reason: "confirmed" as const }
 }

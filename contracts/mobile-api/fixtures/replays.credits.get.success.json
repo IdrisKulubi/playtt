@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"replays.credits.get","case":"success","request":{"headers":{"authorization":"Bearer <token>"}},"response":{"status":200,"body":{"data":{"credits":{"balance":7,"packCredits":10,"packPriceKes":1000,"lastPurchasedAt":"2026-08-15T10:00:00.000Z"}}}}}

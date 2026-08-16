@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"*","case":"replay-error","request":{"headers":{"authorization":"Bearer <token>"}},"response":{"status":500,"body":{"code":"REPLAY_ERROR","message":"Something went wrong while processing the replay request."}}}

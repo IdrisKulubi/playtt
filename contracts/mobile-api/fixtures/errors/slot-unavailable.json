@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"*","case":"slot-unavailable","request":{"headers":{"authorization":"Bearer <token>"}},"response":{"status":409,"body":{"code":"SLOT_UNAVAILABLE","message":"That slot is no longer available."}}}

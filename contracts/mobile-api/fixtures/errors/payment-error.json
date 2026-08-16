@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"*","case":"payment-error","request":{"headers":{"authorization":"Bearer <token>"}},"response":{"status":500,"body":{"code":"PAYMENT_ERROR","message":"Something went wrong while processing the payment."}}}

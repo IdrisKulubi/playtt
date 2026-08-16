@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"*","case":"booking-error","request":{},"response":{"status":400,"body":{"code":"BOOKING_ERROR","message":"Could not process the booking request."}}}

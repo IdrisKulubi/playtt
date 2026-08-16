@@ -19,17 +19,17 @@ Checkboxes are intentionally left open. They become delivery evidence as impleme
 
 ### Test layers
 
-| Layer | Tooling | Purpose |
-| --- | --- | --- |
-| Type and lint | TypeScript and ESLint | Static correctness for web/API and mobile |
-| Domain/unit | Vitest | Pure rules, validators, errors, adapters, state machines |
-| Database/integration | Vitest + disposable PostgreSQL/Neon branch | Migrations, constraints, repositories, concurrency, transactions, workers |
-| Web/API E2E | Playwright | Auth, booking, payment, admin/operator, kiosk and API journeys |
-| Mobile unit/component | Jest Expo + React Native Testing Library | API adapters, routing decisions, access/session states, components |
-| Mobile device E2E | Maestro on preview builds | Auth, onboarding, booking, checkout return, edits, access, notification flows |
-| Firmware | ESP-IDF native tests + device simulator | Protocol, debounce, buffering, idempotency, configuration, commands |
-| Hardware-in-loop | Staging ESP32, lock, relay, cameras/edge | Physical behavior that simulation cannot prove |
-| External contracts | Staging Paystack, R2, Redis and selected hardware | Provider authentication, callbacks, grants, retry and outage behavior |
+| Layer                 | Tooling                                           | Purpose                                                                       |
+| --------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Type and lint         | TypeScript and ESLint                             | Static correctness for web/API and mobile                                     |
+| Domain/unit           | Vitest                                            | Pure rules, validators, errors, adapters, state machines                      |
+| Database/integration  | Vitest + disposable PostgreSQL/Neon branch        | Migrations, constraints, repositories, concurrency, transactions, workers     |
+| Web/API E2E           | Playwright                                        | Auth, booking, payment, admin/operator, kiosk and API journeys                |
+| Mobile unit/component | Jest Expo + React Native Testing Library          | API adapters, routing decisions, access/session states, components            |
+| Mobile device E2E     | Maestro on preview builds                         | Auth, onboarding, booking, checkout return, edits, access, notification flows |
+| Firmware              | ESP-IDF native tests + device simulator           | Protocol, debounce, buffering, idempotency, configuration, commands           |
+| Hardware-in-loop      | Staging ESP32, lock, relay, cameras/edge          | Physical behavior that simulation cannot prove                                |
+| External contracts    | Staging Paystack, R2, Redis and selected hardware | Provider authentication, callbacks, grants, retry and outage behavior         |
 
 ### CI jobs
 
@@ -72,6 +72,13 @@ The first Phase 0 slice is implemented in the working tree:
 - Booking insertion now translates the PostgreSQL `bookings_no_overlap` exclusion violation into the stable `SLOT_UNAVAILABLE` response used by existing clients.
 - Payment confirmation, booking expiry, and unpaid cancellation now claim expected states conditionally; concurrent losers do not duplicate status history, confirmation email, or illegal transitions.
 - Booking modification callbacks now lock and claim one modification, keeping application, payment, history, balance, and credit-ledger effects atomic. A successful charge that cannot apply is retained as paid and explicitly flagged for reconciliation.
+- The dependency-free offline database suite now has 13 passing checks covering migration integrity, disposable-database safety guards, and booking exclusion-error classification.
+- An opt-in PostgreSQL concurrency harness now covers overlapping/adjacent bookings, confirmation versus expiry/cancellation, and duplicate modification credit. It refuses the application database and cannot run until `PLAYTT_TEST_DATABASE_URL` points to an explicitly confirmed disposable database.
+- `.github/workflows/quality.yml` now defines independent web, mobile, and PostgreSQL-concurrency jobs with frozen installs, read-only repository permissions, current action runtimes, and an ephemeral PostgreSQL 16 service. Local equivalents and workflow parsing pass; the first hosted Actions run is still required as acceptance evidence.
+- Replay-pack confirmation now records payment, balance, and credit ledger atomically and recovers a legacy paid-without-credit state once. Coach confirmation now records payment and subscription activation atomically, recovers a missing subscription once, and never extends an existing subscription on duplicate delivery.
+- The opt-in PostgreSQL suite now contains eight concurrency scenarios, including replay-pack duplicate/recovery cases and Coach duplicate/recovery/period-preservation cases. Hosted CI execution remains the required database evidence.
+- Mobile API contract v1 now freezes 23 working profile, booking/payment, replay-credit, and Coach endpoints with 39 deterministic fixtures. A dependency-free validator checks route exports, real mobile consumers, envelope/status compatibility, fixture freshness, safe paths, and secret-free example data in CI; replay request/history remain producer-only, and the dormant mobile Coach chat call remains explicitly unsupported because no server route exists.
+- User/profile, Replay, and Coach API boundaries now catch authentication, repository, provider, and serialization failures and return stable domain-specific 500 envelopes without exposing internal exception messages. Typed domain errors and existing success envelopes remain unchanged; dependency-free mapping tests cover typed and unexpected thrown values.
 
 This log is progress evidence, not Phase 0 exit approval. The open checkboxes below remain authoritative until their complete acceptance evidence exists.
 

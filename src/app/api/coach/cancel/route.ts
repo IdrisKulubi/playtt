@@ -9,17 +9,17 @@ import {
 import { cancelCoachSubscription } from "@/server/coach/service"
 
 export async function POST(req: NextRequest) {
-  const session = await getSessionWithBearerFallback(req)
-
-  if (!session) {
-    return coachError({
-      code: "UNAUTHENTICATED",
-      message: "Sign in is required.",
-      status: 401,
-    })
-  }
-
   try {
+    const session = await getSessionWithBearerFallback(req)
+
+    if (!session) {
+      return coachError({
+        code: "UNAUTHENTICATED",
+        message: "Sign in is required.",
+        status: 401,
+      })
+    }
+
     const result = await cancelCoachSubscription(session.user.id)
     return coachJson(result)
   } catch (error) {
