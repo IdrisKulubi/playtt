@@ -28,6 +28,7 @@
 - [ ] `POST /api/bookings/[id]/pay` returns `authorizationUrl` (hosted checkout)
 - [ ] `payments` row created with Paystack reference
 - [ ] Webhook `charge.success` sets booking `confirmed` + `paid`
+- [x] Webhook raw-body HMAC, invalid signature/payload, missing secret, Unicode payload, and retryable handler failure behavior pass `pnpm test:payments`
 - [ ] Replay webhook is idempotent (no double confirm)
 - [ ] `GET /api/bookings/[id]/payment` verifies delayed payments
 - [ ] Unpaid booking expires after 10 minutes (`expired` status)

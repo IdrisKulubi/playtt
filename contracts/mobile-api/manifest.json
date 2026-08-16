@@ -262,14 +262,6 @@
   ],
   "producerConsumerDrift": [
     {
-      "kind": "response-shape-drift",
-      "method": "PATCH",
-      "pathTemplate": "/api/user/onboarding",
-      "routeFile": "src/app/api/user/onboarding/route.ts",
-      "mobileConsumer": "playtt-mobile/lib/user-api.ts",
-      "note": "The producer's onboarding success user omits emailVerified, while OnboardingPatchResponse reuses UserProfile where emailVerified is required. Current form callers do not read the returned user, so this is latent rather than user-visible."
-    },
-    {
       "kind": "producer-without-mobile-consumer",
       "method": "POST",
       "pathTemplate": "/api/replays/request",

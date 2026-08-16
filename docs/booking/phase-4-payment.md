@@ -40,6 +40,20 @@ Implemented for mobile bookings.
 
 Register webhook: `https://<host>/api/webhooks/paystack`
 
+The webhook reads the request body once as text and verifies Paystack's
+SHA-512 HMAC over that exact body before parsing or dispatching it. Signature
+comparison validates the hex length and uses a constant-time buffer compare.
+Missing `PAYSTACK_SECRET_KEY` fails closed with HTTP 500 so Paystack can retry;
+missing/invalid signatures return 401, signed malformed JSON returns 400, and
+downstream handler failures return a generic retryable 500 without exposing
+internal error messages.
+
+Run the dependency-free webhook security suite with:
+
+```bash
+pnpm test:payments
+```
+
 ## Mobile flow
 
 1. Create pending booking (`POST /api/bookings`)

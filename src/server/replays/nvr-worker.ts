@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import { replays } from "@/db/schema"
+import { assertReplayStubExecutionAllowed } from "@/server/replays/stub-policy"
 
 /** Stub NVR clip job — replace with real camera/NVR integration. */
 export async function enqueueNvrClip(input: {
@@ -48,6 +49,8 @@ export async function markReplayReadyInDb(input: {
 
 /** Dev helper: complete stub clip without real NVR hardware. */
 export async function completeStubNvrClip(replayId: string) {
+  assertReplayStubExecutionAllowed(process.env.NODE_ENV)
+
   return markReplayReadyInDb({
     replayId,
     videoUrl: `https://playtt.local/replays/${replayId}.mp4`,

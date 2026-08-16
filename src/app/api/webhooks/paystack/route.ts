@@ -1,31 +1,32 @@
-import { verifyPaystackSignature } from "@/server/payments/paystack-client"
 import { handlePaystackWebhookEvent } from "@/server/payments/service"
 import type { PaystackWebhookEvent } from "@/server/payments/types"
+import { processPaystackWebhook } from "@/server/payments/webhook-processor"
 
 export const runtime = "nodejs"
 
 export async function POST(req: Request) {
-  const rawBody = await req.text()
-  const signature = req.headers.get("x-paystack-signature")
-
-  if (!verifyPaystackSignature(rawBody, signature)) {
-    return new Response("Invalid signature", { status: 401 })
-  }
-
-  let event: PaystackWebhookEvent
+  let rawBody: string
 
   try {
-    event = JSON.parse(rawBody) as PaystackWebhookEvent
+    rawBody = await req.text()
   } catch {
-    return new Response("Invalid payload", { status: 400 })
-  }
-
-  try {
-    await handlePaystackWebhookEvent(event)
-  } catch (error) {
-    console.error("[PAYSTACK WEBHOOK] Handler error:", error)
+    console.error("[PAYSTACK WEBHOOK] Could not read request body.")
     return new Response("Webhook processing failed", { status: 500 })
   }
 
-  return new Response("OK", { status: 200 })
+  const signature = req.headers.get("x-paystack-signature")
+  const result = await processPaystackWebhook<PaystackWebhookEvent>({
+    handleEvent: handlePaystackWebhookEvent,
+    rawBody,
+    secret: process.env.PAYSTACK_SECRET_KEY,
+    signature,
+  })
+
+  if (result.failureKind === "configuration-error") {
+    console.error("[PAYSTACK WEBHOOK] PAYSTACK_SECRET_KEY is not configured.")
+  } else if (result.failureKind === "handler-error") {
+    console.error("[PAYSTACK WEBHOOK] Handler failed.")
+  }
+
+  return new Response(result.body, { status: result.status })
 }

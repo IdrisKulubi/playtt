@@ -9,6 +9,7 @@ import {
   replayJson,
 } from "@/server/replays/http"
 import { requestReplayCapture } from "@/server/replays/service"
+import { shouldAutoRunReplayStub } from "@/server/replays/stub-policy"
 
 const bodySchema = z.object({
   bookingId: z.string().uuid(),
@@ -44,7 +45,12 @@ export async function POST(req: NextRequest) {
       bookingId: body.bookingId,
     })
 
-    if (process.env.NVR_STUB_AUTO === "true") {
+    if (
+      shouldAutoRunReplayStub({
+        environment: process.env.NODE_ENV,
+        flag: process.env.NVR_STUB_AUTO,
+      })
+    ) {
       await processReplayPipeline(result.replayId)
     }
 
