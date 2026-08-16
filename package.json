@@ -20,7 +20,7 @@
     "test:db:integration": "node --test --test-concurrency=1 scripts/integration/phase0-concurrency.test.mjs",
     "test:http": "node --test src/lib/public-version.test.mjs src/lib/trusted-auth-origins.test.mjs src/lib/web-cors-origins.test.mjs src/server/http/error-mapping.test.mjs src/server/users/serialization.test.mjs",
     "test:payments": "node --test src/server/payments/webhook-processor.test.mjs",
-    "test:replays": "node --test src/server/replays/stub-policy.test.mjs",
+    "test:replays": "node --test src/server/replays/ready-callback.test.mjs src/server/replays/stub-policy.test.mjs",
     "test:contracts": "node --test scripts/validate-api-contracts.test.mjs && node scripts/validate-api-contracts.mjs",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit"

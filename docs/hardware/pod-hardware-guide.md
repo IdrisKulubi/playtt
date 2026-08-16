@@ -257,6 +257,13 @@ Buffers video 24/7. On replay request, exports last 30s and uploads to S3 (or si
 2. PlayTT (or edge script) tells NVR to export segment **or** Pi pulls RTSP buffer.
 3. `POST /api/replays/[id]/ready` with `videoUrl` when upload completes.
 
+The ready callback requires `x-playtt-replay-secret` matching the configured
+non-blank `REPLAY_WEBHOOK_SECRET`. Missing server configuration returns 503 for
+retry; missing/invalid caller credentials return a generic 401. Payloads accept
+only HTTPS media URLs without embedded credentials (maximum 2,048 characters)
+and an optional trimmed title (maximum 160 characters). Never place the secret
+in the URL, payload, or logs.
+
 ### Recommended
 
 | Tier | Product | Why |
