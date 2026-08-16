@@ -1,7 +1,12 @@
 import { and, eq, ne } from "drizzle-orm"
 
 import db from "@/db/drizzle"
-import { bookingStatusHistory, bookings, payments } from "@/db/schema"
+import {
+  bookingStatusHistory,
+  bookings,
+  notifications,
+  payments,
+} from "@/db/schema"
 import { kesToPaystackAmount } from "@/server/payments/constants"
 import { sendBookingConfirmationEmail } from "@/server/payments/confirmation-email"
 import {
@@ -67,6 +72,8 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
 
   const paymentMethod = mapPaystackChannelToPaymentMethod(input.transaction.channel)
 
+  let shouldSendConfirmationEmail = false
+
   const transition = await db.transaction(async (tx) => {
     const [confirmedBooking] = await tx
       .update(bookings)
@@ -117,16 +124,41 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
         and(eq(payments.id, existingPayment.id), ne(payments.status, "paid")),
       )
 
-    await tx.insert(bookingStatusHistory).values({
-      bookingId: bookingContext.id,
-      fromStatus: "pending",
-      toStatus: "confirmed",
-      reason: "payment_confirmed",
-      metadata: {
-        source: input.source,
-        reference: input.reference,
-      },
-    })
+    await tx
+      .insert(bookingStatusHistory)
+      .values({
+        bookingId: bookingContext.id,
+        fromStatus: "pending",
+        toStatus: "confirmed",
+        reason: "payment_confirmed",
+        metadata: {
+          source: input.source,
+          reference: input.reference,
+        },
+      })
+      .onConflictDoNothing()
+
+    const [notification] = await tx
+      .insert(notifications)
+      .values({
+        bookingId: bookingContext.id,
+        locationId: bookingContext.locationId,
+        userId: bookingContext.userId,
+        channel: "email",
+        status: "pending",
+        templateKey: "booking_confirmed",
+        recipient: bookingContext.userEmail,
+        payload: {
+          source: input.source,
+          reference: input.reference,
+        },
+      })
+      .onConflictDoNothing()
+      .returning({ id: notifications.id })
+
+    if (notification) {
+      shouldSendConfirmationEmail = true
+    }
 
     return "confirmed" as const
   })
@@ -139,7 +171,8 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
     return { confirmed: false, reason: "booking_state_changed" as const }
   }
 
-  void sendBookingConfirmationEmail({
+  if (shouldSendConfirmationEmail) {
+    void sendBookingConfirmationEmail({
     email: bookingContext.userEmail,
     name: bookingContext.userName,
     locationName: bookingContext.locationName,
@@ -148,9 +181,10 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
     endTime: bookingContext.endTime,
     totalAmount: bookingContext.totalAmount,
     currency: bookingContext.currency,
-  }).catch((error) => {
-    console.error("[BOOKING EMAIL] Failed to send confirmation:", error)
-  })
+    }).catch((error) => {
+      console.error("[BOOKING EMAIL] Failed to send confirmation:", error)
+    })
+  }
 
   return { confirmed: true, reason: "confirmed" as const }
 }

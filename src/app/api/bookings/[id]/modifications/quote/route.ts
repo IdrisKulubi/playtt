@@ -8,32 +8,34 @@ import {
 } from "@/server/bookings/http"
 import { quoteBookingModification } from "@/server/bookings/modifications/quote"
 import { modificationQuoteBodySchema } from "@/server/bookings/modifications/validators"
+import { coordinateModificationQuote } from "@/server/bookings/ownership-coordinator"
 
 type RouteContext = {
   params: Promise<{ id: string }>
 }
 
 export async function POST(req: NextRequest, context: RouteContext) {
-  const session = await getSessionWithBearerFallback(req)
-
-  if (!session) {
-    return bookingError({
-      code: "UNAUTHENTICATED",
-      message: "Sign in is required.",
-      status: 401,
-    })
-  }
-
   try {
-    const { id } = await context.params
-    const body = modificationQuoteBodySchema.parse(await req.json())
-    const result = await quoteBookingModification({
-      bookingId: id,
-      userId: session.user.id,
-      body,
+    const outcome = await coordinateModificationQuote({
+      getActorId: async () =>
+        (await getSessionWithBearerFallback(req))?.user.id ?? null,
+      getIdentifiers: async () => {
+        const { id } = await context.params
+        return { bookingId: id }
+      },
+      readBody: async () => modificationQuoteBodySchema.parse(await req.json()),
+      quoteModification: quoteBookingModification,
     })
 
-    return bookingJson({ modificationPreview: result.quote })
+    if (!outcome.authenticated) {
+      return bookingError({
+        code: "UNAUTHENTICATED",
+        message: "Sign in is required.",
+        status: 401,
+      })
+    }
+
+    return bookingJson({ modificationPreview: outcome.value.quote })
   } catch (error) {
     return mapBookingServiceError(error)
   }

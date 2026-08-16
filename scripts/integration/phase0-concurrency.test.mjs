@@ -14,15 +14,15 @@ after(async () => {
   await harness?.teardown()
 })
 
-async function insertBooking({ id, start, end }) {
+async function insertBooking({ id, start, end, userId = "user-1" }) {
   const bookings = harness.table("bookings")
 
   try {
     await harness.sql`
       insert into ${bookings} (
-        id, resource_id, status, payment_status, start_time, end_time
+        id, user_id, resource_id, status, payment_status, start_time, end_time
       ) values (
-        ${id}, 'resource-1', 'pending', 'unpaid', ${start}, ${end}
+        ${id}, ${userId}, 'resource-1', 'pending', 'unpaid', ${start}, ${end}
       )
     `
     return "inserted"
@@ -32,6 +32,91 @@ async function insertBooking({ id, start, end }) {
     }
     throw error
   }
+}
+
+// Mirrors the shared id + user_id predicate in getUserBookingById,
+// getBookingPaymentContext, and getEditableBookingForUser.
+async function findOwnedBooking({ bookingId, userId }) {
+  const bookings = harness.table("bookings")
+  const [booking] = await harness.sql`
+    select id, user_id, status, payment_status
+    from ${bookings}
+    where id = ${bookingId} and user_id = ${userId}
+    limit 1
+  `
+
+  return booking ?? null
+}
+
+async function getOwnedBookingPaymentStatus({ bookingId, userId }) {
+  const booking = await findOwnedBooking({ bookingId, userId })
+  if (!booking) {
+    return null
+  }
+
+  const payments = harness.table("payments")
+  const [latestPayment] = await harness.sql`
+    select id, booking_id, user_id, status, provider_reference
+    from ${payments}
+    where booking_id = ${booking.id}
+    order by created_at desc
+    limit 1
+  `
+
+  return { booking, latestPayment: latestPayment ?? null }
+}
+
+// Mirrors cancelUnpaidBooking's conditional owner/state update and single history effect.
+async function cancelOwnedPendingBooking({ bookingId, userId }) {
+  const bookings = harness.table("bookings")
+  const history = harness.table("booking_status_history")
+
+  return harness.sql.begin(async (sql) => {
+    const [booking] = await sql`
+      update ${bookings}
+      set status = 'cancelled', cancelled_at = now()
+      where id = ${bookingId}
+        and user_id = ${userId}
+        and status = 'pending'
+        and payment_status = 'unpaid'
+      returning id, user_id, status, payment_status
+    `
+
+    if (!booking) {
+      const [currentBooking] = await sql`
+        select id, user_id, status, payment_status
+        from ${bookings}
+        where id = ${bookingId} and user_id = ${userId}
+        limit 1
+      `
+
+      return currentBooking ?? null
+    }
+
+    await sql`
+      insert into ${history} (booking_id, to_status, reason)
+      values (${bookingId}, 'cancelled', 'user_cancelled')
+    `
+
+    return booking
+  })
+}
+
+// Mirrors getModificationById(id, user_id), followed by the service booking-id check.
+async function findOwnedModification({ bookingId, modificationId, userId }) {
+  const modifications = harness.table("booking_modifications")
+  const [modification] = await harness.sql`
+    select id, booking_id, user_id, status
+    from ${modifications}
+    where id = ${modificationId} and user_id = ${userId}
+    limit 1
+  `
+
+  if (!modification || modification.booking_id !== bookingId) {
+    return null
+  }
+
+  return modification
 }
 
 async function claimBooking({ bookingId, toStatus, paymentStatus, reason }) {
@@ -283,6 +368,207 @@ test("overlapping booking inserts have one winner and adjacent ranges both succe
   ])
 
   assert.deepEqual(adjacent, ["inserted", "inserted"])
+})
+
+test("booking detail and modification quote/apply reads require the booking owner", async () => {
+  const bookingId = randomUUID()
+  const ownerId = randomUUID()
+  const differentActorId = randomUUID()
+
+  await insertBooking({
+    id: bookingId,
+    userId: ownerId,
+    start: new Date("2031-01-01T10:00:00.000Z"),
+    end: new Date("2031-01-01T11:00:00.000Z"),
+  })
+
+  const ownerBooking = await findOwnedBooking({ bookingId, userId: ownerId })
+  const guessedBooking = await findOwnedBooking({
+    bookingId,
+    userId: differentActorId,
+  })
+
+  assert.equal(ownerBooking?.id, bookingId)
+  assert.equal(ownerBooking?.user_id, ownerId)
+  assert.equal(guessedBooking, null)
+})
+
+test("payment start/status gate latest-payment access on booking ownership", async () => {
+  const payments = harness.table("payments")
+  const bookingId = randomUUID()
+  const paymentId = randomUUID()
+  const ownerId = randomUUID()
+  const differentActorId = randomUUID()
+
+  await insertBooking({
+    id: bookingId,
+    userId: ownerId,
+    start: new Date("2031-01-05T10:00:00.000Z"),
+    end: new Date("2031-01-05T11:00:00.000Z"),
+  })
+  await harness.sql`
+    insert into ${payments} (
+      id, booking_id, user_id, status, provider_reference
+    ) values (
+      ${paymentId}, ${bookingId}, ${ownerId}, 'pending', 'test-reference'
+    )
+  `
+
+  const ownerStartContext = await findOwnedBooking({
+    bookingId,
+    userId: ownerId,
+  })
+  const attackerStartContext = await findOwnedBooking({
+    bookingId,
+    userId: differentActorId,
+  })
+  const ownerStatus = await getOwnedBookingPaymentStatus({
+    bookingId,
+    userId: ownerId,
+  })
+  const attackerStatus = await getOwnedBookingPaymentStatus({
+    bookingId,
+    userId: differentActorId,
+  })
+
+  assert.equal(ownerStartContext?.id, bookingId)
+  assert.equal(attackerStartContext, null)
+  assert.equal(ownerStatus?.booking.id, bookingId)
+  assert.equal(ownerStatus?.latestPayment?.id, paymentId)
+  assert.equal(attackerStatus, null)
+
+  const [storedPayment] = await harness.sql`
+    select booking_id, user_id, status, provider_reference
+    from ${payments}
+    where id = ${paymentId}
+  `
+  assert.deepEqual(storedPayment, {
+    booking_id: bookingId,
+    user_id: ownerId,
+    status: "pending",
+    provider_reference: "test-reference",
+  })
+})
+
+test("cancellation ownership predicate prevents cross-user mutation", async () => {
+  const bookings = harness.table("bookings")
+  const history = harness.table("booking_status_history")
+  const bookingId = randomUUID()
+  const ownerId = randomUUID()
+  const differentActorId = randomUUID()
+
+  await insertBooking({
+    id: bookingId,
+    userId: ownerId,
+    start: new Date("2031-01-02T10:00:00.000Z"),
+    end: new Date("2031-01-02T11:00:00.000Z"),
+  })
+
+  const guessedCancellation = await cancelOwnedPendingBooking({
+    bookingId,
+    userId: differentActorId,
+  })
+  const [afterGuess] = await harness.sql`
+    select status, payment_status from ${bookings} where id = ${bookingId}
+  `
+
+  assert.equal(guessedCancellation, null)
+  assert.deepEqual(afterGuess, {
+    status: "pending",
+    payment_status: "unpaid",
+  })
+  const historyAfterGuess = await harness.sql`
+    select id from ${history} where booking_id = ${bookingId}
+  `
+  assert.equal(historyAfterGuess.length, 0)
+
+  const ownerCancellation = await cancelOwnedPendingBooking({
+    bookingId,
+    userId: ownerId,
+  })
+
+  assert.equal(ownerCancellation?.id, bookingId)
+  assert.equal(ownerCancellation?.user_id, ownerId)
+  assert.equal(ownerCancellation?.status, "cancelled")
+
+  const repeatedOwnerCancellation = await cancelOwnedPendingBooking({
+    bookingId,
+    userId: ownerId,
+  })
+  const historyAfterOwner = await harness.sql`
+    select to_status, reason from ${history} where booking_id = ${bookingId}
+  `
+
+  assert.equal(repeatedOwnerCancellation?.status, "cancelled")
+  assert.deepEqual(historyAfterOwner, [
+    { to_status: "cancelled", reason: "user_cancelled" },
+  ])
+})
+
+test("modification status requires matching actor, modification, and booking", async () => {
+  const bookings = harness.table("bookings")
+  const modifications = harness.table("booking_modifications")
+  const ownerId = randomUUID()
+  const differentActorId = randomUUID()
+  const bookingId = randomUUID()
+  const otherOwnedBookingId = randomUUID()
+  const modificationId = randomUUID()
+
+  await insertBooking({
+    id: bookingId,
+    userId: ownerId,
+    start: new Date("2031-01-03T10:00:00.000Z"),
+    end: new Date("2031-01-03T11:00:00.000Z"),
+  })
+  await insertBooking({
+    id: otherOwnedBookingId,
+    userId: ownerId,
+    start: new Date("2031-01-04T10:00:00.000Z"),
+    end: new Date("2031-01-04T11:00:00.000Z"),
+  })
+  await harness.sql`
+    insert into ${modifications} (id, booking_id, user_id, status)
+    values (${modificationId}, ${bookingId}, ${ownerId}, 'pending_payment')
+  `
+
+  const ownedModification = await findOwnedModification({
+    bookingId,
+    modificationId,
+    userId: ownerId,
+  })
+  const crossUserGuess = await findOwnedModification({
+    bookingId,
+    modificationId,
+    userId: differentActorId,
+  })
+  const crossBookingGuess = await findOwnedModification({
+    bookingId: otherOwnedBookingId,
+    modificationId,
+    userId: ownerId,
+  })
+
+  assert.equal(ownedModification?.id, modificationId)
+  assert.equal(ownedModification?.booking_id, bookingId)
+  assert.equal(ownedModification?.user_id, ownerId)
+  assert.equal(crossUserGuess, null)
+  assert.equal(crossBookingGuess, null)
+
+  const [storedModification] = await harness.sql`
+    select booking_id, user_id, status
+    from ${modifications}
+    where id = ${modificationId}
+  `
+  assert.deepEqual(storedModification, {
+    booking_id: bookingId,
+    user_id: ownerId,
+    status: "pending_payment",
+  })
+
+  const bookingRows = await harness.sql`
+    select id from ${bookings}
+    where id in (${bookingId}, ${otherOwnedBookingId})
+  `
+  assert.equal(bookingRows.length, 2)
 })
 
 test("confirmation racing expiry or cancellation has one legal winner and one history row", async () => {
@@ -599,4 +885,91 @@ test("an already-paid Coach payment preserves an existing subscription period", 
     rows[0].current_period_end.toISOString(),
     existingPeriodEnd.toISOString()
   )
+})
+
+async function confirmOwnedBookingPayment({ bookingId, userId }) {
+  const bookings = harness.table("bookings")
+  const history = harness.table("booking_status_history")
+  const notifications = harness.table("notifications")
+
+  return harness.sql.begin(async (sql) => {
+    const [confirmed] = await sql`
+      update ${bookings}
+      set status = 'confirmed', payment_status = 'paid'
+      where id = ${bookingId}
+        and user_id = ${userId}
+        and status = 'pending'
+        and payment_status = 'unpaid'
+      returning id
+    `
+
+    if (!confirmed) {
+      return "already_confirmed"
+    }
+
+    await sql`
+      insert into ${history} (booking_id, from_status, to_status, reason)
+      values (${bookingId}, 'pending', 'confirmed', 'payment_confirmed')
+      on conflict do nothing
+    `
+
+    await sql`
+      insert into ${notifications} (
+        booking_id,
+        user_id,
+        channel,
+        template_key,
+        recipient
+      )
+      values (
+        ${bookingId},
+        ${userId},
+        'email',
+        'booking_confirmed',
+        'player@example.invalid'
+      )
+      on conflict do nothing
+    `
+
+    return "confirmed"
+  })
+}
+
+test("duplicate payment confirmation keeps one history row and one email notification", async () => {
+  const bookingId = randomUUID()
+  const userId = randomUUID()
+  const start = new Date("2031-06-01T10:00:00.000Z")
+  const end = new Date("2031-06-01T11:00:00.000Z")
+
+  assert.equal(
+    await insertBooking({ id: bookingId, start, end, userId }),
+    "inserted",
+  )
+
+  const outcomes = await Promise.all([
+    confirmOwnedBookingPayment({ bookingId, userId }),
+    confirmOwnedBookingPayment({ bookingId, userId }),
+  ])
+
+  assert.ok(outcomes.includes("confirmed"))
+  assert.ok(outcomes.includes("already_confirmed"))
+
+  const history = harness.table("booking_status_history")
+  const notifications = harness.table("notifications")
+
+  const historyRows = await harness.sql`
+    select booking_id, to_status, reason
+    from ${history}
+    where booking_id = ${bookingId}
+  `
+  const notificationRows = await harness.sql`
+    select booking_id, channel, template_key
+    from ${notifications}
+    where booking_id = ${bookingId}
+  `
+
+  assert.equal(historyRows.length, 1)
+  assert.equal(historyRows[0].reason, "payment_confirmed")
+  assert.equal(notificationRows.length, 1)
+  assert.equal(notificationRows[0].template_key, "booking_confirmed")
 })

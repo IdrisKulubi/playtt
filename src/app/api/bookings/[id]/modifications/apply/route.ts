@@ -8,32 +8,34 @@ import {
 } from "@/server/bookings/http"
 import { applyBookingModification } from "@/server/bookings/modifications/apply"
 import { modificationApplyBodySchema } from "@/server/bookings/modifications/validators"
+import { coordinateModificationApply } from "@/server/bookings/ownership-coordinator"
 
 type RouteContext = {
   params: Promise<{ id: string }>
 }
 
 export async function POST(req: NextRequest, context: RouteContext) {
-  const session = await getSessionWithBearerFallback(req)
-
-  if (!session) {
-    return bookingError({
-      code: "UNAUTHENTICATED",
-      message: "Sign in is required.",
-      status: 401,
-    })
-  }
-
   try {
-    const { id } = await context.params
-    const body = modificationApplyBodySchema.parse(await req.json())
-    const result = await applyBookingModification({
-      bookingId: id,
-      userId: session.user.id,
-      body,
+    const outcome = await coordinateModificationApply({
+      getActorId: async () =>
+        (await getSessionWithBearerFallback(req))?.user.id ?? null,
+      getIdentifiers: async () => {
+        const { id } = await context.params
+        return { bookingId: id }
+      },
+      readBody: async () => modificationApplyBodySchema.parse(await req.json()),
+      applyModification: applyBookingModification,
     })
 
-    return bookingJson(result)
+    if (!outcome.authenticated) {
+      return bookingError({
+        code: "UNAUTHENTICATED",
+        message: "Sign in is required.",
+        status: 401,
+      })
+    }
+
+    return bookingJson(outcome.value)
   } catch (error) {
     return mapBookingServiceError(error)
   }

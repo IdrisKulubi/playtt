@@ -1,0 +1,9 @@
+{
+  "contractVersion": 1,
+  "action": "booking.create",
+  "case": "onboarding-incomplete",
+  "result": {
+    "success": false,
+    "message": "Complete onboarding before booking."
+  }
+}

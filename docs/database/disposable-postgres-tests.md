@@ -54,14 +54,16 @@ The harness therefore installs the minimum exact DDL needed to test:
 2. conditional expected-state booking claims plus history insertion; and
 3. modification-row and credit-balance row locks with a conditional claim;
 4. replay-pack payment claims, credit-ledger recovery, and duplicate-safe balance updates; and
-5. Coach payment claims, missing-subscription recovery, and subscription-period preservation.
+5. Coach payment claims, missing-subscription recovery, and subscription-period preservation; and
+6. predicate-equivalent booking, payment, cancellation, and modification ownership checks for an owner versus a different authenticated actor.
 
 The test exclusion constraint intentionally covers the single synthetic
 resource without `btree_gist`; installing that extension is database-wide and
 would violate schema isolation. Production's resource-scoped custom constraint
 remains protected separately by `db:validate`.
 
-These are PostgreSQL concurrency-semantics tests, not a full migration replay.
+These are PostgreSQL concurrency and repository-predicate semantics tests, not
+end-to-end route tests or a full migration replay.
 A future full-migration gate must create and destroy an entire disposable
 database (or disposable Neon branch), then apply the real Drizzle lineage after
 the migration metadata is repaired.

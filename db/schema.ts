@@ -511,6 +511,9 @@ export const bookingCreditLedger = pgTable(
       table.createdAt,
     ),
     index("booking_credit_ledger_booking_idx").on(table.bookingId),
+    uniqueIndex("booking_credit_ledger_modification_reason_unique")
+      .on(table.bookingModificationId, table.reason)
+      .where(sql`${table.bookingModificationId} is not null`),
   ],
 );
 
@@ -571,7 +574,14 @@ export const bookingStatusHistory = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (table) => [index("booking_status_history_booking_idx").on(table.bookingId)],
+  (table) => [
+    index("booking_status_history_booking_idx").on(table.bookingId),
+    uniqueIndex("booking_status_history_logical_unique")
+      .on(table.bookingId, table.toStatus, table.reason)
+      .where(
+        sql`${table.reason} in ('payment_confirmed', 'payment_window_expired', 'user_cancelled')`,
+      ),
+  ],
 );
 
 export const hardwareConfigs = pgTable(
@@ -807,6 +817,9 @@ export const replayCreditLedger = pgTable(
       table.userId,
       table.createdAt,
     ),
+    uniqueIndex("replay_credit_ledger_product_payment_reason_unique")
+      .on(table.productPaymentId, table.reason)
+      .where(sql`${table.productPaymentId} is not null`),
   ],
 );
 
@@ -911,6 +924,11 @@ export const notifications = pgTable(
   (table) => [
     index("notifications_booking_channel_idx").on(table.bookingId, table.channel),
     index("notifications_user_created_idx").on(table.userId, table.createdAt),
+    uniqueIndex("notifications_booking_email_template_unique")
+      .on(table.bookingId, table.channel, table.templateKey)
+      .where(
+        sql`${table.channel} = 'email' and ${table.templateKey} = 'booking_confirmed'`,
+      ),
   ],
 );
 

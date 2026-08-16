@@ -6,6 +6,7 @@ import {
   bookingJson,
   mapBookingServiceError,
 } from "@/server/bookings/http"
+import { coordinateBookingDetail } from "@/server/bookings/ownership-coordinator"
 import { getBookingForUser } from "@/server/bookings/service"
 
 type RouteContext = {
@@ -13,22 +14,26 @@ type RouteContext = {
 }
 
 export async function GET(req: NextRequest, context: RouteContext) {
-  const session = await getSessionWithBearerFallback(req)
-
-  if (!session) {
-    return bookingError({
-      code: "UNAUTHENTICATED",
-      message: "Sign in is required.",
-      status: 401,
-    })
-  }
-
   try {
-    const { id } = await context.params
-    const booking = await getBookingForUser({
-      userId: session.user.id,
-      bookingId: id,
+    const outcome = await coordinateBookingDetail({
+      getActorId: async () =>
+        (await getSessionWithBearerFallback(req))?.user.id ?? null,
+      getIdentifiers: async () => {
+        const { id } = await context.params
+        return { bookingId: id }
+      },
+      getBooking: getBookingForUser,
     })
+
+    if (!outcome.authenticated) {
+      return bookingError({
+        code: "UNAUTHENTICATED",
+        message: "Sign in is required.",
+        status: 401,
+      })
+    }
+
+    const booking = outcome.value
 
     if (!booking) {
       return bookingError({

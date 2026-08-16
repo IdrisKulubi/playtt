@@ -1,5 +1,6 @@
 import { subHours } from "date-fns"
 
+import { formatUnknownEnumValue } from "@/lib/compatibility/status-values"
 import { BOOKING_EDIT_CUTOFF_HOURS } from "@/server/bookings/constants"
 import type { SlotAvailability, UserBookingSummary } from "@/server/bookings/types"
 
@@ -51,10 +52,14 @@ export function needsBookingPayment(booking: UserBookingSummary) {
   return booking.status === "pending" && booking.paymentStatus === "unpaid"
 }
 
+export function canCancelBooking(booking: UserBookingSummary) {
+  return booking.status === "pending" && booking.paymentStatus === "unpaid"
+}
+
 export function formatPaymentStatus(paymentStatus: string) {
   if (paymentStatus === "paid") return "Paid"
   if (paymentStatus === "unpaid") return "Unpaid"
-  return paymentStatus.replaceAll("_", " ")
+  return formatUnknownEnumValue(paymentStatus)
 }
 
 export function formatBookingStatus(status: string, paymentStatus: string) {
@@ -67,7 +72,7 @@ export function formatBookingStatus(status: string, paymentStatus: string) {
   if (status === "cancelled") return "Cancelled"
   if (status === "expired") return "Expired"
   if (status === "completed") return "Completed"
-  return status.replaceAll("_", " ")
+  return formatUnknownEnumValue(status)
 }
 
 export function getEditWindowClosesAt(startTimeIso: string) {

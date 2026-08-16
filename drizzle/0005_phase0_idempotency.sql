@@ -1,0 +1,4 @@
+CREATE UNIQUE INDEX "booking_credit_ledger_modification_reason_unique" ON "booking_credit_ledger" USING btree ("booking_modification_id","reason") WHERE "booking_credit_ledger"."booking_modification_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "booking_status_history_logical_unique" ON "booking_status_history" USING btree ("booking_id","to_status","reason") WHERE "booking_status_history"."reason" in ('payment_confirmed', 'payment_window_expired', 'user_cancelled');--> statement-breakpoint
+CREATE UNIQUE INDEX "notifications_booking_email_template_unique" ON "notifications" USING btree ("booking_id","channel","template_key") WHERE "notifications"."channel" = 'email' and "notifications"."template_key" = 'booking_confirmed';--> statement-breakpoint
+CREATE UNIQUE INDEX "replay_credit_ledger_product_payment_reason_unique" ON "replay_credit_ledger" USING btree ("product_payment_id","reason") WHERE "replay_credit_ledger"."product_payment_id" is not null;

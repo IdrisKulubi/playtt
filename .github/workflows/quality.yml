@@ -39,6 +39,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Scan for committed secrets
+        run: pnpm test:secret-scan
+
       - name: Lint web app
         run: pnpm lint
 
@@ -47,6 +50,9 @@ jobs:
 
       - name: Run database safety tests
         run: pnpm test:db
+
+      - name: Test Server Action authorization
+        run: pnpm test:actions
 
       - name: Test HTTP and auth security helpers
         run: pnpm test:http
@@ -57,11 +63,14 @@ jobs:
       - name: Test replay stub safety
         run: pnpm test:replays
 
-      - name: Validate mobile API contracts
+      - name: Test compatibility fallbacks
+        run: pnpm test:compatibility
+
+      - name: Validate API and web action contracts
         run: pnpm test:contracts
 
       - name: Validate migration integrity
-        run: pnpm db:validate
+        run: pnpm db:validate:strict
 
   postgres-concurrency:
     name: PostgreSQL concurrency
@@ -110,6 +119,127 @@ jobs:
       - name: Run PostgreSQL concurrency tests
         run: pnpm test:db:integration
 
+  migration-empty:
+    name: Migration empty replay
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: playtt_ci
+          POSTGRES_PASSWORD: playtt_ci
+          POSTGRES_DB: playtt_ci
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U playtt_ci -d playtt_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      POSTGRES_URL: postgresql://playtt_ci:playtt_ci@127.0.0.1:${{ job.services.postgres.ports[5432] }}/playtt_ci
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.17.1
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.18.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Replay migrations on empty database
+        run: pnpm db:replay-lineage
+
+  web-build-e2e:
+    name: Web build and Playwright
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: playtt_ci
+          POSTGRES_PASSWORD: playtt_ci
+          POSTGRES_DB: playtt_ci
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U playtt_ci -d playtt_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      POSTGRES_URL: postgresql://playtt_ci:playtt_ci@127.0.0.1:${{ job.services.postgres.ports[5432] }}/playtt_ci
+      BETTER_AUTH_SECRET: ci-dummy-secret-minimum-32-characters-long
+      BETTER_AUTH_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+      RESEND_API_KEY: re_placeholder
+      RESEND_FROM_EMAIL: onboarding@resend.dev
+      PAYSTACK_SECRET_KEY: sk_test_placeholder
+      PAYSTACK_PUBLIC_KEY: pk_test_placeholder
+      CRON_SECRET: ci-cron-secret
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+      CI: "true"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.17.1
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.18.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Prepare disposable database
+        run: |
+          pnpm db:replay-lineage
+          pnpm e2e:seed-user
+
+      - name: Build web app
+        run: pnpm build
+
+      - name: Run Playwright golden path
+        run: |
+          pnpm start --port 3000 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3000/ >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          pnpm test:e2e
+
   mobile-quality:
     name: Mobile quality
     runs-on: ubuntu-latest
@@ -142,3 +272,47 @@ jobs:
 
       - name: Type-check mobile app
         run: npm run typecheck
+
+  mobile-test:
+    name: Mobile unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      CI: "true"
+      EXPO_NO_TELEMETRY: "1"
+
+    defaults:
+      run:
+        working-directory: playtt-mobile
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.18.0
+          cache: npm
+          cache-dependency-path: playtt-mobile/package-lock.json
+
+      - name: Install mobile dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run mobile unit tests
+        run: npm test
+
+  quality-gate:
+    name: Quality gate
+    runs-on: ubuntu-latest
+    needs:
+      - web-quality
+      - postgres-concurrency
+      - migration-empty
+      - web-build-e2e
+      - mobile-quality
+      - mobile-test
+    steps:
+      - name: All required quality jobs passed
+        run: echo "Quality gate passed."

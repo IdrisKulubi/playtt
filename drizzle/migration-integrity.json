@@ -16,14 +16,12 @@
     },
     "0004_booking_credit_ledger": {
       "sha256": "daf6c8c8826557fc4c0c0a25f6a48215447b6c02f4124639bbe89fe7e3e8afe7"
+    },
+    "0005_phase0_idempotency": {
+      "sha256": "f3b418b6a8a37523b7ee8dfcdd8899f168eac65ce09b5b541bed3043a343c159"
     }
   },
-  "acknowledgedMetadataDrift": [
-    "JOURNAL_SNAPSHOT_MISSING:0001_user_onboarding",
-    "SQL_NOT_IN_JOURNAL:0002_booking_edits",
-    "SQL_NOT_IN_JOURNAL:0003_coach_replay_credits",
-    "SQL_NOT_IN_JOURNAL:0004_booking_credit_ledger"
-  ],
+  "acknowledgedMetadataDrift": [],
   "requiredCustomSql": [
     {
       "name": "bookings_no_overlap",
