@@ -50,11 +50,16 @@ Register webhook URL on Paystack dashboard: `https://<host>/api/webhooks/paystac
 | Variable                | Used in                                  | Purpose |
 | ----------------------- | ---------------------------------------- | ------- |
 | `NVR_STUB_AUTO`         | replay request route and stub policy     | Exact value `true` auto-completes replay clips only outside production; production ignores it |
-| `REPLAY_WEBHOOK_SECRET` | `api/replays/[id]/ready`                 | Shared secret for the real/internal replay-ready callback |
+| `REPLAY_WEBHOOK_SECRET` | `api/replays/[id]/ready`                 | Required non-blank shared secret for the internal replay-ready callback; missing configuration returns retryable 503 |
 
 The stub publishes `https://playtt.local/...` placeholder media and is a
 development/test aid only. The route policy and the stub execution boundary
 both block it in production.
+
+The replay-ready callback authenticates `x-playtt-replay-secret` with a
+constant-time digest comparison before parsing JSON. It accepts only bounded
+HTTPS media URLs without embedded credentials and an optional trimmed title up
+to 160 characters.
 
 ### Optional database pool
 

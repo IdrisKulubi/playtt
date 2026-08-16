@@ -1,55 +1,25 @@
-import { type NextRequest } from "next/server"
-import { z } from "zod/v3"
+import { NextResponse, type NextRequest } from "next/server"
 
-import {
-  mapReplayServiceError,
-  replayError,
-  replayJson,
-} from "@/server/replays/http"
+import { mapReplayServiceError } from "@/server/replays/http"
+import { processReplayReadyCallback } from "@/server/replays/ready-callback"
 import { markReplayReady } from "@/server/replays/service"
-
-const bodySchema = z.object({
-  videoUrl: z.string().url(),
-  title: z.string().optional(),
-})
 
 /** Internal/hardware callback when NVR upload completes. */
 export async function POST(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const secret = process.env.REPLAY_WEBHOOK_SECRET?.trim()
-    const provided = req.headers.get("x-playtt-replay-secret")
-
-    if (!secret || provided !== secret) {
-      return replayError({
-        code: "UNAUTHORIZED",
-        message: "Invalid replay webhook secret.",
-        status: 401,
-      })
-    }
-
-    let requestBody: unknown
-
-    try {
-      requestBody = await req.json()
-    } catch {
-      return replayError({
-        code: "INVALID_BODY",
-        message: "Invalid request body.",
-        status: 400,
-      })
-    }
-
     const { id } = await context.params
-    const body = bodySchema.parse(requestBody)
-    const replay = await markReplayReady({
+    const result = await processReplayReadyCallback({
+      configuredSecret: process.env.REPLAY_WEBHOOK_SECRET,
+      markReady: markReplayReady,
+      providedSecret: req.headers.get("x-playtt-replay-secret"),
+      rawBody: await req.text(),
       replayId: id,
-      videoUrl: body.videoUrl,
-      title: body.title,
     })
-    return replayJson({ replay })
+
+    return NextResponse.json(result.body, { status: result.status })
   } catch (error) {
     return mapReplayServiceError(error)
   }
