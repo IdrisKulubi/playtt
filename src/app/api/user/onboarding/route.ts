@@ -6,6 +6,7 @@ import {
   onboardingPatchSchema,
 } from "@/server/users/onboarding"
 import { mapUserRouteError } from "@/server/users/http"
+import { serializeUserProfile } from "@/server/users/profile"
 
 export async function PATCH(req: NextRequest) {
   try {
@@ -65,18 +66,7 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({
       data: {
-        user: {
-          id: result.user.id,
-          name: result.user.name,
-          email: result.user.email,
-          phone: result.user.phone,
-          skillLevel: result.user.skillLevel,
-          referralSource: result.user.referralSource,
-          playIntent: result.user.playIntent,
-          earlyAdopterOptIn: result.user.earlyAdopterOptIn,
-          onboardingCompletedAt:
-            result.user.onboardingCompletedAt?.toISOString() ?? null,
-        },
+        user: serializeUserProfile(result.user),
       },
     })
   } catch (error) {

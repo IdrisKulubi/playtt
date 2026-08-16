@@ -84,7 +84,8 @@ These live at the **repo root** (Next.js app). Copy/adapt this set before buildi
 | `db/drizzle.ts` | Database client passed to Drizzle adapter. |
 | `src/app/api/auth/[...all]/route.ts` | Mounts Better Auth on `/api/auth/*` via `toNextJsHandler(auth)`. All sign-in/sign-up/OAuth/OTP endpoints hit here. |
 | `src/lib/security.ts` | **`getSessionWithBearerFallback(req)`** — resolves session from cookies (web) **or** `Authorization: Bearer` (mobile). Required on every API route the mobile app calls. |
-| `src/lib/web-cors-origins.ts` | Allowed web origins merged into `trustedOrigins`. |
+| `src/lib/web-cors-origins.ts` | Pure exact-origin policy merged into `trustedOrigins`: official HTTPS production defaults, development localhost, and validated configured web origins. |
+| `src/lib/trusted-auth-origins.ts` | Pure trusted-origin policy: permanent PlayTT/web/Apple origins, environment-gated Expo wildcard defaults, and validated exact mobile callbacks. |
 
 ### User bootstrap APIs (mobile depends on these)
 
@@ -263,7 +264,7 @@ authClient.signIn.social({ provider: "google", callbackURL: "/" })
 
 Requirements in `auth.ts`:
 - `expo()` plugin
-- `trustedOrigins` includes `playtt://`, `exp://` patterns, web origin
+- `trustedOrigins` always includes `playtt://`, policy-approved web origins, and Apple. Production web origins must be exact non-loopback HTTPS origins; localhost and safe configured HTTP origins are development-only. Broad `exp://`/`exps://` patterns are enabled by default only outside production; production requires `BETTER_AUTH_TRUST_EXPO_GO=true`. Exact safe mobile callbacks may be supplied through `MOBILE_AUTH_CALLBACK_URLS`.
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` on backend
 
 Root layout must call `WebBrowser.maybeCompleteAuthSession()`.
@@ -336,9 +337,9 @@ clearSession() (auth-helpers.ts)
 | `APPLE_APP_BUNDLE_IDENTIFIER` | For Apple | e.g. `com.theplaytt.app` |
 | `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | For Apple web OAuth | Client secret JWT |
 | `APPLE_EXPO_CLIENT_ID` | Dev | `host.exp.Exponent` for Expo Go token audience |
-| `MOBILE_AUTH_CALLBACK_URLS` | Dev | Comma-separated exact `exp://` callback URLs |
-| `BETTER_AUTH_TRUST_EXPO_GO` | Dev | Allow Expo Go redirects |
-| `WEB_CORS_ORIGINS` | Optional | Extra trusted web origins |
+| `MOBILE_AUTH_CALLBACK_URLS` | Optional | Comma-separated exact `playtt://`, `exp://`, or `exps://` callbacks; wildcard and unsupported schemes are ignored |
+| `BETTER_AUTH_TRUST_EXPO_GO` | Production Expo testing only | Set to `true` to allow broad Expo Go/dev-client redirect patterns; non-production enables them automatically |
+| `WEB_CORS_ORIGINS` | Optional | Comma-separated exact web origins. Production accepts only non-loopback HTTPS; credentials, paths, query/hash, wildcards, and unsupported schemes are ignored |
 
 Full reference: `.cursor/skills/run-project/env-reference.md`.
 
@@ -449,6 +450,8 @@ curl -H "Authorization: Bearer <session.token>" https://<host>/api/user/me
 5. **Physical device using `localhost`** — use LAN IP for `EXPO_PUBLIC_API_URL`.
 6. **Log out on network failure** — only clear session on explicit auth error codes.
 7. **Duplicate taglines / session keys** — changing `storagePrefix` requires updating `AUTH_KEYS` in `auth-helpers.ts`.
+8. **Production Expo wildcards enabled permanently** — keep `BETTER_AUTH_TRUST_EXPO_GO` unset unless a hosted-backend Expo Go test requires it; prefer an exact `MOBILE_AUTH_CALLBACK_URLS` entry.
+9. **Development origin trusted in production** — production rejects HTTP, localhost/`.localhost`, `127.0.0.0/8`, `::1`, and `0.0.0.0` even when supplied through a URL environment variable.
 
 ---
 

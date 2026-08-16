@@ -23,12 +23,17 @@ All web env vars go in `.env.local` at the repo root.
 
 | Variable                    | Used in                                                 | Purpose                                                                                                         |
 | --------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_APP_URL`       | `src/lib/auth-client.ts`, `src/actions/auth-actions.ts` | Public app base URL                                                                                             |
-| `BETTER_AUTH_URL`           | `src/lib/auth-client.ts`, `src/actions/auth-actions.ts` | Auth server base URL                                                                                            |
-| `WEB_CORS_ORIGINS`          | `src/lib/web-cors-origins.ts`                           | Optional comma-separated additional trusted web origins                                                         |
-| `MOBILE_AUTH_CALLBACK_URLS` | `auth.ts`                                               | Optional comma-separated mobile OAuth callback URLs to trust, useful for exact Expo Go/dev-client callback URLs |
+| `NEXT_PUBLIC_APP_URL`       | auth client/actions, `web-cors-origins.ts`              | Public app base URL; also trusted when it passes the exact-origin policy                                         |
+| `BETTER_AUTH_URL`           | auth client/actions, `web-cors-origins.ts`              | Auth server base URL; also trusted when it passes the exact-origin policy                                        |
+| `WEB_CORS_ORIGINS`          | `src/lib/web-cors-origins.ts`                           | Optional comma-separated exact web origins; credentials, paths, query/hash, wildcards, and unsupported schemes are ignored |
+| `MOBILE_AUTH_CALLBACK_URLS` | `auth.ts`                                               | Optional comma-separated exact `playtt://`, `exp://`, or `exps://` callback URLs; unsupported schemes and wildcard entries are ignored |
+| `BETTER_AUTH_TRUST_EXPO_GO` | `auth.ts`                                               | Set to `true` to enable broad Expo Go/dev-client origin patterns in production; development and test enable them by default |
 
-Both default to `http://localhost:3000` when unset.
+The auth clients default to `http://localhost:3000` when their URL variables
+are unset. Trusted web origins are stricter: production defaults only to the
+official PlayTT HTTPS origins and rejects HTTP or loopback values even when
+configured. Non-production additionally trusts `http://localhost:3000` and
+may accept explicitly configured safe HTTP/HTTPS origins.
 
 ### Payments (Paystack hosted checkout)
 
@@ -39,6 +44,17 @@ Both default to `http://localhost:3000` when unset.
 | `CRON_SECRET`         | `src/app/api/cron/expire-bookings` | Bearer token for booking expiry cron; required in production |
 
 Register webhook URL on Paystack dashboard: `https://<host>/api/webhooks/paystack`
+
+### Replay development stub
+
+| Variable                | Used in                                  | Purpose |
+| ----------------------- | ---------------------------------------- | ------- |
+| `NVR_STUB_AUTO`         | replay request route and stub policy     | Exact value `true` auto-completes replay clips only outside production; production ignores it |
+| `REPLAY_WEBHOOK_SECRET` | `api/replays/[id]/ready`                 | Shared secret for the real/internal replay-ready callback |
+
+The stub publishes `https://playtt.local/...` placeholder media and is a
+development/test aid only. The route policy and the stub execution boundary
+both block it in production.
 
 ### Optional database pool
 
@@ -83,9 +99,7 @@ Defaults to `https://www.theplaytt.com`. For local dev, set `http://localhost:30
 | `APPLE_KEY_ID`                | `apple-client-secret.ts`        | Sign In with Apple key ID                                          |
 | `APPLE_PRIVATE_KEY`           | `apple-client-secret.ts`        | `.p8` private key (use `\n` for line breaks)                       |
 
-Mobile native Apple sign-in posts to `POST /api/apple/sign-in`. The identity token `aud` must match one of the allowed audiences above. Expo Go always uses `host.exp.Exponent`.
-
-Verify configured audiences: `GET /api/version` → `apple.audiences`.
+Mobile native Apple sign-in posts to `POST /api/apple/sign-in`. The identity token `aud` must match one of the allowed audiences above. Expo Go always uses `host.exp.Exponent`. Verify audience configuration in the deployment environment and with an authenticated Apple sign-in smoke test; the public `GET /api/version` route intentionally does not expose provider configuration or audience values.
 
 ### Production backend (web hosting)
 

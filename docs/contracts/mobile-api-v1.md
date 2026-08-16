@@ -98,7 +98,6 @@ The manifest records known drift separately from the supported endpoint list:
 - `POST /api/replays/request` and `GET /api/replays/mine` exist on the server but have no current mobile consumer.
 - Mobile contains a dormant `POST /api/coach/chat` call, but the server has no matching route. It is not a supported contract and must stay behind mock mode until that feature is deliberately implemented.
 - The server returns an additive Coach `planId`, while the current mobile type does not consume it; Coach cancellation also intentionally ignores its success payload.
-- The mobile `UserProfile` type requires `emailVerified`, but the onboarding PATCH success projection omits it. Current callers do not read that field from this response, so the fixture preserves the real payload and the mismatch remains visible for a later additive producer fix or type correction.
 
 User/profile, Replay, and Coach routes map unexpected failures to stable 500
 responses with top-level `{ "code", "message" }` envelopes. Typed domain

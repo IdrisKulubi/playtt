@@ -1,11 +1,10 @@
-import { createHmac } from "node:crypto"
-
 import { PAYSTACK_API_BASE_URL } from "@/server/payments/constants"
 import type {
   PaystackApiResponse,
   PaystackInitializeData,
   PaystackTransactionData,
 } from "@/server/payments/types"
+import { verifyPaystackWebhookSignature } from "@/server/payments/webhook-processor"
 
 export class PaystackApiError extends Error {
   constructor(message: string) {
@@ -47,14 +46,11 @@ async function paystackRequest<T>(
 }
 
 export function verifyPaystackSignature(rawBody: string, signature: string | null) {
-  if (!signature) {
-    return false
-  }
-
-  const secretKey = getSecretKey()
-  const hash = createHmac("sha512", secretKey).update(rawBody).digest("hex")
-
-  return hash === signature
+  return verifyPaystackWebhookSignature({
+    rawBody,
+    secret: getSecretKey(),
+    signature,
+  })
 }
 
 export async function verifyPaystackTransaction(reference: string) {

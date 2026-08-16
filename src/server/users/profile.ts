@@ -6,6 +6,8 @@ import { account, user, userSkillLevelEnum } from "../../../db/schema"
 
 import { normalizeKenyaPhone } from "./onboarding"
 
+export { serializeUserProfile } from "./serialization"
+
 const skillLevels = userSkillLevelEnum.enumValues
 
 export const AUTH_PROVIDERS = ["credential", "google", "apple"] as const
@@ -18,22 +20,6 @@ export const profilePatchSchema = z.object({
 })
 
 export type ProfilePatchInput = z.infer<typeof profilePatchSchema>
-
-export function serializeUserProfile(profile: typeof user.$inferSelect) {
-  return {
-    id: profile.id,
-    name: profile.name,
-    email: profile.email,
-    emailVerified: profile.emailVerified,
-    image: profile.image,
-    phone: profile.phone,
-    skillLevel: profile.skillLevel,
-    referralSource: profile.referralSource,
-    playIntent: profile.playIntent,
-    earlyAdopterOptIn: profile.earlyAdopterOptIn,
-    onboardingCompletedAt: profile.onboardingCompletedAt?.toISOString() ?? null,
-  }
-}
 
 export async function getUserAuthMethods(userId: string) {
   const accounts = await db.query.account.findMany({

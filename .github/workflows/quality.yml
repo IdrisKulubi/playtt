@@ -48,8 +48,14 @@ jobs:
       - name: Run database safety tests
         run: pnpm test:db
 
-      - name: Test HTTP error mapping
+      - name: Test HTTP and auth security helpers
         run: pnpm test:http
+
+      - name: Test payment webhook security
+        run: pnpm test:payments
+
+      - name: Test replay stub safety
+        run: pnpm test:replays
 
       - name: Validate mobile API contracts
         run: pnpm test:contracts

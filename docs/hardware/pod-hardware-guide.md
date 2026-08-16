@@ -267,7 +267,12 @@ Buffers video 24/7. On replay request, exports last 30s and uploads to S3 (or si
 
 **Buy:** 1× NVR **or** 1× Pi 5 (8 GB) with 256 GB+ SSD, on wired Ethernet.
 
-**Software:** `hardware_configs` provider `camera_nvr`. Env: `REPLAY_WEBHOOK_SECRET`, `NVR_STUB_AUTO` for dev.
+**Software:** `hardware_configs` provider `camera_nvr`. Env:
+`REPLAY_WEBHOOK_SECRET`; `NVR_STUB_AUTO=true` is development/test-only.
+Production ignores the auto-run flag, and direct stub execution throws before
+any replay row can be marked ready or a `https://playtt.local/...` placeholder
+URL can be published. A production replay request remains pending for the real
+NVR/edge workflow.
 
 ---
 

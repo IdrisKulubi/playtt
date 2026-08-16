@@ -9,49 +9,14 @@ import { user } from "./db/schema"
 import { renderOtpEmailHtml } from "./src/lib/email/render-otp-email"
 import { eq } from "drizzle-orm"
 import { WEB_CORS_ORIGINS } from "./src/lib/web-cors-origins"
+import { resolveTrustedAuthOrigins } from "./src/lib/trusted-auth-origins"
 
-function parseOrigins(value: string | undefined) {
-  return (
-    value
-      ?.split(",")
-      .map((origin) => origin.trim())
-      .filter(Boolean) ?? []
-  )
-}
-
-const MOBILE_TRUSTED_ORIGINS = [
-  // Mobile app scheme. Must match app.json "expo.scheme" and expoClient.scheme.
-  "playtt://",
-  "playtt:///",
-  "playtt://*",
-  "playtt://**",
-
-  // Expo Go / dev-client callbacks. Keep exact local IPs here when testing
-  // against a hosted backend, because Better Auth validates callbackURL.
-  "exp://",
-  "exp://*",
-  "exp://**",
-  "exps://",
-  "exps://*",
-  "exps://**",
-  "exp://localhost:8081",
-  "exp://localhost:8082",
-  "exps://localhost:8081",
-  "exps://localhost:8082",
-  "exp://192.168.*.*:*/**",
-  "exps://192.168.*.*:*/**",
-  "exp://10.*.*.*:*/**",
-  "exps://10.*.*.*:*/**",
-  "exp://172.*.*.*:*/**",
-  "exps://172.*.*.*:*/**",
-  ...parseOrigins(process.env.MOBILE_AUTH_CALLBACK_URLS),
-]
-
-const TRUSTED_ORIGINS = [
-  ...WEB_CORS_ORIGINS,
-  ...MOBILE_TRUSTED_ORIGINS,
-  "https://appleid.apple.com",
-]
+const TRUSTED_ORIGINS = resolveTrustedAuthOrigins({
+  environment: process.env.NODE_ENV,
+  mobileAuthCallbackUrls: process.env.MOBILE_AUTH_CALLBACK_URLS,
+  trustExpoGo: process.env.BETTER_AUTH_TRUST_EXPO_GO,
+  webOrigins: WEB_CORS_ORIGINS,
+})
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "re_placeholder")
 const resendFromEmail =
@@ -217,11 +182,12 @@ export const auth = betterAuth({
 
 console.info("[AUTH] boot", {
   commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "local",
-  providers: ["google", "apple"],
-  appleEnv: {
-    clientId: Boolean(process.env.APPLE_CLIENT_ID),
-    clientSecret: Boolean(process.env.APPLE_CLIENT_SECRET),
-    bundleId: process.env.APPLE_APP_BUNDLE_IDENTIFIER ?? null,
-    expoClientId: process.env.APPLE_EXPO_CLIENT_ID ?? null,
+  providerReadiness: {
+    google: Boolean(
+      process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
+    ),
+    apple: Boolean(
+      process.env.APPLE_CLIENT_ID && process.env.APPLE_CLIENT_SECRET,
+    ),
   },
 })
