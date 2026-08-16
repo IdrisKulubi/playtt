@@ -1,5 +1,7 @@
 # PlayTT Authentication Flow Handoff
 
+> **Canonical full-stack guide:** [`docs/auth/authentication-architecture.md`](../../../docs/auth/authentication-architecture.md) — backend ownership, all files, end-to-end flows, and porting checklist.
+
 This guide defines the authentication pattern for PlayTT: one hosted Next.js
 backend owns auth, database, email, and protected APIs; the Expo mobile app is a
 native shell that stores a session locally and calls the backend with Bearer

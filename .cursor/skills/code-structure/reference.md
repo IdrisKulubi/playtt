@@ -7,12 +7,23 @@
 | `/` | `src/app/page.tsx` | Marketing home |
 | `/book` | `src/app/book/page.tsx` | Booking flow |
 | `/dashboard` | `src/app/dashboard/page.tsx` | User dashboard |
+| `/bookings` | `src/app/bookings/page.tsx` | Upcoming and past bookings |
+| `/bookings/[id]` | `src/app/bookings/[id]/page.tsx` | Booking detail and changes |
+| `/activity` | `src/app/activity/page.tsx` | Player activity and replays |
+| `/community` | `src/app/community/page.tsx` | Community preview |
+| `/account/*` | `src/app/account/` | Profile, security, preferences, help |
+| `/pay/complete` | `src/app/pay/complete/page.tsx` | Hosted checkout completion |
 | `/sign-in` | `src/app/sign-in/page.tsx` | Sign in |
 | `/sign-up` | `src/app/sign-up/page.tsx` | Sign up |
 | `/verify-email` | `src/app/verify-email/page.tsx` | Email verification |
 | `/reset-password` | `src/app/reset-password/page.tsx` | Password reset request |
 | `/reset-password/confirm` | `src/app/reset-password/confirm/page.tsx` | Password reset confirm |
 | `/api/auth/*` | `src/app/api/auth/[...all]/route.ts` | better-auth API |
+| `/api/bookings/*` | `src/app/api/bookings/` | Booking, payment, cancellation, modifications |
+| `/api/user/*` | `src/app/api/user/` | Profile and onboarding |
+| `/api/webhooks/paystack` | `src/app/api/webhooks/paystack/route.ts` | Paystack webhook |
+| `/api/replays/*` | `src/app/api/replays/` | Replay credits, requests, library |
+| `/api/coach/*` | `src/app/api/coach/` | Coach subscription and content |
 
 ## Booking domain files
 
@@ -41,20 +52,24 @@
 
 Defined in `db/schema.ts`. Migrations live in `drizzle/`.
 
-## Planned but not in code yet
+## Integration status
 
 From `docs/system_overview.md` — do **not** assume these exist when reading or writing code:
 
 | Integration | Status |
 |-------------|--------|
-| Paystack payments | Planned |
-| WebSockets (Socket.io / Pusher) | Planned |
-| TTLock smart locks | Planned |
+| Paystack hosted payments + webhooks | Implemented |
+| Booking modifications and account credits | Implemented |
+| Replay credits and Coach product payments | Implemented; mobile preview mode remains enabled |
+| WebSockets / realtime broadcaster | Planned |
+| ESP32 device registry and scoring | Planned |
+| Cloudflare R2 private media | Planned |
+| TTLock smart locks | Planned; access UI is preview only |
 | Smart relays (lighting/HVAC) | Planned |
-| Instant replay / camera pipeline | Planned |
-| Push notifications (mobile) | Planned |
+| Instant replay / camera pipeline | Stubbed; production venue-edge pipeline planned |
+| Push notifications (mobile) | Planned; preferences are local only |
 
-When implementing these, update this file and the relevant skill/agent docs via `self-improving`.
+The platform-wide target and delivery sequence live in `docs/platform/`. When an integration status changes, update this file and the relevant skill/agent docs via `self-improving`.
 
 ## Mobile screens (current)
 
@@ -67,8 +82,12 @@ When implementing these, update this file and the relevant skill/agent docs via 
 | Forgot password | `playtt-mobile/app/reset-password/index.tsx` |
 | Reset password confirm | `playtt-mobile/app/reset-password/confirm.tsx` |
 | Book | `playtt-mobile/app/book.tsx` |
-| Home tab (sign-out) | `playtt-mobile/app/(app)/(tabs)/index.tsx` |
-| Explore tab | `playtt-mobile/app/(app)/(tabs)/explore.tsx` |
+| Home tab (Play + Coach) | `playtt-mobile/app/(app)/(tabs)/index.tsx` |
+| Bookings tab | `playtt-mobile/app/(app)/(tabs)/bookings.tsx` |
+| Activity tab | `playtt-mobile/app/(app)/(tabs)/activity.tsx` |
+| Community tab | `playtt-mobile/app/(app)/(tabs)/community.tsx` |
+| Account tab | `playtt-mobile/app/(app)/(tabs)/account.tsx` |
+| Booking detail/edit | `playtt-mobile/app/(app)/booking/[id]/` |
 
 Mobile auth testing guide: `playtt-mobile/docs/mobile-auth-phases.md`
 

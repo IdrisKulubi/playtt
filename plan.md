@@ -1,5 +1,7 @@
 # PlayTT Booking Implementation Plan
 
+> **Legacy document:** This plan describes the original booking-only build and is retained for historical context. The current platform-wide source of truth is [docs/platform/implementation.md](docs/platform/implementation.md), with delivery phases in [docs/platform/phases.md](docs/platform/phases.md) and executable checks in [docs/platform/phase-build-and-test.md](docs/platform/phase-build-and-test.md).
+
 ## Goal
 Build the PlayTT booking flow end to end, starting with the database schema and core booking domain, then layering in payments, confirmation, access control, and session lifecycle automation.
 
@@ -44,7 +46,7 @@ Decisions to lock:
 Purpose: create the core data model that supports booking from reservation to session completion.
 
 Deliverables:
-- Drizzle schema in [db/schema.ts](/C:/Users/Idris Kulubi/Desktop/sidequests/playtt/playtt/db/schema.ts)
+- Drizzle schema in [db/schema.ts](db/schema.ts)
 - initial migrations
 - seed strategy for first location and first resource
 - enum definitions and constraints
@@ -294,7 +296,7 @@ Deliverables:
 
 ## Suggested Build Sequence Inside The Codebase
 
-1. Complete [db/schema.ts](/C:/Users/Idris Kulubi/Desktop/sidequests/playtt/playtt/db/schema.ts).
+1. Complete [db/schema.ts](db/schema.ts).
 2. Add Drizzle migration setup and generate the first migration.
 3. Seed the first location: Hurlingham.
 4. Seed the first resource for that location.
@@ -348,7 +350,7 @@ A user should be able to:
 - receive session warnings and post-session follow-up
 
 ## Immediate Next Step
-Start implementing Phase 1 by designing and coding the Drizzle schema in [db/schema.ts](/C:/Users/Idris Kulubi/Desktop/sidequests/playtt/playtt/db/schema.ts), beginning with:
+Start implementing Phase 1 by designing and coding the Drizzle schema in [db/schema.ts](db/schema.ts), beginning with:
 - `locations`
 - `resources`
 - `users`
