@@ -113,6 +113,13 @@
       "when": 1786967000000,
       "tag": "0015_devices",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1786968000000,
+      "tag": "0016_device_health_commands",
+      "breakpoints": true
     }
   ]
 }
