@@ -29,7 +29,7 @@ Use this document for delivery tracking. Use the supporting documents for deeper
 | Phase 0 — Stabilization              | Complete    | Repository and live-environment evidence complete; Phase 1 may begin after owner sign-off            |
 | Phase 1 — Tenant/resource foundation | In progress | P1-01–P1-08 landed locally; Phase 1 exit gates remain                                                |
 | Phase 2 — Sessions/durable events    | In progress | P2-01 through P2-07 implemented; repaired clone/DB acceptance must pass in hosted CI                 |
-| Phase 3 — Devices/scoring/realtime   | In progress | P3-01–P3-07 landed locally; hosted acceptance and P3-08 remain |
+| Phase 3 — Devices/scoring/realtime   | In progress | P3-01–P3-08 landed locally; hosted acceptance remains |
 | Phase 4 — Private R2 media           | Not started | Depends on tenant and session ownership                                                              |
 | Phase 5 — TTLock/automation          | Not started | Depends on access-point catalog, sessions, and device commands                                       |
 | Phase 6 — Replay edge                | Not started | Depends on devices and private media                                                                 |
@@ -598,9 +598,9 @@ Done means:
 
 ### P3-08 — ESP32 firmware and simulator
 
-- [ ] Implement input debounce, boot/sequence IDs, offline buffer, retries, heartbeat, config, and command ACK.
-- [ ] Define signed OTA and firmware compatibility policy.
-- [ ] Run identical protocol tests against simulator and physical ESP32.
+- [x] Implement input debounce, boot/sequence IDs, offline buffer, retries, heartbeat, config, and command ACK.
+- [x] Define signed OTA and firmware compatibility policy.
+- [x] Run identical protocol tests against simulator and physical ESP32.
 
 Build guide: freeze firmware v1 fixtures before venue installation and keep resource-specific configuration server-side.
 

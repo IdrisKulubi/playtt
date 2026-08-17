@@ -1,9 +1,18 @@
 import { createMemoryRealtimeAdapter } from "./memory-adapter"
-import { createRedisRealtimeAdapter } from "./redis-adapter"
-import type { RealtimeAdapter } from "./types"
+import type { RealtimeAdapter, RealtimeSubscription } from "./types"
 
 const globalForRealtime = globalThis as typeof globalThis & {
   __playttRealtimeAdapter?: RealtimeAdapter
+}
+
+async function loadRedisAdapter(redisUrl: string): Promise<RealtimeAdapter | null> {
+  try {
+    const { createRedisRealtimeAdapter } = await import("./redis-adapter")
+    return createRedisRealtimeAdapter(redisUrl)
+  } catch (error) {
+    console.error("[realtime] Failed to initialize Redis adapter", error)
+    return null
+  }
 }
 
 function createCompositeAdapter(): RealtimeAdapter {
@@ -14,30 +23,40 @@ function createCompositeAdapter(): RealtimeAdapter {
     return memory
   }
 
-  let redisAdapter: RealtimeAdapter
+  let redisAdapterPromise: Promise<RealtimeAdapter | null> | null = null
 
-  try {
-    redisAdapter = createRedisRealtimeAdapter(redisUrl)
-  } catch (error) {
-    console.error("[realtime] Failed to initialize Redis adapter", error)
-    return memory
+  const getRedisAdapter = () => {
+    redisAdapterPromise ??= loadRedisAdapter(redisUrl)
+    return redisAdapterPromise
   }
 
   return {
     async publish(channel, message) {
-      await Promise.allSettled([
-        memory.publish(channel, message),
-        redisAdapter.publish(channel, message),
-      ])
+      await memory.publish(channel, message)
+
+      const redis = await getRedisAdapter()
+      if (redis) {
+        await redis.publish(channel, message)
+      }
     },
     subscribe(channel, onMessage) {
       const memorySubscription = memory.subscribe(channel, onMessage)
-      const redisSubscription = redisAdapter.subscribe(channel, onMessage)
+      let redisSubscription: RealtimeSubscription | null = null
+      let cancelled = false
+
+      void getRedisAdapter().then((redis) => {
+        if (!redis || cancelled) {
+          return
+        }
+
+        redisSubscription = redis.subscribe(channel, onMessage)
+      })
 
       return {
         unsubscribe() {
+          cancelled = true
           memorySubscription.unsubscribe()
-          redisSubscription.unsubscribe()
+          redisSubscription?.unsubscribe()
         },
       }
     },

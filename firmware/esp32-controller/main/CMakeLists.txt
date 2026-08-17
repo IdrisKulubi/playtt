@@ -1,0 +1,22 @@
+idf_component_register(
+    SRCS
+        "main.c"
+        "playtt_nvs.c"
+        "playtt_net.c"
+        "playtt_api.c"
+        "playtt_buffer.c"
+    INCLUDE_DIRS
+        "."
+    REQUIRES
+        nvs_flash
+        esp_wifi
+        esp_http_client
+        json
+        esp_netif
+        esp_event
+        driver
+        esp_timer
+        lwip
+        esp-tls
+        mbedtls
+)
