@@ -55,6 +55,9 @@
     },
     "0017_tenant_catalog_assignment_integrity": {
       "sha256": "069c1c0fc8919406ef1ae5df49337a3fe9dd0404c237fee82ad2935f215c9af6"
+    },
+    "0018_score_events": {
+      "sha256": "ab82444c726610ec8d152111dbc166ce6f869234c6635c4cba08c4f2f1757b7d"
     }
   },
   "acknowledgedMetadataDrift": [],

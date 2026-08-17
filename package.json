@@ -35,6 +35,8 @@
     "test:tenant-rbac": "node --test src/server/bookings/tenant-rbac.test.mjs",
     "test:operator": "node --test src/server/operator/operator-access.test.mjs src/server/operator/operator-rbac.test.mjs src/server/operator/operator-durable-work.test.mjs",
     "test:devices": "node --test src/server/devices/policies.test.mjs src/server/devices/devices.test.mjs",
+    "test:scoring": "node --test src/server/scoring/tt-standard-v1.test.mjs src/server/scoring/scoring-ingest.test.mjs",
+    "test:realtime": "node --test src/server/realtime/broadcaster.test.mjs src/server/realtime/display.test.mjs",
     "test:secret-scan": "node scripts/secret-scan.mjs",
     "e2e:seed-user": "node scripts/e2e/seed-test-user.mjs",
     "test:e2e": "playwright test",

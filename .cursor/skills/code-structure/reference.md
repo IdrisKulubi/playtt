@@ -18,6 +18,10 @@
 | `/verify-email` | `src/app/verify-email/page.tsx` | Email verification |
 | `/reset-password` | `src/app/reset-password/page.tsx` | Password reset request |
 | `/reset-password/confirm` | `src/app/reset-password/confirm/page.tsx` | Password reset confirm |
+| `/pod/scoreboard` | `src/app/pod/scoreboard/page.tsx` | Kiosk live score display |
+| `/pod/tv` | `src/app/pod/tv/page.tsx` | TV live score display |
+| `/api/display/v1/resources/:resourceId/snapshot` | `src/app/api/display/v1/resources/[resourceId]/snapshot/route.ts` | Authoritative score snapshot |
+| `/api/display/v1/resources/:resourceId/stream` | `src/app/api/display/v1/resources/[resourceId]/stream/route.ts` | SSE score hints |
 | `/api/auth/*` | `src/app/api/auth/[...all]/route.ts` | better-auth API |
 | `/api/bookings/*` | `src/app/api/bookings/` | Booking, payment, cancellation, modifications |
 | `/api/v1/venues/*` | `src/app/api/v1/venues/` | Versioned public venue/resource catalog |
@@ -63,8 +67,8 @@ From `docs/system_overview.md` — do **not** assume these exist when reading or
 | Paystack hosted payments + webhooks | Implemented |
 | Booking modifications and account credits | Implemented |
 | Replay credits and Coach product payments | Implemented; mobile preview mode remains enabled |
-| WebSockets / realtime broadcaster | Planned |
-| ESP32 device registry and scoring | Planned |
+| Realtime broadcaster (SSE + optional Redis) | Implemented |
+| ESP32 device registry and scoring | Implemented (P3-05/06); firmware simulator remains P3-08 |
 | Cloudflare R2 private media | Planned |
 | TTLock smart locks | Planned; access UI is preview only |
 | Smart relays (lighting/HVAC) | Planned |

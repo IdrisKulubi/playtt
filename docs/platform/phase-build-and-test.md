@@ -579,18 +579,22 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 
 #### P3-05 and P3-06 - Authoritative scoring and sport rules
 
-- [ ] Add immutable score events unique by device/boot/sequence or idempotency key.
-- [ ] Add versioned score snapshots and match/play-session linkage.
-- [ ] Validate active session, assignment, capability, side, delta, sequence, and correction permissions.
-- [ ] Apply `SportRulesAdapter` and update event/snapshot/outbox atomically.
-- [ ] Preserve current activity/match reads through compatibility projections.
+- [x] Add immutable score events unique by device/boot/sequence or idempotency key.
+- [x] Add versioned score snapshots and match/play-session linkage.
+- [x] Validate active session, assignment, capability, side, delta, sequence, and correction permissions.
+- [x] Apply `SportRulesAdapter` and update event/snapshot/outbox atomically.
+- [x] Preserve current activity/match reads through compatibility projections.
+
+**Evidence:** migration `0018_score_events`, `POST /api/device/v1/events`, `pnpm test:scoring`.
 
 #### P3-07 - Realtime and displays
 
-- [ ] Implement provider-neutral broadcaster and scoped tenant/venue/resource/session channels.
-- [ ] Publish only after database commit/outbox processing.
-- [ ] Implement kiosk/tablet and TV read models with initial snapshot, version checks, reconnect, and refetch.
-- [ ] Use Redis presence/Pub/Sub only as an optional ephemeral adapter.
+- [x] Implement provider-neutral broadcaster and scoped tenant/venue/resource/session channels.
+- [x] Publish only after database commit/outbox processing.
+- [x] Implement kiosk/tablet and TV read models with initial snapshot, version checks, reconnect, and refetch.
+- [x] Use Redis presence/Pub/Sub only as an optional ephemeral adapter.
+
+**Evidence:** `src/server/realtime/`, `GET /api/display/v1/resources/:resourceId/snapshot`, `GET /api/display/v1/resources/:resourceId/stream`, `/pod/scoreboard`, `/pod/tv`, `pnpm test:realtime`.
 
 ### Automated tests
 

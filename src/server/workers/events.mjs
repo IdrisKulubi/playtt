@@ -8,6 +8,7 @@ export const EVENT_TYPES = {
   SESSION_ENDING_V1: "session.ending.v1",
   SESSION_COMPLETED_V1: "session.completed.v1",
   SESSION_RESETTING_V1: "session.resetting.v1",
+  SCORE_UPDATED_V1: "score.updated.v1",
 }
 
 export const EVENT_VERSION = 1

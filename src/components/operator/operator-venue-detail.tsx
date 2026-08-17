@@ -1,4 +1,7 @@
+import Link from "next/link"
+
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { OperatorAccessPointPanels } from "@/components/operator/operator-access-points"
 import type { OperatorVenueCatalogDetail } from "@/server/operator/service"
@@ -102,6 +105,27 @@ export function OperatorVenueDetail({
                       No capabilities configured.
                     </p>
                   )}
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Button asChild size="sm" variant="outline">
+                      <Link
+                        href={`/pod/scoreboard?resourceId=${resource.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Open kiosk
+                      </Link>
+                    </Button>
+                    <Button asChild size="sm" variant="outline">
+                      <Link
+                        href={`/pod/tv?resourceId=${resource.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Open TV
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
               )
             })

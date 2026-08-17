@@ -15,6 +15,7 @@ import {
   createSessionLifecycleConsumers,
   reconcilePlaySessionLifecycle,
 } from "@/server/sessions/lifecycle"
+import { createScoreUpdatedConsumers } from "@/server/realtime/score-updated-consumer"
 import { getRegisteredOutboxConsumers } from "@/server/workers/consumers.mjs"
 import {
   claimOutboxWork,
@@ -31,6 +32,7 @@ export async function runDurableWorkCycle() {
       ...getRegisteredOutboxConsumers(),
       ...createPaymentConfirmedEmailConsumers(),
       ...createSessionLifecycleConsumers(),
+      ...createScoreUpdatedConsumers(),
     },
     reconcile: async () => {
       const [sessions, expiredCommands, failedCommands, prunedHeartbeats] =
