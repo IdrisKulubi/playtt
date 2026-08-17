@@ -22,6 +22,15 @@
     },
     "0006_tenancy_foundation": {
       "sha256": "b1e5fa9eacfa01988a899edf3691b09d11bf7427e02ef81072e42b5af9545731"
+    },
+    "0007_venue_resource_catalog": {
+      "sha256": "3188c2ad6457e49aa7589aa30f1d7ae410e3199aa16580de9fb7ef95edd64bc6"
+    },
+    "0008_tenant_scope_expand": {
+      "sha256": "a1a8bf94e880a0437125909e2ed941ee872fd9f601f93b541c6755ba16d078e2"
+    },
+    "0009_tenant_scope_enforce": {
+      "sha256": "b7bfc29611c15d7f212a4bc843dd7d29db77ac1064139b8da777b5bbab3eaf1a"
     }
   },
   "acknowledgedMetadataDrift": [],

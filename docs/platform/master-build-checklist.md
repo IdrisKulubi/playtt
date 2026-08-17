@@ -24,7 +24,7 @@ Use this document for delivery tracking. Use the supporting documents for deeper
 | Phase                                | Status      | Current position                                                                                                         |
 | ------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
 | Phase 0 — Stabilization              | Complete    | Repository and live-environment evidence complete; Phase 1 may begin after owner sign-off |
-| Phase 1 — Tenant/resource foundation | In progress | P1-01 tenancy schema, seed, and membership resolver landed locally |
+| Phase 1 — Tenant/resource foundation | In progress | P1-01–P1-04 tenant scope expand, backfill, and integrity enforcement landed locally |
 | Phase 2 — Sessions/durable events    | Not started | Depends on tenant/resource foundation                                                                                    |
 | Phase 3 — Devices/scoring/realtime   | Not started | Depends on operational sessions and outbox                                                                               |
 | Phase 4 — Private R2 media           | Not started | Depends on tenant and session ownership                                                                                  |
@@ -262,41 +262,41 @@ Done means:
 
 ### P1-02 — Venues
 
-- [ ] Evolve existing `locations` as the Venue aggregate; do not add a duplicate venue table.
-- [ ] Add tenant, optional brand, settings, archive state, timezone, and operating configuration.
-- [ ] Backfill Hurlingham without changing its ID or slug.
+- [x] Evolve existing `locations` as the Venue aggregate; do not add a duplicate venue table.
+- [x] Add tenant, optional brand, settings, archive state, timezone, and operating configuration.
+- [x] Backfill Hurlingham without changing its ID or slug.
 
 Build guide: expand `locations`, dual-read if necessary, backfill, validate composite tenant relationships, then switch domain naming to Venue.
 
 Done means:
 
-- [ ] Existing Hurlingham booking works unchanged and a second tenant/venue can be configured without code forks.
+- [x] Existing Hurlingham booking works unchanged and a second tenant/venue can be configured without code forks.
 
 ### P1-03 — Zones, resource types, capabilities, and rules
 
-- [ ] Add zones and assign resources to venue zones.
-- [ ] Add configurable resource types and map current `pod` to `table_tennis_table`.
-- [ ] Add human resource codes, ruleset/configuration, and capabilities.
-- [ ] Model scoring, replay, access, lighting, display, and camera capabilities.
+- [x] Add zones and assign resources to venue zones.
+- [x] Add configurable resource types and map current `pod` to `table_tennis_table`.
+- [x] Add human resource codes, ruleset/configuration, and capabilities.
+- [x] Model scoring, replay, access, lighting, display, and camera capabilities.
 
 Build guide: use data-driven types/capabilities; retain the legacy enum during migration and keep bookings attached to existing resource IDs.
 
 Done means:
 
-- [ ] A new resource type such as `golf_bay` can be configured without changing booking/payment core code.
+- [x] A new resource type such as `golf_bay` can be configured without changing booking/payment core code.
 
 ### P1-04 — Tenant backfill and database integrity
 
-- [ ] Add nullable `tenant_id` to all tenant-owned tables in dependency order.
-- [ ] Backfill through authoritative parent joins, never client input.
-- [ ] Add tenant-leading indexes and composite parent/child foreign keys.
-- [ ] Validate zero null/orphan/mismatched rows before `NOT NULL`.
+- [x] Add nullable `tenant_id` to all tenant-owned tables in dependency order.
+- [x] Backfill through authoritative parent joins, never client input.
+- [x] Add tenant-leading indexes and composite parent/child foreign keys.
+- [x] Validate zero null/orphan/mismatched rows before `NOT NULL`.
 
 Build guide: expand → resumable backfill → dual-write/read → `NOT VALID` constraints → validate → enforce → observe before contraction.
 
 Done means:
 
-- [ ] Zero tenant nulls, orphans, and cross-tenant parent mismatches exist in the production-like clone.
+- [x] Zero tenant nulls, orphans, and cross-tenant parent mismatches exist in the production-like clone.
 
 ### P1-05 — TenantContext and RBAC
 

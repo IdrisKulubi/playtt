@@ -85,6 +85,30 @@ Live and hosted acceptance evidence is now recorded:
 
 **Outstanding:** Phase owner and reviewer sign-off before Phase 1 schema migrations begin.
 
+**Outstanding:** Phase owner and reviewer sign-off before Phase 1 schema migrations begin.
+
+### Implementation log - 2026-08-17 (P1-04 tenant backfill and integrity)
+
+P1-04 landed in the working tree:
+
+- **Schema:** migration `0008_tenant_scope_expand` adds nullable `tenant_id` to 20 commercial/operational tables, creates `feature_flags` and `audit_logs`, adds `bookings (tenant_id, id)` parent key, tenant indexes, and NOT VALID composite FKs on the booking/payment chain; migration `0009_tenant_scope_enforce` validates constraints, sets `tenant_id NOT NULL`, and applies PlayTT default for legacy inserts.
+- **Backfill:** `db/backfill-tenant-scope.sql` parent-join updates run after `db/seed-phase1.sql` in seed runner and replay lineage; never reads client-supplied tenant IDs.
+- **Validation:** `scripts/validate-tenant-backfill.mjs` and `src/server/tenancy/backfill-queries.mjs` check nulls, orphans, and cross-tenant mismatches.
+- **Tests:** `pnpm test:tenant-backfill` passes; `pnpm db:validate:strict` passes.
+
+**Outstanding:** P1-05–P1-08 and Phase 1 exit gates remain open.
+
+### Implementation log - 2026-08-17 (P1-02/P1-03 venue and catalog foundation)
+
+P1-02 and P1-03 landed in the working tree:
+
+- **Schema:** migration `0007_venue_resource_catalog` adds nullable tenant/brand/settings/archive columns to `locations`; creates `zones`, `resource_types`, and `resource_capabilities`; adds nullable tenant/zone/type/code/ruleset/configuration columns to `resources`; tenant-scoped partial unique indexes on venue slug and resource code; hash pinned in `drizzle/migration-integrity.json`.
+- **Seed:** `db/seed-phase1.sql` reordered so tenants/brands precede venues; Hurlingham backfilled to PlayTT tenant/brand with `gracePeriodMinutes: 5`; Main Hall zone (`55555555-5555-5555-5555-555555555555`), `table_tennis_table` type (`66666666-6666-6666-6666-666666666666`), Main Pod human code `Table 01`, ruleset `tt_standard_v1`, and six capabilities seeded idempotently; legacy `type = 'pod'` retained.
+- **Catalog:** `src/server/catalog/` exposes deterministic IDs, capability codes, `Venue` type, and `mapLocationToVenue` — booking routes unchanged; no new public venue APIs.
+- **Tests:** `pnpm test:catalog` covers seed assertions, venue mapper, and capability code validation; `pnpm db:validate:strict` passes.
+
+**Outstanding:** P1-04–P1-08 and Phase 1 exit gates remain open.
+
 ### Implementation log - 2026-08-17 (P1-01 local tenancy foundation)
 
 P1-01 landed in the working tree:
@@ -94,7 +118,7 @@ P1-01 landed in the working tree:
 - **Identity:** `src/server/tenancy/` exposes `TenantContext`, role/action permissions, and `resolvePlayTtMembershipForUser` — client-supplied tenant IDs are rejected; booking routes are unchanged until P1-05.
 - **Tests:** `pnpm test:tenancy` covers the permission matrix, forged-tenant rejection, disabled-membership failure, and idempotent seed SQL assertions; `pnpm db:validate:strict` passes.
 
-**Outstanding:** P1-02–P1-08 and Phase 1 exit gates remain open.
+**Outstanding:** P1-04–P1-08 and Phase 1 exit gates remain open.
 
 ### Implementation log - 2026-08-16
 
@@ -218,7 +242,7 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 ### Preconditions
 
 - [ ] Phase 0 exit signed.
-- [ ] Deterministic IDs/codes for PlayTT tenant, default brand, Hurlingham venue, Main Hall zone, and Table 01 are approved.
+- [x] Deterministic IDs/codes for PlayTT tenant, default brand, Hurlingham venue, Main Hall zone, and Table 01 are approved.
 - [ ] Tenant role and action-permission matrix is reviewed.
 - [ ] Backfill queries and expected row counts are captured before schema changes.
 
@@ -231,13 +255,27 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 - [x] Add membership-derived roles, action permissions, and `resolvePlayTtMembershipForUser` in `src/server/tenancy/`.
 - [x] Run `pnpm test:tenancy` and `pnpm db:validate:strict`.
 
-#### P1-01/P1-02/P1-03/P1-04 - Expand and backfill identity/catalog schema
+#### P1-02 - Venues
 
-- [ ] Add `zones`, `resource_types`, `resource_capabilities`, `feature_flags`, and `audit_logs` additively.
-- [ ] Seed Main Hall, `table_tennis_table`, `tt_standard_v1`, and scoring/replay/access/lighting/display capabilities.
-- [ ] Add nullable tenant/brand/settings/archive fields to existing `locations`.
-- [ ] Add nullable tenant/zone/resource-type/code/config fields to existing `resources`; retain legacy type during transition.
-- [ ] Add nullable tenant scope to tenant-owned tables in parent-first dependency order.
+- [x] Add nullable tenant/brand/settings/archive fields to existing `locations` (migration `0007_venue_resource_catalog`).
+- [x] Backfill Hurlingham to PlayTT tenant/brand without changing id or slug.
+- [x] Add `src/server/catalog/` venue mapper for domain naming.
+
+#### P1-03 - Zones, resource types, and capabilities
+
+- [x] Add `zones`, `resource_types`, and `resource_capabilities` additively.
+- [x] Add nullable tenant/zone/resource-type/code/ruleset/configuration fields to existing `resources`; retain legacy type during transition.
+- [x] Seed Main Hall, `table_tennis_table`, `tt_standard_v1`, and scoring/replay/access/lighting/display/camera capabilities.
+- [x] Run `pnpm test:catalog` and `pnpm db:validate:strict`.
+
+#### P1-04 - Expand tenant scope to commercial tables
+
+- [x] Add `feature_flags` and `audit_logs` additively (migration `0008_tenant_scope_expand`).
+- [x] Add tenant scope to tenant-owned tables in parent-first dependency order.
+- [x] Backfill via `db/backfill-tenant-scope.sql` through authoritative parent joins.
+- [x] Add tenant-leading indexes, `bookings (tenant_id, id)` parent key, and NOT VALID composite FKs.
+- [x] Validate constraints and enforce `tenant_id NOT NULL` with PlayTT default (migration `0009_tenant_scope_enforce`).
+- [x] Run `pnpm test:tenant-backfill` and `scripts/validate-tenant-backfill.mjs` against disposable DBs when available.
 
 #### P1-08 - Model venue access points
 
@@ -246,14 +284,14 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 - [ ] Seed the Hurlingham entrance/access path without provider-specific lock IDs in booking code.
 - [ ] Add operator configuration and authorization for access-point/resource mapping.
 
-#### P1-01/P1-02/P1-03/P1-04 - Enforce tenant/catalog integrity
+#### P1-04 - Enforce tenant/catalog integrity
 
-- [ ] Backfill venue/resource tenant scope from deterministic PlayTT records.
-- [ ] Backfill child tenant scope through authoritative parent joins, never user/client input.
-- [ ] Add tenant-leading indexes and parent `(tenant_id, id)` unique keys.
-- [ ] Add composite tenant/parent FKs as not-yet-validated where appropriate.
-- [ ] Run zero-null, orphan, cross-tenant mismatch, duplicate code, and count-parity checks.
-- [ ] Validate constraints, then set tenant fields non-null in a later safe migration.
+- [x] Backfill venue/resource tenant scope from deterministic PlayTT records.
+- [x] Backfill child tenant scope through authoritative parent joins, never user/client input.
+- [x] Add tenant-leading indexes and parent `(tenant_id, id)` unique keys.
+- [x] Add composite tenant/parent FKs as not-yet-validated, then validate in `0009`.
+- [x] Run zero-null, orphan, and cross-tenant mismatch checks via `validate-tenant-backfill`.
+- [x] Validate constraints, then set tenant fields non-null in `0009_tenant_scope_enforce`.
 
 #### P1-05 - Add application tenant context and RBAC
 

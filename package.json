@@ -27,6 +27,8 @@
     "test:contracts": "node --test scripts/validate-api-contracts.test.mjs scripts/validate-web-actions.test.mjs && node scripts/validate-api-contracts.mjs && node scripts/validate-web-actions.mjs",
     "test:compatibility": "node --test src/lib/compatibility/status-labels.test.mjs src/lib/compatibility/replay-status.test.mjs",
     "test:tenancy": "node --test src/server/tenancy/permissions.test.mjs src/server/tenancy/tenancy-seed.test.mjs",
+    "test:catalog": "node --test src/server/catalog/catalog-seed.test.mjs src/server/catalog/map-venue.test.mjs src/server/catalog/catalog-capabilities.test.mjs",
+    "test:tenant-backfill": "node --test db/backfill-tenant-scope.test.mjs scripts/validate-tenant-backfill.test.mjs",
     "test:secret-scan": "node scripts/secret-scan.mjs",
     "e2e:seed-user": "node scripts/e2e/seed-test-user.mjs",
     "test:e2e": "playwright test",

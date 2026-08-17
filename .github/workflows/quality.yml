@@ -72,6 +72,12 @@ jobs:
       - name: Test tenancy permissions and seed
         run: pnpm test:tenancy
 
+      - name: Test catalog seed and venue mapper
+        run: pnpm test:catalog
+
+      - name: Test tenant backfill validation
+        run: pnpm test:tenant-backfill
+
       - name: Validate migration integrity
         run: pnpm db:validate:strict
 
