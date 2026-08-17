@@ -1,5 +1,4 @@
 import { handlePaystackWebhookEvent } from "@/server/payments/service"
-import type { PaystackWebhookEvent } from "@/server/payments/types"
 import { processPaystackWebhook } from "@/server/payments/webhook-processor"
 
 export const runtime = "nodejs"
@@ -15,8 +14,7 @@ export async function POST(req: Request) {
   }
 
   const signature = req.headers.get("x-paystack-signature")
-  const result = await processPaystackWebhook<PaystackWebhookEvent>({
-    handleEvent: handlePaystackWebhookEvent,
+  const result = await processPaystackWebhook({
     rawBody,
     secret: process.env.PAYSTACK_SECRET_KEY,
     signature,
@@ -24,8 +22,8 @@ export async function POST(req: Request) {
 
   if (result.failureKind === "configuration-error") {
     console.error("[PAYSTACK WEBHOOK] PAYSTACK_SECRET_KEY is not configured.")
-  } else if (result.failureKind === "handler-error") {
-    console.error("[PAYSTACK WEBHOOK] Handler failed.")
+  } else if (result.failureKind === "inbox-error") {
+    console.error("[PAYSTACK WEBHOOK] Inbox persistence failed.")
   }
 
   return new Response(result.body, { status: result.status })

@@ -1,11 +1,14 @@
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { OperatorAccessPointPanels } from "@/components/operator/operator-access-points"
 import type { OperatorVenueCatalogDetail } from "@/server/operator/service"
 
 export function OperatorVenueDetail({
   detail,
+  canManage = false,
 }: {
   detail: OperatorVenueCatalogDetail
+  canManage?: boolean
 }) {
   const resourceTypeName = new Map(
     detail.resourceTypes.map((type) => [type.id, type.name]),
@@ -105,6 +108,8 @@ export function OperatorVenueDetail({
           )}
         </CardContent>
       </Card>
+
+      <OperatorAccessPointPanels detail={detail} canManage={canManage} />
     </div>
   )
 }

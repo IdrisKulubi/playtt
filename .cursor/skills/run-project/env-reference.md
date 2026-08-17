@@ -41,7 +41,7 @@ may accept explicitly configured safe HTTP/HTTPS origins.
 | --------------------- | ---------------------------------- | ------------------------------------------------------------ |
 | `PAYSTACK_SECRET_KEY` | `src/server/payments/*`            | Paystack secret key for Initialize Transaction + webhooks    |
 | `PAYSTACK_PUBLIC_KEY` | —                                  | Optional; not required for server-only flow                  |
-| `CRON_SECRET`         | `src/app/api/cron/expire-bookings` | Bearer token for booking expiry cron; required in production |
+| `CRON_SECRET`         | `src/app/api/cron/expire-bookings`, `src/app/api/cron/durable-work` | Bearer token for booking expiry and durable inbox/outbox workers; required in production |
 
 Register webhook URL on Paystack dashboard: `https://<host>/api/webhooks/paystack`
 

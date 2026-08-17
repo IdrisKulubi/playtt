@@ -34,6 +34,15 @@
     },
     "0010_tenant_composite_fks": {
       "sha256": "3841fa5c2f9602c6b61735143d2c490fd685758397706bf110645eeb0dba32e8"
+    },
+    "0011_access_points": {
+      "sha256": "9376e60bdfc9643e7041a23d0d16c46f3b2422db10bc3db0ef211d6f48a2f1b4"
+    },
+    "0012_payment_webhook_inbox": {
+      "sha256": "d8b6494ee732d1ec36bda61503145f59ca1dd4abc78df05f90531316b76f3e38"
+    },
+    "0013_outbox_events": {
+      "sha256": "ff66215536f3ccb9cf655a34c495e7d22ac081a5333e55008d520200a7fc83cd"
     }
   },
   "acknowledgedMetadataDrift": [],

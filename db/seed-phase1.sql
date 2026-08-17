@@ -201,6 +201,74 @@ where not exists (
     and rc.code = capabilities.capability_code
 );
 
+insert into access_points (
+  id,
+  tenant_id,
+  location_id,
+  zone_id,
+  code,
+  name,
+  kind,
+  sort_order,
+  is_active
+)
+values
+  (
+    '77777777-7777-7777-7777-777777777777',
+    '33333333-3333-3333-3333-333333333333',
+    '11111111-1111-1111-1111-111111111111',
+    null,
+    'main-entrance',
+    'Hurlingham Main Entrance',
+    'entrance',
+    1,
+    true
+  ),
+  (
+    '88888888-8888-8888-8888-888888888888',
+    '33333333-3333-3333-3333-333333333333',
+    '11111111-1111-1111-1111-111111111111',
+    '55555555-5555-5555-5555-555555555555',
+    'main-hall-door',
+    'Main Hall Door',
+    'hall',
+    2,
+    true
+  )
+on conflict (id) do update
+set
+  tenant_id = excluded.tenant_id,
+  location_id = excluded.location_id,
+  zone_id = excluded.zone_id,
+  code = excluded.code,
+  name = excluded.name,
+  kind = excluded.kind,
+  sort_order = excluded.sort_order,
+  is_active = excluded.is_active;
+
+insert into access_point_resources (
+  tenant_id,
+  access_point_id,
+  resource_id,
+  sort_order
+)
+select
+  '33333333-3333-3333-3333-333333333333',
+  access_point_id,
+  '22222222-2222-2222-2222-222222222222',
+  sort_order
+from (
+  values
+    ('77777777-7777-7777-7777-777777777777'::uuid, 1),
+    ('88888888-8888-8888-8888-888888888888'::uuid, 2)
+) as mappings(access_point_id, sort_order)
+where not exists (
+  select 1
+  from access_point_resources apr
+  where apr.access_point_id = mappings.access_point_id
+    and apr.resource_id = '22222222-2222-2222-2222-222222222222'
+);
+
 insert into tenant_memberships (
   tenant_id,
   user_id,

@@ -44,6 +44,15 @@ test("seed-phase1.sql inserts six resource capabilities idempotently", () => {
   assert.match(seedSql, /where not exists/i)
 })
 
+test("seed-phase1.sql seeds Hurlingham access points and Table 01 door journey", () => {
+  assert.match(seedSql, /77777777-7777-7777-7777-777777777777/)
+  assert.match(seedSql, /88888888-8888-8888-8888-888888888888/)
+  assert.match(seedSql, /main-entrance/)
+  assert.match(seedSql, /main-hall-door/)
+  assert.match(seedSql, /insert into access_point_resources/i)
+  assert.doesNotMatch(seedSql, /ttlock/i)
+})
+
 test("seed-phase1.sql keeps tenant-scoped unique index targets in schema migration", () => {
   const migrationSql = readFileSync(
     join(root, "drizzle", "0007_venue_resource_catalog.sql"),

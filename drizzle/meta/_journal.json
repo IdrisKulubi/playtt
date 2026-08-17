@@ -78,6 +78,27 @@
       "when": 1786962000000,
       "tag": "0010_tenant_composite_fks",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786963000000,
+      "tag": "0011_access_points",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786964000000,
+      "tag": "0012_payment_webhook_inbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786965000000,
+      "tag": "0013_outbox_events",
+      "breakpoints": true
     }
   ]
 }

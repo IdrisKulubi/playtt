@@ -37,7 +37,7 @@ flowchart LR
 | --- | --- | --- | --- | --- |
 | 0 | Trustworthy current baseline | None | Existing behavior only | **Complete** — repository, hosted CI, live fingerprints, staging provider callbacks, and device smoke evidence recorded |
 | 1 | Tenant-aware venue/resource core | Phase 0 | New tenant features off | Ready to start |
-| 2 | Durable payment and play-session orchestration | Phase 1 | Worker consumers staged then enabled | Not started |
+| 2 | Durable payment and play-session orchestration | Phase 1 | Worker consumers staged then enabled | In progress — P2-01 inbox and P2-02 outbox/worker landed locally |
 | 3 | Provisioned devices and authoritative scoring | Phase 2 | Per-resource device/scoring flags off | Not started |
 | 4 | Private media metadata and R2 grants | Phase 2 | R2 media off outside internal cohort | Not started |
 | 5 | TTLock booking codes and relay automation | Phases 2 and 3 | Per-venue/provider flags off | Not started |
@@ -103,7 +103,7 @@ Turn the existing single-operator model into a tenant-aware catalog without chan
 | P1-05 | TenantContext and RBAC | Membership-derived context, action permissions, tenant-scoped repositories, audit records, and negative cross-tenant tests cover all tenant-owned paths. **Local evidence (2026-08-17):** `src/server/tenancy/` runtime (`authorize`, `requireTenantContext`, public/service context factories, `writeAuditLog`, HTTP mapping); tenant filters on bookings/modifications/payments/coach/replays repositories; request wiring on booking/coach/replay routes and server actions; `pnpm test:tenancy` and `pnpm test:tenant-rbac` pass. |
 | P1-06 | Operator shell | Authorized operators can inspect tenant, venue, zone, resource, capability, and membership configuration. **Local evidence (2026-08-17):** `src/server/operator/` read layer + `src/app/operator/` shell; GET `/api/operator/catalog`, `memberships`, `feature-flags`; `operator_shell` feature flag with dev fallback; `pnpm test:operator` passes. |
 | P1-07 | Legacy compatibility | Existing endpoints resolve the PlayTT tenant server-side; released mobile and web clients require no tenant payload changes. **Local evidence (2026-08-17):** unversioned booking routes keep PlayTT public context and original location IDs; GET `/api/v1/venues` adapters over `locations`/`resources` with optional tenant/capability fields; `public_venue_api` feature flag; `pnpm test:catalog` and `pnpm test:contracts` pass. |
-| P1-08 | Access-point catalog | Tenant/venue/zone access points and resource-to-door requirements support shared entrances and multiple controlled doors without hard-coded lock IDs. |
+| P1-08 | Access-point catalog | Tenant/venue/zone access points and resource-to-door requirements support shared entrances and multiple controlled doors without hard-coded lock IDs. **Local evidence (2026-08-17):** migration `0011_access_points`, Hurlingham entrance/hall seed for Table 01, `resolveRequiredAccessPoints`, operator inspect/configure APIs; `pnpm test:access-points` and `pnpm test:contracts` pass. |
 
 ### Exit gate
 
@@ -129,8 +129,8 @@ Make payment confirmation and venue session orchestration durable, idempotent, r
 
 | Ticket | Deliverable | Definition of done |
 | --- | --- | --- |
-| P2-01 | Paystack webhook inbox | Verified raw events are durably stored by unique provider identity before acknowledgement; invalid signatures never enter processing. |
-| P2-02 | Transactional outbox and worker | Versioned events, leases/claims, retry/backoff, dead-letter state, correlation, and consumer idempotency survive restart. |
+| P2-01 | Paystack webhook inbox | Verified raw events are durably stored by unique provider identity before acknowledgement; invalid signatures never enter processing. **Local evidence (2026-08-17):** migration `0012_payment_webhook_inbox`, HMAC-then-persist acknowledgement, `pnpm test:payments` pass. |
+| P2-02 | Transactional outbox and worker | Versioned events, leases/claims, retry/backoff, dead-letter state, correlation, and consumer idempotency survive restart. **Local evidence (2026-08-17):** migration `0013_outbox_events`, `FOR UPDATE SKIP LOCKED` claims, `/api/cron/durable-work`, webhook processing moved behind the worker; `pnpm test:workers` and `pnpm test:contracts` pass. |
 | P2-03 | Operational `play_sessions` | One session per confirmed booking, participants, configuration snapshot, timestamps, and validated state transitions are implemented. |
 | P2-04 | Atomic confirmation | Payment, booking, history, play session, and outbox events commit exactly once in one transaction. |
 | P2-05 | Durable lifecycle scheduler | Prepare, start, ending, complete, and reset work is scheduled and periodically reconciled without in-memory timers. |

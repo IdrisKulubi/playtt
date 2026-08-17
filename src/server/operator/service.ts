@@ -1,4 +1,8 @@
 import {
+  listAccessPointsForCatalog,
+  listRequiredAccessPointsByResourceIdsForCatalog,
+} from "@/server/catalog/access-points-service"
+import {
   getCatalogOverview as getCatalogOverviewFromRepository,
   listCapabilities as listCapabilitiesFromRepository,
   listFeatureFlags as listFeatureFlagsFromRepository,
@@ -9,6 +13,7 @@ import {
   listZones as listZonesFromRepository,
 } from "@/server/operator/repository"
 import type {
+  OperatorAccessPoint,
   OperatorCatalogOverview,
   OperatorCapability,
   OperatorFeatureFlag,
@@ -84,6 +89,8 @@ export interface OperatorVenueCatalogDetail {
   resources: OperatorResource[]
   resourceTypes: OperatorResourceType[]
   capabilitiesByResourceId: Record<string, OperatorCapability[]>
+  accessPoints: OperatorAccessPoint[]
+  requiredAccessPointsByResourceId: Record<string, OperatorAccessPoint[]>
 }
 
 export async function getVenueCatalogDetail(
@@ -102,7 +109,11 @@ export async function getVenueCatalogDetail(
   const zones = await listZonesFromRepository(context, venueId)
   const resources = await listResourcesFromRepository(context, venueId)
   const resourceTypes = await listResourceTypesFromRepository(context)
+  const accessPoints = await listAccessPointsForCatalog(context, venueId)
   const capabilitiesByResourceId: Record<string, OperatorCapability[]> = {}
+  const resourceIds = resources.map((resource) => resource.id)
+  const requiredAccessPointsByResourceId =
+    await listRequiredAccessPointsByResourceIdsForCatalog(context, resourceIds)
 
   for (const resource of resources) {
     capabilitiesByResourceId[resource.id] = await listCapabilitiesFromRepository(
@@ -117,5 +128,7 @@ export async function getVenueCatalogDetail(
     resources,
     resourceTypes,
     capabilitiesByResourceId,
+    accessPoints,
+    requiredAccessPointsByResourceId,
   }
 }

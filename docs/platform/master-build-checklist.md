@@ -24,8 +24,8 @@ Use this document for delivery tracking. Use the supporting documents for deeper
 | Phase                                | Status      | Current position                                                                                                         |
 | ------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
 | Phase 0 — Stabilization              | Complete    | Repository and live-environment evidence complete; Phase 1 may begin after owner sign-off |
-| Phase 1 — Tenant/resource foundation | In progress | P1-01–P1-04 tenant scope expand, backfill, and integrity enforcement landed locally |
-| Phase 2 — Sessions/durable events    | Not started | Depends on tenant/resource foundation                                                                                    |
+| Phase 1 — Tenant/resource foundation | In progress | P1-01–P1-08 landed locally; Phase 1 exit gates remain |
+| Phase 2 — Sessions/durable events    | In progress | P2-01 inbox and P2-02 outbox/worker landed locally |
 | Phase 3 — Devices/scoring/realtime   | Not started | Depends on operational sessions and outbox                                                                               |
 | Phase 4 — Private R2 media           | Not started | Depends on tenant and session ownership                                                                                  |
 | Phase 5 — TTLock/automation          | Not started | Depends on access-point catalog, sessions, and device commands                                                           |
@@ -325,16 +325,16 @@ Done means:
 
 ### P1-08 — Access-point and door catalog
 
-- [ ] Add tenant/venue/zone access points for entrances and controlled areas.
-- [ ] Map each resource to every door required for a booking journey.
-- [ ] Support shared venue entrances and resource-specific doors.
-- [ ] Keep TTLock provider IDs out of booking logic.
+- [x] Add tenant/venue/zone access points for entrances and controlled areas.
+- [x] Map each resource to every door required for a booking journey.
+- [x] Support shared venue entrances and resource-specific doors.
+- [x] Keep TTLock provider IDs out of booking logic.
 
 Build guide: model logical access points first; provider locks/gateways are assigned later in Phase 5.
 
 Done means:
 
-- [ ] Hurlingham and a second venue can configure shared and table-specific doors without TTLock-specific code.
+- [x] Hurlingham and a second venue can configure shared and table-specific doors without TTLock-specific code.
 
 ## Phase 1 exit
 
@@ -354,28 +354,29 @@ Make external events, payment confirmation, venue sessions, schedules, and side 
 
 ### P2-01 — Paystack webhook inbox
 
-- [ ] Add durable webhook inbox with unique provider identity/payload hash.
-- [ ] Store signature, receive/process state, attempts, timestamps, and errors.
-- [ ] Verify signature before domain processing.
-- [ ] Acknowledge only after durable inbox persistence.
+- [x] Add durable webhook inbox with unique provider identity/payload hash.
+- [x] Store signature, receive/process state, attempts, timestamps, and errors.
+- [x] Verify signature before domain processing.
+- [x] Acknowledge only after durable inbox persistence.
+- [x] Move processing fully behind inbox worker (P2-02).
 
 Build guide: deploy inbox and worker before switching the existing webhook producer; preserve callback reconciliation.
 
 Done means:
 
-- [ ] Duplicate/reordered valid events create one inbox identity and invalid signatures never enter processing.
+- [x] Duplicate/reordered valid events create one inbox identity and invalid signatures never enter processing.
 
 ### P2-02 — Transactional outbox and workers
 
-- [ ] Add versioned outbox envelope with tenant/venue/resource/session/correlation scope.
-- [ ] Implement database claiming, leases, retry/backoff, dead letter, and idempotent consumers.
-- [ ] Add worker health, backlog, failure, and replay controls.
+- [x] Add versioned outbox envelope with tenant/venue/resource/session/correlation scope.
+- [x] Implement database claiming, leases, retry/backoff, dead letter, and idempotent consumers.
+- [x] Add worker health, backlog, failure, and replay controls.
 
 Build guide: PostgreSQL is the durable queue of record; Redis may accelerate fan-out but cannot own correctness.
 
 Done means:
 
-- [ ] Worker crashes/restarts recover committed work without duplicate logical effects.
+- [x] Worker crashes/restarts recover committed work without duplicate logical effects.
 
 ### P2-03 — Operational play sessions
 
