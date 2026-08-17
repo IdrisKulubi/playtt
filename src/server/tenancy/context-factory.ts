@@ -19,7 +19,10 @@ export function resolvePlayTtPublicContext(input: {
   return resolvePlayTtPublicContextImpl(input) as TenantContext
 }
 
-export function resolveTenantContextForDevice(): never {
-  resolveTenantContextForDeviceImpl()
-  throw new Error("unreachable")
+export function resolveTenantContextForDevice(input: {
+  deviceId: string
+  tenantId: string
+  correlationId: string
+}): TenantContext {
+  return resolveTenantContextForDeviceImpl(input) as TenantContext
 }

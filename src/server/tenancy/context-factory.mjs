@@ -1,5 +1,4 @@
 import { PLAYTT_TENANT_ID } from "./constants.ts"
-import { TenancyError } from "./errors.ts"
 
 export function createServiceTenantContext(input) {
   return {
@@ -23,9 +22,13 @@ export function resolvePlayTtPublicContext(input) {
   }
 }
 
-export function resolveTenantContextForDevice() {
-  throw new TenancyError(
-    "DEVICE_CONTEXT_UNSUPPORTED",
-    "Device tenant context is not available until access hardware is wired.",
-  )
+export function resolveTenantContextForDevice(input) {
+  return {
+    tenantId: input.tenantId,
+    actor: {
+      type: "device",
+      id: input.deviceId,
+    },
+    correlationId: input.correlationId,
+  }
 }

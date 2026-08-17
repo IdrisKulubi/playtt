@@ -38,7 +38,7 @@ flowchart LR
 | 0 | Trustworthy current baseline | None | Existing behavior only | **Complete** — repository, hosted CI, live fingerprints, staging provider callbacks, and device smoke evidence recorded |
 | 1 | Tenant-aware venue/resource core | Phase 0 | New tenant features off | Ready to start |
 | 2 | Durable payment and play-session orchestration | Phase 1 | Worker consumers staged then enabled | **Complete** — P2-01 through P2-07 and local Phase 2 exit evidence complete |
-| 3 | Provisioned devices and authoritative scoring | Phase 2 | Per-resource device/scoring flags off | Not started |
+| 3 | Provisioned devices and authoritative scoring | Phase 2 | Per-resource device/scoring flags off | **In progress** — P3-01/P3-02 local evidence complete |
 | 4 | Private media metadata and R2 grants | Phase 2 | R2 media off outside internal cohort | Not started |
 | 5 | TTLock booking codes and relay automation | Phases 2 and 3 | Per-venue/provider flags off | Not started |
 | 6 | Venue-edge replay capture | Phases 3 and 4 | Per-resource replay flag off | Not started |
@@ -160,8 +160,8 @@ Provision and operate assignable venue devices while making the backend the auth
 
 | Ticket | Deliverable | Definition of done |
 | --- | --- | --- |
-| P3-01 | Device registry and enrollment | Devices, short-lived one-time enrollment, hashed/rotatable credentials, revocation, and capabilities are implemented. |
-| P3-02 | Assignments and configuration | Time-aware device-to-resource roles, configuration versions, and per-resource capability checks support reassignment without reflashing. |
+| P3-01 | Device registry and enrollment | Devices, short-lived one-time enrollment, hashed/rotatable credentials, revocation, and capabilities are implemented. | **Done locally** — `0015_devices`, provision/rotate/revoke APIs, operator enrollment UI |
+| P3-02 | Assignments and configuration | Time-aware device-to-resource roles, configuration versions, and per-resource capability checks support reassignment without reflashing. | **Done locally** — time-window assignments, `GET /api/device/v1/config`, operator assign/revoke |
 | P3-03 | Heartbeat and fleet health | HTTPS heartbeat records latest health and sampled history; configurable offline detection is resource-isolated. |
 | P3-04 | Device commands and acknowledgements | Expiring commands, retries, acknowledgement state, correlation, and audit are implemented behind `DeviceCommandBus`. |
 | P3-05 | Immutable scoring | Device event idempotency, score events, snapshots, corrections, and active-session authorization are transactional. |

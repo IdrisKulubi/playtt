@@ -41,8 +41,15 @@ test("service context can perform tenant-scoped writes", () => {
   assert.doesNotThrow(() => authorize(context, "catalog.manage"))
 })
 
-test("device context entry point is reserved for Phase 5", () => {
-  assert.throws(() => resolveTenantContextForDevice(), TenancyError)
+test("device context resolves tenant from credential", () => {
+  const context = resolveTenantContextForDevice({
+    deviceId: "device-1",
+    tenantId: PLAYTT_TENANT_ID,
+    correlationId: "corr-device",
+  })
+  assert.equal(context.actor.type, "device")
+  assert.equal(context.actor.id, "device-1")
+  assert.equal(context.tenantId, PLAYTT_TENANT_ID)
 })
 
 test("requireTenantContext rejects incomplete context", () => {

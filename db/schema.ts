@@ -210,6 +210,31 @@ export const sessionParticipantRoleEnum = pgEnum("session_participant_role", [
   "guest",
 ]);
 
+export const deviceTypeEnum = pgEnum("device_type", [
+  "esp32_controller",
+  "ttlock_lock",
+  "ttlock_gateway",
+]);
+
+export const deviceStatusEnum = pgEnum("device_status", [
+  "pending",
+  "active",
+  "revoked",
+]);
+
+export const deviceCredentialStatusEnum = pgEnum("device_credential_status", [
+  "active",
+  "rotated",
+  "revoked",
+]);
+
+export const deviceAssignmentRoleEnum = pgEnum("device_assignment_role", [
+  "score_input",
+  "lock",
+  "gateway",
+  "display",
+]);
+
 export const tenants = pgTable(
   "tenants",
   {
@@ -1170,6 +1195,185 @@ export const sessionParticipants = pgTable(
   ],
 );
 
+export const devices = pgTable(
+  "devices",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
+    type: deviceTypeEnum("type").notNull(),
+    hardwareUid: text("hardware_uid").notNull(),
+    firmwareVersion: text("firmware_version"),
+    status: deviceStatusEnum("status").default("pending").notNull(),
+    capabilityCodes: jsonb("capability_codes")
+      .$type<string[]>()
+      .default([])
+      .notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    lastHeartbeatAt: timestamp("last_heartbeat_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("devices_tenant_id_unique").on(table.tenantId, table.id),
+    uniqueIndex("devices_tenant_hardware_uid_unique").on(
+      table.tenantId,
+      table.hardwareUid,
+    ),
+    index("devices_tenant_id_idx").on(table.tenantId),
+    index("devices_location_id_idx").on(table.locationId),
+    index("devices_status_idx").on(table.status),
+  ],
+);
+
+export const deviceEnrollments = pgTable(
+  "device_enrollments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
+    deviceType: deviceTypeEnum("device_type").notNull(),
+    codeHash: text("code_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    consumedDeviceId: uuid("consumed_device_id").references(() => devices.id, {
+      onDelete: "set null",
+    }),
+    correlationId: text("correlation_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("device_enrollments_tenant_code_hash_unique").on(
+      table.tenantId,
+      table.codeHash,
+    ),
+    index("device_enrollments_tenant_id_idx").on(table.tenantId),
+    index("device_enrollments_location_id_idx").on(table.locationId),
+    index("device_enrollments_expires_at_idx").on(table.expiresAt),
+  ],
+);
+
+export const deviceCredentials = pgTable(
+  "device_credentials",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => devices.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    secretHash: text("secret_hash").notNull(),
+    status: deviceCredentialStatusEnum("status").default("active").notNull(),
+    rotatedAt: timestamp("rotated_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("device_credentials_device_version_unique").on(
+      table.deviceId,
+      table.version,
+    ),
+    uniqueIndex("device_credentials_active_unique")
+      .on(table.deviceId)
+      .where(sql`${table.status} = 'active'`),
+    uniqueIndex("device_credentials_tenant_id_unique").on(
+      table.tenantId,
+      table.id,
+    ),
+    index("device_credentials_tenant_id_idx").on(table.tenantId),
+    index("device_credentials_device_id_idx").on(table.deviceId),
+  ],
+);
+
+export const deviceAssignments = pgTable(
+  "device_assignments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => devices.id, { onDelete: "cascade" }),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
+    resourceId: uuid("resource_id").references(() => resources.id, {
+      onDelete: "restrict",
+    }),
+    role: deviceAssignmentRoleEnum("role").notNull(),
+    effectiveFrom: timestamp("effective_from", { withTimezone: true })
+      .notNull(),
+    effectiveTo: timestamp("effective_to", { withTimezone: true }),
+    config: jsonb("config")
+      .$type<Record<string, unknown>>()
+      .default({})
+      .notNull(),
+    configVersion: integer("config_version").default(1).notNull(),
+    appliedConfigVersion: integer("applied_config_version"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("device_assignments_device_open_unique")
+      .on(table.tenantId, table.deviceId)
+      .where(sql`${table.effectiveTo} is null`),
+    uniqueIndex("device_assignments_scoring_resource_role_open_unique")
+      .on(table.tenantId, table.resourceId, table.role)
+      .where(
+        sql`${table.role} = 'score_input' and ${table.resourceId} is not null and ${table.effectiveTo} is null`,
+      ),
+    uniqueIndex("device_assignments_tenant_id_unique").on(
+      table.tenantId,
+      table.id,
+    ),
+    index("device_assignments_tenant_id_idx").on(table.tenantId),
+    index("device_assignments_device_id_idx").on(table.deviceId),
+    index("device_assignments_resource_id_idx").on(table.resourceId),
+    index("device_assignments_effective_window_idx").on(
+      table.deviceId,
+      table.effectiveFrom,
+      table.effectiveTo,
+    ),
+    check(
+      "device_assignments_effective_window",
+      sql`${table.effectiveTo} is null or ${table.effectiveTo} > ${table.effectiveFrom}`,
+    ),
+  ],
+);
+
 export const bookingStatusHistory = pgTable(
   "booking_status_history",
   {
@@ -1753,6 +1957,9 @@ export const locationRelations = relations(locations, ({ one, many }) => ({
   replays: many(replays),
   notifications: many(notifications),
   accessPoints: many(accessPoints),
+  devices: many(devices),
+  deviceEnrollments: many(deviceEnrollments),
+  deviceAssignments: many(deviceAssignments),
 }));
 
 export const zoneRelations = relations(zones, ({ one, many }) => ({
@@ -1926,6 +2133,77 @@ export const sessionParticipantRelations = relations(
     user: one(user, {
       fields: [sessionParticipants.userId],
       references: [user.id],
+    }),
+  }),
+);
+
+export const deviceRelations = relations(devices, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [devices.tenantId],
+    references: [tenants.id],
+  }),
+  location: one(locations, {
+    fields: [devices.locationId],
+    references: [locations.id],
+  }),
+  credentials: many(deviceCredentials),
+  assignments: many(deviceAssignments),
+  enrollments: many(deviceEnrollments, {
+    relationName: "consumedDevice",
+  }),
+}));
+
+export const deviceEnrollmentRelations = relations(
+  deviceEnrollments,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [deviceEnrollments.tenantId],
+      references: [tenants.id],
+    }),
+    location: one(locations, {
+      fields: [deviceEnrollments.locationId],
+      references: [locations.id],
+    }),
+    consumedDevice: one(devices, {
+      fields: [deviceEnrollments.consumedDeviceId],
+      references: [devices.id],
+      relationName: "consumedDevice",
+    }),
+  }),
+);
+
+export const deviceCredentialRelations = relations(
+  deviceCredentials,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [deviceCredentials.tenantId],
+      references: [tenants.id],
+    }),
+    device: one(devices, {
+      fields: [deviceCredentials.deviceId],
+      references: [devices.id],
+    }),
+  }),
+);
+
+export const deviceAssignmentRelations = relations(
+  deviceAssignments,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [deviceAssignments.tenantId],
+      references: [tenants.id],
+    }),
+    device: one(devices, {
+      fields: [deviceAssignments.deviceId],
+      references: [devices.id],
+    }),
+    location: one(locations, {
+      fields: [deviceAssignments.locationId],
+      references: [locations.id],
+    }),
+    resource: one(resources, {
+      fields: [deviceAssignments.resourceId],
+      references: [resources.id],
     }),
   }),
 );

@@ -46,6 +46,9 @@
     },
     "0014_play_sessions": {
       "sha256": "9fed6192fd2f70b6918d33a5bb7cdeb2ba4dd652ff414857443a7e7d9f198eb9"
+    },
+    "0015_devices": {
+      "sha256": "c266933e63464dad0ef91dee26f1f1ce087551aef1415fae4010583a8ab0ad44"
     }
   },
   "acknowledgedMetadataDrift": [],
