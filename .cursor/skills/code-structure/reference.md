@@ -11,7 +11,7 @@
 | `/bookings/[id]` | `src/app/bookings/[id]/page.tsx` | Booking detail and changes |
 | `/activity` | `src/app/activity/page.tsx` | Player activity and replays |
 | `/community` | `src/app/community/page.tsx` | Community preview |
-| `/account/*` | `src/app/account/` | Profile, security, preferences, help |
+| `/operator/*` | `src/app/operator/` | Operator catalog inspection shell |
 | `/pay/complete` | `src/app/pay/complete/page.tsx` | Hosted checkout completion |
 | `/sign-in` | `src/app/sign-in/page.tsx` | Sign in |
 | `/sign-up` | `src/app/sign-up/page.tsx` | Sign up |
@@ -20,6 +20,8 @@
 | `/reset-password/confirm` | `src/app/reset-password/confirm/page.tsx` | Password reset confirm |
 | `/api/auth/*` | `src/app/api/auth/[...all]/route.ts` | better-auth API |
 | `/api/bookings/*` | `src/app/api/bookings/` | Booking, payment, cancellation, modifications |
+| `/api/v1/venues/*` | `src/app/api/v1/venues/` | Versioned public venue/resource catalog |
+| `/api/operator/*` | `src/app/api/operator/` | Operator catalog inspection |
 | `/api/user/*` | `src/app/api/user/` | Profile and onboarding |
 | `/api/webhooks/paystack` | `src/app/api/webhooks/paystack/route.ts` | Paystack webhook |
 | `/api/replays/*` | `src/app/api/replays/` | Replay credits, requests, library |
