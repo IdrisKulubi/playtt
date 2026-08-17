@@ -1,21 +1,29 @@
 import { isCoachActive, insertCoachInsight } from "@/server/coach/repository"
+import { createServiceTenantContext } from "@/server/tenancy/context-factory"
+import { createCorrelationId } from "@/server/tenancy/correlation"
 import { completeStubNvrClip } from "@/server/replays/nvr-worker"
 
 type CoachAnalysisInput = {
   replayId: string
   userId: string
   bookingId: string
+  tenantId: string
 }
 
 /** Generate coach insight from a ready replay. MVP uses deterministic copy. */
 export async function runCoachAnalysis(input: CoachAnalysisInput) {
-  const active = await isCoachActive(input.userId)
+  const context = createServiceTenantContext({
+    tenantId: input.tenantId,
+    actorId: "coach-analysis",
+    correlationId: createCorrelationId(),
+  })
+  const active = await isCoachActive(context, input.userId)
 
   if (!active) {
     return { skipped: true, reason: "no_subscription" as const }
   }
 
-  const insight = await insertCoachInsight({
+  const insight = await insertCoachInsight(context, {
     userId: input.userId,
     replayId: input.replayId,
     bookingId: input.bookingId,
@@ -60,6 +68,7 @@ export async function processReplayPipeline(replayId: string) {
     replayId: replay.id,
     userId: replay.userId,
     bookingId: replay.bookingId,
+    tenantId: replay.tenantId,
   })
 
   return { replay, coach }

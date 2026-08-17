@@ -16,6 +16,7 @@ import type {
   ResourceSummary,
   UserBookingSummary,
 } from "@/server/bookings/types";
+import type { TenantContext } from "@/server/tenancy/types";
 
 export type BookingListFilter = "all" | "upcoming" | "past";
 
@@ -61,7 +62,9 @@ function mapBookingRow(row: {
   };
 }
 
-export async function listActiveLocationsWithResources(): Promise<LocationSummary[]> {
+export async function listActiveLocationsWithResources(
+  context: TenantContext,
+): Promise<LocationSummary[]> {
   const rows = await db
     .select({
       locationId: locations.id,
@@ -77,7 +80,14 @@ export async function listActiveLocationsWithResources(): Promise<LocationSummar
     })
     .from(locations)
     .innerJoin(resources, eq(resources.locationId, locations.id))
-    .where(and(eq(locations.isActive, true), eq(resources.isActive, true)))
+    .where(
+      and(
+        eq(locations.tenantId, context.tenantId),
+        eq(resources.tenantId, context.tenantId),
+        eq(locations.isActive, true),
+        eq(resources.isActive, true),
+      ),
+    )
     .orderBy(asc(locations.name), asc(resources.sortOrder), asc(resources.name));
 
   const map = new Map<string, LocationSummary>();
@@ -111,10 +121,13 @@ export async function listActiveLocationsWithResources(): Promise<LocationSummar
   return Array.from(map.values());
 }
 
-export async function getResourceContext(input: {
-  locationId: string;
-  resourceId: string;
-}) {
+export async function getResourceContext(
+  context: TenantContext,
+  input: {
+    locationId: string;
+    resourceId: string;
+  },
+) {
   const [row] = await db
     .select({
       locationId: locations.id,
@@ -127,6 +140,8 @@ export async function getResourceContext(input: {
     .innerJoin(locations, eq(resources.locationId, locations.id))
     .where(
       and(
+        eq(resources.tenantId, context.tenantId),
+        eq(locations.tenantId, context.tenantId),
         eq(resources.id, input.resourceId),
         eq(resources.locationId, input.locationId),
         eq(resources.isActive, true),
@@ -138,7 +153,10 @@ export async function getResourceContext(input: {
   return row ?? null;
 }
 
-export async function listActiveResourcesByLocation(locationId: string) {
+export async function listActiveResourcesByLocation(
+  context: TenantContext,
+  locationId: string,
+) {
   return db
     .select({
       id: resources.id,
@@ -149,7 +167,13 @@ export async function listActiveResourcesByLocation(locationId: string) {
       capacity: resources.capacity,
     })
     .from(resources)
-    .where(and(eq(resources.locationId, locationId), eq(resources.isActive, true)))
+    .where(
+      and(
+        eq(resources.tenantId, context.tenantId),
+        eq(resources.locationId, locationId),
+        eq(resources.isActive, true),
+      ),
+    )
     .orderBy(asc(resources.sortOrder), asc(resources.name));
 }
 
@@ -163,12 +187,15 @@ export async function ensureUserExists(userId: string) {
   return existingUser ?? null;
 }
 
-export async function findBlockingBookings(input: {
-  resourceId: string;
-  start: Date;
-  end: Date;
-  excludeBookingId?: string;
-}) {
+export async function findBlockingBookings(
+  context: TenantContext,
+  input: {
+    resourceId: string;
+    start: Date;
+    end: Date;
+    excludeBookingId?: string;
+  },
+) {
   return db
     .select({
       id: bookings.id,
@@ -179,6 +206,7 @@ export async function findBlockingBookings(input: {
     .from(bookings)
     .where(
       and(
+        eq(bookings.tenantId, context.tenantId),
         eq(bookings.resourceId, input.resourceId),
         inArray(bookings.status, [...BOOKING_STATUSES_BLOCKING]),
         lt(bookings.startTime, input.end),
@@ -190,12 +218,15 @@ export async function findBlockingBookings(input: {
     );
 }
 
-export async function findBlockingBookingsForResources(input: {
-  resourceIds: string[];
-  start: Date;
-  end: Date;
-  excludeBookingId?: string;
-}) {
+export async function findBlockingBookingsForResources(
+  context: TenantContext,
+  input: {
+    resourceIds: string[];
+    start: Date;
+    end: Date;
+    excludeBookingId?: string;
+  },
+) {
   if (input.resourceIds.length === 0) {
     return [];
   }
@@ -211,6 +242,7 @@ export async function findBlockingBookingsForResources(input: {
     .from(bookings)
     .where(
       and(
+        eq(bookings.tenantId, context.tenantId),
         inArray(bookings.resourceId, input.resourceIds),
         inArray(bookings.status, [...BOOKING_STATUSES_BLOCKING]),
         lt(bookings.startTime, input.end),
@@ -222,10 +254,13 @@ export async function findBlockingBookingsForResources(input: {
     );
 }
 
-export async function listUserBookings(input: {
-  userId: string;
-  filter?: BookingListFilter;
-}): Promise<UserBookingSummary[]> {
+export async function listUserBookings(
+  context: TenantContext,
+  input: {
+    userId: string;
+    filter?: BookingListFilter;
+  },
+): Promise<UserBookingSummary[]> {
   const now = new Date();
   const filter = input.filter ?? "all";
 
@@ -261,6 +296,9 @@ export async function listUserBookings(input: {
     .innerJoin(resources, eq(bookings.resourceId, resources.id))
     .where(
       and(
+        eq(bookings.tenantId, context.tenantId),
+        eq(locations.tenantId, context.tenantId),
+        eq(resources.tenantId, context.tenantId),
         eq(bookings.userId, input.userId),
         timeCondition,
         notInArray(bookings.status, ["expired", "cancelled"]),
@@ -273,10 +311,13 @@ export async function listUserBookings(input: {
   return rows.map(mapBookingRow);
 }
 
-export async function getUserBookingById(input: {
-  userId: string;
-  bookingId: string;
-}): Promise<UserBookingSummary | null> {
+export async function getUserBookingById(
+  context: TenantContext,
+  input: {
+    userId: string;
+    bookingId: string;
+  },
+): Promise<UserBookingSummary | null> {
   const [row] = await db
     .select({
       id: bookings.id,
@@ -300,28 +341,40 @@ export async function getUserBookingById(input: {
     .from(bookings)
     .innerJoin(locations, eq(bookings.locationId, locations.id))
     .innerJoin(resources, eq(bookings.resourceId, resources.id))
-    .where(and(eq(bookings.id, input.bookingId), eq(bookings.userId, input.userId)))
+    .where(
+      and(
+        eq(bookings.tenantId, context.tenantId),
+        eq(locations.tenantId, context.tenantId),
+        eq(resources.tenantId, context.tenantId),
+        eq(bookings.id, input.bookingId),
+        eq(bookings.userId, input.userId),
+      ),
+    )
     .limit(1);
 
   return row ? mapBookingRow(row) : null;
 }
 
-export async function insertPendingBooking(input: {
-  booking: CreatePendingBookingInput & {
-    start: Date;
-    end: Date;
-    currency: string;
-    subtotalAmount: string;
-    discountAmount: string;
-    totalAmount: string;
-    pricingRuleSnapshot: Record<string, unknown>;
-    expiresAt: Date;
-  };
-}): Promise<CreatePendingBookingResult> {
+export async function insertPendingBooking(
+  context: TenantContext,
+  input: {
+    booking: CreatePendingBookingInput & {
+      start: Date;
+      end: Date;
+      currency: string;
+      subtotalAmount: string;
+      discountAmount: string;
+      totalAmount: string;
+      pricingRuleSnapshot: Record<string, unknown>;
+      expiresAt: Date;
+    };
+  },
+): Promise<CreatePendingBookingResult> {
   return db.transaction(async (tx) => {
     const [created] = await tx
       .insert(bookings)
       .values({
+        tenantId: context.tenantId,
         locationId: input.booking.locationId,
         resourceId: input.booking.resourceId,
         userId: input.booking.userId,
@@ -349,6 +402,7 @@ export async function insertPendingBooking(input: {
       });
 
     await tx.insert(bookingStatusHistory).values({
+      tenantId: context.tenantId,
       bookingId: created.id,
       fromStatus: null,
       toStatus: "pending",

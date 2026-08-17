@@ -9,6 +9,7 @@ import {
   replayJson,
 } from "@/server/replays/http"
 import { initiateReplayPackPurchase } from "@/server/replays/service"
+import { resolveTenantContextForSessionUser } from "@/server/tenancy/session-context"
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,7 +23,11 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const result = await initiateReplayPackPurchase(session.user.id)
+    const context = await resolveTenantContextForSessionUser(
+      session.user.id,
+      req.headers.get("x-tenant-id"),
+    )
+    const result = await initiateReplayPackPurchase(context, session.user.id)
     return replayJson(result)
   } catch (error) {
     if (error instanceof PaymentServiceError) {

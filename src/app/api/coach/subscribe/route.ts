@@ -9,6 +9,7 @@ import {
 import { initiateCoachSubscribe } from "@/server/coach/service"
 import { PaymentServiceError } from "@/server/payments/errors"
 import { mapPaymentServiceError } from "@/server/payments/http"
+import { resolveTenantContextForSessionUser } from "@/server/tenancy/session-context"
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,7 +23,11 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const result = await initiateCoachSubscribe(session.user.id)
+    const context = await resolveTenantContextForSessionUser(
+      session.user.id,
+      req.headers.get("x-tenant-id"),
+    )
+    const result = await initiateCoachSubscribe(context, session.user.id)
     return coachJson(result)
   } catch (error) {
     if (error instanceof PaymentServiceError) {

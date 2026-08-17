@@ -11,6 +11,7 @@ import {
 } from "@/db/schema"
 import type { EditableBookingRow } from "@/server/bookings/modifications/eligibility"
 import type { ModificationSnapshot } from "@/server/bookings/modifications/types"
+import type { TenantContext } from "@/server/tenancy/types"
 
 type BookingTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
 
@@ -21,10 +22,13 @@ export type ApplyModificationResult =
   | "not_pending"
   | "payment_mismatch"
 
-export async function getEditableBookingForUser(input: {
-  bookingId: string
-  userId: string
-}): Promise<EditableBookingRow | null> {
+export async function getEditableBookingForUser(
+  context: TenantContext,
+  input: {
+    bookingId: string
+    userId: string
+  },
+): Promise<EditableBookingRow | null> {
   const [row] = await db
     .select({
       id: bookings.id,
@@ -46,7 +50,11 @@ export async function getEditableBookingForUser(input: {
     })
     .from(bookings)
     .where(
-      and(eq(bookings.id, input.bookingId), eq(bookings.userId, input.userId))
+      and(
+        eq(bookings.tenantId, context.tenantId),
+        eq(bookings.id, input.bookingId),
+        eq(bookings.userId, input.userId),
+      ),
     )
     .limit(1)
 
@@ -63,37 +71,45 @@ export async function getEditableBookingForUser(input: {
   }
 }
 
-export async function getModificationById(input: {
-  modificationId: string
-  userId: string
-}) {
+export async function getModificationById(
+  context: TenantContext,
+  input: {
+    modificationId: string
+    userId: string
+  },
+) {
   const [row] = await db
     .select()
     .from(bookingModifications)
     .where(
       and(
+        eq(bookingModifications.tenantId, context.tenantId),
         eq(bookingModifications.id, input.modificationId),
-        eq(bookingModifications.userId, input.userId)
-      )
+        eq(bookingModifications.userId, input.userId),
+      ),
     )
     .limit(1)
 
   return row ?? null
 }
 
-export async function insertPendingModification(input: {
-  bookingId: string
-  userId: string
-  changeType: string
-  beforeSnapshot: ModificationSnapshot
-  afterSnapshot: ModificationSnapshot
-  deltaAmount: string
-  currency: string
-  paymentId?: string
-}) {
+export async function insertPendingModification(
+  context: TenantContext,
+  input: {
+    bookingId: string
+    userId: string
+    changeType: string
+    beforeSnapshot: ModificationSnapshot
+    afterSnapshot: ModificationSnapshot
+    deltaAmount: string
+    currency: string
+    paymentId?: string
+  },
+) {
   const [created] = await db
     .insert(bookingModifications)
     .values({
+      tenantId: context.tenantId,
       bookingId: input.bookingId,
       userId: input.userId,
       status: "pending_payment",
@@ -110,48 +126,63 @@ export async function insertPendingModification(input: {
   return created
 }
 
-export async function attachPaymentToModification(input: {
-  modificationId: string
-  paymentId: string
-}) {
+export async function attachPaymentToModification(
+  context: TenantContext,
+  input: {
+    modificationId: string
+    paymentId: string
+  },
+) {
   const [attached] = await db
     .update(bookingModifications)
     .set({ paymentId: input.paymentId })
     .where(
       and(
+        eq(bookingModifications.tenantId, context.tenantId),
         eq(bookingModifications.id, input.modificationId),
         eq(bookingModifications.status, "pending_payment"),
         or(
           isNull(bookingModifications.paymentId),
-          eq(bookingModifications.paymentId, input.paymentId)
-        )
-      )
+          eq(bookingModifications.paymentId, input.paymentId),
+        ),
+      ),
     )
     .returning({ id: bookingModifications.id })
 
   return Boolean(attached)
 }
 
-export async function applyModificationToBooking(input: {
-  modificationId: string
-  afterSnapshot: ModificationSnapshot
-  creditAmount?: string
-}) {
-  return db.transaction((tx) => applyModificationWithinTransaction(tx, input))
+export async function applyModificationToBooking(
+  context: TenantContext,
+  input: {
+    modificationId: string
+    afterSnapshot: ModificationSnapshot
+    creditAmount?: string
+  },
+) {
+  return db.transaction((tx) =>
+    applyModificationWithinTransaction(tx, context, input),
+  )
 }
 
 export async function applyModificationWithinTransaction(
   tx: BookingTransaction,
+  context: TenantContext,
   input: {
     modificationId: string
     creditAmount?: string
     paymentId?: string
-  }
+  },
 ): Promise<ApplyModificationResult> {
   const [modification] = await tx
     .select()
     .from(bookingModifications)
-    .where(eq(bookingModifications.id, input.modificationId))
+    .where(
+      and(
+        eq(bookingModifications.tenantId, context.tenantId),
+        eq(bookingModifications.id, input.modificationId),
+      ),
+    )
     .for("update")
     .limit(1)
 
@@ -196,10 +227,11 @@ export async function applyModificationWithinTransaction(
     })
     .where(
       and(
+        eq(bookingModifications.tenantId, context.tenantId),
         eq(bookingModifications.id, input.modificationId),
         eq(bookingModifications.status, "pending_payment"),
-        paymentCondition
-      )
+        paymentCondition,
+      ),
     )
     .returning({ id: bookingModifications.id })
 
@@ -221,9 +253,15 @@ export async function applyModificationWithinTransaction(
       pricingRuleSnapshot: after.pricingRuleSnapshot,
       notes: after.notes,
     })
-    .where(eq(bookings.id, modification.bookingId))
+    .where(
+      and(
+        eq(bookings.tenantId, context.tenantId),
+        eq(bookings.id, modification.bookingId),
+      ),
+    )
 
   await tx.insert(bookingStatusHistory).values({
+    tenantId: context.tenantId,
     bookingId: modification.bookingId,
     fromStatus: "confirmed",
     toStatus: "confirmed",
@@ -238,6 +276,7 @@ export async function applyModificationWithinTransaction(
     await tx
       .insert(bookingCreditBalances)
       .values({
+        tenantId: context.tenantId,
         userId: modification.userId,
         balanceAmount: "0",
         currency: modification.currency,
@@ -247,7 +286,12 @@ export async function applyModificationWithinTransaction(
     const [balanceRow] = await tx
       .select()
       .from(bookingCreditBalances)
-      .where(eq(bookingCreditBalances.userId, modification.userId))
+      .where(
+        and(
+          eq(bookingCreditBalances.tenantId, context.tenantId),
+          eq(bookingCreditBalances.userId, modification.userId),
+        ),
+      )
       .for("update")
       .limit(1)
 
@@ -261,9 +305,15 @@ export async function applyModificationWithinTransaction(
         currency: modification.currency,
         updatedAt: new Date(),
       })
-      .where(eq(bookingCreditBalances.userId, modification.userId))
+      .where(
+        and(
+          eq(bookingCreditBalances.tenantId, context.tenantId),
+          eq(bookingCreditBalances.userId, modification.userId),
+        ),
+      )
 
     await tx.insert(bookingCreditLedger).values({
+      tenantId: context.tenantId,
       userId: modification.userId,
       bookingId: modification.bookingId,
       bookingModificationId: modification.id,
@@ -276,11 +326,16 @@ export async function applyModificationWithinTransaction(
   return "applied"
 }
 
-export async function getResourceName(resourceId: string) {
+export async function getResourceName(
+  context: TenantContext,
+  resourceId: string,
+) {
   const [row] = await db
     .select({ name: resources.name })
     .from(resources)
-    .where(eq(resources.id, resourceId))
+    .where(
+      and(eq(resources.tenantId, context.tenantId), eq(resources.id, resourceId)),
+    )
     .limit(1)
 
   return row?.name ?? "Table"

@@ -7,6 +7,7 @@ import { SiteFooter } from "@/components/home/site-footer";
 import { MarketingNavActions } from "@/components/layout/marketing-nav-actions";
 import { MarketingShell } from "@/components/layout/marketing-shell";
 import { getBookingBootstrapData } from "@/server/bookings/service";
+import { resolvePublicCatalogContext } from "@/server/tenancy/session-context";
 
 const navLinks = [
   { label: "Locations", href: "#locations" },
@@ -15,7 +16,8 @@ const navLinks = [
 ] as const;
 
 export default async function Page() {
-  const { locations } = await getBookingBootstrapData();
+  const context = await resolvePublicCatalogContext();
+  const { locations } = await getBookingBootstrapData(context);
   const featuredLocation = locations[0] ?? null;
 
   return (

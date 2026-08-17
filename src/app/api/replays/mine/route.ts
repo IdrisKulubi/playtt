@@ -7,6 +7,7 @@ import {
   replayJson,
 } from "@/server/replays/http"
 import { listUserReplays } from "@/server/replays/service"
+import { resolveTenantContextForSessionUser } from "@/server/tenancy/session-context"
 
 export async function GET(req: NextRequest) {
   try {
@@ -20,7 +21,11 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    const replays = await listUserReplays(session.user.id)
+    const context = await resolveTenantContextForSessionUser(
+      session.user.id,
+      req.headers.get("x-tenant-id"),
+    )
+    const replays = await listUserReplays(context, session.user.id)
     return replayJson({ replays })
   } catch (error) {
     return mapReplayServiceError(error)

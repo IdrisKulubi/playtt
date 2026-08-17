@@ -16,6 +16,8 @@ import {
 } from "@/server/bookings/modifications/repository"
 import type { ModificationSnapshot } from "@/server/bookings/modifications/types"
 import type { modificationQuoteBodySchema } from "@/server/bookings/modifications/validators"
+import { authorize } from "@/server/tenancy/authorize-context.mjs"
+import type { TenantContext } from "@/server/tenancy/types"
 import type { z } from "zod/v3"
 
 type ModificationInput = z.infer<typeof modificationQuoteBodySchema>
@@ -67,11 +69,13 @@ function resolveChangeType(
 }
 
 export async function quoteBookingModification(input: {
+  context: TenantContext
   bookingId: string
   userId: string
   body: ModificationInput
 }) {
-  const booking = await getEditableBookingForUser({
+  authorize(input.context, "booking.modify")
+  const booking = await getEditableBookingForUser(input.context, {
     bookingId: input.bookingId,
     userId: input.userId,
   })
@@ -126,7 +130,8 @@ export async function quoteBookingModification(input: {
     }
 
     const activeResources = await listActiveResourcesByLocation(
-      booking.locationId
+      input.context,
+      booking.locationId,
     )
 
     if (activeResources.length === 0) {
@@ -137,7 +142,7 @@ export async function quoteBookingModification(input: {
       )
     }
 
-    const blocking = await findBlockingBookingsForResources({
+    const blocking = await findBlockingBookingsForResources(input.context, {
       resourceIds: activeResources.map((resource) => resource.id),
       start,
       end,
@@ -244,7 +249,7 @@ export async function quoteBookingModification(input: {
       newStartTime: nextStart.toISOString(),
       newEndTime: nextEnd.toISOString(),
       newResourceId: nextResourceId,
-      newResourceName: await getResourceName(nextResourceId),
+      newResourceName: await getResourceName(input.context, nextResourceId),
       currency: booking.currency,
     },
   }

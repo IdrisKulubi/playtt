@@ -8,6 +8,7 @@ import { PlayerShell } from "@/components/layout/player-shell"
 import { Button } from "@/components/ui/button"
 import { auth } from "../../../../auth"
 import { getBookingForUser } from "@/server/bookings/service"
+import { resolveTenantContextForUserId } from "@/server/tenancy/session-context"
 
 export const dynamic = "force-dynamic"
 
@@ -59,7 +60,9 @@ export default async function BookingDetailPage({
 
   const { id } = await params
   const { edit } = await searchParams
+  const context = await resolveTenantContextForUserId(session.user.id)
   const booking = await getBookingForUser({
+    context,
     userId: session.user.id,
     bookingId: id,
   })

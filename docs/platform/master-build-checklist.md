@@ -300,16 +300,16 @@ Done means:
 
 ### P1-05 — TenantContext and RBAC
 
-- [ ] Derive `TenantContext` from membership, selected resource, or device credential.
-- [ ] Require tenant context in every tenant-owned repository method.
-- [ ] Add central action/scope authorization and audit records.
-- [ ] Add negative cross-tenant tests for every repository/API.
+- [x] Derive `TenantContext` from membership, selected resource, or device credential.
+- [x] Require tenant context in every tenant-owned repository method.
+- [x] Add central action/scope authorization and audit records.
+- [x] Add negative cross-tenant tests for every repository/API.
 
 Build guide: default legacy clients to the PlayTT tenant server-side; never accept authoritative tenant IDs from body/query parameters.
 
 Done means:
 
-- [ ] Tenant A cannot read or mutate Tenant B data using guessed IDs across APIs, repositories, media, realtime, or operator tools.
+- [x] Tenant A cannot read or mutate Tenant B data using guessed IDs across APIs, repositories, media, realtime, or operator tools.
 
 ### P1-06/P1-07 — Operator catalog and legacy compatibility
 

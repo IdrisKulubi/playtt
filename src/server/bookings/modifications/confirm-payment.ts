@@ -4,6 +4,8 @@ import db from "@/db/drizzle"
 import { bookingModifications, payments } from "@/db/schema"
 import { kesToPaystackAmount } from "@/server/payments/constants"
 import { applyModificationWithinTransaction } from "@/server/bookings/modifications/repository"
+import { createServiceTenantContext } from "@/server/tenancy/context-factory"
+import { createCorrelationId } from "@/server/tenancy/correlation"
 import type { PaystackTransactionData } from "@/server/payments/types"
 
 export async function confirmModificationPayment(input: {
@@ -73,6 +75,12 @@ export async function confirmModificationPayment(input: {
     ? new Date(input.transaction.paid_at)
     : new Date()
 
+  const serviceContext = createServiceTenantContext({
+    tenantId: payment.tenantId,
+    actorId: "paystack-webhook",
+    correlationId: createCorrelationId(),
+  })
+
   const result = await db.transaction(async (tx) => {
     const [lockedPayment] = await tx
       .select()
@@ -85,10 +93,14 @@ export async function confirmModificationPayment(input: {
       return "payment_not_found" as const
     }
 
-    const applicationResult = await applyModificationWithinTransaction(tx, {
-      modificationId: modification.id,
-      paymentId: lockedPayment.id,
-    })
+    const applicationResult = await applyModificationWithinTransaction(
+      tx,
+      serviceContext,
+      {
+        modificationId: modification.id,
+        paymentId: lockedPayment.id,
+      },
+    )
 
     if (
       applicationResult === "not_found" ||

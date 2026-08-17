@@ -14,10 +14,16 @@ import {
   coordinatePendingBookingCreation,
   type PendingBookingActionInput,
 } from "@/actions/create-pending-booking-coordinator";
+import { createCorrelationId } from "@/server/tenancy/correlation";
+import {
+  resolvePublicCatalogContext,
+  resolveTenantContextFromWebSession,
+} from "@/server/tenancy/session-context";
 
 export async function getBookingBootstrapAction() {
   try {
-    const data = await getBookingBootstrapData();
+    const context = await resolvePublicCatalogContext();
+    const data = await getBookingBootstrapData(context);
     return { success: true as const, data };
   } catch (error) {
     return {
@@ -37,7 +43,8 @@ export async function getAvailabilityAction(input: {
   groupSize: 2 | 3 | 4 | 5 | 6 | 7 | 8;
 }) {
   try {
-    const data = await getLocationAvailability(input);
+    const context = await resolvePublicCatalogContext();
+    const data = await getLocationAvailability(context, input);
     return { success: true as const, data };
   } catch (error) {
     return {
@@ -58,7 +65,8 @@ export async function getBookingQuoteAction(input: {
   groupSize: 2 | 3 | 4 | 5 | 6 | 7 | 8;
 }) {
   try {
-    const data = await getBookingQuote(input);
+    const context = await resolvePublicCatalogContext();
+    const data = await getBookingQuote(context, input);
     return { success: true as const, data };
   } catch (error) {
     return {
@@ -73,7 +81,10 @@ export async function createPendingBookingAction(
   input: PendingBookingActionInput,
 ) {
   return coordinatePendingBookingCreation(input, {
-    createBooking: createPendingBooking,
+    createBooking: async (bookingInput) => {
+      const context = await resolveTenantContextFromWebSession();
+      return createPendingBooking(context, bookingInput);
+    },
     getProfile: getUserProfileById,
     getSession: async () =>
       auth.api.getSession({ headers: await headers() }),

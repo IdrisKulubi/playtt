@@ -1,9 +1,11 @@
 import { getBookingBootstrapData } from "@/server/bookings/service";
+import { resolvePublicCatalogContext } from "@/server/tenancy/session-context";
 import { BookingConsole } from "@/components/bookings/booking-console";
 import { PlayerShell } from "@/components/layout/player-shell";
 
 export default async function BookPage() {
-  const { locations } = await getBookingBootstrapData();
+  const context = await resolvePublicCatalogContext();
+  const { locations } = await getBookingBootstrapData(context);
 
   return (
     <PlayerShell

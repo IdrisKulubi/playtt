@@ -35,17 +35,26 @@ import {
   locationAvailabilityInputSchema,
 } from "@/server/bookings/validators"
 import { isBookingOverlapConflict } from "@/server/bookings/database-errors"
+import { authorize } from "@/server/tenancy/authorize-context.mjs"
+import type { TenantContext } from "@/server/tenancy/types"
 
-export async function getBookingBootstrapData(): Promise<{
+export async function getBookingBootstrapData(
+  context: TenantContext,
+): Promise<{
   locations: LocationSummary[]
 }> {
-  const activeLocations = await listActiveLocationsWithResources()
+  authorize(context, "venue.read")
+  const activeLocations = await listActiveLocationsWithResources(context)
   return { locations: activeLocations }
 }
 
-export async function getBookingQuote(input: unknown): Promise<BookingQuote> {
+export async function getBookingQuote(
+  context: TenantContext,
+  input: unknown,
+): Promise<BookingQuote> {
+  authorize(context, "booking.read")
   const parsed = bookingQuoteInputSchema.parse(input)
-  const resourceContext = await getResourceContext(parsed)
+  const resourceContext = await getResourceContext(context, parsed)
 
   if (!resourceContext) {
     throw new Error("The selected location or resource is unavailable.")
@@ -53,7 +62,7 @@ export async function getBookingQuote(input: unknown): Promise<BookingQuote> {
 
   const { start, end } = buildDateTimeRange(
     parsed.startTimeIso,
-    parsed.durationMinutes
+    parsed.durationMinutes,
   )
 
   if (start <= new Date()) {
@@ -71,8 +80,10 @@ export async function getBookingQuote(input: unknown): Promise<BookingQuote> {
 }
 
 export async function getLocationAvailability(
-  input: unknown
+  context: TenantContext,
+  input: unknown,
 ): Promise<SlotAvailability[]> {
+  authorize(context, "booking.read")
   await runBookingExpirySweep()
 
   const parsed = locationAvailabilityInputSchema.parse(input)
@@ -82,14 +93,17 @@ export async function getLocationAvailability(
     throw new Error("Invalid availability date.")
   }
 
-  const activeResources = await listActiveResourcesByLocation(parsed.locationId)
+  const activeResources = await listActiveResourcesByLocation(
+    context,
+    parsed.locationId,
+  )
 
   if (activeResources.length === 0) {
     return []
   }
 
   const slots = buildDaySlots(day, parsed.durationMinutes)
-  const blockingBookings = await findBlockingBookingsForResources({
+  const blockingBookings = await findBlockingBookingsForResources(context, {
     resourceIds: activeResources.map((resource) => resource.id),
     start: slots[0]?.startsAt ?? day,
     end: slots.at(-1)?.endsAt ?? day,
@@ -109,8 +123,8 @@ export async function getLocationAvailability(
                 (booking) =>
                   booking.resourceId === resource.id &&
                   booking.startTime < slot.endsAt &&
-                  booking.endTime > slot.startsAt
-              )
+                  booking.endTime > slot.startsAt,
+              ),
           )
           .map((resource) => resource.id)
 
@@ -143,12 +157,14 @@ export async function getLocationAvailability(
 }
 
 export async function createPendingBooking(
-  input: unknown
+  context: TenantContext,
+  input: unknown,
 ): Promise<CreatePendingBookingResult> {
+  authorize(context, "booking.create")
   await runBookingExpirySweep()
 
   const parsed = createPendingBookingSchema.parse(input)
-  const resourceContext = await getResourceContext(parsed)
+  const resourceContext = await getResourceContext(context, parsed)
 
   if (!resourceContext) {
     throw new Error("The selected location or resource is unavailable.")
@@ -162,7 +178,7 @@ export async function createPendingBooking(
 
   const { start, end } = buildDateTimeRange(
     parsed.startTimeIso,
-    parsed.durationMinutes
+    parsed.durationMinutes,
   )
 
   const roundedStart = roundDateToSlot(start)
@@ -179,7 +195,7 @@ export async function createPendingBooking(
     throw new Error("Bookings must be made for a future time.")
   }
 
-  const blockingBookings = await findBlockingBookings({
+  const blockingBookings = await findBlockingBookings(context, {
     resourceId: parsed.resourceId,
     start,
     end,
@@ -199,7 +215,7 @@ export async function createPendingBooking(
   })
 
   try {
-    return await insertPendingBooking({
+    return await insertPendingBooking(context, {
       booking: {
         ...parsed,
         notes: parsed.notes || `Group size: ${parsed.groupSize}`,
@@ -223,11 +239,16 @@ export async function createPendingBooking(
 }
 
 export async function listBookingsForUser(input: {
+  context: TenantContext
   userId: string
   filter?: BookingListFilter
 }): Promise<UserBookingSummary[]> {
+  authorize(input.context, "booking.read")
   await runBookingExpirySweep()
-  return listUserBookings(input)
+  return listUserBookings(input.context, {
+    userId: input.userId,
+    filter: input.filter,
+  })
 }
 
 function enrichBookingSummary(booking: UserBookingSummary): UserBookingSummary {
@@ -245,15 +266,21 @@ function enrichBookingSummary(booking: UserBookingSummary): UserBookingSummary {
 }
 
 export async function getBookingForUser(input: {
+  context: TenantContext
   userId: string
   bookingId: string
 }): Promise<UserBookingSummary | null> {
+  authorize(input.context, "booking.read")
   await runBookingExpirySweep()
-  const booking = await getUserBookingById(input)
+  const booking = await getUserBookingById(input.context, {
+    userId: input.userId,
+    bookingId: input.bookingId,
+  })
   return booking ? enrichBookingSummary(booking) : null
 }
 
 export async function listBookingsForUserEnriched(input: {
+  context: TenantContext
   userId: string
   filter?: BookingListFilter
 }): Promise<UserBookingSummary[]> {

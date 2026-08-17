@@ -19,15 +19,18 @@ import {
   listCoachTraining,
 } from "@/server/coach/repository"
 import { insertProductPayment, getUserEmail } from "@/server/replays/repository"
+import { authorize } from "@/server/tenancy/authorize-context.mjs"
+import type { TenantContext } from "@/server/tenancy/types"
 
 function metadataTitle(metadata: Record<string, unknown> | null | undefined) {
   const title = metadata?.title
   return typeof title === "string" && title.trim() ? title : "Session clip"
 }
 
-export async function getCoachStatus(userId: string) {
-  const subscription = await getCoachSubscription(userId)
-  const active = await isCoachActive(userId)
+export async function getCoachStatus(context: TenantContext, userId: string) {
+  authorize(context, "account.read")
+  const subscription = await getCoachSubscription(context, userId)
+  const active = await isCoachActive(context, userId)
 
   return {
     isActive: active,
@@ -39,7 +42,11 @@ export async function getCoachStatus(userId: string) {
   }
 }
 
-export async function initiateCoachSubscribe(userId: string) {
+export async function initiateCoachSubscribe(
+  context: TenantContext,
+  userId: string,
+) {
+  authorize(context, "account.update")
   const email = await getUserEmail(userId)
 
   if (!email) {
@@ -72,7 +79,7 @@ export async function initiateCoachSubscribe(userId: string) {
     throw new PaymentServiceError("PAYMENT_INIT_FAILED", message, 502)
   }
 
-  await insertProductPayment({
+  await insertProductPayment(context, {
     userId,
     productType: "coach_subscription",
     providerReference: initialized.reference,
@@ -91,8 +98,12 @@ export async function initiateCoachSubscribe(userId: string) {
   }
 }
 
-export async function cancelCoachSubscription(userId: string) {
-  const row = await cancelCoachAtPeriodEnd(userId)
+export async function cancelCoachSubscription(
+  context: TenantContext,
+  userId: string,
+) {
+  authorize(context, "account.update")
+  const row = await cancelCoachAtPeriodEnd(context, userId)
 
   if (!row) {
     throw new CoachServiceError(
@@ -108,8 +119,12 @@ export async function cancelCoachSubscription(userId: string) {
   }
 }
 
-export async function getCoachInsightsForUser(userId: string) {
-  const rows = await listCoachInsights(userId)
+export async function getCoachInsightsForUser(
+  context: TenantContext,
+  userId: string,
+) {
+  authorize(context, "account.read")
+  const rows = await listCoachInsights(context, userId)
 
   return rows.map((row) => ({
     id: row.id,
@@ -122,10 +137,15 @@ export async function getCoachInsightsForUser(userId: string) {
 }
 
 export async function getCoachInsightDetail(input: {
+  context: TenantContext
   userId: string
   insightId: string
 }) {
-  const result = await getCoachInsightById(input)
+  authorize(input.context, "account.read")
+  const result = await getCoachInsightById(input.context, {
+    userId: input.userId,
+    insightId: input.insightId,
+  })
 
   if (!result) {
     throw new CoachServiceError(
@@ -157,8 +177,12 @@ export async function getCoachInsightDetail(input: {
   }
 }
 
-export async function getCoachTrainingForUser(userId: string) {
-  const rows = await listCoachTraining(userId)
+export async function getCoachTrainingForUser(
+  context: TenantContext,
+  userId: string,
+) {
+  authorize(context, "account.read")
+  const rows = await listCoachTraining(context, userId)
 
   return rows.map((item) => ({
     id: item.id,

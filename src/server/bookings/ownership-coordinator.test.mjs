@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
+import { PLAYTT_TENANT_ID } from "../tenancy/constants.ts"
 import {
   coordinateBookingCancellation,
   coordinateBookingDetail,
@@ -10,6 +11,14 @@ import {
   coordinateModificationQuote,
   coordinateModificationStatus,
 } from "./ownership-coordinator.ts"
+
+const testContext = {
+  tenantId: PLAYTT_TENANT_ID,
+  actor: { type: "user", id: "session-user" },
+  membershipId: "membership-1",
+  role: "customer",
+  correlationId: "corr-test",
+}
 
 const guessedIdentifiers = {
   bookingId: "guessed-booking",
@@ -32,6 +41,7 @@ function operationFixtures(actorId) {
       expectedInput: {
         bookingId: "guessed-booking",
         userId: "session-user",
+        context: testContext,
       },
     },
     {
@@ -42,6 +52,7 @@ function operationFixtures(actorId) {
       expectedInput: {
         bookingId: "guessed-booking",
         userId: "session-user",
+        context: testContext,
         body: forgedBody,
       },
     },
@@ -52,6 +63,7 @@ function operationFixtures(actorId) {
       expectedInput: {
         bookingId: "guessed-booking",
         userId: "session-user",
+        context: testContext,
       },
     },
     {
@@ -61,6 +73,7 @@ function operationFixtures(actorId) {
       expectedInput: {
         bookingId: "guessed-booking",
         userId: "session-user",
+        context: testContext,
       },
     },
     {
@@ -71,6 +84,7 @@ function operationFixtures(actorId) {
       expectedInput: {
         bookingId: "guessed-booking",
         userId: "session-user",
+        context: testContext,
         body: forgedBody,
       },
     },
@@ -82,6 +96,7 @@ function operationFixtures(actorId) {
       expectedInput: {
         bookingId: "guessed-booking",
         userId: "session-user",
+        context: testContext,
         body: forgedBody,
       },
     },
@@ -93,12 +108,14 @@ function operationFixtures(actorId) {
         bookingId: "guessed-booking",
         modificationId: "guessed-modification",
         userId: "session-user",
+        context: testContext,
       },
     },
   ].map((fixture) => ({
     ...fixture,
     dependencies: {
       getActorId: async () => actorId,
+      resolveContext: async () => testContext,
       getIdentifiers: async () => guessedIdentifiers,
       ...(fixture.readBody ? { readBody: fixture.readBody } : {}),
     },
@@ -157,7 +174,7 @@ test("owned booking operations bind guessed identifiers to the server actor", as
         authenticated: true,
         value: { operation: fixture.name },
       },
-      fixture.name
+      fixture.name,
     )
   }
 })
@@ -167,6 +184,7 @@ test("runtime-forged identifier userId cannot replace the authenticated actor", 
 
   await coordinateModificationStatus({
     getActorId: async () => "session-user",
+    resolveContext: async () => testContext,
     getIdentifiers: async () => guessedIdentifiers,
     getModificationStatus: async (input) => {
       calls.push(input)
@@ -179,6 +197,7 @@ test("runtime-forged identifier userId cannot replace the authenticated actor", 
       bookingId: "guessed-booking",
       modificationId: "guessed-modification",
       userId: "session-user",
+      context: testContext,
     },
   ])
 })

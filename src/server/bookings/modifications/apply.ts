@@ -17,6 +17,8 @@ import {
   insertPendingModification,
 } from "@/server/bookings/modifications/repository"
 import type { modificationApplyBodySchema } from "@/server/bookings/modifications/validators"
+import { authorize } from "@/server/tenancy/authorize-context.mjs"
+import type { TenantContext } from "@/server/tenancy/types"
 import type { z } from "zod/v3"
 import { eq } from "drizzle-orm"
 
@@ -26,16 +28,18 @@ import { user } from "@/db/schema"
 type ModificationInput = z.infer<typeof modificationApplyBodySchema>
 
 export async function applyBookingModification(input: {
+  context: TenantContext
   bookingId: string
   userId: string
   body: ModificationInput
 }) {
+  authorize(input.context, "booking.modify")
   const quoted = await quoteBookingModification(input)
   const delta = Number(quoted.quote.deltaAmount)
   const credit = Number(quoted.quote.creditAmount)
 
   if (delta <= 0) {
-    const modification = await insertPendingModification({
+    const modification = await insertPendingModification(input.context, {
       bookingId: input.bookingId,
       userId: input.userId,
       changeType: quoted.quote.changeType,
@@ -45,7 +49,7 @@ export async function applyBookingModification(input: {
       currency: quoted.quote.currency,
     })
 
-    await applyModificationToBooking({
+    await applyModificationToBooking(input.context, {
       modificationId: modification.id,
       afterSnapshot: quoted.afterSnapshot,
       creditAmount: quoted.quote.creditAmount,
@@ -64,7 +68,7 @@ export async function applyBookingModification(input: {
     }
   }
 
-  const booking = await getEditableBookingForUser({
+  const booking = await getEditableBookingForUser(input.context, {
     bookingId: input.bookingId,
     userId: input.userId,
   })
@@ -73,7 +77,7 @@ export async function applyBookingModification(input: {
     throw new BookingModificationError(
       "BOOKING_NOT_FOUND",
       "We could not find that booking.",
-      404
+      404,
     )
   }
 
@@ -87,11 +91,11 @@ export async function applyBookingModification(input: {
     throw new BookingModificationError(
       "PAYMENT_INIT_FAILED",
       "Your account needs an email address to pay.",
-      400
+      400,
     )
   }
 
-  const modification = await insertPendingModification({
+  const modification = await insertPendingModification(input.context, {
     bookingId: input.bookingId,
     userId: input.userId,
     changeType: quoted.quote.changeType,
@@ -125,7 +129,7 @@ export async function applyBookingModification(input: {
     throw new BookingModificationError("PAYMENT_INIT_FAILED", message, 502)
   }
 
-  const payment = await insertPaymentRecord({
+  const payment = await insertPaymentRecord(input.context, {
     bookingId: input.bookingId,
     locationId: booking.locationId,
     userId: input.userId,
@@ -136,7 +140,7 @@ export async function applyBookingModification(input: {
     rawPayload: initialized as unknown as Record<string, unknown>,
   })
 
-  await attachPaymentToModification({
+  await attachPaymentToModification(input.context, {
     modificationId: modification.id,
     paymentId: payment.id,
   })
@@ -154,14 +158,16 @@ export async function applyBookingModification(input: {
 }
 
 export async function getModificationStatus(input: {
+  context: TenantContext
   bookingId: string
   modificationId: string
   userId: string
 }) {
+  authorize(input.context, "booking.read")
   const { getModificationById } =
     await import("@/server/bookings/modifications/repository")
 
-  const modification = await getModificationById({
+  const modification = await getModificationById(input.context, {
     modificationId: input.modificationId,
     userId: input.userId,
   })
@@ -170,7 +176,7 @@ export async function getModificationStatus(input: {
     throw new BookingModificationError(
       "MODIFICATION_NOT_FOUND",
       "We could not find that change request.",
-      404
+      404,
     )
   }
 

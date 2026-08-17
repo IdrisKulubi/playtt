@@ -13,20 +13,29 @@ import {
   COACH_PLAN_ID,
   COACH_SUBSCRIPTION_PERIOD_DAYS,
 } from "@/server/coach/constants"
+import type { TenantContext } from "@/server/tenancy/types"
 
-export async function getCoachSubscription(userId: string) {
+export async function getCoachSubscription(
+  context: TenantContext,
+  userId: string,
+) {
   const [row] = await db
     .select()
     .from(coachSubscriptions)
-    .where(eq(coachSubscriptions.userId, userId))
+    .where(
+      and(
+        eq(coachSubscriptions.tenantId, context.tenantId),
+        eq(coachSubscriptions.userId, userId),
+      ),
+    )
     .limit(1)
 
   return row ?? null
 }
 
-export async function isCoachActive(userId: string) {
+export async function isCoachActive(context: TenantContext, userId: string) {
   const now = new Date()
-  const subscription = await getCoachSubscription(userId)
+  const subscription = await getCoachSubscription(context, userId)
 
   if (!subscription) {
     return false
@@ -39,17 +48,21 @@ export async function isCoachActive(userId: string) {
   return subscription.currentPeriodEnd > now
 }
 
-export async function activateCoachSubscription(input: {
-  userId: string
-  productPaymentId?: string
-  paystackSubscriptionCode?: string | null
-}) {
+export async function activateCoachSubscription(
+  context: TenantContext,
+  input: {
+    userId: string
+    productPaymentId?: string
+    paystackSubscriptionCode?: string | null
+  },
+) {
   const periodEnd = new Date()
   periodEnd.setDate(periodEnd.getDate() + COACH_SUBSCRIPTION_PERIOD_DAYS)
 
   const [row] = await db
     .insert(coachSubscriptions)
     .values({
+      tenantId: context.tenantId,
       userId: input.userId,
       status: "active",
       planId: COACH_PLAN_ID,
@@ -71,13 +84,16 @@ export async function activateCoachSubscription(input: {
   return row
 }
 
-export async function confirmCoachSubscriptionActivation(input: {
-  paymentId: string
-  userId: string
-  paidAt: Date
-  providerEventId?: string | null
-  rawPayload: Record<string, unknown>
-}) {
+export async function confirmCoachSubscriptionActivation(
+  context: TenantContext,
+  input: {
+    paymentId: string
+    userId: string
+    paidAt: Date
+    providerEventId?: string | null
+    rawPayload: Record<string, unknown>
+  },
+) {
   const periodEnd = new Date()
   periodEnd.setDate(periodEnd.getDate() + COACH_SUBSCRIPTION_PERIOD_DAYS)
 
@@ -90,9 +106,10 @@ export async function confirmCoachSubscriptionActivation(input: {
       .from(productPayments)
       .where(
         and(
+          eq(productPayments.tenantId, context.tenantId),
           eq(productPayments.id, input.paymentId),
-          eq(productPayments.userId, input.userId)
-        )
+          eq(productPayments.userId, input.userId),
+        ),
       )
       .for("update")
       .limit(1)
@@ -105,7 +122,12 @@ export async function confirmCoachSubscriptionActivation(input: {
       const [existingSubscription] = await tx
         .select({ id: coachSubscriptions.id })
         .from(coachSubscriptions)
-        .where(eq(coachSubscriptions.userId, input.userId))
+        .where(
+          and(
+            eq(coachSubscriptions.tenantId, context.tenantId),
+            eq(coachSubscriptions.userId, input.userId),
+          ),
+        )
         .limit(1)
 
       if (existingSubscription) {
@@ -115,6 +137,7 @@ export async function confirmCoachSubscriptionActivation(input: {
       const [recoveredSubscription] = await tx
         .insert(coachSubscriptions)
         .values({
+          tenantId: context.tenantId,
           userId: input.userId,
           status: "active",
           planId: COACH_PLAN_ID,
@@ -143,11 +166,12 @@ export async function confirmCoachSubscriptionActivation(input: {
       })
       .where(
         and(
+          eq(productPayments.tenantId, context.tenantId),
           eq(productPayments.id, input.paymentId),
           eq(productPayments.userId, input.userId),
           eq(productPayments.productType, "coach_subscription"),
-          eq(productPayments.status, "pending")
-        )
+          eq(productPayments.status, "pending"),
+        ),
       )
       .returning({ id: productPayments.id })
 
@@ -158,6 +182,7 @@ export async function confirmCoachSubscriptionActivation(input: {
     await tx
       .insert(coachSubscriptions)
       .values({
+        tenantId: context.tenantId,
         userId: input.userId,
         status: "active",
         planId: COACH_PLAN_ID,
@@ -179,17 +204,25 @@ export async function confirmCoachSubscriptionActivation(input: {
   })
 }
 
-export async function cancelCoachAtPeriodEnd(userId: string) {
+export async function cancelCoachAtPeriodEnd(
+  context: TenantContext,
+  userId: string,
+) {
   const [row] = await db
     .update(coachSubscriptions)
     .set({ cancelAtPeriodEnd: true, updatedAt: new Date() })
-    .where(eq(coachSubscriptions.userId, userId))
+    .where(
+      and(
+        eq(coachSubscriptions.tenantId, context.tenantId),
+        eq(coachSubscriptions.userId, userId),
+      ),
+    )
     .returning()
 
   return row ?? null
 }
 
-export async function listCoachInsights(userId: string) {
+export async function listCoachInsights(context: TenantContext, userId: string) {
   return db
     .select({
       id: coachInsights.id,
@@ -202,14 +235,23 @@ export async function listCoachInsights(userId: string) {
     })
     .from(coachInsights)
     .innerJoin(replays, eq(coachInsights.replayId, replays.id))
-    .where(eq(coachInsights.userId, userId))
+    .where(
+      and(
+        eq(coachInsights.tenantId, context.tenantId),
+        eq(replays.tenantId, context.tenantId),
+        eq(coachInsights.userId, userId),
+      ),
+    )
     .orderBy(desc(coachInsights.createdAt))
 }
 
-export async function getCoachInsightById(input: {
-  userId: string
-  insightId: string
-}) {
+export async function getCoachInsightById(
+  context: TenantContext,
+  input: {
+    userId: string
+    insightId: string
+  },
+) {
   const [insight] = await db
     .select({
       id: coachInsights.id,
@@ -224,9 +266,11 @@ export async function getCoachInsightById(input: {
     .innerJoin(replays, eq(coachInsights.replayId, replays.id))
     .where(
       and(
+        eq(coachInsights.tenantId, context.tenantId),
+        eq(replays.tenantId, context.tenantId),
         eq(coachInsights.id, input.insightId),
-        eq(coachInsights.userId, input.userId)
-      )
+        eq(coachInsights.userId, input.userId),
+      ),
     )
     .limit(1)
 
@@ -237,37 +281,51 @@ export async function getCoachInsightById(input: {
   const training = await db
     .select()
     .from(coachTrainingItems)
-    .where(eq(coachTrainingItems.insightId, insight.id))
+    .where(
+      and(
+        eq(coachTrainingItems.tenantId, context.tenantId),
+        eq(coachTrainingItems.insightId, insight.id),
+      ),
+    )
     .orderBy(coachTrainingItems.sortOrder)
 
   return { insight, training }
 }
 
-export async function listCoachTraining(userId: string) {
+export async function listCoachTraining(context: TenantContext, userId: string) {
   return db
     .select()
     .from(coachTrainingItems)
-    .where(eq(coachTrainingItems.userId, userId))
+    .where(
+      and(
+        eq(coachTrainingItems.tenantId, context.tenantId),
+        eq(coachTrainingItems.userId, userId),
+      ),
+    )
     .orderBy(coachTrainingItems.sortOrder)
 }
 
-export async function insertCoachInsight(input: {
-  userId: string
-  replayId: string
-  bookingId: string
-  summary: string
-  focusAreas: string[]
-  trainingItems: Array<{
-    title: string
-    description: string
-    durationMinutes?: number | null
-    sortOrder: number
-  }>
-}) {
+export async function insertCoachInsight(
+  context: TenantContext,
+  input: {
+    userId: string
+    replayId: string
+    bookingId: string
+    summary: string
+    focusAreas: string[]
+    trainingItems: Array<{
+      title: string
+      description: string
+      durationMinutes?: number | null
+      sortOrder: number
+    }>
+  },
+) {
   return db.transaction(async (tx) => {
     const [insight] = await tx
       .insert(coachInsights)
       .values({
+        tenantId: context.tenantId,
         userId: input.userId,
         replayId: input.replayId,
         bookingId: input.bookingId,
@@ -281,7 +339,12 @@ export async function insertCoachInsight(input: {
       const [existing] = await tx
         .select()
         .from(coachInsights)
-        .where(eq(coachInsights.replayId, input.replayId))
+        .where(
+          and(
+            eq(coachInsights.tenantId, context.tenantId),
+            eq(coachInsights.replayId, input.replayId),
+          ),
+        )
         .limit(1)
 
       return existing ?? null
@@ -290,13 +353,14 @@ export async function insertCoachInsight(input: {
     if (input.trainingItems.length > 0) {
       await tx.insert(coachTrainingItems).values(
         input.trainingItems.map((item) => ({
+          tenantId: context.tenantId,
           userId: input.userId,
           insightId: insight.id,
           title: item.title,
           description: item.description,
           durationMinutes: item.durationMinutes ?? null,
           sortOrder: item.sortOrder,
-        }))
+        })),
       )
     }
 
@@ -311,8 +375,8 @@ export async function findProductPaymentByReference(reference: string) {
     .where(
       and(
         eq(productPayments.provider, "paystack"),
-        eq(productPayments.providerReference, reference)
-      )
+        eq(productPayments.providerReference, reference),
+      ),
     )
     .limit(1)
 
@@ -339,7 +403,7 @@ export async function expireCoachSubscriptions() {
       and(
         eq(coachSubscriptions.status, "active"),
         eq(coachSubscriptions.cancelAtPeriodEnd, true),
-        lt(coachSubscriptions.currentPeriodEnd, now)
-      )
+        lt(coachSubscriptions.currentPeriodEnd, now),
+      ),
     )
 }

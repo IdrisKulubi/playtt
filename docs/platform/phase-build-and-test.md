@@ -87,6 +87,17 @@ Live and hosted acceptance evidence is now recorded:
 
 **Outstanding:** Phase owner and reviewer sign-off before Phase 1 schema migrations begin.
 
+### Implementation log - 2026-08-17 (P1-05 TenantContext and RBAC)
+
+P1-05 landed in the working tree:
+
+- **Tenancy runtime:** `src/server/tenancy/` adds `requireTenantContext`, `authorize(context, action)`, `createServiceTenantContext`, `resolvePlayTtPublicContext`, `resolveTenantContextForDevice` (Phase 5 stub), `writeAuditLog`, `resolveRequestTenantContext`, and `TenancyError` HTTP mapping in `src/server/bookings/http.ts`. Client-supplied `tenantId` is rejected at every resolver.
+- **Request wiring:** Booking, coach, and replay API routes plus server actions resolve PlayTT `TenantContext` after Better Auth; public catalog/bootstrap/quote/availability use PlayTT public context. Legacy clients require no tenant payload.
+- **Repositories:** Bookings, modifications, payments, coach, and replays repositories/services require `TenantContext` and filter/insert by `tenant_id`. Webhook/cron confirm flows use `createServiceTenantContext` from the looked-up row's tenant.
+- **Tests:** `pnpm test:tenancy` (authorize, public/service context, audit helper) and `pnpm test:tenant-rbac` (scoped repository queries, HTTP mapping, client-tenant rejection) pass; `pnpm test:actions` and `pnpm test:contracts` pass.
+
+**Outstanding:** P1-06–P1-08 and Phase 1 exit gates remain open.
+
 ### Implementation log - 2026-08-17 (P1-04 tenant backfill and integrity)
 
 P1-04 landed in the working tree:
@@ -96,7 +107,7 @@ P1-04 landed in the working tree:
 - **Validation:** `scripts/validate-tenant-backfill.mjs` and `src/server/tenancy/backfill-queries.mjs` check nulls, orphans, and cross-tenant mismatches.
 - **Tests:** `pnpm test:tenant-backfill` passes; `pnpm db:validate:strict` passes.
 
-**Outstanding:** P1-05–P1-08 and Phase 1 exit gates remain open.
+**Outstanding:** P1-06–P1-08 and Phase 1 exit gates remain open.
 
 ### Implementation log - 2026-08-17 (P1-02/P1-03 venue and catalog foundation)
 
