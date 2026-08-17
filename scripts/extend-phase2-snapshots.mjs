@@ -421,8 +421,203 @@ const snap13 = cloneSnapshot(snap12, {
   },
 })
 
+const playSessions = table(
+  "play_sessions",
+  {
+    id: column("id", "uuid", {
+      primaryKey: true,
+      notNull: true,
+      default: "gen_random_uuid()",
+    }),
+    tenant_id: column("tenant_id", "uuid", {
+      notNull: true,
+      default: "'33333333-3333-3333-3333-333333333333'",
+    }),
+    booking_id: column("booking_id", "uuid", { notNull: true }),
+    location_id: column("location_id", "uuid", { notNull: true }),
+    resource_id: column("resource_id", "uuid", { notNull: true }),
+    status: column("status", "play_session_status", {
+      notNull: true,
+      default: "'confirmed'",
+      typeSchema: "public",
+    }),
+    correlation_id: column("correlation_id", "text", { notNull: true }),
+    scheduled_start_at: column("scheduled_start_at", "timestamp with time zone", {
+      notNull: true,
+    }),
+    scheduled_end_at: column("scheduled_end_at", "timestamp with time zone", {
+      notNull: true,
+    }),
+    prepared_at: column("prepared_at", "timestamp with time zone"),
+    started_at: column("started_at", "timestamp with time zone"),
+    ended_at: column("ended_at", "timestamp with time zone"),
+    completed_at: column("completed_at", "timestamp with time zone"),
+    reset_at: column("reset_at", "timestamp with time zone"),
+    configuration_snapshot: column("configuration_snapshot", "jsonb", {
+      notNull: true,
+    }),
+    configuration_version: column("configuration_version", "integer", {
+      notNull: true,
+      default: 1,
+    }),
+    ...timestamps,
+  },
+  {
+    play_sessions_booking_id_unique: index(
+      "play_sessions_booking_id_unique",
+      ["booking_id"],
+      { isUnique: true },
+    ),
+    play_sessions_tenant_id_unique: index(
+      "play_sessions_tenant_id_unique",
+      ["tenant_id", "id"],
+      { isUnique: true },
+    ),
+    play_sessions_tenant_booking_unique: index(
+      "play_sessions_tenant_booking_unique",
+      ["tenant_id", "booking_id"],
+      { isUnique: true },
+    ),
+    play_sessions_tenant_id_idx: index("play_sessions_tenant_id_idx", [
+      "tenant_id",
+    ]),
+    play_sessions_status_idx: index("play_sessions_status_idx", [
+      "status",
+      "scheduled_start_at",
+    ]),
+  },
+  {
+    play_sessions_tenant_id_tenants_id_fk: fk(
+      "play_sessions_tenant_id_tenants_id_fk",
+      "play_sessions",
+      "tenants",
+      ["tenant_id"],
+      ["id"],
+    ),
+    play_sessions_booking_id_bookings_id_fk: fk(
+      "play_sessions_booking_id_bookings_id_fk",
+      "play_sessions",
+      "bookings",
+      ["booking_id"],
+      ["id"],
+    ),
+    play_sessions_location_id_locations_id_fk: fk(
+      "play_sessions_location_id_locations_id_fk",
+      "play_sessions",
+      "locations",
+      ["location_id"],
+      ["id"],
+    ),
+    play_sessions_resource_id_resources_id_fk: fk(
+      "play_sessions_resource_id_resources_id_fk",
+      "play_sessions",
+      "resources",
+      ["resource_id"],
+      ["id"],
+    ),
+  },
+)
+
+const sessionParticipants = table(
+  "session_participants",
+  {
+    id: column("id", "uuid", {
+      primaryKey: true,
+      notNull: true,
+      default: "gen_random_uuid()",
+    }),
+    tenant_id: column("tenant_id", "uuid", {
+      notNull: true,
+      default: "'33333333-3333-3333-3333-333333333333'",
+    }),
+    play_session_id: column("play_session_id", "uuid", { notNull: true }),
+    user_id: column("user_id", "text", { notNull: true }),
+    role: column("role", "session_participant_role", {
+      notNull: true,
+      default: "'owner'",
+      typeSchema: "public",
+    }),
+    created_at: column("created_at", "timestamp with time zone", {
+      notNull: true,
+      default: "now()",
+    }),
+  },
+  {
+    session_participants_session_user_unique: index(
+      "session_participants_session_user_unique",
+      ["play_session_id", "user_id"],
+      { isUnique: true },
+    ),
+    session_participants_tenant_id_unique: index(
+      "session_participants_tenant_id_unique",
+      ["tenant_id", "id"],
+      { isUnique: true },
+    ),
+    session_participants_tenant_id_idx: index(
+      "session_participants_tenant_id_idx",
+      ["tenant_id"],
+    ),
+    session_participants_play_session_id_idx: index(
+      "session_participants_play_session_id_idx",
+      ["play_session_id"],
+    ),
+  },
+  {
+    session_participants_tenant_id_tenants_id_fk: fk(
+      "session_participants_tenant_id_tenants_id_fk",
+      "session_participants",
+      "tenants",
+      ["tenant_id"],
+      ["id"],
+    ),
+    session_participants_play_session_id_play_sessions_id_fk: fk(
+      "session_participants_play_session_id_play_sessions_id_fk",
+      "session_participants",
+      "play_sessions",
+      ["play_session_id"],
+      ["id"],
+    ),
+    session_participants_user_id_user_id_fk: fk(
+      "session_participants_user_id_user_id_fk",
+      "session_participants",
+      "user",
+      ["user_id"],
+      ["id"],
+    ),
+  },
+)
+
+const snap14 = cloneSnapshot(snap13, {
+  tables: {
+    "public.play_sessions": playSessions,
+    "public.session_participants": sessionParticipants,
+  },
+  enums: {
+    "public.play_session_status": {
+      name: "play_session_status",
+      schema: "public",
+      values: [
+        "held",
+        "confirmed",
+        "preparing",
+        "active",
+        "ending",
+        "completed",
+        "resetting",
+        "available",
+      ],
+    },
+    "public.session_participant_role": {
+      name: "session_participant_role",
+      schema: "public",
+      values: ["owner", "guest"],
+    },
+  },
+})
+
 writeJson(join(metaDirectory, "0011_snapshot.json"), snap11)
 writeJson(join(metaDirectory, "0012_snapshot.json"), snap12)
 writeJson(join(metaDirectory, "0013_snapshot.json"), snap13)
+writeJson(join(metaDirectory, "0014_snapshot.json"), snap14)
 
-console.log("Wrote drizzle/meta/0011_snapshot.json through 0013_snapshot.json")
+console.log("Wrote drizzle/meta/0011_snapshot.json through 0014_snapshot.json")

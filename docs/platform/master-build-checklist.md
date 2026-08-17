@@ -25,7 +25,7 @@ Use this document for delivery tracking. Use the supporting documents for deeper
 | ------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
 | Phase 0 — Stabilization              | Complete    | Repository and live-environment evidence complete; Phase 1 may begin after owner sign-off |
 | Phase 1 — Tenant/resource foundation | In progress | P1-01–P1-08 landed locally; Phase 1 exit gates remain |
-| Phase 2 — Sessions/durable events    | In progress | P2-01 inbox and P2-02 outbox/worker landed locally |
+| Phase 2 — Sessions/durable events    | In progress | P2-01 inbox, P2-02 outbox/worker, P2-03 play sessions, and P2-04 atomic confirmation landed locally |
 | Phase 3 — Devices/scoring/realtime   | Not started | Depends on operational sessions and outbox                                                                               |
 | Phase 4 — Private R2 media           | Not started | Depends on tenant and session ownership                                                                                  |
 | Phase 5 — TTLock/automation          | Not started | Depends on access-point catalog, sessions, and device commands                                                           |
@@ -380,28 +380,28 @@ Done means:
 
 ### P2-03 — Operational play sessions
 
-- [ ] Add `play_sessions` without renaming Better Auth's `session` table.
-- [ ] Enforce one session per booking and scoped venue/resource ownership.
-- [ ] Add participants, state, scheduled/actual timestamps, correlation, and configuration snapshot.
-- [ ] Backfill sessions for existing eligible bookings idempotently.
+- [x] Add `play_sessions` without renaming Better Auth's `session` table.
+- [x] Enforce one session per booking and scoped venue/resource ownership.
+- [x] Add participants, state, scheduled/actual timestamps, correlation, and configuration snapshot.
+- [x] Backfill sessions for existing eligible bookings idempotently.
 
 Build guide: introduce a pure validated state machine and retain booking links for compatibility.
 
 Done means:
 
-- [ ] Every confirmed booking has exactly one legal operational session and illegal transitions are rejected/audited.
+- [x] Every confirmed booking has exactly one legal operational session and illegal transitions are rejected/audited.
 
 ### P2-04 — Atomic confirmation
 
-- [ ] Confirm payment and booking conditionally once.
-- [ ] Create/upsert play session, history, and outbox events in the same transaction.
-- [ ] Version payment/booking/session event names and payloads.
+- [x] Confirm payment and booking conditionally once.
+- [x] Create/upsert play session, history, and outbox events in the same transaction.
+- [x] Version payment/booking/session event names and payloads.
 
 Build guide: no external email/device/media call occurs inside the transaction; only durable intent is committed.
 
 Done means:
 
-- [ ] Concurrent duplicate confirmation creates one payment transition, booking confirmation, session, history record, and logical event.
+- [x] Concurrent duplicate confirmation creates one payment transition, booking confirmation, session, history record, and logical event.
 
 ### P2-05 — Durable lifecycle scheduler
 

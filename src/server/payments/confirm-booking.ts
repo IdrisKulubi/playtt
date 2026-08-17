@@ -7,13 +7,17 @@ import {
   notifications,
   payments,
 } from "@/db/schema"
+import {
+  repairConfirmationDurableSideEffects,
+  writeConfirmationDurableSideEffects,
+} from "@/server/payments/confirmation-side-effects"
 import { kesToPaystackAmount } from "@/server/payments/constants"
 import { sendBookingConfirmationEmail } from "@/server/payments/confirmation-email"
 import {
   findPaymentByReference,
   getBookingPaymentContextByReference,
 } from "@/server/payments/repository"
-import type { PaystackTransactionData } from "@/server/payments/types"
+import type { BookingPaymentContext, PaystackTransactionData } from "@/server/payments/types"
 
 function mapPaystackChannelToPaymentMethod(
   channel: string | null | undefined,
@@ -32,6 +36,22 @@ export type ConfirmBookingPaymentInput = {
   source: "webhook" | "verify"
 }
 
+function buildSideEffectsInput(
+  tenantId: string,
+  paymentId: string,
+  reference: string,
+  source: "webhook" | "verify",
+  bookingContext: BookingPaymentContext,
+) {
+  return {
+    tenantId,
+    paymentId,
+    reference,
+    source,
+    bookingContext,
+  }
+}
+
 export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
   const existingPayment = await findPaymentByReference(input.reference)
 
@@ -40,6 +60,20 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
   }
 
   if (existingPayment.status === "paid") {
+    const bookingContext = await getBookingPaymentContextByReference(input.reference)
+
+    if (bookingContext) {
+      await repairConfirmationDurableSideEffects(
+        buildSideEffectsInput(
+          existingPayment.tenantId,
+          existingPayment.id,
+          input.reference,
+          input.source,
+          bookingContext,
+        ),
+      )
+    }
+
     return { confirmed: true, reason: "already_confirmed" as const }
   }
 
@@ -50,6 +84,15 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
   }
 
   if (bookingContext.status === "confirmed" && bookingContext.paymentStatus === "paid") {
+    await repairConfirmationDurableSideEffects(
+      buildSideEffectsInput(
+        existingPayment.tenantId,
+        existingPayment.id,
+        input.reference,
+        input.source,
+        bookingContext,
+      ),
+    )
     return { confirmed: true, reason: "already_confirmed" as const }
   }
 
@@ -75,6 +118,14 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
   const paymentMethod = mapPaystackChannelToPaymentMethod(input.transaction.channel)
 
   let shouldSendConfirmationEmail = false
+
+  const sideEffectsInput = buildSideEffectsInput(
+    tenantId,
+    existingPayment.id,
+    input.reference,
+    input.source,
+    bookingContext,
+  )
 
   const transition = await db.transaction(async (tx) => {
     const [confirmedBooking] = await tx
@@ -113,6 +164,7 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
         currentBooking?.status === "confirmed" &&
         currentBooking.paymentStatus === "paid"
       ) {
+        await writeConfirmationDurableSideEffects(tx, sideEffectsInput)
         return "already_confirmed" as const
       }
 
@@ -169,6 +221,8 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
     if (notification) {
       shouldSendConfirmationEmail = true
     }
+
+    await writeConfirmationDurableSideEffects(tx, sideEffectsInput)
 
     return "confirmed" as const
   })

@@ -3,6 +3,8 @@ import { eq, sql } from "drizzle-orm"
 import db, { pool } from "@/db/drizzle"
 import { outboxEvents } from "@/db/schema"
 
+type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0]
+
 export type OutboxEventStatus =
   | "pending"
   | "processing"
@@ -111,8 +113,10 @@ function mapPgOutboxRow(row: Record<string, unknown>): OutboxEventRecord {
 
 export async function enqueueOutboxEvent(
   input: EnqueueOutboxEventInput,
+  tx?: DbExecutor,
 ): Promise<OutboxEventRecord> {
-  const inserted = await db
+  const executor = tx ?? db
+  const inserted = await executor
     .insert(outboxEvents)
     .values({
       tenantId: input.tenantId ?? null,
@@ -138,7 +142,7 @@ export async function enqueueOutboxEvent(
     return mapOutboxRow(inserted[0])
   }
 
-  const [existing] = await db
+  const [existing] = await executor
     .select()
     .from(outboxEvents)
     .where(eq(outboxEvents.idempotencyKey, input.idempotencyKey))

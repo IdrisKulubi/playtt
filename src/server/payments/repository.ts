@@ -24,6 +24,7 @@ export async function getBookingPaymentContext(
       id: bookings.id,
       userId: bookings.userId,
       locationId: bookings.locationId,
+      resourceId: bookings.resourceId,
       status: bookings.status,
       paymentStatus: bookings.paymentStatus,
       totalAmount: bookings.totalAmount,
@@ -36,6 +37,7 @@ export async function getBookingPaymentContext(
       resourceName: resources.name,
       startTime: bookings.startTime,
       endTime: bookings.endTime,
+      pricingRuleSnapshot: bookings.pricingRuleSnapshot,
     })
     .from(bookings)
     .innerJoin(user, eq(bookings.userId, user.id))
@@ -63,6 +65,7 @@ export async function getBookingPaymentContextByReference(
       id: bookings.id,
       userId: bookings.userId,
       locationId: bookings.locationId,
+      resourceId: bookings.resourceId,
       status: bookings.status,
       paymentStatus: bookings.paymentStatus,
       totalAmount: bookings.totalAmount,
@@ -75,6 +78,7 @@ export async function getBookingPaymentContextByReference(
       resourceName: resources.name,
       startTime: bookings.startTime,
       endTime: bookings.endTime,
+      pricingRuleSnapshot: bookings.pricingRuleSnapshot,
     })
     .from(payments)
     .innerJoin(bookings, eq(payments.bookingId, bookings.id))
