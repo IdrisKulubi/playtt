@@ -5,6 +5,7 @@ import {
   bookingStatusHistory,
   bookings,
   locations,
+  playSessions,
   resources,
   user,
 } from "@/db/schema";
@@ -38,6 +39,10 @@ function mapBookingRow(row: {
   resourceName: string;
   expiresAt: Date | null;
   notes: string | null;
+  playSessionId: string | null;
+  playSessionStatus: string | null;
+  playSessionScheduledStartAt: Date | null;
+  playSessionScheduledEndAt: Date | null;
 }): UserBookingSummary {
   return {
     id: row.id,
@@ -59,6 +64,18 @@ function mapBookingRow(row: {
     notes: row.notes,
     editable: false,
     editBlockedReason: null,
+    playSession:
+      row.playSessionId &&
+      row.playSessionStatus &&
+      row.playSessionScheduledStartAt &&
+      row.playSessionScheduledEndAt
+        ? {
+            id: row.playSessionId,
+            status: row.playSessionStatus,
+            scheduledStartAt: row.playSessionScheduledStartAt.toISOString(),
+            scheduledEndAt: row.playSessionScheduledEndAt.toISOString(),
+          }
+        : null,
   };
 }
 
@@ -290,10 +307,21 @@ export async function listUserBookings(
       resourceName: resources.name,
       expiresAt: bookings.expiresAt,
       notes: bookings.notes,
+      playSessionId: playSessions.id,
+      playSessionStatus: playSessions.status,
+      playSessionScheduledStartAt: playSessions.scheduledStartAt,
+      playSessionScheduledEndAt: playSessions.scheduledEndAt,
     })
     .from(bookings)
     .innerJoin(locations, eq(bookings.locationId, locations.id))
     .innerJoin(resources, eq(bookings.resourceId, resources.id))
+    .leftJoin(
+      playSessions,
+      and(
+        eq(playSessions.tenantId, context.tenantId),
+        eq(playSessions.bookingId, bookings.id),
+      ),
+    )
     .where(
       and(
         eq(bookings.tenantId, context.tenantId),
@@ -337,10 +365,21 @@ export async function getUserBookingById(
       resourceName: resources.name,
       expiresAt: bookings.expiresAt,
       notes: bookings.notes,
+      playSessionId: playSessions.id,
+      playSessionStatus: playSessions.status,
+      playSessionScheduledStartAt: playSessions.scheduledStartAt,
+      playSessionScheduledEndAt: playSessions.scheduledEndAt,
     })
     .from(bookings)
     .innerJoin(locations, eq(bookings.locationId, locations.id))
     .innerJoin(resources, eq(bookings.resourceId, resources.id))
+    .leftJoin(
+      playSessions,
+      and(
+        eq(playSessions.tenantId, context.tenantId),
+        eq(playSessions.bookingId, bookings.id),
+      ),
+    )
     .where(
       and(
         eq(bookings.tenantId, context.tenantId),

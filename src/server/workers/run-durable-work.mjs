@@ -95,6 +95,11 @@ export async function runDurableWork(input = {}) {
   const limit = input.limit ?? WORKER_CLAIM_LIMIT
   const leaseMs = input.leaseMs ?? WORKER_LEASE_MS
   const registry = input.registry ?? getRegisteredOutboxConsumers()
+  const outboxRounds = input.outboxRounds ?? 1
+
+  if (typeof input.reconcile === "function") {
+    report.reconcile = await input.reconcile()
+  }
 
   const inboxRepo = input.inboxRepository
   const outboxRepo = input.outboxRepository
@@ -132,33 +137,39 @@ export async function runDurableWork(input = {}) {
   const claimSql = buildClaimOutboxSql(eventTypes.length > 0)
 
   if (outboxRepo && claimSql) {
-    const claimed = await outboxRepo.claimOutboxWork({
-      limit,
-      leaseMs,
-      owner,
-      eventTypes,
-      claimSql,
-    })
-    report.outbox.claimed = claimed.length
-
-    for (const row of claimed) {
-      const result = await processClaimedOutboxRow({
-        row,
-        registry,
-        markProcessed: outboxRepo.markOutboxProcessed,
-        markRetryOrDeadLetter: async (id, next) =>
-          outboxRepo.markOutboxRetryOrDeadLetter(id, {
-            status: next.status,
-            availableAt: new Date(next.availableAt),
-            lastError: next.lastError,
-          }),
+    for (let round = 0; round < outboxRounds; round += 1) {
+      const claimed = await outboxRepo.claimOutboxWork({
+        limit,
+        leaseMs,
+        owner,
+        eventTypes,
+        claimSql,
       })
+      report.outbox.claimed += claimed.length
 
-      if (result.outcome === "processed") report.outbox.processed += 1
-      if (result.outcome === "failed") report.outbox.failed += 1
-      if (result.outcome === "dead_letter") report.outbox.deadLettered += 1
-      if (result.outcome === "skipped-unsupported") {
-        report.outbox.skippedUnsupported += 1
+      if (claimed.length === 0) {
+        break
+      }
+
+      for (const row of claimed) {
+        const result = await processClaimedOutboxRow({
+          row,
+          registry,
+          markProcessed: outboxRepo.markOutboxProcessed,
+          markRetryOrDeadLetter: async (id, next) =>
+            outboxRepo.markOutboxRetryOrDeadLetter(id, {
+              status: next.status,
+              availableAt: new Date(next.availableAt),
+              lastError: next.lastError,
+            }),
+        })
+
+        if (result.outcome === "processed") report.outbox.processed += 1
+        if (result.outcome === "failed") report.outbox.failed += 1
+        if (result.outcome === "dead_letter") report.outbox.deadLettered += 1
+        if (result.outcome === "skipped-unsupported") {
+          report.outbox.skippedUnsupported += 1
+        }
       }
     }
   }

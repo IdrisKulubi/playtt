@@ -92,7 +92,7 @@ test("confirmation side effects ensure session and enqueue both outbox events", 
   assert.match(source, /enqueueOutboxEvent\([\s\S]*\btx\b/)
 })
 
-test("confirmation email still sends after commit, not inside transaction", () => {
+test("confirmation email is sent by the worker consumer, not inline", () => {
   const source = readFileSync(join(paymentsRoot, "confirm-booking.ts"), "utf8")
   const transactionBody = source.match(
     /db\.transaction\(async \(tx\) => \{([\s\S]*?)\n  \}\)/,
@@ -100,7 +100,14 @@ test("confirmation email still sends after commit, not inside transaction", () =
 
   assert.ok(transactionBody)
   assert.doesNotMatch(transactionBody, /sendBookingConfirmationEmail/)
-  assert.match(source, /sendBookingConfirmationEmail/)
+  assert.doesNotMatch(source, /sendBookingConfirmationEmail/)
+  assert.match(
+    readFileSync(
+      join(paymentsRoot, "confirmation-email-consumer.ts"),
+      "utf8",
+    ),
+    /sendBookingConfirmationEmail/,
+  )
 })
 
 test("already confirmed repair path does not mutate payment or booking again", () => {

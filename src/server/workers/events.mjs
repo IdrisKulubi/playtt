@@ -1,12 +1,24 @@
+import { sessionLifecycleIdempotencyKey } from "../sessions/lifecycle-schedule.mjs"
+
 export const EVENT_TYPES = {
   PAYMENT_CONFIRMED_V1: "payment.confirmed.v1",
   BOOKING_CONFIRMED_V1: "booking.confirmed.v1",
   SESSION_PREPARING_V1: "session.preparing.v1",
   SESSION_STARTED_V1: "session.started.v1",
+  SESSION_ENDING_V1: "session.ending.v1",
   SESSION_COMPLETED_V1: "session.completed.v1",
+  SESSION_RESETTING_V1: "session.resetting.v1",
 }
 
 export const EVENT_VERSION = 1
+
+export const SESSION_LIFECYCLE_EVENT_TYPES = [
+  EVENT_TYPES.SESSION_PREPARING_V1,
+  EVENT_TYPES.SESSION_STARTED_V1,
+  EVENT_TYPES.SESSION_ENDING_V1,
+  EVENT_TYPES.SESSION_COMPLETED_V1,
+  EVENT_TYPES.SESSION_RESETTING_V1,
+]
 
 export function paymentConfirmedIdempotencyKey(paymentId) {
   return `payment.confirmed.v1:${paymentId}`
@@ -15,6 +27,8 @@ export function paymentConfirmedIdempotencyKey(paymentId) {
 export function bookingConfirmedIdempotencyKey(bookingId) {
   return `booking.confirmed.v1:${bookingId}`
 }
+
+export { sessionLifecycleIdempotencyKey }
 
 export function buildPaymentConfirmedOutboxEvent(input) {
   return {
@@ -60,5 +74,32 @@ export function buildBookingConfirmedOutboxEvent(input) {
       endTime: input.endTime,
     },
     idempotencyKey: bookingConfirmedIdempotencyKey(input.bookingId),
+  }
+}
+
+export function buildSessionLifecycleOutboxEvent(input) {
+  return {
+    tenantId: input.tenantId,
+    venueId: input.locationId,
+    resourceId: input.resourceId,
+    sessionId: input.playSessionId,
+    aggregateType: "play_session",
+    aggregateId: input.playSessionId,
+    eventType: input.eventType,
+    eventVersion: EVENT_VERSION,
+    correlationId: input.correlationId,
+    causationId: input.causationId ?? null,
+    availableAt: input.availableAt,
+    payload: {
+      playSessionId: input.playSessionId,
+      bookingId: input.bookingId,
+      toStatus: input.toStatus,
+      cause: input.cause ?? "lifecycle_scheduler",
+    },
+    idempotencyKey: sessionLifecycleIdempotencyKey(
+      input.eventType,
+      input.playSessionId,
+      input.toStatus,
+    ),
   }
 }

@@ -37,7 +37,7 @@ flowchart LR
 | --- | --- | --- | --- | --- |
 | 0 | Trustworthy current baseline | None | Existing behavior only | **Complete** — repository, hosted CI, live fingerprints, staging provider callbacks, and device smoke evidence recorded |
 | 1 | Tenant-aware venue/resource core | Phase 0 | New tenant features off | Ready to start |
-| 2 | Durable payment and play-session orchestration | Phase 1 | Worker consumers staged then enabled | In progress — P2-01 inbox, P2-02 outbox/worker, P2-03 play sessions, and P2-04 atomic confirmation landed locally |
+| 2 | Durable payment and play-session orchestration | Phase 1 | Worker consumers staged then enabled | **Complete** — P2-01 through P2-07 and local Phase 2 exit evidence complete |
 | 3 | Provisioned devices and authoritative scoring | Phase 2 | Per-resource device/scoring flags off | Not started |
 | 4 | Private media metadata and R2 grants | Phase 2 | R2 media off outside internal cohort | Not started |
 | 5 | TTLock booking codes and relay automation | Phases 2 and 3 | Per-venue/provider flags off | Not started |
@@ -133,9 +133,9 @@ Make payment confirmation and venue session orchestration durable, idempotent, r
 | P2-02 | Transactional outbox and worker | Versioned events, leases/claims, retry/backoff, dead-letter state, correlation, and consumer idempotency survive restart. **Local evidence (2026-08-17):** migration `0013_outbox_events`, `FOR UPDATE SKIP LOCKED` claims, `/api/cron/durable-work`, webhook processing moved behind the worker; `pnpm test:workers` and `pnpm test:contracts` pass. |
 | P2-03 | Operational `play_sessions` | One session per confirmed booking, participants, configuration snapshot, timestamps, and validated state transitions are implemented. **Local evidence (2026-08-17):** migration `0014_play_sessions`, pure state machine, tenant-scoped ensure/get/transition service, idempotent backfill, post-confirm hook; `pnpm test:sessions`, `pnpm test:contracts`, `pnpm test:payments`, and `pnpm test:workers` pass. |
 | P2-04 | Atomic confirmation | Payment, booking, history, play session, and outbox events commit exactly once in one transaction. **Local evidence (2026-08-17):** session ensure + `payment.confirmed.v1` / `booking.confirmed.v1` folded into `confirmBookingPayment` tx with repair path for already-confirmed bookings; `pnpm test:payments`, `pnpm test:sessions`, `pnpm test:contracts`, and `pnpm test:workers` pass. |
-| P2-05 | Durable lifecycle scheduler | Prepare, start, ending, complete, and reset work is scheduled and periodically reconciled without in-memory timers. |
-| P2-06 | Side-effect migration | Confirmation email and later consumers move behind outbox only after their consumers are deployed and idempotent. |
-| P2-07 | Compatibility projections | Existing booking/payment API shapes and callback polling continue to work while session fields are added. |
+| P2-05 | Durable lifecycle scheduler | Prepare, start, ending, complete, and reset work is scheduled and periodically reconciled without in-memory timers. **Local evidence (2026-08-17):** next-intent outbox scheduling (`session.preparing.v1` … `session.resetting.v1`), reconciler on `/api/cron/durable-work`, catch-up consumers; `pnpm test:sessions`, `pnpm test:workers`, `pnpm test:payments`, and `pnpm test:contracts` pass. |
+| P2-06 | Side-effect migration | Confirmation email and later consumers move behind outbox only after their consumers are deployed and idempotent. **Local evidence (2026-08-17):** `payment.confirmed.v1` email consumer, notification backfill, inline send removed; `pnpm test:payments`, `pnpm test:workers`, and `pnpm test:contracts` pass. |
+| P2-07 | Compatibility projections | Existing booking/payment API shapes and callback polling continue to work while session fields are added. **Local evidence (2026-08-17):** optional `playSession` on booking list/detail, manifest additive notes; `pnpm test:contracts` pass. |
 
 ### Exit gate
 

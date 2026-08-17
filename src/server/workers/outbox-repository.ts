@@ -49,6 +49,7 @@ export interface EnqueueOutboxEventInput {
   causationId?: string | null
   payload: Record<string, unknown>
   idempotencyKey: string
+  availableAt?: Date | string | null
 }
 
 function mapOutboxRow(
@@ -132,6 +133,9 @@ export async function enqueueOutboxEvent(
       payload: input.payload,
       idempotencyKey: input.idempotencyKey,
       status: "pending",
+      ...(input.availableAt
+        ? { availableAt: new Date(input.availableAt) }
+        : {}),
     })
     .onConflictDoNothing({
       target: [outboxEvents.idempotencyKey],
