@@ -313,15 +313,15 @@ Done means:
 
 ### P1-06/P1-07 — Operator catalog and legacy compatibility
 
-- [ ] Build authorized operator screens/APIs for tenants, venues, zones, resources, capabilities, and memberships.
-- [ ] Preserve existing unversioned web/mobile contracts and IDs.
-- [ ] Add fields only; feature-flag new tenant/operator behavior.
+- [x] Build authorized operator screens/APIs for tenants, venues, zones, resources, capabilities, and memberships.
+- [x] Preserve existing unversioned web/mobile contracts and IDs.
+- [x] Add fields only; feature-flag new tenant/operator behavior.
 
 Build guide: keep the modular monolith and current endpoint adapters; introduce new external versions only where contract value justifies them.
 
 Done means:
 
-- [ ] Old client fixtures pass while operators can configure two isolated tenants and venues.
+- [x] Old client fixtures pass while operators can configure two isolated tenants and venues.
 
 ### P1-08 — Access-point and door catalog
 

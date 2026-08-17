@@ -87,6 +87,30 @@ Live and hosted acceptance evidence is now recorded:
 
 **Outstanding:** Phase owner and reviewer sign-off before Phase 1 schema migrations begin.
 
+**Outstanding:** P1-08 and Phase 1 exit gates remain open.
+
+### Implementation log - 2026-08-17 (P1-07 legacy compatibility)
+
+P1-07 landed in the working tree:
+
+- **Legacy contracts:** Unversioned `/api/bookings/*` bootstrap/quote/availability still resolve the PlayTT tenant server-side via `resolvePublicCatalogContext`; location/resource IDs, `{ data }` envelopes, and mobile fixtures are unchanged and include no client `tenantId`.
+- **Versioned adapters:** GET `/api/v1/venues`, `/api/v1/venues/:venueId`, and `/api/v1/venues/:venueId/resources` map `locations`/`resources` through `src/server/catalog/` without a table rename. Tenant/capability fields are optional on the v1 payload only.
+- **Feature flag:** `public_venue_api` with `PUBLIC_VENUE_API_ENABLED` / non-production fallback; disabled requests 404. Client `x-tenant-id` and `tenantId` query values are rejected.
+- **Tests:** `pnpm test:catalog` covers v1 adapters and legacy bootstrap shape; `pnpm test:contracts` remains the released-mobile gate.
+
+**Outstanding:** P1-08 and Phase 1 exit gates remain open.
+
+### Implementation log - 2026-08-17 (P1-06 operator shell)
+
+P1-06 landed in the working tree:
+
+- **Server:** `src/server/operator/` adds tenant-scoped catalog/membership/feature-flag reads, `canAccessOperatorShell`, `isOperatorShellEnabledForTenant` (`operator_shell` flag with non-production fallback), and `requireOperatorPageAccess` gate.
+- **API:** GET `/api/operator/catalog`, `/api/operator/memberships`, `/api/operator/feature-flags` — session auth, tenant context, role + feature-flag checks; `{ data }` envelope unchanged from booking APIs.
+- **UI:** `/operator` shell with overview, venues (detail with zones/resources/capabilities), resource types, memberships, and feature flags. Customers redirect to dashboard.
+- **Tests:** `pnpm test:operator` passes; `pnpm test:contracts` unchanged.
+
+**Outstanding:** P1-08 and Phase 1 exit gates remain open.
+
 ### Implementation log - 2026-08-17 (P1-05 TenantContext and RBAC)
 
 P1-05 landed in the working tree:
@@ -315,16 +339,16 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 
 #### P1-07 - Maintain legacy clients
 
-- [ ] Resolve the PlayTT tenant server-side for legacy routes and Server Actions.
-- [ ] Preserve existing IDs, URLs, response envelopes, price/time shapes, and mobile booking adapters.
-- [ ] Add versioned venue/resource endpoints as adapters over the same application services.
-- [ ] Deliver new capability/tenant fields as optional until client minimum version advances.
+- [x] Resolve the PlayTT tenant server-side for legacy routes and Server Actions.
+- [x] Preserve existing IDs, URLs, response envelopes, price/time shapes, and mobile booking adapters.
+- [x] Add versioned venue/resource endpoints as adapters over the same application services.
+- [x] Deliver new capability/tenant fields as optional until client minimum version advances.
 
 #### P1-06 - Operator configuration
 
-- [ ] Add protected operator shell and navigation.
-- [ ] Implement tenant, membership, venue, zone, resource, resource-type, capability, and feature-flag views/actions.
-- [ ] Hide/deny all operator UI and APIs for customer/support roles without permissions.
+- [x] Add protected operator shell and navigation.
+- [x] Implement tenant, membership, venue, zone, resource, resource-type, capability, and feature-flag views/actions.
+- [x] Hide/deny all operator UI and APIs for customer/support roles without permissions.
 
 ### Automated tests
 
