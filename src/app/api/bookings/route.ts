@@ -9,6 +9,8 @@ import {
 import { createPendingBooking } from "@/server/bookings/service"
 import { createBookingBodySchema } from "@/server/bookings/validators"
 import { getUserProfileById } from "@/server/users/onboarding"
+import { createCorrelationId } from "@/server/tenancy/correlation"
+import { resolveRequestTenantContext } from "@/server/tenancy/resolve-request-context"
 
 export async function POST(req: NextRequest) {
   const session = await getSessionWithBearerFallback(req)
@@ -54,7 +56,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await createPendingBooking({
+    const context = await resolveRequestTenantContext({
+      userId: session.user.id,
+      correlationId: createCorrelationId(),
+      clientTenantId: req.headers.get("x-tenant-id"),
+    })
+    const result = await createPendingBooking(context, {
       ...parsed.data,
       userId: session.user.id,
     })

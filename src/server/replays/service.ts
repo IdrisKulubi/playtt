@@ -25,16 +25,22 @@ import {
 } from "@/server/replays/repository"
 import { enqueueCoachAnalysis } from "@/server/coach/analysis"
 import { enqueueNvrClip } from "@/server/replays/nvr-worker"
+import { authorize } from "@/server/tenancy/authorize-context.mjs"
+import type { TenantContext } from "@/server/tenancy/types"
 
 function metadataTitle(metadata: Record<string, unknown> | null | undefined) {
   const title = metadata?.title
   return typeof title === "string" && title.trim() ? title : "Session clip"
 }
 
-export async function getReplayCreditsStatus(userId: string) {
+export async function getReplayCreditsStatus(
+  context: TenantContext,
+  userId: string,
+) {
+  authorize(context, "account.read")
   const [balance, lastPurchasedAt] = await Promise.all([
-    getOrCreateCreditBalance(userId),
-    getLastPackPurchaseAt(userId),
+    getOrCreateCreditBalance(context, userId),
+    getLastPackPurchaseAt(context, userId),
   ])
 
   return {
@@ -45,7 +51,11 @@ export async function getReplayCreditsStatus(userId: string) {
   }
 }
 
-export async function initiateReplayPackPurchase(userId: string) {
+export async function initiateReplayPackPurchase(
+  context: TenantContext,
+  userId: string,
+) {
+  authorize(context, "account.update")
   const email = await getUserEmail(userId)
 
   if (!email) {
@@ -78,7 +88,7 @@ export async function initiateReplayPackPurchase(userId: string) {
     throw new PaymentServiceError("PAYMENT_INIT_FAILED", message, 502)
   }
 
-  await insertProductPayment({
+  await insertProductPayment(context, {
     userId,
     productType: "replay_pack",
     providerReference: initialized.reference,
@@ -98,10 +108,12 @@ export async function initiateReplayPackPurchase(userId: string) {
 }
 
 export async function requestReplayCapture(input: {
+  context: TenantContext
   userId: string
   bookingId: string
 }) {
-  const booking = await getActiveBookingForReplay({
+  authorize(input.context, "booking.read")
+  const booking = await getActiveBookingForReplay(input.context, {
     bookingId: input.bookingId,
     userId: input.userId,
   })
@@ -114,7 +126,7 @@ export async function requestReplayCapture(input: {
     )
   }
 
-  const result = await debitReplayCredit({
+  const result = await debitReplayCredit(input.context, {
     userId: input.userId,
     bookingId: booking.id,
     locationId: booking.locationId,
@@ -144,8 +156,9 @@ export async function requestReplayCapture(input: {
   }
 }
 
-export async function listUserReplays(userId: string) {
-  const rows = await listReplaysForUser(userId)
+export async function listUserReplays(context: TenantContext, userId: string) {
+  authorize(context, "account.read")
+  const rows = await listReplaysForUser(context, userId)
 
   return rows.map((row) => ({
     id: row.id,
@@ -172,6 +185,7 @@ export async function markReplayReady(input: {
       replayId: replay.id,
       userId: replay.userId,
       bookingId: replay.bookingId,
+      tenantId: replay.tenantId,
     })
   }
 

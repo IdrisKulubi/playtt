@@ -15,6 +15,7 @@ import { BookingPaymentButton } from "@/components/bookings/booking-payment-butt
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { listBookingsForUserEnriched } from "@/server/bookings/service"
+import { resolveTenantContextForUserId } from "@/server/tenancy/session-context"
 import type { UserBookingSummary } from "@/server/bookings/types"
 
 export const dynamic = "force-dynamic"
@@ -349,7 +350,9 @@ export default async function BookingsPage() {
     )
   }
 
+  const context = await resolveTenantContextForUserId(session.user.id)
   const bookings = await listBookingsForUserEnriched({
+    context,
     userId: session.user.id,
     filter: "all",
   })

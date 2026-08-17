@@ -7,6 +7,7 @@ import {
   mapCoachServiceError,
 } from "@/server/coach/http"
 import { getCoachInsightDetail } from "@/server/coach/service"
+import { resolveTenantContextForSessionUser } from "@/server/tenancy/session-context"
 
 export async function GET(
   req: NextRequest,
@@ -24,7 +25,12 @@ export async function GET(
     }
 
     const { id } = await context.params
+    const tenantContext = await resolveTenantContextForSessionUser(
+      session.user.id,
+      req.headers.get("x-tenant-id"),
+    )
     const result = await getCoachInsightDetail({
+      context: tenantContext,
       userId: session.user.id,
       insightId: id,
     })

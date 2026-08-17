@@ -8,6 +8,8 @@ import {
 } from "@/server/bookings/http"
 import type { BookingListFilter } from "@/server/bookings/repository"
 import { listBookingsForUserEnriched } from "@/server/bookings/service"
+import { createCorrelationId } from "@/server/tenancy/correlation"
+import { resolveRequestTenantContext } from "@/server/tenancy/resolve-request-context"
 
 function parseFilter(value: string | null): BookingListFilter {
   if (value === "upcoming" || value === "past") {
@@ -30,7 +32,13 @@ export async function GET(req: NextRequest) {
 
   try {
     const filter = parseFilter(req.nextUrl.searchParams.get("filter"))
+    const context = await resolveRequestTenantContext({
+      userId: session.user.id,
+      correlationId: createCorrelationId(),
+      clientTenantId: req.headers.get("x-tenant-id"),
+    })
     const bookings = await listBookingsForUserEnriched({
+      context,
       userId: session.user.id,
       filter,
     })

@@ -15,6 +15,7 @@ import {
 import { PlayerShell } from "@/components/layout/player-shell"
 import { auth } from "../../../auth"
 import { listBookingsForUserEnriched } from "@/server/bookings/service"
+import { resolveTenantContextForUserId } from "@/server/tenancy/session-context"
 import type { UserBookingSummary } from "@/server/bookings/types"
 
 export const dynamic = "force-dynamic"
@@ -49,7 +50,11 @@ export default async function DashboardPage() {
 
   if (session?.user) {
     try {
-      bookings = await listBookingsForUserEnriched({ userId: session.user.id })
+      const context = await resolveTenantContextForUserId(session.user.id)
+      bookings = await listBookingsForUserEnriched({
+        context,
+        userId: session.user.id,
+      })
     } catch {
       loadError = true
     }

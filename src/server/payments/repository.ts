@@ -10,11 +10,15 @@ import {
   user,
 } from "@/db/schema"
 import type { BookingPaymentContext } from "@/server/payments/types"
+import type { TenantContext } from "@/server/tenancy/types"
 
-export async function getBookingPaymentContext(input: {
-  bookingId: string
-  userId: string
-}): Promise<BookingPaymentContext | null> {
+export async function getBookingPaymentContext(
+  context: TenantContext,
+  input: {
+    bookingId: string
+    userId: string
+  },
+): Promise<BookingPaymentContext | null> {
   const [row] = await db
     .select({
       id: bookings.id,
@@ -37,7 +41,15 @@ export async function getBookingPaymentContext(input: {
     .innerJoin(user, eq(bookings.userId, user.id))
     .innerJoin(locations, eq(bookings.locationId, locations.id))
     .innerJoin(resources, eq(bookings.resourceId, resources.id))
-    .where(and(eq(bookings.id, input.bookingId), eq(bookings.userId, input.userId)))
+    .where(
+      and(
+        eq(bookings.tenantId, context.tenantId),
+        eq(locations.tenantId, context.tenantId),
+        eq(resources.tenantId, context.tenantId),
+        eq(bookings.id, input.bookingId),
+        eq(bookings.userId, input.userId),
+      ),
+    )
     .limit(1)
 
   return row ?? null
@@ -77,11 +89,16 @@ export async function getBookingPaymentContextByReference(
   return row ?? null
 }
 
-export async function findLatestPaymentForBooking(bookingId: string) {
+export async function findLatestPaymentForBooking(
+  context: TenantContext,
+  bookingId: string,
+) {
   const [row] = await db
     .select()
     .from(payments)
-    .where(eq(payments.bookingId, bookingId))
+    .where(
+      and(eq(payments.tenantId, context.tenantId), eq(payments.bookingId, bookingId)),
+    )
     .orderBy(desc(payments.createdAt))
     .limit(1)
 
@@ -100,19 +117,23 @@ export async function findPaymentByReference(reference: string) {
   return row ?? null
 }
 
-export async function insertPaymentRecord(input: {
-  bookingId: string
-  locationId: string
-  userId: string
-  providerReference: string
-  amount: string
-  currency: string
-  paymentMethod?: "mpesa" | "card"
-  rawPayload: Record<string, unknown>
-}) {
+export async function insertPaymentRecord(
+  context: TenantContext,
+  input: {
+    bookingId: string
+    locationId: string
+    userId: string
+    providerReference: string
+    amount: string
+    currency: string
+    paymentMethod?: "mpesa" | "card"
+    rawPayload: Record<string, unknown>
+  },
+) {
   const [created] = await db
     .insert(payments)
     .values({
+      tenantId: context.tenantId,
       bookingId: input.bookingId,
       locationId: input.locationId,
       userId: input.userId,
@@ -129,17 +150,26 @@ export async function insertPaymentRecord(input: {
   return created
 }
 
-export async function markPaymentFailed(input: {
-  paymentId: string
-  rawPayload?: Record<string, unknown>
-}) {
+export async function markPaymentFailed(
+  context: TenantContext,
+  input: {
+    paymentId: string
+    rawPayload?: Record<string, unknown>
+  },
+) {
   await db
     .update(payments)
     .set({
       status: "failed",
       rawPayload: input.rawPayload,
     })
-    .where(and(eq(payments.id, input.paymentId), eq(payments.status, "pending")))
+    .where(
+      and(
+        eq(payments.tenantId, context.tenantId),
+        eq(payments.id, input.paymentId),
+        eq(payments.status, "pending"),
+      ),
+    )
 }
 
 export async function expireStalePendingBookings() {
@@ -157,11 +187,12 @@ export async function expireStalePendingBookings() {
           lt(bookings.expiresAt, now),
         ),
       )
-      .returning({ id: bookings.id })
+      .returning({ id: bookings.id, tenantId: bookings.tenantId })
 
     if (expiredBookings.length > 0) {
       await tx.insert(bookingStatusHistory).values(
         expiredBookings.map((booking) => ({
+          tenantId: booking.tenantId,
           bookingId: booking.id,
           fromStatus: "pending" as const,
           toStatus: "expired" as const,
@@ -175,10 +206,13 @@ export async function expireStalePendingBookings() {
   })
 }
 
-export async function cancelUnpaidBooking(input: {
-  bookingId: string
-  userId: string
-}) {
+export async function cancelUnpaidBooking(
+  context: TenantContext,
+  input: {
+    bookingId: string
+    userId: string
+  },
+) {
   return db.transaction(async (tx) => {
     const now = new Date()
 
@@ -190,6 +224,7 @@ export async function cancelUnpaidBooking(input: {
       })
       .where(
         and(
+          eq(bookings.tenantId, context.tenantId),
           eq(bookings.id, input.bookingId),
           eq(bookings.userId, input.userId),
           eq(bookings.status, "pending"),
@@ -211,7 +246,11 @@ export async function cancelUnpaidBooking(input: {
         })
         .from(bookings)
         .where(
-          and(eq(bookings.id, input.bookingId), eq(bookings.userId, input.userId)),
+          and(
+            eq(bookings.tenantId, context.tenantId),
+            eq(bookings.id, input.bookingId),
+            eq(bookings.userId, input.userId),
+          ),
         )
         .limit(1)
 
@@ -219,6 +258,7 @@ export async function cancelUnpaidBooking(input: {
     }
 
     await tx.insert(bookingStatusHistory).values({
+      tenantId: context.tenantId,
       bookingId: input.bookingId,
       fromStatus: "pending",
       toStatus: "cancelled",

@@ -19,6 +19,8 @@ import {
   getBookingPaymentContext,
   insertPaymentRecord,
 } from "@/server/payments/repository"
+import { authorize } from "@/server/tenancy/authorize-context.mjs"
+import type { TenantContext } from "@/server/tenancy/types"
 import type {
   BookingPaymentContext,
   InitiatePaymentResult,
@@ -130,10 +132,11 @@ function buildResult(input: {
 }
 
 async function initiateHostedPayment(
+  context: TenantContext,
   booking: BookingPaymentContext,
-  options?: { client?: "web" | "mobile" }
+  options?: { client?: "web" | "mobile" },
 ): Promise<InitiatePaymentResult> {
-  const latestPayment = await findLatestPaymentForBooking(booking.id)
+  const latestPayment = await findLatestPaymentForBooking(context, booking.id)
 
   if (latestPayment?.status === "pending") {
     try {
@@ -187,7 +190,7 @@ async function initiateHostedPayment(
     throw new PaymentServiceError("PAYMENT_INIT_FAILED", message, 502)
   }
 
-  await insertPaymentRecord({
+  await insertPaymentRecord(context, {
     bookingId: booking.id,
     locationId: booking.locationId,
     userId: booking.userId,
@@ -222,13 +225,15 @@ function parsePaymentClient(body: unknown): "web" | "mobile" | undefined {
 }
 
 export async function initiateBookingPayment(input: {
+  context: TenantContext
   bookingId: string
   userId: string
   body: unknown
 }): Promise<InitiatePaymentResult> {
+  authorize(input.context, "booking.read")
   await runBookingExpirySweep()
 
-  const booking = await getBookingPaymentContext({
+  const booking = await getBookingPaymentContext(input.context, {
     bookingId: input.bookingId,
     userId: input.userId,
   })
@@ -243,18 +248,20 @@ export async function initiateBookingPayment(input: {
 
   assertBookingPayable(booking)
 
-  return initiateHostedPayment(booking, {
+  return initiateHostedPayment(input.context, booking, {
     client: parsePaymentClient(input.body),
   })
 }
 
 export async function getBookingPaymentStatus(input: {
+  context: TenantContext
   bookingId: string
   userId: string
 }): Promise<PaymentStatusResult> {
+  authorize(input.context, "booking.read")
   await runBookingExpirySweep()
 
-  const booking = await getBookingPaymentContext({
+  const booking = await getBookingPaymentContext(input.context, {
     bookingId: input.bookingId,
     userId: input.userId,
   })
@@ -267,7 +274,7 @@ export async function getBookingPaymentStatus(input: {
     )
   }
 
-  const latestPayment = await findLatestPaymentForBooking(booking.id)
+  const latestPayment = await findLatestPaymentForBooking(input.context, booking.id)
 
   if (
     booking.status === "pending" &&

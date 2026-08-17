@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { ZodError } from "zod/v3"
 
 import { BookingModificationError } from "@/server/bookings/modifications/errors"
+import { TenancyError } from "@/server/tenancy/errors"
 
 export function bookingJson<T>(data: T, status = 200) {
   return NextResponse.json({ data }, { status })
@@ -17,6 +18,32 @@ export function bookingError(
 }
 
 export function mapBookingServiceError(error: unknown) {
+  if (error instanceof TenancyError) {
+    if (
+      error.code === "NOT_AUTHENTICATED" ||
+      error.code === "MEMBERSHIP_NOT_FOUND" ||
+      error.code === "MEMBERSHIP_DISABLED"
+    ) {
+      return bookingError({
+        code: error.code,
+        message: error.message,
+        status: 401,
+      })
+    }
+
+    if (
+      error.code === "FORBIDDEN_ACTION" ||
+      error.code === "FORBIDDEN_TENANT" ||
+      error.code === "DEVICE_CONTEXT_UNSUPPORTED"
+    ) {
+      return bookingError({
+        code: error.code,
+        message: error.message,
+        status: 403,
+      })
+    }
+  }
+
   if (error instanceof BookingModificationError) {
     return bookingError({
       code: error.code,

@@ -18,6 +18,7 @@ import {
   getReplayCreditsStatus,
   listUserReplays,
 } from "@/server/replays/service"
+import { resolveTenantContextForUserId } from "@/server/tenancy/session-context"
 
 export const dynamic = "force-dynamic"
 
@@ -439,13 +440,15 @@ export default async function ActivityPage() {
     )
   }
 
+  const context = await resolveTenantContextForUserId(session.user.id)
   const [bookings, replays, credits] = await Promise.all([
     listBookingsForUserEnriched({
+      context,
       userId: session.user.id,
       filter: "all",
     }),
-    listUserReplays(session.user.id).catch(() => []),
-    getReplayCreditsStatus(session.user.id).catch(() => null),
+    listUserReplays(context, session.user.id).catch(() => []),
+    getReplayCreditsStatus(context, session.user.id).catch(() => null),
   ])
   const stats = buildActivityStats(bookings)
 

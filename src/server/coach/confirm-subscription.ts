@@ -4,6 +4,8 @@ import {
   findProductPaymentByReference,
 } from "@/server/coach/repository"
 import { kesToPaystackAmount } from "@/server/payments/constants"
+import { createServiceTenantContext } from "@/server/tenancy/context-factory"
+import { createCorrelationId } from "@/server/tenancy/correlation"
 import type { PaystackTransactionData } from "@/server/payments/types"
 
 export async function confirmCoachSubscriptionPurchase(input: {
@@ -16,6 +18,12 @@ export async function confirmCoachSubscriptionPurchase(input: {
   if (!existingPayment) {
     return { confirmed: false, reason: "payment_not_found" as const }
   }
+
+  const serviceContext = createServiceTenantContext({
+    tenantId: existingPayment.tenantId,
+    actorId: "paystack-webhook",
+    correlationId: createCorrelationId(),
+  })
 
   if (existingPayment.productType !== "coach_subscription") {
     return { confirmed: false, reason: "invalid_product" as const }
@@ -42,7 +50,7 @@ export async function confirmCoachSubscriptionPurchase(input: {
       ? new Date(input.transaction.paid_at)
       : new Date())
 
-  const transition = await confirmCoachSubscriptionActivation({
+  const transition = await confirmCoachSubscriptionActivation(serviceContext, {
     paymentId: existingPayment.id,
     userId: existingPayment.userId,
     paidAt,

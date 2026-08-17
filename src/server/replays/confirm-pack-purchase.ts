@@ -5,6 +5,8 @@ import {
   confirmAndCreditPackPurchase,
   findProductPaymentByReference,
 } from "@/server/replays/repository"
+import { createServiceTenantContext } from "@/server/tenancy/context-factory"
+import { createCorrelationId } from "@/server/tenancy/correlation"
 
 export async function confirmReplayPackPurchase(input: {
   reference: string
@@ -17,12 +19,18 @@ export async function confirmReplayPackPurchase(input: {
     return { confirmed: false, reason: "payment_not_found" as const }
   }
 
+  const serviceContext = createServiceTenantContext({
+    tenantId: existingPayment.tenantId,
+    actorId: "paystack-webhook",
+    correlationId: createCorrelationId(),
+  })
+
   if (existingPayment.productType !== "replay_pack") {
     return { confirmed: false, reason: "invalid_product" as const }
   }
 
   if (existingPayment.status === "paid") {
-    await confirmAndCreditPackPurchase({
+    await confirmAndCreditPackPurchase(serviceContext, {
       productPaymentId: existingPayment.id,
       paidAt: existingPayment.paidAt ?? new Date(),
       providerEventId: existingPayment.providerEventId,
@@ -51,7 +59,7 @@ export async function confirmReplayPackPurchase(input: {
     ? new Date(input.transaction.paid_at)
     : new Date()
 
-  const result = await confirmAndCreditPackPurchase({
+  const result = await confirmAndCreditPackPurchase(serviceContext, {
     productPaymentId: existingPayment.id,
     paidAt,
     providerEventId: input.providerEventId,

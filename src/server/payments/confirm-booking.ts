@@ -70,6 +70,8 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
     ? new Date(input.transaction.paid_at)
     : new Date()
 
+  const tenantId = existingPayment.tenantId
+
   const paymentMethod = mapPaystackChannelToPaymentMethod(input.transaction.channel)
 
   let shouldSendConfirmationEmail = false
@@ -84,6 +86,7 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
       })
       .where(
         and(
+          eq(bookings.tenantId, tenantId),
           eq(bookings.id, bookingContext.id),
           eq(bookings.status, "pending"),
           eq(bookings.paymentStatus, "unpaid"),
@@ -98,7 +101,12 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
           paymentStatus: bookings.paymentStatus,
         })
         .from(bookings)
-        .where(eq(bookings.id, bookingContext.id))
+        .where(
+          and(
+            eq(bookings.tenantId, tenantId),
+            eq(bookings.id, bookingContext.id),
+          ),
+        )
         .limit(1)
 
       if (
@@ -121,12 +129,13 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
         rawPayload: input.transaction as unknown as Record<string, unknown>,
       })
       .where(
-        and(eq(payments.id, existingPayment.id), ne(payments.status, "paid")),
+        and(eq(payments.tenantId, tenantId), eq(payments.id, existingPayment.id), ne(payments.status, "paid")),
       )
 
     await tx
       .insert(bookingStatusHistory)
       .values({
+        tenantId,
         bookingId: bookingContext.id,
         fromStatus: "pending",
         toStatus: "confirmed",
@@ -141,6 +150,7 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
     const [notification] = await tx
       .insert(notifications)
       .values({
+        tenantId,
         bookingId: bookingContext.id,
         locationId: bookingContext.locationId,
         userId: bookingContext.userId,

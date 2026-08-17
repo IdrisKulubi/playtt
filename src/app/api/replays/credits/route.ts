@@ -7,6 +7,7 @@ import {
   replayJson,
 } from "@/server/replays/http"
 import { getReplayCreditsStatus } from "@/server/replays/service"
+import { resolveTenantContextForSessionUser } from "@/server/tenancy/session-context"
 
 export async function GET(req: NextRequest) {
   try {
@@ -20,7 +21,11 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    const credits = await getReplayCreditsStatus(session.user.id)
+    const context = await resolveTenantContextForSessionUser(
+      session.user.id,
+      req.headers.get("x-tenant-id"),
+    )
+    const credits = await getReplayCreditsStatus(context, session.user.id)
     return replayJson({ credits })
   } catch (error) {
     return mapReplayServiceError(error)

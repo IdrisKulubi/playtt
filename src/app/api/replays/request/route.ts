@@ -10,6 +10,7 @@ import {
 } from "@/server/replays/http"
 import { requestReplayCapture } from "@/server/replays/service"
 import { shouldAutoRunReplayStub } from "@/server/replays/stub-policy"
+import { resolveTenantContextForSessionUser } from "@/server/tenancy/session-context"
 
 const bodySchema = z.object({
   bookingId: z.string().uuid(),
@@ -40,7 +41,12 @@ export async function POST(req: NextRequest) {
     }
 
     const body = bodySchema.parse(requestBody)
+    const context = await resolveTenantContextForSessionUser(
+      session.user.id,
+      req.headers.get("x-tenant-id"),
+    )
     const result = await requestReplayCapture({
+      context,
       userId: session.user.id,
       bookingId: body.bookingId,
     })

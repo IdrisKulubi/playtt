@@ -11,12 +11,21 @@ import {
   user,
 } from "@/db/schema"
 import { REPLAY_PACK_CREDITS } from "@/server/replays/constants"
+import type { TenantContext } from "@/server/tenancy/types"
 
-export async function getOrCreateCreditBalance(userId: string) {
+export async function getOrCreateCreditBalance(
+  context: TenantContext,
+  userId: string,
+) {
   const [existing] = await db
     .select()
     .from(replayCreditBalances)
-    .where(eq(replayCreditBalances.userId, userId))
+    .where(
+      and(
+        eq(replayCreditBalances.tenantId, context.tenantId),
+        eq(replayCreditBalances.userId, userId),
+      ),
+    )
     .limit(1)
 
   if (existing) {
@@ -25,7 +34,7 @@ export async function getOrCreateCreditBalance(userId: string) {
 
   const [created] = await db
     .insert(replayCreditBalances)
-    .values({ userId, balance: 0 })
+    .values({ tenantId: context.tenantId, userId, balance: 0 })
     .onConflictDoNothing()
     .returning()
 
@@ -36,22 +45,31 @@ export async function getOrCreateCreditBalance(userId: string) {
   const [row] = await db
     .select()
     .from(replayCreditBalances)
-    .where(eq(replayCreditBalances.userId, userId))
+    .where(
+      and(
+        eq(replayCreditBalances.tenantId, context.tenantId),
+        eq(replayCreditBalances.userId, userId),
+      ),
+    )
     .limit(1)
 
   return row!
 }
 
-export async function getLastPackPurchaseAt(userId: string) {
+export async function getLastPackPurchaseAt(
+  context: TenantContext,
+  userId: string,
+) {
   const [row] = await db
     .select({ paidAt: productPayments.paidAt })
     .from(productPayments)
     .where(
       and(
+        eq(productPayments.tenantId, context.tenantId),
         eq(productPayments.userId, userId),
         eq(productPayments.productType, "replay_pack"),
-        eq(productPayments.status, "paid")
-      )
+        eq(productPayments.status, "paid"),
+      ),
     )
     .orderBy(desc(productPayments.paidAt))
     .limit(1)
@@ -59,17 +77,21 @@ export async function getLastPackPurchaseAt(userId: string) {
   return row?.paidAt ?? null
 }
 
-export async function insertProductPayment(input: {
-  userId: string
-  productType: "replay_pack" | "coach_subscription"
-  providerReference: string
-  amount: string
-  currency: string
-  rawPayload: Record<string, unknown>
-}) {
+export async function insertProductPayment(
+  context: TenantContext,
+  input: {
+    userId: string
+    productType: "replay_pack" | "coach_subscription"
+    providerReference: string
+    amount: string
+    currency: string
+    rawPayload: Record<string, unknown>
+  },
+) {
   const [row] = await db
     .insert(productPayments)
     .values({
+      tenantId: context.tenantId,
       userId: input.userId,
       productType: input.productType,
       providerReference: input.providerReference,
@@ -89,31 +111,39 @@ export async function findProductPaymentByReference(reference: string) {
     .where(
       and(
         eq(productPayments.provider, "paystack"),
-        eq(productPayments.providerReference, reference)
-      )
+        eq(productPayments.providerReference, reference),
+      ),
     )
     .limit(1)
 
   return row ?? null
 }
 
-export async function creditPackPurchase(input: {
-  userId: string
-  productPaymentId: string
-  credits?: number
-}) {
+export async function creditPackPurchase(
+  context: TenantContext,
+  input: {
+    userId: string
+    productPaymentId: string
+    credits?: number
+  },
+) {
   const credits = input.credits ?? REPLAY_PACK_CREDITS
 
   return db.transaction(async (tx) => {
     await tx
       .insert(replayCreditBalances)
-      .values({ userId: input.userId, balance: 0 })
+      .values({ tenantId: context.tenantId, userId: input.userId, balance: 0 })
       .onConflictDoNothing()
 
     const [balanceRow] = await tx
       .select()
       .from(replayCreditBalances)
-      .where(eq(replayCreditBalances.userId, input.userId))
+      .where(
+        and(
+          eq(replayCreditBalances.tenantId, context.tenantId),
+          eq(replayCreditBalances.userId, input.userId),
+        ),
+      )
       .for("update")
       .limit(1)
 
@@ -123,9 +153,15 @@ export async function creditPackPurchase(input: {
     await tx
       .update(replayCreditBalances)
       .set({ balance: nextBalance, updatedAt: new Date() })
-      .where(eq(replayCreditBalances.userId, input.userId))
+      .where(
+        and(
+          eq(replayCreditBalances.tenantId, context.tenantId),
+          eq(replayCreditBalances.userId, input.userId),
+        ),
+      )
 
     await tx.insert(replayCreditLedger).values({
+      tenantId: context.tenantId,
       userId: input.userId,
       delta: credits,
       reason: "pack_purchase",
@@ -136,17 +172,25 @@ export async function creditPackPurchase(input: {
   })
 }
 
-export async function confirmAndCreditPackPurchase(input: {
-  productPaymentId: string
-  paidAt: Date
-  providerEventId?: string | null
-  rawPayload: Record<string, unknown>
-}) {
+export async function confirmAndCreditPackPurchase(
+  context: TenantContext,
+  input: {
+    productPaymentId: string
+    paidAt: Date
+    providerEventId?: string | null
+    rawPayload: Record<string, unknown>
+  },
+) {
   return db.transaction(async (tx) => {
     const [payment] = await tx
       .select()
       .from(productPayments)
-      .where(eq(productPayments.id, input.productPaymentId))
+      .where(
+        and(
+          eq(productPayments.tenantId, context.tenantId),
+          eq(productPayments.id, input.productPaymentId),
+        ),
+      )
       .for("update")
       .limit(1)
 
@@ -165,15 +209,16 @@ export async function confirmAndCreditPackPurchase(input: {
         })
         .where(
           and(
+            eq(productPayments.tenantId, context.tenantId),
             eq(productPayments.id, payment.id),
-            eq(productPayments.status, payment.status)
-          )
+            eq(productPayments.status, payment.status),
+          ),
         )
         .returning({ id: productPayments.id })
 
       if (!claimed) {
         throw new Error(
-          "Product payment status changed while confirming pack purchase."
+          "Product payment status changed while confirming pack purchase.",
         )
       }
     }
@@ -183,9 +228,10 @@ export async function confirmAndCreditPackPurchase(input: {
       .from(replayCreditLedger)
       .where(
         and(
+          eq(replayCreditLedger.tenantId, context.tenantId),
           eq(replayCreditLedger.productPaymentId, payment.id),
-          eq(replayCreditLedger.reason, "pack_purchase")
-        )
+          eq(replayCreditLedger.reason, "pack_purchase"),
+        ),
       )
       .limit(1)
 
@@ -195,13 +241,18 @@ export async function confirmAndCreditPackPurchase(input: {
 
     await tx
       .insert(replayCreditBalances)
-      .values({ userId: payment.userId, balance: 0 })
+      .values({ tenantId: context.tenantId, userId: payment.userId, balance: 0 })
       .onConflictDoNothing()
 
     const [balanceRow] = await tx
       .select()
       .from(replayCreditBalances)
-      .where(eq(replayCreditBalances.userId, payment.userId))
+      .where(
+        and(
+          eq(replayCreditBalances.tenantId, context.tenantId),
+          eq(replayCreditBalances.userId, payment.userId),
+        ),
+      )
       .for("update")
       .limit(1)
 
@@ -210,9 +261,15 @@ export async function confirmAndCreditPackPurchase(input: {
     await tx
       .update(replayCreditBalances)
       .set({ balance: nextBalance, updatedAt: new Date() })
-      .where(eq(replayCreditBalances.userId, payment.userId))
+      .where(
+        and(
+          eq(replayCreditBalances.tenantId, context.tenantId),
+          eq(replayCreditBalances.userId, payment.userId),
+        ),
+      )
 
     await tx.insert(replayCreditLedger).values({
+      tenantId: context.tenantId,
       userId: payment.userId,
       delta: REPLAY_PACK_CREDITS,
       reason: "pack_purchase",
@@ -223,16 +280,24 @@ export async function confirmAndCreditPackPurchase(input: {
   })
 }
 
-export async function debitReplayCredit(input: {
-  userId: string
-  bookingId: string
-  locationId: string
-}) {
+export async function debitReplayCredit(
+  context: TenantContext,
+  input: {
+    userId: string
+    bookingId: string
+    locationId: string
+  },
+) {
   return db.transaction(async (tx) => {
     const [balanceRow] = await tx
       .select()
       .from(replayCreditBalances)
-      .where(eq(replayCreditBalances.userId, input.userId))
+      .where(
+        and(
+          eq(replayCreditBalances.tenantId, context.tenantId),
+          eq(replayCreditBalances.userId, input.userId),
+        ),
+      )
       .for("update")
       .limit(1)
 
@@ -245,6 +310,7 @@ export async function debitReplayCredit(input: {
     const [replay] = await tx
       .insert(replays)
       .values({
+        tenantId: context.tenantId,
         bookingId: input.bookingId,
         locationId: input.locationId,
         userId: input.userId,
@@ -256,6 +322,7 @@ export async function debitReplayCredit(input: {
     const [ledger] = await tx
       .insert(replayCreditLedger)
       .values({
+        tenantId: context.tenantId,
         userId: input.userId,
         delta: -1,
         reason: "replay_capture",
@@ -267,7 +334,12 @@ export async function debitReplayCredit(input: {
     await tx
       .update(replayCreditBalances)
       .set({ balance: balance - 1, updatedAt: new Date() })
-      .where(eq(replayCreditBalances.userId, input.userId))
+      .where(
+        and(
+          eq(replayCreditBalances.tenantId, context.tenantId),
+          eq(replayCreditBalances.userId, input.userId),
+        ),
+      )
 
     return {
       ok: true as const,
@@ -278,10 +350,13 @@ export async function debitReplayCredit(input: {
   })
 }
 
-export async function getActiveBookingForReplay(input: {
-  bookingId: string
-  userId: string
-}) {
+export async function getActiveBookingForReplay(
+  context: TenantContext,
+  input: {
+    bookingId: string
+    userId: string
+  },
+) {
   const now = new Date()
 
   const [row] = await db
@@ -298,7 +373,12 @@ export async function getActiveBookingForReplay(input: {
     .from(bookings)
     .innerJoin(locations, eq(bookings.locationId, locations.id))
     .where(
-      and(eq(bookings.id, input.bookingId), eq(bookings.userId, input.userId))
+      and(
+        eq(bookings.tenantId, context.tenantId),
+        eq(locations.tenantId, context.tenantId),
+        eq(bookings.id, input.bookingId),
+        eq(bookings.userId, input.userId),
+      ),
     )
     .limit(1)
 
@@ -317,7 +397,10 @@ export async function getActiveBookingForReplay(input: {
   return row
 }
 
-export async function listReplaysForUser(userId: string) {
+export async function listReplaysForUser(
+  context: TenantContext,
+  userId: string,
+) {
   return db
     .select({
       id: replays.id,
@@ -331,7 +414,13 @@ export async function listReplaysForUser(userId: string) {
     })
     .from(replays)
     .innerJoin(locations, eq(replays.locationId, locations.id))
-    .where(eq(replays.userId, userId))
+    .where(
+      and(
+        eq(replays.tenantId, context.tenantId),
+        eq(locations.tenantId, context.tenantId),
+        eq(replays.userId, userId),
+      ),
+    )
     .orderBy(desc(replays.requestedAt))
 }
 

@@ -3,6 +3,8 @@ export type TenancyErrorCode =
   | "MEMBERSHIP_DISABLED"
   | "FORBIDDEN_TENANT"
   | "FORBIDDEN_ACTION"
+  | "NOT_AUTHENTICATED"
+  | "DEVICE_CONTEXT_UNSUPPORTED"
 
 export class TenancyError extends Error {
   readonly code: TenancyErrorCode

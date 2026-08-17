@@ -19,7 +19,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
         const { id } = await context.params
         return { bookingId: id }
       },
-      cancelBooking: cancelUnpaidBooking,
+      cancelBooking: (input) =>
+        cancelUnpaidBooking(input.context, {
+          bookingId: input.bookingId,
+          userId: input.userId,
+        }),
     })
 
     if (!outcome.authenticated) {

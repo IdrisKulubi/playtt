@@ -7,6 +7,7 @@ import {
   mapCoachServiceError,
 } from "@/server/coach/http"
 import { cancelCoachSubscription } from "@/server/coach/service"
+import { resolveTenantContextForSessionUser } from "@/server/tenancy/session-context"
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,7 +21,11 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const result = await cancelCoachSubscription(session.user.id)
+    const context = await resolveTenantContextForSessionUser(
+      session.user.id,
+      req.headers.get("x-tenant-id"),
+    )
+    const result = await cancelCoachSubscription(context, session.user.id)
     return coachJson(result)
   } catch (error) {
     return mapCoachServiceError(error)
