@@ -92,7 +92,7 @@
       "mobileConsumers": ["playtt-mobile/lib/booking-api.ts", "playtt-mobile/app/(app)/(tabs)/index.tsx", "playtt-mobile/app/(app)/(tabs)/bookings.tsx"],
       "successFixture": "fixtures/bookings.mine.get.success.json",
       "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/booking-error.json"],
-      "notes": ["Unknown filters are treated as all by the producer.", "locationAddress is produced but omitted by the current mobile UserBookingSummary type and is additive."]
+      "notes": ["Unknown filters are treated as all by the producer.", "locationAddress is produced but omitted by the current mobile UserBookingSummary type and is additive.", "playSession is additive and null for unpaid or legacy bookings without a session row."]
     },
     {
       "id": "bookings.detail.get",
@@ -103,7 +103,7 @@
       "mobileConsumers": ["playtt-mobile/lib/booking-api.ts", "playtt-mobile/app/(app)/booking/[id]/index.tsx", "playtt-mobile/components/booking/booking-detail-sheet.tsx", "playtt-mobile/hooks/use-payment-checkout.ts", "playtt-mobile/hooks/use-modification-checkout.ts"],
       "successFixture": "fixtures/bookings.detail.get.success.json",
       "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/booking-not-found.json"],
-      "notes": ["Booking money is represented as decimal strings.", "locationAddress is additive for the current mobile type."]
+      "notes": ["Booking money is represented as decimal strings.", "locationAddress is additive for the current mobile type.", "playSession is additive and null for unpaid or legacy bookings without a session row."]
     },
     {
       "id": "bookings.pay.post",

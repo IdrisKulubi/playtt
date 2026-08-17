@@ -12,7 +12,6 @@ import {
   writeConfirmationDurableSideEffects,
 } from "@/server/payments/confirmation-side-effects"
 import { kesToPaystackAmount } from "@/server/payments/constants"
-import { sendBookingConfirmationEmail } from "@/server/payments/confirmation-email"
 import {
   findPaymentByReference,
   getBookingPaymentContextByReference,
@@ -117,8 +116,6 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
 
   const paymentMethod = mapPaystackChannelToPaymentMethod(input.transaction.channel)
 
-  let shouldSendConfirmationEmail = false
-
   const sideEffectsInput = buildSideEffectsInput(
     tenantId,
     existingPayment.id,
@@ -199,7 +196,7 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
       })
       .onConflictDoNothing()
 
-    const [notification] = await tx
+    await tx
       .insert(notifications)
       .values({
         tenantId,
@@ -216,11 +213,6 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
         },
       })
       .onConflictDoNothing()
-      .returning({ id: notifications.id })
-
-    if (notification) {
-      shouldSendConfirmationEmail = true
-    }
 
     await writeConfirmationDurableSideEffects(tx, sideEffectsInput)
 
@@ -233,21 +225,6 @@ export async function confirmBookingPayment(input: ConfirmBookingPaymentInput) {
 
   if (transition === "state_changed") {
     return { confirmed: false, reason: "booking_state_changed" as const }
-  }
-
-  if (shouldSendConfirmationEmail) {
-    void sendBookingConfirmationEmail({
-    email: bookingContext.userEmail,
-    name: bookingContext.userName,
-    locationName: bookingContext.locationName,
-    resourceName: bookingContext.resourceName,
-    startTime: bookingContext.startTime,
-    endTime: bookingContext.endTime,
-    totalAmount: bookingContext.totalAmount,
-    currency: bookingContext.currency,
-    }).catch((error) => {
-      console.error("[BOOKING EMAIL] Failed to send confirmation:", error)
-    })
   }
 
   return { confirmed: true, reason: "confirmed" as const }

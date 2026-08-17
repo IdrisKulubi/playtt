@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm"
+import { and, eq, notInArray } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import {
@@ -183,6 +183,26 @@ export async function getPlaySessionByBookingId(
   return row ? mapPlaySession(row) : null
 }
 
+export async function getPlaySessionById(
+  context: TenantContext,
+  sessionId: string,
+  tx?: DbExecutor,
+): Promise<PlaySessionRecord | null> {
+  const executor = tx ?? db
+  const [row] = await executor
+    .select()
+    .from(playSessions)
+    .where(
+      and(
+        eq(playSessions.tenantId, context.tenantId),
+        eq(playSessions.id, sessionId),
+      ),
+    )
+    .limit(1)
+
+  return row ? mapPlaySession(row) : null
+}
+
 export async function ensurePlaySessionForBooking(
   context: TenantContext,
   booking: EnsurePlaySessionBookingInput,
@@ -275,8 +295,10 @@ export async function transitionPlaySession(
   sessionId: string,
   toStatus: PlaySessionStatus,
   cause: string,
+  tx?: DbExecutor,
 ): Promise<PlaySessionRecord> {
-  const [current] = await db
+  const executor = tx ?? db
+  const [current] = await executor
     .select()
     .from(playSessions)
     .where(
@@ -313,7 +335,7 @@ export async function transitionPlaySession(
     now,
   )
 
-  const [updated] = await db
+  const [updated] = await executor
     .update(playSessions)
     .set({
       status: toStatus,
@@ -329,7 +351,7 @@ export async function transitionPlaySession(
     .returning()
 
   if (!updated) {
-    const [latest] = await db
+    const [latest] = await executor
       .select()
       .from(playSessions)
       .where(
@@ -382,4 +404,14 @@ export async function getBookingForPlaySession(
     .limit(1)
 
   return row ?? null
+}
+
+export async function listSchedulablePlaySessions(tx?: DbExecutor) {
+  const executor = tx ?? db
+  const rows = await executor
+    .select()
+    .from(playSessions)
+    .where(notInArray(playSessions.status, ["available", "held"]))
+
+  return rows.map(mapPlaySession)
 }

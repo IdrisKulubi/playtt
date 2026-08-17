@@ -66,6 +66,13 @@ export interface CreatePendingBookingResult {
   expiresAt: string | null;
 }
 
+export interface PlaySessionProjection {
+  id: string;
+  status: string;
+  scheduledStartAt: string;
+  scheduledEndAt: string;
+}
+
 export interface UserBookingSummary {
   id: string;
   status: string;
@@ -86,4 +93,5 @@ export interface UserBookingSummary {
   notes: string | null;
   editable: boolean;
   editBlockedReason: string | null;
+  playSession: PlaySessionProjection | null;
 }

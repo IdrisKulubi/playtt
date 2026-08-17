@@ -12,6 +12,7 @@ import {
   buildPaymentConfirmedOutboxEvent,
 } from "@/server/workers/events.mjs"
 import { enqueueOutboxEvent } from "@/server/workers/outbox-repository"
+import { scheduleNextLifecycleIntent } from "@/server/sessions/lifecycle"
 
 type ConfirmationTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
 
@@ -104,6 +105,15 @@ export async function writeConfirmationDurableSideEffects(
       startTime: input.bookingContext.startTime.toISOString(),
       endTime: input.bookingContext.endTime.toISOString(),
     }),
+    tx,
+  )
+
+  await scheduleNextLifecycleIntent(
+    {
+      session,
+      correlationId: serviceContext.correlationId,
+      cause: "payment_confirmed",
+    },
     tx,
   )
 

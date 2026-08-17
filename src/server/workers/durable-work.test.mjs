@@ -213,3 +213,41 @@ test("unsupported registered versions are skipped without dead-lettering", async
 
   assert.equal(result.outcome, "skipped-unsupported")
 })
+
+test("reconcile hook runs before claiming and extra outbox rounds drain follow-up work", async () => {
+  const calls = []
+  let remaining = [
+    { id: "session-1", eventType: "session.preparing.v1", eventVersion: 1 },
+    { id: "session-2", eventType: "session.started.v1", eventVersion: 1 },
+  ]
+
+  const report = await runDurableWork({
+    reconcile: async () => {
+      calls.push("reconcile")
+      return { scanned: 2, scheduled: 2 }
+    },
+    outboxRounds: 3,
+    registry: {
+      "session.preparing.v1": {
+        eventVersion: 1,
+        consume: async (row) => calls.push(row.id),
+      },
+      "session.started.v1": {
+        eventVersion: 1,
+        consume: async (row) => calls.push(row.id),
+      },
+    },
+    outboxRepository: {
+      async claimOutboxWork() {
+        const next = remaining.shift()
+        return next ? [next] : []
+      },
+      async markOutboxProcessed() {},
+      async markOutboxRetryOrDeadLetter() {},
+    },
+  })
+
+  assert.deepEqual(report.reconcile, { scanned: 2, scheduled: 2 })
+  assert.equal(report.outbox.processed, 2)
+  assert.deepEqual(calls, ["reconcile", "session-1", "session-2"])
+})

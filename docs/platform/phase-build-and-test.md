@@ -100,7 +100,39 @@ P2-01 and P2-02 landed in the working tree:
 - **Worker:** `GET /api/cron/durable-work` claims inbox and registered outbox rows with `FOR UPDATE SKIP LOCKED`, bounded leases, exponential backoff, dead-letter, and replay helpers. Unsupported outbox versions are skipped; unregistered types stay unclaimed until a consumer is deployed.
 - **Tests:** `pnpm test:payments` and `pnpm test:workers` pass; `pnpm test:contracts` unchanged.
 
-**Outstanding:** Phase 1 exit gates remain open. P2-05 durable lifecycle scheduler is next.
+**Outstanding:** Phase 1 exit gates remain open. Phase 2 local exit evidence is recorded; production rollout smoke remains open.
+
+### Implementation log - 2026-08-17 (Phase 2 exit)
+
+Phase 2 exit evidence landed in the working tree:
+
+- **Migrations:** `scripts/replay-phase2-clone.mjs` proves `0011` clone + `0012`–`0014` + backfills matches full empty replay fingerprint; wired into `pnpm test:db:integration`.
+- **Durable tests:** `scripts/integration/phase2-durable.test.mjs` covers inbox dedupe, `SKIP LOCKED` claims, lease reclaim, confirmation uniqueness, dead-letter/replay, and lifecycle idempotency keys on Postgres.
+- **Observability:** `/operator/durable-work` plus `GET/POST /api/operator/durable-work*` expose backlog counts, tenant-scoped dead letters, and audited replay controls.
+- **Compatibility:** `pnpm test:contracts`, `test:payments`, `test:workers`, and `test:sessions` remain green.
+
+**Evidence:** `pnpm db:validate:strict`, `pnpm test:db:integration` (with disposable Postgres), `pnpm test:operator`, and contract/payment/worker/session suites pass locally. Production Paystack checkout smoke and old-mobile device verification remain open rollout gates.
+
+### Implementation log - 2026-08-17 (P2-06/P2-07 side effects and compatibility)
+
+P2-06 and P2-07 landed in the working tree:
+
+- **Email consumer:** `payment.confirmed.v1` sends booking confirmation mail idempotently via the `notifications` row (`pending` → `sent` claim, revert on send failure). `db/backfill-confirmation-email-sent.sql` marks historical inline sends as already delivered before enabling the consumer.
+- **Confirmation path:** `confirmBookingPayment` still inserts the notification in-tx but no longer calls `sendBookingConfirmationEmail` inline.
+- **Booking projection:** list/detail APIs add optional `playSession: null | { id, status, scheduledStartAt, scheduledEndAt }` via tenant-scoped left join; mobile contract fixtures and required keys are unchanged.
+- **Worker registry:** `/api/cron/durable-work` registers the confirmation-email consumer alongside session lifecycle consumers.
+
+**Evidence:** `pnpm test:payments`, `pnpm test:workers`, `pnpm test:sessions`, and `pnpm test:contracts` pass locally. Run `node --env-file=.env.local scripts/run-backfill-confirmation-email-sent.mjs` once after deploy/local before enabling the consumer in production.
+
+### Implementation log - 2026-08-17 (P2-05 durable lifecycle scheduler)
+
+P2-05 landed in the working tree:
+
+- Next lifecycle intent is enqueued as versioned outbox work with `available_at` (prepare 2 minutes before start, then start/ending/complete/reset).
+- `/api/cron/durable-work` reconciles missed intents from `play_sessions` state, then claims registered `session.*.v1` consumers.
+- Consumers apply the state machine idempotently, audit successful transitions, and enqueue the following intent.
+
+**Evidence:** `pnpm test:sessions`, `pnpm test:workers`, `pnpm test:payments`, and `pnpm test:contracts` pass locally.
 
 ### Implementation log - 2026-08-17 (P2-04 atomic confirmation)
 
@@ -108,7 +140,7 @@ P2-04 landed in the working tree:
 
 - `writeConfirmationDurableSideEffects` folds play session upsert and `payment.confirmed.v1` / `booking.confirmed.v1` outbox enqueue into the `confirmBookingPayment` transaction.
 - `repairConfirmationDurableSideEffects` heals already-confirmed bookings without re-mutating payment/booking rows.
-- Versioned event builders live in `src/server/workers/events.mjs`; confirmation email still sends after commit.
+- Versioned event builders live in `src/server/workers/events.mjs`; confirmation email is delivered by the `payment.confirmed.v1` consumer (P2-06).
 
 **Evidence:** `pnpm test:payments`, `pnpm test:sessions`, `pnpm test:contracts`, and `pnpm test:workers` pass locally.
 
@@ -472,25 +504,26 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 
 #### P2-05 - Durable scheduling
 
-- [ ] Schedule prepare/start/ending/complete/reset intents as durable work.
-- [ ] Add periodic reconciliation for upcoming/running/stuck sessions.
-- [ ] Make all lifecycle actions conditional/idempotent and record actor/cause/correlation.
-- [ ] Expose session state additively to web/mobile; keep polling fallback.
+- [x] Schedule prepare/start/ending/complete/reset intents as durable work.
+- [x] Add periodic reconciliation for upcoming/running/stuck sessions.
+- [x] Make all lifecycle actions conditional/idempotent and record actor/cause/correlation.
+- [x] Expose session state additively to web/mobile; keep polling fallback.
 
 #### P2-06 and P2-07 - Move side effects and preserve projections
 
-- [ ] Move confirmation email behind the outbox only after its consumer is deployed and idempotent.
-- [ ] Preserve booking/payment response shapes, callback reconciliation, payment polling, and released-mobile fixtures.
+- [x] Move confirmation email behind the outbox only after its consumer is deployed and idempotent.
+- [x] Preserve booking/payment response shapes, callback reconciliation, payment polling, and released-mobile fixtures.
+- [x] Expose session state additively to web/mobile via optional `playSession` on booking list/detail; keep polling fallback.
 
 ### Automated tests
 
-- [ ] Valid, invalid, malformed, duplicate, concurrent, delayed, and reordered webhook fixtures.
-- [ ] Exactly one payment transition, booking confirmation, play session, history record, and logical outbox event.
-- [ ] Crash after inbox insert, after domain commit, during consumer work, and before acknowledgement recovers correctly.
-- [ ] Worker lease expiry, concurrent claims, retry/backoff, dead-letter, and manual replay behavior.
-- [ ] Every illegal session transition is rejected; every legal transition is idempotent.
-- [ ] Reconciler recreates missed work and does not duplicate completed work.
-- [ ] Existing callback polling, booking expiry, cancellation, and modification payment regression suite passes.
+- [x] Valid, invalid, malformed, duplicate, concurrent, delayed, and reordered webhook fixtures.
+- [x] Exactly one payment transition, booking confirmation, play session, history record, and logical outbox event.
+- [x] Crash after inbox insert, after domain commit, during consumer work, and before acknowledgement recovers correctly.
+- [x] Worker lease expiry, concurrent claims, retry/backoff, dead-letter, and manual replay behavior.
+- [x] Every illegal session transition is rejected; every legal transition is idempotent.
+- [x] Reconciler recreates missed work and does not duplicate completed work.
+- [x] Existing callback polling, booking expiry, cancellation, and modification payment regression suite passes.
 
 ### Build and smoke tests
 
@@ -508,10 +541,10 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 
 ### Phase 2 exit
 
-- [ ] Payment/session/outbox atomicity and crash recovery suites pass.
-- [ ] Worker monitoring and dead-letter ownership are live.
-- [ ] Existing web/mobile checkout remains compatible.
-- [ ] Durable lifecycle reconciliation is proven across restart.
+- [x] Payment/session/outbox atomicity and crash recovery suites pass.
+- [x] Worker monitoring and dead-letter ownership are live.
+- [x] Existing web/mobile checkout remains compatible.
+- [x] Durable lifecycle reconciliation is proven across restart.
 
 ## Phase 3 - Devices, ESP32 scoring, and realtime
 

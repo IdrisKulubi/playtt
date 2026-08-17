@@ -25,8 +25,8 @@ Use this document for delivery tracking. Use the supporting documents for deeper
 | ------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
 | Phase 0 — Stabilization              | Complete    | Repository and live-environment evidence complete; Phase 1 may begin after owner sign-off |
 | Phase 1 — Tenant/resource foundation | In progress | P1-01–P1-08 landed locally; Phase 1 exit gates remain |
-| Phase 2 — Sessions/durable events    | In progress | P2-01 inbox, P2-02 outbox/worker, P2-03 play sessions, and P2-04 atomic confirmation landed locally |
-| Phase 3 — Devices/scoring/realtime   | Not started | Depends on operational sessions and outbox                                                                               |
+| Phase 2 — Sessions/durable events    | Complete    | P2-01 through P2-07 and Phase 2 exit evidence complete locally |
+| Phase 3 — Devices/scoring/realtime   | Not started | Ready to begin P3-01; production rollout smoke for Phase 2 remains open |
 | Phase 4 — Private R2 media           | Not started | Depends on tenant and session ownership                                                                                  |
 | Phase 5 — TTLock/automation          | Not started | Depends on access-point catalog, sessions, and device commands                                                           |
 | Phase 6 — Replay edge                | Not started | Depends on devices and private media                                                                                     |
@@ -405,34 +405,34 @@ Done means:
 
 ### P2-05 — Durable lifecycle scheduler
 
-- [ ] Schedule prepare, start, ending, complete, reset, and reconciliation work durably.
-- [ ] Claim due work with row locks/leases.
-- [ ] Recreate missed jobs from authoritative session state.
+- [x] Schedule prepare, start, ending, complete, reset, and reconciliation work durably.
+- [x] Claim due work with row locks/leases.
+- [x] Recreate missed jobs from authoritative session state.
 
 Build guide: use scheduled server routes/workers, never in-process timers as the source of truth.
 
 Done means:
 
-- [ ] Restarting the application cannot lose a session transition or permanently duplicate it.
+- [x] Restarting the application cannot lose a session transition or permanently duplicate it.
 
 ### P2-06/P2-07 — Side effects and compatibility
 
-- [ ] Move confirmation email behind an idempotent outbox consumer.
-- [ ] Preserve existing booking/payment APIs, polling, receipts, and mobile return flow.
-- [ ] Add session fields only as compatible projections.
+- [x] Move confirmation email behind an idempotent outbox consumer.
+- [x] Preserve existing booking/payment APIs, polling, receipts, and mobile return flow.
+- [x] Add session fields only as compatible projections.
 
 Build guide: deploy consumers first, then feature-flag producer cutover to prevent duplicate emails.
 
 Done means:
 
-- [ ] Existing clients pass while all durable side effects recover after simulated crashes.
+- [x] Existing clients pass while all durable side effects recover after simulated crashes.
 
 ## Phase 2 exit
 
-- [ ] Inbox/outbox/session migrations pass empty and current-clone tests.
-- [ ] Duplicate, delayed, reordered, crash, retry, and dead-letter suites pass.
-- [ ] Worker observability and reconciliation are operational.
-- [ ] Existing checkout and callback UX remains unchanged.
+- [x] Inbox/outbox/session migrations pass empty and current-clone tests.
+- [x] Duplicate, delayed, reordered, crash, retry, and dead-letter suites pass.
+- [x] Worker observability and reconciliation are operational.
+- [x] Existing checkout and callback UX remains unchanged.
 
 ---
 

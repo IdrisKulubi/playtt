@@ -8,6 +8,7 @@ import {
   BuildingsIcon,
   FlagIcon,
   GaugeIcon,
+  QueueIcon,
   ShapesIcon,
   UsersThreeIcon,
 } from "@phosphor-icons/react"
@@ -21,6 +22,7 @@ const navigation = [
   { href: "/operator/resource-types", label: "Resource types", icon: ShapesIcon, exact: false as const },
   { href: "/operator/memberships", label: "Memberships", icon: UsersThreeIcon, exact: false as const },
   { href: "/operator/feature-flags", label: "Feature flags", icon: FlagIcon, exact: false as const },
+  { href: "/operator/durable-work", label: "Durable work", icon: QueueIcon, exact: false as const },
 ] as const
 
 type OperatorShellProps = {
