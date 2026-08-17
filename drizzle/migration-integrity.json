@@ -49,6 +49,9 @@
     },
     "0015_devices": {
       "sha256": "c266933e63464dad0ef91dee26f1f1ce087551aef1415fae4010583a8ab0ad44"
+    },
+    "0016_device_health_commands": {
+      "sha256": "4b925d444e9e0e2aa8d9c4eb76e0c9318b7f76e6bfe15a7067f9ff284b71f742"
     }
   },
   "acknowledgedMetadataDrift": [],

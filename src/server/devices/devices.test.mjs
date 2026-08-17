@@ -14,15 +14,74 @@ const migrationSource = readFileSync(
   join(repoRoot, "drizzle", "0015_devices.sql"),
   "utf8",
 )
+const healthCommandsMigration = readFileSync(
+  join(repoRoot, "drizzle", "0016_device_health_commands.sql"),
+  "utf8",
+)
 
 test("schema defines tenant-scoped device registry tables", () => {
   assert.match(schemaSource, /devices/)
   assert.match(schemaSource, /device_enrollments/)
   assert.match(schemaSource, /device_credentials/)
   assert.match(schemaSource, /device_assignments/)
+  assert.match(schemaSource, /device_heartbeats/)
+  assert.match(schemaSource, /device_commands/)
+  assert.match(schemaSource, /device_command_acks/)
   assert.match(schemaSource, /esp32_controller/)
   assert.match(schemaSource, /ttlock_lock/)
   assert.match(schemaSource, /ttlock_gateway/)
+})
+
+test("migration adds heartbeat and command tables", () => {
+  assert.match(healthCommandsMigration, /device_heartbeats/)
+  assert.match(healthCommandsMigration, /device_commands/)
+  assert.match(healthCommandsMigration, /device_command_acks/)
+  assert.match(healthCommandsMigration, /device_heartbeats_tenant_device_fk/)
+  assert.match(healthCommandsMigration, /device_commands_tenant_device_fk/)
+})
+
+test("device v1 heartbeat and command routes exist", () => {
+  const heartbeatRoute = readFileSync(
+    join(repoRoot, "src/app/api/device/v1/heartbeat/route.ts"),
+    "utf8",
+  )
+  const commandsRoute = readFileSync(
+    join(repoRoot, "src/app/api/device/v1/commands/route.ts"),
+    "utf8",
+  )
+  const ackRoute = readFileSync(
+    join(
+      repoRoot,
+      "src/app/api/device/v1/commands/[commandId]/ack/route.ts",
+    ),
+    "utf8",
+  )
+
+  assert.match(heartbeatRoute, /requireDeviceRequest/)
+  assert.match(commandsRoute, /requireDeviceRequest/)
+  assert.match(ackRoute, /idempotencyKey/)
+})
+
+test("command bus rejects duplicate acknowledgements safely", () => {
+  const source = readFileSync(join(devicesRoot, "commands.ts"), "utf8")
+  assert.match(source, /deviceCommandAcks/)
+  assert.match(source, /idempotencyKey/)
+  assert.match(source, /COMMAND_EXPIRED/)
+})
+
+test("health policy derives online/offline from heartbeat age", async () => {
+  const { deriveDeviceHealth, getOfflineThresholdSeconds } = await import(
+    "./health-policy.ts"
+  )
+
+  const now = new Date("2026-08-17T12:00:00.000Z")
+  const threshold = getOfflineThresholdSeconds()
+  const recent = new Date(now.getTime() - (threshold - 10) * 1000)
+  const stale = new Date(now.getTime() - (threshold + 10) * 1000)
+
+  assert.equal(deriveDeviceHealth(null, now), "unknown")
+  assert.equal(deriveDeviceHealth(recent, now), "online")
+  assert.equal(deriveDeviceHealth(stale, now), "offline")
 })
 
 test("migration adds composite tenant foreign keys for device tables", () => {
@@ -164,4 +223,104 @@ test("enrollment provision and config flow works when database is available", as
       }),
     DeviceError,
   )
+})
+
+test("heartbeat and command lifecycle works when database is available", async (t) => {
+  if (!process.env.POSTGRES_URL) {
+    t.skip("POSTGRES_URL is not configured")
+    return
+  }
+
+  const { createEnrollment, provisionDevice, assignDevice } = await import(
+    "./devices.ts",
+  )
+  const { recordDeviceHeartbeat } = await import("./heartbeats.ts")
+  const {
+    enqueueDeviceCommand,
+    listPendingDeviceCommands,
+    markDeviceCommandDelivered,
+    acknowledgeDeviceCommand,
+    expireStaleDeviceCommands,
+  } = await import("./commands.ts")
+
+  const operatorContext = {
+    tenantId: PLAYTT_TENANT_ID,
+    actor: { type: "user", id: "operator-1" },
+    role: "operator",
+    membershipId: "membership-operator",
+    correlationId: "corr-heartbeat-test",
+  }
+
+  const enrollment = await createEnrollment(operatorContext, {
+    locationId: HURLINGHAM_VENUE_ID,
+    deviceType: "esp32_controller",
+  })
+
+  const provisioned = await provisionDevice({
+    enrollmentCode: enrollment.enrollmentCode,
+    hardwareUid: `sim-health-${Date.now()}`,
+    firmwareVersion: "0.2.0",
+    correlationId: "corr-health-provision",
+  })
+
+  await assignDevice(operatorContext, {
+    deviceId: provisioned.deviceId,
+    locationId: HURLINGHAM_VENUE_ID,
+    resourceId: MAIN_POD_RESOURCE_ID,
+    role: "score_input",
+  })
+
+  const heartbeat = await recordDeviceHeartbeat({
+    tenantId: provisioned.tenantId,
+    deviceId: provisioned.deviceId,
+    bootId: "boot-1",
+    correlationId: "corr-heartbeat-1",
+    appliedConfigVersion: 1,
+  })
+
+  assert.equal(heartbeat.health, "online")
+  assert.equal(heartbeat.sampled, true)
+
+  const command = await enqueueDeviceCommand({
+    tenantId: provisioned.tenantId,
+    deviceId: provisioned.deviceId,
+    kind: "reset",
+    correlationId: "corr-command-1",
+    expiresInSeconds: 120,
+  })
+
+  const pending = await listPendingDeviceCommands(
+    provisioned.tenantId,
+    provisioned.deviceId,
+  )
+  assert.equal(pending.length, 1)
+
+  await markDeviceCommandDelivered(
+    provisioned.tenantId,
+    provisioned.deviceId,
+    command.id,
+  )
+
+  const ack = await acknowledgeDeviceCommand({
+    tenantId: provisioned.tenantId,
+    deviceId: provisioned.deviceId,
+    commandId: command.id,
+    idempotencyKey: "ack-1",
+    success: true,
+    result: { reset: true },
+  })
+
+  assert.equal(ack.status, "acknowledged")
+
+  const duplicateAck = await acknowledgeDeviceCommand({
+    tenantId: provisioned.tenantId,
+    deviceId: provisioned.deviceId,
+    commandId: command.id,
+    idempotencyKey: "ack-1",
+    success: true,
+  })
+
+  assert.equal(duplicateAck.status, "acknowledged")
+
+  await expireStaleDeviceCommands(new Date("2099-01-01T00:00:00.000Z"))
 })

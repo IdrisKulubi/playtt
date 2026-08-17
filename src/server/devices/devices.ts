@@ -25,6 +25,10 @@ import {
   verifyDeviceSecret,
 } from "@/server/devices/credentials"
 import { DeviceError } from "@/server/devices/errors"
+import {
+  deriveDeviceHealth,
+  type DeviceHealthStatus,
+} from "@/server/devices/health-policy"
 import type { TenantContext } from "@/server/tenancy/types"
 
 export type DeviceType = (typeof deviceTypeEnum.enumValues)[number]
@@ -77,6 +81,7 @@ export interface DeviceAssignmentRecord {
 
 export interface DeviceListItem extends DeviceRecord {
   currentAssignment: DeviceAssignmentRecord | null
+  health: DeviceHealthStatus
 }
 
 function mapDevice(row: typeof devices.$inferSelect): DeviceRecord {
@@ -155,6 +160,7 @@ export async function listDevices(
     items.push({
       ...mapDevice(row),
       currentAssignment: assignment ? mapAssignment(assignment) : null,
+      health: deriveDeviceHealth(row.lastHeartbeatAt),
     })
   }
 

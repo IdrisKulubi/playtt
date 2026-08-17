@@ -235,6 +235,21 @@ export const deviceAssignmentRoleEnum = pgEnum("device_assignment_role", [
   "display",
 ]);
 
+export const deviceCommandStatusEnum = pgEnum("device_command_status", [
+  "pending",
+  "delivered",
+  "acknowledged",
+  "failed",
+  "expired",
+  "cancelled",
+]);
+
+export const deviceCommandKindEnum = pgEnum("device_command_kind", [
+  "apply_config",
+  "reset",
+  "reboot",
+]);
+
 export const tenants = pgTable(
   "tenants",
   {
@@ -1374,6 +1389,134 @@ export const deviceAssignments = pgTable(
   ],
 );
 
+export const deviceHeartbeats = pgTable(
+  "device_heartbeats",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => devices.id, { onDelete: "cascade" }),
+    bootId: text("boot_id").notNull(),
+    observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+    firmwareVersion: text("firmware_version"),
+    uptimeMs: integer("uptime_ms"),
+    wifiRssi: integer("wifi_rssi"),
+    freeHeapBytes: integer("free_heap_bytes"),
+    metrics: jsonb("metrics")
+      .$type<Record<string, unknown>>()
+      .default({})
+      .notNull(),
+    correlationId: text("correlation_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("device_heartbeats_tenant_id_unique").on(
+      table.tenantId,
+      table.id,
+    ),
+    index("device_heartbeats_tenant_id_idx").on(table.tenantId),
+    index("device_heartbeats_device_observed_idx").on(
+      table.deviceId,
+      table.observedAt,
+    ),
+  ],
+);
+
+export const deviceCommands = pgTable(
+  "device_commands",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => devices.id, { onDelete: "cascade" }),
+    kind: deviceCommandKindEnum("kind").notNull(),
+    payload: jsonb("payload")
+      .$type<Record<string, unknown>>()
+      .default({})
+      .notNull(),
+    status: deviceCommandStatusEnum("status").default("pending").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    correlationId: text("correlation_id").notNull(),
+    causationId: text("causation_id"),
+    attemptCount: integer("attempt_count").default(0).notNull(),
+    maxAttempts: integer("max_attempts").default(3).notNull(),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+    failedAt: timestamp("failed_at", { withTimezone: true }),
+    expiredAt: timestamp("expired_at", { withTimezone: true }),
+    result: jsonb("result").$type<Record<string, unknown>>(),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("device_commands_tenant_id_unique").on(
+      table.tenantId,
+      table.id,
+    ),
+    index("device_commands_tenant_id_idx").on(table.tenantId),
+    index("device_commands_device_status_idx").on(
+      table.deviceId,
+      table.status,
+      table.expiresAt,
+    ),
+    index("device_commands_expires_at_idx").on(table.expiresAt),
+  ],
+);
+
+export const deviceCommandAcks = pgTable(
+  "device_command_acks",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    commandId: uuid("command_id")
+      .notNull()
+      .references(() => deviceCommands.id, { onDelete: "cascade" }),
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => devices.id, { onDelete: "cascade" }),
+    idempotencyKey: text("idempotency_key").notNull(),
+    success: boolean("success").notNull(),
+    result: jsonb("result").$type<Record<string, unknown>>(),
+    receivedAt: timestamp("received_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("device_command_acks_command_idempotency_unique").on(
+      table.commandId,
+      table.idempotencyKey,
+    ),
+    uniqueIndex("device_command_acks_tenant_id_unique").on(
+      table.tenantId,
+      table.id,
+    ),
+    index("device_command_acks_tenant_id_idx").on(table.tenantId),
+    index("device_command_acks_command_id_idx").on(table.commandId),
+  ],
+);
+
 export const bookingStatusHistory = pgTable(
   "booking_status_history",
   {
@@ -2148,6 +2291,9 @@ export const deviceRelations = relations(devices, ({ one, many }) => ({
   }),
   credentials: many(deviceCredentials),
   assignments: many(deviceAssignments),
+  heartbeats: many(deviceHeartbeats),
+  commands: many(deviceCommands),
+  commandAcks: many(deviceCommandAcks),
   enrollments: many(deviceEnrollments, {
     relationName: "consumedDevice",
   }),
@@ -2204,6 +2350,53 @@ export const deviceAssignmentRelations = relations(
     resource: one(resources, {
       fields: [deviceAssignments.resourceId],
       references: [resources.id],
+    }),
+  }),
+);
+
+export const deviceHeartbeatRelations = relations(
+  deviceHeartbeats,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [deviceHeartbeats.tenantId],
+      references: [tenants.id],
+    }),
+    device: one(devices, {
+      fields: [deviceHeartbeats.deviceId],
+      references: [devices.id],
+    }),
+  }),
+);
+
+export const deviceCommandRelations = relations(
+  deviceCommands,
+  ({ one, many }) => ({
+    tenant: one(tenants, {
+      fields: [deviceCommands.tenantId],
+      references: [tenants.id],
+    }),
+    device: one(devices, {
+      fields: [deviceCommands.deviceId],
+      references: [devices.id],
+    }),
+    acknowledgements: many(deviceCommandAcks),
+  }),
+);
+
+export const deviceCommandAckRelations = relations(
+  deviceCommandAcks,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [deviceCommandAcks.tenantId],
+      references: [tenants.id],
+    }),
+    command: one(deviceCommands, {
+      fields: [deviceCommandAcks.commandId],
+      references: [deviceCommands.id],
+    }),
+    device: one(devices, {
+      fields: [deviceCommandAcks.deviceId],
+      references: [devices.id],
     }),
   }),
 );

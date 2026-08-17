@@ -247,6 +247,23 @@ export function OperatorDevicesPanel({
                   <p className="text-sm text-muted-foreground">
                     {device.type} · {device.status}
                   </p>
+                  <p className="text-sm text-muted-foreground">
+                    Health:{" "}
+                    <span
+                      className={
+                        device.health === "online"
+                          ? "text-emerald-400"
+                          : device.health === "offline"
+                            ? "text-rose-400"
+                            : "text-muted-foreground"
+                      }
+                    >
+                      {device.health}
+                    </span>
+                    {device.lastHeartbeatAt
+                      ? ` · last heartbeat ${new Date(device.lastHeartbeatAt).toLocaleString()}`
+                      : ""}
+                  </p>
                   {device.currentAssignment ? (
                     <p className="text-sm text-muted-foreground">
                       Assigned as {device.currentAssignment.role}
@@ -261,6 +278,17 @@ export function OperatorDevicesPanel({
                   )}
                 </div>
                 <div className="flex items-center gap-2">
+                  <Badge
+                    variant={
+                      device.health === "online"
+                        ? "default"
+                        : device.health === "offline"
+                          ? "destructive"
+                          : "outline"
+                    }
+                  >
+                    {device.health}
+                  </Badge>
                   {device.status !== "revoked" ? (
                     <Badge variant="outline">{device.status}</Badge>
                   ) : (

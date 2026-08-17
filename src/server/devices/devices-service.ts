@@ -9,6 +9,10 @@ import {
   type DeviceListItem,
   type DeviceType,
 } from "@/server/devices/devices"
+import {
+  enqueueDeviceCommand,
+  type DeviceCommandKind,
+} from "@/server/devices/commands"
 import { authorize } from "@/server/tenancy/authorize-context.mjs"
 import { writeAuditLog } from "@/server/tenancy/audit-log.mjs"
 import type { TenantContext } from "@/server/tenancy/types"
@@ -136,4 +140,38 @@ export async function rotateDeviceCredentialForOperator(
   })
 
   return rotated
+}
+
+export async function enqueueDeviceCommandForOperator(
+  context: TenantContext,
+  input: {
+    deviceId: string
+    kind: DeviceCommandKind
+    payload?: Record<string, unknown>
+    expiresInSeconds?: number
+  },
+) {
+  authorize(context, "venue.manage")
+
+  const command = await enqueueDeviceCommand({
+    tenantId: context.tenantId,
+    deviceId: input.deviceId,
+    kind: input.kind,
+    payload: input.payload,
+    expiresInSeconds: input.expiresInSeconds,
+    correlationId: context.correlationId,
+  })
+
+  await writeAuditLog(context, {
+    action: "device.command.enqueue",
+    targetType: "device_command",
+    targetId: command.id,
+    metadata: {
+      deviceId: command.deviceId,
+      kind: command.kind,
+      expiresAt: command.expiresAt,
+    },
+  })
+
+  return command
 }

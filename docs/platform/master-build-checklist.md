@@ -26,7 +26,7 @@ Use this document for delivery tracking. Use the supporting documents for deeper
 | Phase 0 — Stabilization              | Complete    | Repository and live-environment evidence complete; Phase 1 may begin after owner sign-off |
 | Phase 1 — Tenant/resource foundation | In progress | P1-01–P1-08 landed locally; Phase 1 exit gates remain |
 | Phase 2 — Sessions/durable events    | Complete    | P2-01 through P2-07 and Phase 2 exit evidence complete locally |
-| Phase 3 — Devices/scoring/realtime   | In progress | P3-01/P3-02 landed locally; P3-03+ and Phase 3 exit remain |
+| Phase 3 — Devices/scoring/realtime   | In progress | P3-01/P3-02/P3-03/P3-04 landed locally; P3-05+ and Phase 3 exit remain |
 | Phase 4 — Private R2 media           | Not started | Depends on tenant and session ownership                                                                                  |
 | Phase 5 — TTLock/automation          | Not started | Depends on access-point catalog, sessions, and device commands                                                           |
 | Phase 6 — Replay edge                | Not started | Depends on devices and private media                                                                                     |
@@ -469,27 +469,27 @@ Done means:
 
 ### P3-03 — Heartbeats and fleet health
 
-- [ ] Record latest device health and sampled history.
-- [ ] Implement configurable offline detection and retention.
-- [ ] Surface exact venue/resource/device health to operators.
+- [x] Record latest device health and sampled history.
+- [x] Implement configurable offline detection and retention.
+- [x] Surface exact venue/resource/device health to operators.
 
 Build guide: keep latest health cheap; sample/partition history instead of storing every heartbeat forever.
 
 Done means:
 
-- [ ] One offline device is detected without affecting or misreporting another resource.
+- [x] One offline device is detected without affecting or misreporting another resource.
 
 ### P3-04 — Commands and acknowledgements
 
-- [ ] Add expiring commands, attempts, delivery state, acknowledgements, results, and correlation.
-- [ ] Reject expired/replayed commands and duplicate ACKs safely.
-- [ ] Add provider-neutral `DeviceCommandBus`/transport.
+- [x] Add expiring commands, attempts, delivery state, acknowledgements, results, and correlation.
+- [x] Reject expired/replayed commands and duplicate ACKs safely.
+- [x] Add provider-neutral `DeviceCommandBus`/transport.
 
 Build guide: commands originate from outbox/session intent and are never required for booking/payment transaction success.
 
 Done means:
 
-- [ ] Retry, timeout, expiry, duplicate ACK, disconnect, and restart tests converge to one command outcome.
+- [x] Retry, timeout, expiry, duplicate ACK, disconnect, and restart tests converge to one command outcome.
 
 ### P3-05/P3-06 — Authoritative table-tennis scoring
 

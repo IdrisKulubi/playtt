@@ -564,12 +564,17 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 - [x] Enforce tenant/venue ownership and time-aware unique active assignment rules.
 - [x] Implement provision/config endpoints with dedicated device authentication; credential rotation/revocation and provision rate limits.
 - [x] Add audit/correlation for enrollment, assignment, and credential actions.
-- [ ] Add latest health/sampled heartbeat, commands, and acknowledgement state (P3-03/P3-04).
-- [ ] Implement heartbeat/events/command-ack endpoints (P3-03/P3-04).
+- [x] Add latest health/sampled heartbeat, commands, and acknowledgement state (P3-03/P3-04).
+- [x] Implement heartbeat/events/command-ack endpoints (P3-03/P3-04).
 
-**Evidence:** `pnpm test:devices`, `pnpm test:tenancy`, `pnpm test:contracts`, migration `0015_devices`, operator `/operator/devices` page.
+**Evidence:** `pnpm test:devices`, migration `0016_device_health_commands`, `POST /api/device/v1/heartbeat`, `GET /api/device/v1/commands`, `POST /api/device/v1/commands/:commandId/ack`, operator health on `/operator/devices`.
 
 #### P3-03/P3-04 — Health, commands, and extended device APIs
+
+- [x] Add `device_heartbeats`, `device_commands`, and `device_command_acks` with tenant composite FKs.
+- [x] Sample heartbeat history; derive online/offline from configurable threshold.
+- [x] Implement `DeviceCommandBus` with enqueue, delivery, idempotent ack, and expiry.
+- [x] Operator device list shows per-device health without cross-resource bleed.
 
 #### P3-08 - Firmware and simulator
 
