@@ -431,12 +431,8 @@ export const locations = pgTable(
     uniqueIndex("locations_slug_unique").on(table.slug),
     index("locations_is_active_idx").on(table.isActive),
     index("locations_tenant_id_idx").on(table.tenantId),
-    uniqueIndex("locations_tenant_slug_unique")
-      .on(table.tenantId, table.slug)
-      .where(sql`${table.tenantId} is not null`),
-    uniqueIndex("locations_tenant_id_unique")
-      .on(table.tenantId, table.id)
-      .where(sql`${table.tenantId} is not null`),
+    uniqueIndex("locations_tenant_slug_unique").on(table.tenantId, table.slug),
+    uniqueIndex("locations_tenant_id_unique").on(table.tenantId, table.id),
   ],
 );
 
@@ -543,9 +539,7 @@ export const resources = pgTable(
     uniqueIndex("resources_tenant_location_code_unique")
       .on(table.tenantId, table.locationId, table.code)
       .where(sql`${table.code} is not null`),
-    uniqueIndex("resources_tenant_id_unique")
-      .on(table.tenantId, table.id)
-      .where(sql`${table.tenantId} is not null`),
+    uniqueIndex("resources_tenant_id_unique").on(table.tenantId, table.id),
     check("resources_capacity_positive", sql`${table.capacity} > 0`),
   ],
 );
@@ -679,9 +673,7 @@ export const bookings = pgTable(
   },
   (table) => [
     index("bookings_tenant_id_idx").on(table.tenantId),
-    uniqueIndex("bookings_tenant_id_unique")
-      .on(table.tenantId, table.id)
-      .where(sql`${table.tenantId} is not null`),
+    uniqueIndex("bookings_tenant_id_unique").on(table.tenantId, table.id),
     index("bookings_location_start_idx").on(table.locationId, table.startTime),
     index("bookings_resource_time_idx").on(
       table.resourceId,

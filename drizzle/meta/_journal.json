@@ -71,6 +71,13 @@
       "when": 1786961000000,
       "tag": "0009_tenant_scope_enforce",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786962000000,
+      "tag": "0010_tenant_composite_fks",
+      "breakpoints": true
     }
   ]
 }

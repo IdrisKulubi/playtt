@@ -27,10 +27,13 @@
       "sha256": "3188c2ad6457e49aa7589aa30f1d7ae410e3199aa16580de9fb7ef95edd64bc6"
     },
     "0008_tenant_scope_expand": {
-      "sha256": "a1a8bf94e880a0437125909e2ed941ee872fd9f601f93b541c6755ba16d078e2"
+      "sha256": "0d2ea09f1dfb197456dff471328583bcbe49a387fc4e68349bd210608ca7b045"
     },
     "0009_tenant_scope_enforce": {
-      "sha256": "b7bfc29611c15d7f212a4bc843dd7d29db77ac1064139b8da777b5bbab3eaf1a"
+      "sha256": "d55179c8452dcd5250e3646fe96c11159344d700e1cd696fbb2539239aee5f8c"
+    },
+    "0010_tenant_composite_fks": {
+      "sha256": "3841fa5c2f9602c6b61735143d2c490fd685758397706bf110645eeb0dba32e8"
     }
   },
   "acknowledgedMetadataDrift": [],
