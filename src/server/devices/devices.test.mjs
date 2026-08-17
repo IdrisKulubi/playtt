@@ -3,7 +3,10 @@ import { join } from "node:path"
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { HURLINGHAM_VENUE_ID, MAIN_POD_RESOURCE_ID } from "../catalog/constants.ts"
+import {
+  HURLINGHAM_VENUE_ID,
+  MAIN_POD_RESOURCE_ID,
+} from "../catalog/constants.ts"
 import { PLAYTT_TENANT_ID } from "../tenancy/constants.ts"
 
 const repoRoot = join(import.meta.dirname, "..", "..", "..")
@@ -12,11 +15,11 @@ const devicesRoot = import.meta.dirname
 const schemaSource = readFileSync(join(repoRoot, "db", "schema.ts"), "utf8")
 const migrationSource = readFileSync(
   join(repoRoot, "drizzle", "0015_devices.sql"),
-  "utf8",
+  "utf8"
 )
 const healthCommandsMigration = readFileSync(
   join(repoRoot, "drizzle", "0016_device_health_commands.sql"),
-  "utf8",
+  "utf8"
 )
 
 test("schema defines tenant-scoped device registry tables", () => {
@@ -43,18 +46,15 @@ test("migration adds heartbeat and command tables", () => {
 test("device v1 heartbeat and command routes exist", () => {
   const heartbeatRoute = readFileSync(
     join(repoRoot, "src/app/api/device/v1/heartbeat/route.ts"),
-    "utf8",
+    "utf8"
   )
   const commandsRoute = readFileSync(
     join(repoRoot, "src/app/api/device/v1/commands/route.ts"),
-    "utf8",
+    "utf8"
   )
   const ackRoute = readFileSync(
-    join(
-      repoRoot,
-      "src/app/api/device/v1/commands/[commandId]/ack/route.ts",
-    ),
-    "utf8",
+    join(repoRoot, "src/app/api/device/v1/commands/[commandId]/ack/route.ts"),
+    "utf8"
   )
 
   assert.match(heartbeatRoute, /requireDeviceRequest/)
@@ -70,9 +70,8 @@ test("command bus rejects duplicate acknowledgements safely", () => {
 })
 
 test("health policy derives online/offline from heartbeat age", async () => {
-  const { deriveDeviceHealth, getOfflineThresholdSeconds } = await import(
-    "./health-policy.ts"
-  )
+  const { deriveDeviceHealth, getOfflineThresholdSeconds } =
+    await import("./health-policy.ts")
 
   const now = new Date("2026-08-17T12:00:00.000Z")
   const threshold = getOfflineThresholdSeconds()
@@ -84,6 +83,40 @@ test("health policy derives online/offline from heartbeat age", async () => {
   assert.equal(deriveDeviceHealth(stale, now), "offline")
 })
 
+test("device policies reject wrong roles, future heartbeats, and invalid config acknowledgements", async () => {
+  const {
+    evaluateConfigAcknowledgement,
+    validateDeviceAssignmentPolicy,
+    validateHeartbeatObservedAt,
+  } = await import("./policies.mjs")
+
+  assert.equal(
+    validateDeviceAssignmentPolicy({
+      role: "score_input",
+      deviceType: "ttlock_lock",
+      deviceCapabilityCodes: ["access"],
+      resourceId: MAIN_POD_RESOURCE_ID,
+      resourceCapabilityCodes: ["scoring"],
+    }).reason,
+    "role_not_supported"
+  )
+  assert.equal(
+    validateHeartbeatObservedAt(
+      "2026-08-17T12:05:00.000Z",
+      new Date("2026-08-17T12:00:00.000Z")
+    ).reason,
+    "future_timestamp"
+  )
+  assert.equal(
+    evaluateConfigAcknowledgement({
+      received: 2,
+      configVersion: 1,
+      appliedConfigVersion: null,
+    }).kind,
+    "ahead"
+  )
+})
+
 test("migration adds composite tenant foreign keys for device tables", () => {
   assert.match(migrationSource, /devices_tenant_location_fk/)
   assert.match(migrationSource, /device_credentials_tenant_device_fk/)
@@ -91,7 +124,7 @@ test("migration adds composite tenant foreign keys for device tables", () => {
   assert.match(migrationSource, /device_assignments_device_open_unique/)
   assert.match(
     migrationSource,
-    /device_assignments_scoring_resource_role_open_unique/,
+    /device_assignments_scoring_resource_role_open_unique/
   )
 })
 
@@ -112,7 +145,7 @@ test("credentials module hashes secrets with HMAC", () => {
 test("provision response returns secret only at issuance", () => {
   const provisionRoute = readFileSync(
     join(repoRoot, "src/app/api/device/v1/provision/route.ts"),
-    "utf8",
+    "utf8"
   )
   assert.match(provisionRoute, /secret/)
   const devicesSource = readFileSync(join(devicesRoot, "devices.ts"), "utf8")
@@ -130,14 +163,11 @@ test("operator device writes require venue.manage", () => {
 test("device v1 routes use dedicated device auth", () => {
   const configRoute = readFileSync(
     join(repoRoot, "src/app/api/device/v1/config/route.ts"),
-    "utf8",
+    "utf8"
   )
   const rotateRoute = readFileSync(
-    join(
-      repoRoot,
-      "src/app/api/device/v1/credentials/rotate/route.ts",
-    ),
-    "utf8",
+    join(repoRoot, "src/app/api/device/v1/credentials/rotate/route.ts"),
+    "utf8"
   )
 
   assert.match(configRoute, /requireDeviceRequest/)
@@ -148,7 +178,7 @@ test("device v1 routes use dedicated device auth", () => {
 test("operator shell links to devices page", () => {
   const source = readFileSync(
     join(repoRoot, "src/components/operator/operator-shell.tsx"),
-    "utf8",
+    "utf8"
   )
   assert.match(source, /\/operator\/devices/)
   assert.match(source, /Devices/)
@@ -160,8 +190,11 @@ test("enrollment provision and config flow works when database is available", as
     return
   }
 
-  const { createEnrollment, provisionDevice, getDeviceConfigForAuthenticatedDevice } =
-    await import("./devices.ts")
+  const {
+    createEnrollment,
+    provisionDevice,
+    getDeviceConfigForAuthenticatedDevice,
+  } = await import("./devices.ts")
 
   const operatorContext = {
     tenantId: PLAYTT_TENANT_ID,
@@ -186,7 +219,13 @@ test("enrollment provision and config flow works when database is available", as
   assert.equal(provisioned.credentialVersion, 1)
   assert.ok(provisioned.secret)
 
-  const { assignDevice, authenticateDeviceCredential } = await import("./devices.ts")
+  const {
+    assignDevice,
+    authenticateDeviceCredential,
+    revokeDevice,
+    rotateDeviceCredential,
+  } = await import("./devices.ts")
+  const { DeviceError } = await import("./errors.ts")
 
   await assignDevice(operatorContext, {
     deviceId: provisioned.deviceId,
@@ -212,7 +251,32 @@ test("enrollment provision and config flow works when database is available", as
   assert.equal(config.resourceId, MAIN_POD_RESOURCE_ID)
   assert.equal(config.config.debounceMs, 25)
 
-  const { DeviceError } = await import("./errors.ts")
+  const rotated = await rotateDeviceCredential({
+    deviceId: provisioned.deviceId,
+    tenantId: provisioned.tenantId,
+  })
+  await assert.rejects(
+    () =>
+      authenticateDeviceCredential({
+        deviceId: provisioned.deviceId,
+        secret: provisioned.secret,
+      }),
+    DeviceError
+  )
+  await authenticateDeviceCredential({
+    deviceId: provisioned.deviceId,
+    secret: rotated.secret,
+  })
+
+  await revokeDevice(operatorContext, provisioned.deviceId)
+  await assert.rejects(
+    () =>
+      authenticateDeviceCredential({
+        deviceId: provisioned.deviceId,
+        secret: rotated.secret,
+      }),
+    DeviceError
+  )
 
   await assert.rejects(
     () =>
@@ -221,7 +285,22 @@ test("enrollment provision and config flow works when database is available", as
         hardwareUid: `sim-reuse-${Date.now()}`,
         correlationId: "corr-provision-reuse",
       }),
-    DeviceError,
+    DeviceError
+  )
+
+  const expiredEnrollment = await createEnrollment(operatorContext, {
+    locationId: HURLINGHAM_VENUE_ID,
+    deviceType: "esp32_controller",
+    expiresInMinutes: 0,
+  })
+  await assert.rejects(
+    () =>
+      provisionDevice({
+        enrollmentCode: expiredEnrollment.enrollmentCode,
+        hardwareUid: `sim-expired-${Date.now()}`,
+        correlationId: "corr-provision-expired",
+      }),
+    DeviceError
   )
 })
 
@@ -231,9 +310,8 @@ test("heartbeat and command lifecycle works when database is available", async (
     return
   }
 
-  const { createEnrollment, provisionDevice, assignDevice } = await import(
-    "./devices.ts",
-  )
+  const { createEnrollment, provisionDevice, assignDevice } =
+    await import("./devices.ts")
   const { recordDeviceHeartbeat } = await import("./heartbeats.ts")
   const {
     enqueueDeviceCommand,
@@ -291,14 +369,14 @@ test("heartbeat and command lifecycle works when database is available", async (
 
   const pending = await listPendingDeviceCommands(
     provisioned.tenantId,
-    provisioned.deviceId,
+    provisioned.deviceId
   )
   assert.equal(pending.length, 1)
 
   await markDeviceCommandDelivered(
     provisioned.tenantId,
     provisioned.deviceId,
-    command.id,
+    command.id
   )
 
   const ack = await acknowledgeDeviceCommand({
@@ -321,6 +399,39 @@ test("heartbeat and command lifecycle works when database is available", async (
   })
 
   assert.equal(duplicateAck.status, "acknowledged")
+
+  const concurrentCommand = await enqueueDeviceCommand({
+    tenantId: provisioned.tenantId,
+    deviceId: provisioned.deviceId,
+    kind: "reboot",
+    correlationId: "corr-command-concurrent-ack",
+    expiresInSeconds: 120,
+  })
+  await markDeviceCommandDelivered(
+    provisioned.tenantId,
+    provisioned.deviceId,
+    concurrentCommand.id
+  )
+  const concurrentAcks = await Promise.all([
+    acknowledgeDeviceCommand({
+      tenantId: provisioned.tenantId,
+      deviceId: provisioned.deviceId,
+      commandId: concurrentCommand.id,
+      idempotencyKey: "same-ack",
+      success: true,
+    }),
+    acknowledgeDeviceCommand({
+      tenantId: provisioned.tenantId,
+      deviceId: provisioned.deviceId,
+      commandId: concurrentCommand.id,
+      idempotencyKey: "same-ack",
+      success: true,
+    }),
+  ])
+  assert.deepEqual(
+    concurrentAcks.map((item) => item.status),
+    ["acknowledged", "acknowledged"]
+  )
 
   await expireStaleDeviceCommands(new Date("2099-01-01T00:00:00.000Z"))
 })

@@ -50,3 +50,17 @@ test("webhook processor persists before acknowledgement and does not dispatch in
   assert.match(source, /persistWebhook/)
   assert.doesNotMatch(source, /handleEvent\(/)
 })
+
+test("Paystack inbox resolves either payload or provider-event uniqueness conflicts", () => {
+  const source = readFileSync(
+    join(import.meta.dirname, "webhook-inbox-repository.ts"),
+    "utf8",
+  )
+
+  assert.match(source, /\.onConflictDoNothing\(\)/)
+  assert.match(source, /eq\(paymentWebhookInbox\.payloadHash, payloadHash\)/)
+  assert.match(
+    source,
+    /eq\(paymentWebhookInbox\.providerEventId, input\.providerEventId\)/,
+  )
+})

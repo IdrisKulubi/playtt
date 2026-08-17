@@ -62,8 +62,12 @@ export async function processClaimedOutboxRow(input) {
   )
 
   if (resolved.kind === "unsupported-version") {
-    await markProcessed(row.id)
-    return { outcome: "skipped-unsupported" }
+    await markRetryOrDeadLetter(row.id, {
+      status: "dead_letter",
+      availableAt: new Date().toISOString(),
+      lastError: "Outbox event version is unsupported.",
+    })
+    return { outcome: "dead_letter" }
   }
 
   if (resolved.kind !== "ok") {

@@ -10,6 +10,7 @@ import { renderOtpEmailHtml } from "./src/lib/email/render-otp-email"
 import { eq } from "drizzle-orm"
 import { WEB_CORS_ORIGINS } from "./src/lib/web-cors-origins"
 import { resolveTrustedAuthOrigins } from "./src/lib/trusted-auth-origins"
+import { ensureDefaultPlayTtMembershipForUser } from "./src/server/tenancy/resolve-membership"
 
 const TRUSTED_ORIGINS = resolveTrustedAuthOrigins({
   environment: process.env.NODE_ENV,
@@ -83,6 +84,12 @@ export const auth = betterAuth({
     session: {
       create: {
         after: async (session: { userId: string }) => {
+          try {
+            await ensureDefaultPlayTtMembershipForUser(session.userId)
+          } catch (error) {
+            console.error("Failed to ensure default PlayTT membership:", error)
+          }
+
           // Update lastLoginAt when a session is created
           try {
             await db

@@ -2,6 +2,7 @@ import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -289,6 +290,7 @@ export const brands = pgTable(
   },
   (table) => [
     uniqueIndex("brands_tenant_slug_unique").on(table.tenantId, table.slug),
+    uniqueIndex("brands_tenant_id_unique").on(table.tenantId, table.id),
     uniqueIndex("brands_tenant_default_unique")
       .on(table.tenantId)
       .where(sql`${table.isDefault} = true`),
@@ -507,6 +509,11 @@ export const locations = pgTable(
     index("locations_tenant_id_idx").on(table.tenantId),
     uniqueIndex("locations_tenant_slug_unique").on(table.tenantId, table.slug),
     uniqueIndex("locations_tenant_id_unique").on(table.tenantId, table.id),
+    foreignKey({
+      columns: [table.tenantId, table.brandId],
+      foreignColumns: [brands.tenantId, brands.id],
+      name: "locations_tenant_brand_fk",
+    }).onDelete("restrict"),
   ],
 );
 
@@ -541,6 +548,11 @@ export const zones = pgTable(
     uniqueIndex("zones_tenant_id_unique").on(table.tenantId, table.id),
     index("zones_location_id_idx").on(table.locationId),
     index("zones_tenant_id_idx").on(table.tenantId),
+    foreignKey({
+      columns: [table.tenantId, table.locationId],
+      foreignColumns: [locations.tenantId, locations.id],
+      name: "zones_tenant_location_fk",
+    }).onDelete("restrict"),
   ],
 );
 
@@ -614,6 +626,21 @@ export const resources = pgTable(
       .on(table.tenantId, table.locationId, table.code)
       .where(sql`${table.code} is not null`),
     uniqueIndex("resources_tenant_id_unique").on(table.tenantId, table.id),
+    foreignKey({
+      columns: [table.tenantId, table.locationId],
+      foreignColumns: [locations.tenantId, locations.id],
+      name: "resources_tenant_location_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.tenantId, table.zoneId],
+      foreignColumns: [zones.tenantId, zones.id],
+      name: "resources_tenant_zone_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.tenantId, table.resourceTypeId],
+      foreignColumns: [resourceTypes.tenantId, resourceTypes.id],
+      name: "resources_tenant_resource_type_fk",
+    }).onDelete("restrict"),
     check("resources_capacity_positive", sql`${table.capacity} > 0`),
   ],
 );
@@ -645,6 +672,11 @@ export const resourceCapabilities = pgTable(
     ),
     index("resource_capabilities_tenant_id_idx").on(table.tenantId),
     index("resource_capabilities_resource_id_idx").on(table.resourceId),
+    foreignKey({
+      columns: [table.tenantId, table.resourceId],
+      foreignColumns: [resources.tenantId, resources.id],
+      name: "resource_capabilities_tenant_resource_fk",
+    }).onDelete("restrict"),
   ],
 );
 
@@ -1114,6 +1146,16 @@ export const outboxEvents = pgTable(
     index("outbox_events_claim_idx").on(table.status, table.availableAt),
     index("outbox_events_tenant_id_idx").on(table.tenantId),
     index("outbox_events_event_type_idx").on(table.eventType, table.eventVersion),
+    foreignKey({
+      columns: [table.tenantId, table.venueId],
+      foreignColumns: [locations.tenantId, locations.id],
+      name: "outbox_events_tenant_venue_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.tenantId, table.resourceId],
+      foreignColumns: [resources.tenantId, resources.id],
+      name: "outbox_events_tenant_resource_fk",
+    }).onDelete("restrict"),
   ],
 );
 
@@ -1388,6 +1430,9 @@ export const deviceAssignments = pgTable(
     ),
   ],
 );
+
+// PostgreSQL exclusion constraints for both assignment timelines are maintained
+// as required custom SQL in migration 0017; Drizzle cannot express them here.
 
 export const deviceHeartbeats = pgTable(
   "device_heartbeats",

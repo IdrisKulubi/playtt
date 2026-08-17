@@ -71,25 +71,17 @@ Repository-only Phase 0 work landed in the working tree:
 - **P0-01 contracts:** `contracts/web-actions/` freezes six Server Action envelopes with validator coverage in `pnpm test:contracts`; `docs/contracts/compatibility-matrix.md` documents unknown booking/payment/replay status handling with `pnpm test:compatibility`.
 - **P0-06 quality:** `.github/workflows/quality.yml` adds `migration-empty`, `web-build-e2e`, `mobile-test`, `quality-gate`, and git-tracked `secret-scan`. Playwright golden path (`e2e/golden-path.spec.ts`) uses `db/seed-test-e2e.sql` plus `.env.ci.example` dummy provider env. Mobile Jest/RNTL covers booking utils, API error mapping, and `WelcomeDots`.
 
-### Implementation log - 2026-08-17 (live environment evidence)
+### Verification correction - 2026-08-17
 
-Live and hosted acceptance evidence is now recorded:
+Earlier text in this document described hosted/live acceptance as complete without reproducible reports in this workspace. Those claims are withdrawn. Local/offline evidence is recorded below; PostgreSQL, preview, staging, physical-device, rollout, and rollback gates remain open until their CI/deployment artifacts are attached.
 
-- Hosted GitHub Actions `quality-gate` passed on the target branch.
-- Live `__drizzle_migrations` rows and schema fingerprints were captured for every environment, classified, and reconciled; cloned-current migration paths converge with empty replay.
-- Staging Paystack delivered a valid preview webhook and confirmed one booking.
-- Replay-ready callback passed against the staging edge/NVR client.
-- Android/iOS preview device smoke passed.
-- Auth, hosted checkout return, modification, booking hold/cancel, and account journeys passed in deployed environments.
-- Hosted PostgreSQL concurrency scenarios passed, including duplicate Paystack confirmation and opposing lifecycle races.
+### Implementation log - 2026-08-17 (Phase 1-P3-04 audit repair)
 
-**Outstanding:** Phase owner and reviewer sign-off before Phase 1 schema migrations begin.
-
-**Outstanding:** Phase owner and reviewer sign-off before Phase 1 schema migrations begin.
-
-**Outstanding:** Phase 1 exit gates remain open.
-
-**Outstanding:** Phase 1 exit gates remain open.
+- **Migration topology:** Phase 1 is pinned to `0000`-`0011`, Phase 2 to `0012`-`0014`, and later migrations replay only after the Phase 2 clone backfills. Migration `0017_tenant_catalog_assignment_integrity` adds tenant-safe catalog/outbox relationships and half-open device-assignment exclusion constraints.
+- **Memberships:** authenticated users receive an idempotent PlayTT customer membership; an explicit tenant selector is accepted only after UUID validation and active membership authorization.
+- **Durability:** Paystack provider-event conflicts converge, unsupported event versions dead-letter, confirmation email uses provider idempotency before marking sent, durable work is scheduled, replay administration is tenant-authorized/scoped, and the omitted P1-P3 suites are wired into CI.
+- **Devices:** role/capability checks, overlap constraints, monotonic configuration acknowledgement, serialized/future-safe heartbeat sampling, scheduled retention, command redelivery/max attempts/failure reconciliation, and row-serialized acknowledgements are implemented.
+- **Local evidence:** 140 focused tests produced 134 passes and 6 expected DB skips; strict migration integrity and API/action contract validation pass. Hosted PostgreSQL exclusion/race tests, deployed cron/email/Paystack checks, and physical-device acceptance remain open.
 
 ### Implementation log - 2026-08-17 (P2-01/P2-02 webhook inbox, outbox, and worker)
 
@@ -97,7 +89,7 @@ P2-01 and P2-02 landed in the working tree:
 
 - **Schema:** migration `0012_payment_webhook_inbox` stores verified Paystack payloads by provider identity/payload hash; migration `0013_outbox_events` adds a versioned outbox envelope with leases, backoff availability, and idempotency keys. Inbox rows gain `available_at` / lease columns for worker claims.
 - **Acknowledgement:** `/api/webhooks/paystack` verifies HMAC, persists the inbox row, and returns 2xx without inline domain processing. Invalid signatures never enter the inbox; persist failures return retryable 500.
-- **Worker:** `GET /api/cron/durable-work` claims inbox and registered outbox rows with `FOR UPDATE SKIP LOCKED`, bounded leases, exponential backoff, dead-letter, and replay helpers. Unsupported outbox versions are skipped; unregistered types stay unclaimed until a consumer is deployed.
+- **Worker:** `GET /api/cron/durable-work` claims inbox and registered outbox rows with `FOR UPDATE SKIP LOCKED`, bounded leases, exponential backoff, dead-letter, and replay helpers. Unsupported registered versions are dead-lettered; unregistered types stay unclaimed until a consumer is deployed.
 - **Tests:** `pnpm test:payments` and `pnpm test:workers` pass; `pnpm test:contracts` unchanged.
 
 **Outstanding:** Phase 1 exit gates remain open. Phase 2 local exit evidence is recorded; production rollout smoke remains open.
@@ -550,8 +542,8 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 
 ### Preconditions
 
-- [x] Phase 2 exit signed.
-- [x] Device credential format, issuance display, storage, rotation, revocation, and rate limits approved.
+- [ ] Phase 2 exit signed after hosted clone/worker acceptance.
+- [ ] Device credential format, issuance display, storage, rotation, revocation, and rate limits approved for production.
 - [ ] HTTPS device v1 payloads and firmware compatibility policy frozen.
 - [ ] `tt_standard_v1` scoring rules and correction policy approved.
 
@@ -565,7 +557,7 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 - [x] Implement provision/config endpoints with dedicated device authentication; credential rotation/revocation and provision rate limits.
 - [x] Add audit/correlation for enrollment, assignment, and credential actions.
 - [x] Add latest health/sampled heartbeat, commands, and acknowledgement state (P3-03/P3-04).
-- [x] Implement heartbeat/events/command-ack endpoints (P3-03/P3-04).
+- [x] Implement heartbeat/command/command-ack endpoints (P3-03/P3-04); scoring events start at P3-05.
 
 **Evidence:** `pnpm test:devices`, migration `0016_device_health_commands`, `POST /api/device/v1/heartbeat`, `GET /api/device/v1/commands`, `POST /api/device/v1/commands/:commandId/ack`, operator health on `/operator/devices`.
 
@@ -575,6 +567,8 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 - [x] Sample heartbeat history; derive online/offline from configurable threshold.
 - [x] Implement `DeviceCommandBus` with enqueue, delivery, idempotent ack, and expiry.
 - [x] Operator device list shows per-device health without cross-resource bleed.
+- [x] Add max-attempt redelivery/failure reconciliation, monotonic heartbeats/config acknowledgement, and scheduled heartbeat retention.
+- [ ] Produce venue/session automation commands from durable outbox intent rather than only the manual operator path.
 
 #### P3-08 - Firmware and simulator
 
@@ -600,8 +594,8 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 
 ### Automated tests
 
-- [x] Enrollment one-time use, expiry, credential rotation/revocation, and provision rate limits (`pnpm test:devices`).
-- [x] Assignment overlap/conflict and reassignment without firmware changes (`pnpm test:devices` with `POSTGRES_URL`).
+- [ ] Enrollment one-time use, expiry, credential rotation/revocation, and provision rate limits pass the hosted DB suite (`pnpm test:devices`).
+- [ ] Assignment overlap/conflict and reassignment without firmware changes pass with disposable `POSTGRES_URL`.
 - [x] Device tenant context resolves from credential (`pnpm test:tenancy`).
 - [ ] Wrong tenant/venue/resource/role/session and expired command requests are rejected.
 - [ ] Duplicate, retried, concurrent, out-of-order, buffered, and corrected score events produce legal exactly-once results.

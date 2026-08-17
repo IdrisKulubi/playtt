@@ -13,9 +13,10 @@ export async function sendBookingConfirmationEmail(input: {
   endTime: Date
   totalAmount: string
   currency: string
+  idempotencyKey: string
 }) {
   if (!process.env.RESEND_API_KEY?.trim()) {
-    return
+    throw new Error("Booking confirmation email provider is not configured.")
   }
 
   const startLabel = input.startTime.toLocaleString("en-KE", {
@@ -39,10 +40,17 @@ export async function sendBookingConfirmationEmail(input: {
     <p>See you on the table.</p>
   `
 
-  await resend.emails.send({
-    from: resendFromEmail,
-    to: input.email,
-    subject: "Your PlayTT booking is confirmed",
-    html,
-  })
+  const result = await resend.emails.send(
+    {
+      from: resendFromEmail,
+      to: input.email,
+      subject: "Your PlayTT booking is confirmed",
+      html,
+    },
+    { idempotencyKey: input.idempotencyKey },
+  )
+
+  if (result.error) {
+    throw new Error("Booking confirmation email provider rejected the request.")
+  }
 }

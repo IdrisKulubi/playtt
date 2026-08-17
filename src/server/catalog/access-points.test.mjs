@@ -14,6 +14,20 @@ import {
 const repoRoot = join(import.meta.dirname, "..", "..", "..")
 const catalogRoot = import.meta.dirname
 const schemaSource = readFileSync(join(repoRoot, "db", "schema.ts"), "utf8")
+function schemaDeclaration(name, nextName) {
+  const start = schemaSource.indexOf(`export const ${name} =`)
+  const end = schemaSource.indexOf(`export const ${nextName} =`, start)
+  assert.ok(start >= 0 && end > start, `${name} schema declaration is missing`)
+  return schemaSource.slice(start, end)
+}
+
+const accessPointSchemaSource = [
+  schemaDeclaration("accessPoints", "accessPointResources"),
+  schemaDeclaration("accessPointResources", "featureFlags"),
+  schemaSource.match(
+    /export const accessPointKindEnum = pgEnum\("access_point_kind", \[[\s\S]*?\]\)/,
+  )?.[0] ?? "",
+].join("\n")
 const migrationSource = readFileSync(
   join(repoRoot, "drizzle", "0011_access_points.sql"),
   "utf8",
@@ -21,11 +35,11 @@ const migrationSource = readFileSync(
 const seedSql = readFileSync(join(repoRoot, "db", "seed-phase1.sql"), "utf8")
 
 test("schema defines logical access points without provider lock identifiers", () => {
-  assert.match(schemaSource, /access_points/)
-  assert.match(schemaSource, /access_point_resources/)
-  assert.match(schemaSource, /access_point_kind/)
-  assert.doesNotMatch(schemaSource, /ttlock/i)
-  assert.doesNotMatch(schemaSource, /lockId/i)
+  assert.match(accessPointSchemaSource, /access_points/)
+  assert.match(accessPointSchemaSource, /access_point_resources/)
+  assert.match(accessPointSchemaSource, /access_point_kind/)
+  assert.doesNotMatch(accessPointSchemaSource, /ttlock/i)
+  assert.doesNotMatch(accessPointSchemaSource, /lockId/i)
 })
 
 test("migration adds tenant-scoped composite foreign keys for access mappings", () => {
@@ -78,7 +92,7 @@ test("operator write routes require catalog.manage", () => {
 
 test("same human door code can exist in different tenant venues via tenant-location uniqueness", () => {
   assert.match(
-    schemaSource,
+    accessPointSchemaSource,
     /access_points_tenant_location_code_unique/,
   )
 })

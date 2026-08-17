@@ -9,6 +9,7 @@ import {
   user,
 } from "@/db/schema"
 import { sendBookingConfirmationEmail } from "@/server/payments/confirmation-email"
+import { deliverThenMarkSent } from "@/server/payments/notification-delivery.mjs"
 import {
   EVENT_TYPES,
   EVENT_VERSION,
@@ -61,12 +62,9 @@ export async function consumePaymentConfirmedEmail(
     throw new Error("payment.confirmed.v1 event is missing booking identity.")
   }
 
-  const [claimed] = await db
-    .update(notifications)
-    .set({
-      status: "sent",
-      sentAt: new Date(),
-    })
+  const [pendingNotification] = await db
+    .select({ id: notifications.id })
+    .from(notifications)
     .where(
       and(
         eq(notifications.tenantId, tenantId),
@@ -76,50 +74,48 @@ export async function consumePaymentConfirmedEmail(
         eq(notifications.status, "pending"),
       ),
     )
-    .returning({ id: notifications.id })
+    .limit(1)
 
-  if (!claimed) {
+  if (!pendingNotification) {
     return
   }
 
   const booking = await loadBookingEmailContext(tenantId, bookingId)
 
   if (!booking?.userEmail) {
-    await db
-      .update(notifications)
-      .set({
-        status: "pending",
-        sentAt: null,
-      })
-      .where(eq(notifications.id, claimed.id))
-
     throw new Error(
       `Booking ${bookingId} is missing recipient context for confirmation email.`,
     )
   }
 
-  try {
-    await sendBookingConfirmationEmail({
-      email: booking.userEmail,
-      name: booking.userName,
-      locationName: booking.locationName,
-      resourceName: booking.resourceName,
-      startTime: booking.startTime,
-      endTime: booking.endTime,
-      totalAmount: String(booking.totalAmount),
-      currency: booking.currency,
-    })
-  } catch (error) {
-    await db
-      .update(notifications)
-      .set({
-        status: "pending",
-        sentAt: null,
-      })
-      .where(eq(notifications.id, claimed.id))
-
-    throw error
-  }
+  await deliverThenMarkSent({
+    idempotencyKey: `booking-confirmation/${pendingNotification.id}`,
+    deliver: (idempotencyKey: string) =>
+      sendBookingConfirmationEmail({
+        email: booking.userEmail,
+        name: booking.userName,
+        locationName: booking.locationName,
+        resourceName: booking.resourceName,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        totalAmount: String(booking.totalAmount),
+        currency: booking.currency,
+        idempotencyKey,
+      }),
+    markSent: () =>
+      db
+        .update(notifications)
+        .set({
+          status: "sent",
+          sentAt: new Date(),
+        })
+        .where(
+          and(
+            eq(notifications.id, pendingNotification.id),
+            eq(notifications.status, "pending"),
+          ),
+        ),
+  })
 }
 
 export function createPaymentConfirmedEmailConsumers() {

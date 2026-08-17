@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 
-import { and, asc, desc, eq, gt, isNull, lte, or } from "drizzle-orm"
+import { and, asc, desc, eq, gt, isNull, lt, lte, or } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import {
@@ -9,6 +9,7 @@ import {
   deviceEnrollments,
   devices,
   locations,
+  resourceCapabilities,
   resources,
 } from "@/db/schema"
 import type {
@@ -25,6 +26,7 @@ import {
   verifyDeviceSecret,
 } from "@/server/devices/credentials"
 import { DeviceError } from "@/server/devices/errors"
+import { validateDeviceAssignmentPolicy } from "@/server/devices/policies.mjs"
 import {
   deriveDeviceHealth,
   type DeviceHealthStatus,
@@ -102,7 +104,7 @@ function mapDevice(row: typeof devices.$inferSelect): DeviceRecord {
 }
 
 function mapAssignment(
-  row: typeof deviceAssignments.$inferSelect,
+  row: typeof deviceAssignments.$inferSelect
 ): DeviceAssignmentRecord {
   return {
     id: row.id,
@@ -123,7 +125,7 @@ function mapAssignment(
 
 export async function listDevices(
   context: TenantContext,
-  locationId?: string,
+  locationId?: string
 ): Promise<DeviceListItem[]> {
   const rows = await db
     .select()
@@ -131,8 +133,8 @@ export async function listDevices(
     .where(
       and(
         eq(devices.tenantId, context.tenantId),
-        locationId ? eq(devices.locationId, locationId) : undefined,
-      ),
+        locationId ? eq(devices.locationId, locationId) : undefined
+      )
     )
     .orderBy(asc(devices.hardwareUid))
 
@@ -150,9 +152,9 @@ export async function listDevices(
           lte(deviceAssignments.effectiveFrom, now),
           or(
             isNull(deviceAssignments.effectiveTo),
-            gt(deviceAssignments.effectiveTo, now),
-          ),
-        ),
+            gt(deviceAssignments.effectiveTo, now)
+          )
+        )
       )
       .orderBy(desc(deviceAssignments.effectiveFrom))
       .limit(1)
@@ -173,16 +175,20 @@ export async function createEnrollment(
     locationId: string
     deviceType: DeviceType
     expiresInMinutes?: number
-  },
-): Promise<{ enrollmentId: string; enrollmentCode: string; expiresAt: string }> {
+  }
+): Promise<{
+  enrollmentId: string
+  enrollmentCode: string
+  expiresAt: string
+}> {
   const [location] = await db
     .select({ id: locations.id })
     .from(locations)
     .where(
       and(
         eq(locations.tenantId, context.tenantId),
-        eq(locations.id, input.locationId),
-      ),
+        eq(locations.id, input.locationId)
+      )
     )
     .limit(1)
 
@@ -190,7 +196,7 @@ export async function createEnrollment(
     throw new DeviceError(
       "VALIDATION_ERROR",
       "Venue not found for this tenant.",
-      400,
+      400
     )
   }
 
@@ -241,7 +247,7 @@ export async function provisionDevice(input: {
     throw new DeviceError(
       "ENROLLMENT_INVALID",
       "Enrollment code is invalid.",
-      403,
+      403
     )
   }
 
@@ -249,7 +255,7 @@ export async function provisionDevice(input: {
     throw new DeviceError(
       "ENROLLMENT_CONSUMED",
       "Enrollment code has already been used.",
-      403,
+      403
     )
   }
 
@@ -257,7 +263,7 @@ export async function provisionDevice(input: {
     throw new DeviceError(
       "ENROLLMENT_EXPIRED",
       "Enrollment code has expired.",
-      403,
+      403
     )
   }
 
@@ -276,8 +282,8 @@ export async function provisionDevice(input: {
         and(
           eq(deviceEnrollments.id, enrollment.id),
           isNull(deviceEnrollments.consumedAt),
-          gt(deviceEnrollments.expiresAt, new Date()),
-        ),
+          gt(deviceEnrollments.expiresAt, new Date())
+        )
       )
       .returning({ id: deviceEnrollments.id })
 
@@ -285,7 +291,7 @@ export async function provisionDevice(input: {
       throw new DeviceError(
         "ENROLLMENT_CONSUMED",
         "Enrollment code is no longer available.",
-        403,
+        403
       )
     }
 
@@ -343,8 +349,8 @@ export async function authenticateDeviceCredential(input: {
     .where(
       and(
         eq(deviceCredentials.deviceId, input.deviceId),
-        eq(deviceCredentials.status, "active"),
-      ),
+        eq(deviceCredentials.status, "active")
+      )
     )
     .limit(1)
 
@@ -352,7 +358,7 @@ export async function authenticateDeviceCredential(input: {
     throw new DeviceError(
       "DEVICE_UNAUTHENTICATED",
       "Device credentials are invalid.",
-      401,
+      401
     )
   }
 
@@ -377,8 +383,8 @@ export async function rotateDeviceCredential(input: {
         and(
           eq(deviceCredentials.deviceId, input.deviceId),
           eq(deviceCredentials.tenantId, input.tenantId),
-          eq(deviceCredentials.status, "active"),
-        ),
+          eq(deviceCredentials.status, "active")
+        )
       )
       .limit(1)
 
@@ -386,7 +392,7 @@ export async function rotateDeviceCredential(input: {
       throw new DeviceError(
         "DEVICE_NOT_FOUND",
         "Active device credential not found.",
-        404,
+        404
       )
     }
 
@@ -418,7 +424,7 @@ export async function rotateDeviceCredential(input: {
 
 export async function revokeDevice(
   context: TenantContext,
-  deviceId: string,
+  deviceId: string
 ): Promise<DeviceRecord> {
   const now = new Date()
 
@@ -426,7 +432,7 @@ export async function revokeDevice(
     .update(devices)
     .set({ status: "revoked", updatedAt: now })
     .where(
-      and(eq(devices.tenantId, context.tenantId), eq(devices.id, deviceId)),
+      and(eq(devices.tenantId, context.tenantId), eq(devices.id, deviceId))
     )
     .returning()
 
@@ -445,8 +451,8 @@ export async function revokeDevice(
       and(
         eq(deviceCredentials.tenantId, context.tenantId),
         eq(deviceCredentials.deviceId, deviceId),
-        eq(deviceCredentials.status, "active"),
-      ),
+        eq(deviceCredentials.status, "active")
+      )
     )
 
   await db
@@ -459,8 +465,8 @@ export async function revokeDevice(
       and(
         eq(deviceAssignments.tenantId, context.tenantId),
         eq(deviceAssignments.deviceId, deviceId),
-        isNull(deviceAssignments.effectiveTo),
-      ),
+        isNull(deviceAssignments.effectiveTo)
+      )
     )
 
   return mapDevice(device)
@@ -471,12 +477,13 @@ async function assertAssignmentVenue(
   deviceId: string,
   locationId: string,
   resourceId: string | null,
+  role: DeviceAssignmentRole
 ) {
   const [device] = await db
     .select()
     .from(devices)
     .where(
-      and(eq(devices.tenantId, context.tenantId), eq(devices.id, deviceId)),
+      and(eq(devices.tenantId, context.tenantId), eq(devices.id, deviceId))
     )
     .limit(1)
 
@@ -492,9 +499,11 @@ async function assertAssignmentVenue(
     throw new DeviceError(
       "VALIDATION_ERROR",
       "Device and assignment venue must match.",
-      400,
+      400
     )
   }
+
+  let resourceCapabilityCodes: string[] = []
 
   if (resourceId) {
     const [resource] = await db
@@ -503,8 +512,8 @@ async function assertAssignmentVenue(
       .where(
         and(
           eq(resources.tenantId, context.tenantId),
-          eq(resources.id, resourceId),
-        ),
+          eq(resources.id, resourceId)
+        )
       )
       .limit(1)
 
@@ -512,9 +521,37 @@ async function assertAssignmentVenue(
       throw new DeviceError(
         "VALIDATION_ERROR",
         "Resource must belong to the assignment venue.",
-        400,
+        400
       )
     }
+
+    resourceCapabilityCodes = (
+      await db
+        .select({ code: resourceCapabilities.code })
+        .from(resourceCapabilities)
+        .where(
+          and(
+            eq(resourceCapabilities.tenantId, context.tenantId),
+            eq(resourceCapabilities.resourceId, resourceId)
+          )
+        )
+    ).map((capability) => capability.code)
+  }
+
+  const policy = validateDeviceAssignmentPolicy({
+    role,
+    deviceType: device.type,
+    deviceCapabilityCodes: device.capabilityCodes ?? [],
+    resourceId,
+    resourceCapabilityCodes,
+  })
+
+  if (!policy.ok) {
+    throw new DeviceError(
+      "DEVICE_ROLE_UNSUPPORTED",
+      `Device assignment is incompatible with role or capabilities (${policy.reason}).`,
+      400
+    )
   }
 }
 
@@ -526,22 +563,22 @@ async function assertNoOverlappingAssignment(
     role: DeviceAssignmentRole
     effectiveFrom: Date
     effectiveTo: Date | null
-  },
+  }
 ) {
   const overlapWindow = and(
     eq(deviceAssignments.tenantId, context.tenantId),
     or(
       isNull(deviceAssignments.effectiveTo),
-      gt(deviceAssignments.effectiveTo, input.effectiveFrom),
+      gt(deviceAssignments.effectiveTo, input.effectiveFrom)
     ),
     input.effectiveTo
-      ? lte(deviceAssignments.effectiveFrom, input.effectiveTo)
-      : undefined,
+      ? lt(deviceAssignments.effectiveFrom, input.effectiveTo)
+      : undefined
   )
 
   const deviceOverlap = and(
     overlapWindow,
-    eq(deviceAssignments.deviceId, input.deviceId),
+    eq(deviceAssignments.deviceId, input.deviceId)
   )
 
   const scoringOverlap =
@@ -549,7 +586,7 @@ async function assertNoOverlappingAssignment(
       ? and(
           overlapWindow,
           eq(deviceAssignments.resourceId, input.resourceId),
-          eq(deviceAssignments.role, "score_input"),
+          eq(deviceAssignments.role, "score_input")
         )
       : undefined
 
@@ -567,7 +604,7 @@ async function assertNoOverlappingAssignment(
     throw new DeviceError(
       "ASSIGNMENT_CONFLICT",
       "An overlapping active assignment already exists.",
-      409,
+      409
     )
   }
 }
@@ -583,13 +620,14 @@ export async function assignDevice(
     effectiveTo?: string | null
     config?: Record<string, unknown>
     configVersion?: number
-  },
+  }
 ): Promise<DeviceAssignmentRecord> {
   await assertAssignmentVenue(
     context,
     input.deviceId,
     input.locationId,
     input.resourceId ?? null,
+    input.role
   )
 
   const effectiveFrom = input.effectiveFrom
@@ -601,7 +639,7 @@ export async function assignDevice(
     throw new DeviceError(
       "VALIDATION_ERROR",
       "Assignment end must be after start.",
-      400,
+      400
     )
   }
 
@@ -634,7 +672,7 @@ export async function assignDevice(
 export async function endDeviceAssignment(
   context: TenantContext,
   assignmentId: string,
-  effectiveTo?: string,
+  effectiveTo?: string
 ): Promise<DeviceAssignmentRecord> {
   const endAt = effectiveTo ? new Date(effectiveTo) : new Date()
 
@@ -648,8 +686,8 @@ export async function endDeviceAssignment(
       and(
         eq(deviceAssignments.tenantId, context.tenantId),
         eq(deviceAssignments.id, assignmentId),
-        isNull(deviceAssignments.effectiveTo),
-      ),
+        isNull(deviceAssignments.effectiveTo)
+      )
     )
     .returning()
 
@@ -657,7 +695,7 @@ export async function endDeviceAssignment(
     throw new DeviceError(
       "ASSIGNMENT_NOT_FOUND",
       "Open assignment not found.",
-      404,
+      404
     )
   }
 
@@ -667,7 +705,7 @@ export async function endDeviceAssignment(
 export async function getCurrentAssignmentForDevice(
   tenantId: string,
   deviceId: string,
-  at: Date = new Date(),
+  at: Date = new Date()
 ): Promise<DeviceAssignmentRecord | null> {
   const [assignment] = await db
     .select()
@@ -679,9 +717,9 @@ export async function getCurrentAssignmentForDevice(
         lte(deviceAssignments.effectiveFrom, at),
         or(
           isNull(deviceAssignments.effectiveTo),
-          gt(deviceAssignments.effectiveTo, at),
-        ),
-      ),
+          gt(deviceAssignments.effectiveTo, at)
+        )
+      )
     )
     .orderBy(desc(deviceAssignments.effectiveFrom))
     .limit(1)
@@ -708,14 +746,14 @@ export async function getDeviceConfigForAuthenticatedDevice(input: {
   const assignment = await getCurrentAssignmentForDevice(
     input.tenantId,
     input.deviceId,
-    now,
+    now
   )
 
   if (!assignment) {
     throw new DeviceError(
       "DEVICE_FORBIDDEN",
       "Device has no current assignment.",
-      403,
+      403
     )
   }
 
@@ -723,7 +761,7 @@ export async function getDeviceConfigForAuthenticatedDevice(input: {
     throw new DeviceError(
       "ASSIGNMENT_STALE",
       "Device assignment is no longer active.",
-      403,
+      403
     )
   }
 
@@ -748,7 +786,7 @@ export async function findEnrollmentByCodeHash(codeHash: string) {
 
 export function isEnrollmentCodeValid(
   enrollment: typeof deviceEnrollments.$inferSelect,
-  enrollmentCode: string,
+  enrollmentCode: string
 ) {
   return (
     !enrollment.consumedAt &&

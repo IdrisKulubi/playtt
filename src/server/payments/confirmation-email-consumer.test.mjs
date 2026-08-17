@@ -3,21 +3,66 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import test from "node:test"
 
+import { deliverThenMarkSent } from "./notification-delivery.mjs"
+
 const repoRoot = join(import.meta.dirname, "..", "..", "..")
 const paymentsRoot = import.meta.dirname
 const workersRoot = join(repoRoot, "src", "server", "workers")
 const bookingsRoot = join(repoRoot, "src", "server", "bookings")
 
-test("confirmation email consumer claims pending notifications before sending", () => {
+test("confirmation email consumer marks sent only after idempotent provider delivery", () => {
   const source = readFileSync(
     join(paymentsRoot, "confirmation-email-consumer.ts"),
     "utf8",
   )
 
   assert.match(source, /eq\(notifications\.status, "pending"\)/)
-  assert.match(source, /status: "sent"/)
-  assert.match(source, /sendBookingConfirmationEmail/)
-  assert.match(source, /status: "pending"/)
+  const sendIndex = source.indexOf("sendBookingConfirmationEmail")
+  const sentIndex = source.indexOf('status: "sent"')
+
+  assert.ok(sendIndex >= 0)
+  assert.ok(sentIndex > sendIndex)
+  assert.match(source, /idempotencyKey: `booking-confirmation\/\$\{pendingNotification\.id\}`/)
+  assert.doesNotMatch(source.slice(0, sendIndex), /status: "sent"/)
+})
+
+test("confirmation email provider receives its deterministic idempotency key", () => {
+  const source = readFileSync(join(paymentsRoot, "confirmation-email.ts"), "utf8")
+  assert.match(source, /\{ idempotencyKey: input\.idempotencyKey \}/)
+  assert.match(source, /if \(result\.error\)/)
+  assert.match(source, /if \(!process\.env\.RESEND_API_KEY\?\.trim\(\)\) {\s*throw/s)
+})
+
+test("delivery failure remains recoverable and never marks the notification sent", async () => {
+  let markedSent = false
+
+  await assert.rejects(() =>
+    deliverThenMarkSent({
+      idempotencyKey: "booking-confirmation/notification-1",
+      deliver: async () => {
+        throw new Error("provider unavailable")
+      },
+      markSent: async () => {
+        markedSent = true
+      },
+    }),
+  )
+
+  assert.equal(markedSent, false)
+})
+
+test("successful delivery uses the stable key before marking sent", async () => {
+  const calls = []
+  await deliverThenMarkSent({
+    idempotencyKey: "booking-confirmation/notification-1",
+    deliver: async (key) => calls.push(["deliver", key]),
+    markSent: async () => calls.push(["mark-sent"]),
+  })
+
+  assert.deepEqual(calls, [
+    ["deliver", "booking-confirmation/notification-1"],
+    ["mark-sent"],
+  ])
 })
 
 test("payment.confirmed.v1 consumer is registered in durable work cycle", () => {

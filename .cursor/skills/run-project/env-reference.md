@@ -21,13 +21,13 @@ All web env vars go in `.env.local` at the repo root.
 
 ### App URL (auth client)
 
-| Variable                    | Used in                                                 | Purpose                                                                                                         |
-| --------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_APP_URL`       | auth client/actions, `web-cors-origins.ts`              | Public app base URL; also trusted when it passes the exact-origin policy                                         |
-| `BETTER_AUTH_URL`           | auth client/actions, `web-cors-origins.ts`              | Auth server base URL; also trusted when it passes the exact-origin policy                                        |
-| `WEB_CORS_ORIGINS`          | `src/lib/web-cors-origins.ts`                           | Optional comma-separated exact web origins; credentials, paths, query/hash, wildcards, and unsupported schemes are ignored |
-| `MOBILE_AUTH_CALLBACK_URLS` | `auth.ts`                                               | Optional comma-separated exact `playtt://`, `exp://`, or `exps://` callback URLs; unsupported schemes and wildcard entries are ignored |
-| `BETTER_AUTH_TRUST_EXPO_GO` | `auth.ts`                                               | Set to `true` to enable broad Expo Go/dev-client origin patterns in production; development and test enable them by default |
+| Variable                    | Used in                                    | Purpose                                                                                                                                |
+| --------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_APP_URL`       | auth client/actions, `web-cors-origins.ts` | Public app base URL; also trusted when it passes the exact-origin policy                                                               |
+| `BETTER_AUTH_URL`           | auth client/actions, `web-cors-origins.ts` | Auth server base URL; also trusted when it passes the exact-origin policy                                                              |
+| `WEB_CORS_ORIGINS`          | `src/lib/web-cors-origins.ts`              | Optional comma-separated exact web origins; credentials, paths, query/hash, wildcards, and unsupported schemes are ignored             |
+| `MOBILE_AUTH_CALLBACK_URLS` | `auth.ts`                                  | Optional comma-separated exact `playtt://`, `exp://`, or `exps://` callback URLs; unsupported schemes and wildcard entries are ignored |
+| `BETTER_AUTH_TRUST_EXPO_GO` | `auth.ts`                                  | Set to `true` to enable broad Expo Go/dev-client origin patterns in production; development and test enable them by default            |
 
 The auth clients default to `http://localhost:3000` when their URL variables
 are unset. Trusted web origins are stricter: production defaults only to the
@@ -37,20 +37,34 @@ may accept explicitly configured safe HTTP/HTTPS origins.
 
 ### Payments (Paystack hosted checkout)
 
-| Variable              | Used in                            | Purpose                                                      |
-| --------------------- | ---------------------------------- | ------------------------------------------------------------ |
-| `PAYSTACK_SECRET_KEY` | `src/server/payments/*`            | Paystack secret key for Initialize Transaction + webhooks    |
-| `PAYSTACK_PUBLIC_KEY` | —                                  | Optional; not required for server-only flow                  |
+| Variable              | Used in                                                             | Purpose                                                                                                                     |
+| --------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `PAYSTACK_SECRET_KEY` | `src/server/payments/*`                                             | Paystack secret key for Initialize Transaction + webhooks                                                                   |
+| `PAYSTACK_PUBLIC_KEY` | —                                                                   | Optional; not required for server-only flow                                                                                 |
 | `CRON_SECRET`         | `src/app/api/cron/expire-bookings`, `src/app/api/cron/durable-work` | Bearer token for booking expiry, durable inbox/outbox workers, and session lifecycle reconciliation; required in production |
 
 Register webhook URL on Paystack dashboard: `https://<host>/api/webhooks/paystack`
 
+### Device fleet
+
+| Variable                                   | Default                   | Purpose                                                                         |
+| ------------------------------------------ | ------------------------- | ------------------------------------------------------------------------------- |
+| `DEVICE_CREDENTIAL_SECRET`                 | Development fallback only | HMAC pepper for enrollment codes and device credentials; required in production |
+| `DEVICE_OFFLINE_THRESHOLD_SECONDS`         | `300`                     | Heartbeat age after which a device is reported offline                          |
+| `DEVICE_HEARTBEAT_SAMPLE_INTERVAL_SECONDS` | `60`                      | Minimum interval between persisted heartbeat-history samples per device         |
+| `DEVICE_HEARTBEAT_RETENTION_COUNT`         | `100`                     | Maximum sampled heartbeat rows retained per device by durable maintenance       |
+
+Device-provided heartbeat timestamps may not exceed the server clock by more
+than two minutes and cannot move a device's authoritative last-heartbeat time
+backwards. Durable work performs command expiry/retry maintenance and heartbeat
+history pruning.
+
 ### Replay development stub
 
-| Variable                | Used in                                  | Purpose |
-| ----------------------- | ---------------------------------------- | ------- |
-| `NVR_STUB_AUTO`         | replay request route and stub policy     | Exact value `true` auto-completes replay clips only outside production; production ignores it |
-| `REPLAY_WEBHOOK_SECRET` | `api/replays/[id]/ready`                 | Required non-blank shared secret for the internal replay-ready callback; missing configuration returns retryable 503 |
+| Variable                | Used in                              | Purpose                                                                                                              |
+| ----------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `NVR_STUB_AUTO`         | replay request route and stub policy | Exact value `true` auto-completes replay clips only outside production; production ignores it                        |
+| `REPLAY_WEBHOOK_SECRET` | `api/replays/[id]/ready`             | Required non-blank shared secret for the internal replay-ready callback; missing configuration returns retryable 503 |
 
 The stub publishes `https://playtt.local/...` placeholder media and is a
 development/test aid only. The route policy and the stub execution boundary

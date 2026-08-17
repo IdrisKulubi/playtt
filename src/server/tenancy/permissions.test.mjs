@@ -1,4 +1,6 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
 import test from "node:test"
 
 import {
@@ -10,6 +12,7 @@ import { TenancyError } from "./errors.ts"
 import {
   mapMembershipToTenantContext,
   rejectClientTenantId,
+  resolveRequestedTenantId,
 } from "./membership-context.mjs"
 import { PLAYTT_TENANT_ID } from "./constants.ts"
 
@@ -38,6 +41,32 @@ test("authorizeTenantAction throws TenancyError for forbidden actions", () => {
 
 test("rejectClientTenantId rejects forged tenant identifiers", () => {
   assert.throws(() => rejectClientTenantId(PLAYTT_TENANT_ID), TenancyError)
+})
+
+test("tenant selection accepts only an exact validated UUID", () => {
+  const otherTenantId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+  assert.equal(
+    resolveRequestedTenantId(` ${otherTenantId} `, PLAYTT_TENANT_ID),
+    otherTenantId,
+  )
+  assert.equal(resolveRequestedTenantId(null, PLAYTT_TENANT_ID), PLAYTT_TENANT_ID)
+  assert.throws(
+    () => resolveRequestedTenantId("not-a-tenant", PLAYTT_TENANT_ID),
+    TenancyError,
+  )
+})
+
+test("membership resolver bootstraps customer only and scopes selected tenant in the DB", () => {
+  const source = readFileSync(
+    join(import.meta.dirname, "resolve-membership.ts"),
+    "utf8",
+  )
+
+  assert.match(source, /role: "customer"/)
+  assert.doesNotMatch(source, /role: "operator"/)
+  assert.match(source, /onConflictDoNothing/)
+  assert.match(source, /eq\(tenantMemberships\.tenantId, tenantId\)/)
+  assert.match(source, /eq\(tenantMemberships\.status, "active"\)/)
 })
 
 test("mapMembershipToTenantContext builds trusted PlayTT context", () => {

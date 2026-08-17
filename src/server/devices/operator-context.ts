@@ -1,5 +1,4 @@
 import { type NextRequest } from "next/server"
-import { z } from "zod/v3"
 
 import { getSessionWithBearerFallback } from "@/lib/security"
 import { isDeviceRegistryEnabledForTenant } from "@/server/devices/feature-policy"

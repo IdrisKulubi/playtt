@@ -9,6 +9,8 @@ export type DeviceErrorCode =
   | "ASSIGNMENT_CONFLICT"
   | "ASSIGNMENT_NOT_FOUND"
   | "ASSIGNMENT_STALE"
+  | "DEVICE_ROLE_UNSUPPORTED"
+  | "CONFIG_VERSION_INVALID"
   | "COMMAND_NOT_FOUND"
   | "COMMAND_EXPIRED"
   | "PROVISION_RATE_LIMITED"
@@ -18,11 +20,7 @@ export class DeviceError extends Error {
   readonly code: DeviceErrorCode
   readonly status: number
 
-  constructor(
-    code: DeviceErrorCode,
-    message: string,
-    status = 400,
-  ) {
+  constructor(code: DeviceErrorCode, message: string, status = 400) {
     super(message)
     this.name = "DeviceError"
     this.code = code
