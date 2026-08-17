@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import {
   ArrowLeftIcon,
   BuildingsIcon,
+  CpuIcon,
   FlagIcon,
   GaugeIcon,
   QueueIcon,
@@ -23,6 +24,7 @@ const navigation = [
   { href: "/operator/memberships", label: "Memberships", icon: UsersThreeIcon, exact: false as const },
   { href: "/operator/feature-flags", label: "Feature flags", icon: FlagIcon, exact: false as const },
   { href: "/operator/durable-work", label: "Durable work", icon: QueueIcon, exact: false as const },
+  { href: "/operator/devices", label: "Devices", icon: CpuIcon, exact: false as const },
 ] as const
 
 type OperatorShellProps = {

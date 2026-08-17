@@ -26,7 +26,7 @@ Use this document for delivery tracking. Use the supporting documents for deeper
 | Phase 0 — Stabilization              | Complete    | Repository and live-environment evidence complete; Phase 1 may begin after owner sign-off |
 | Phase 1 — Tenant/resource foundation | In progress | P1-01–P1-08 landed locally; Phase 1 exit gates remain |
 | Phase 2 — Sessions/durable events    | Complete    | P2-01 through P2-07 and Phase 2 exit evidence complete locally |
-| Phase 3 — Devices/scoring/realtime   | Not started | Ready to begin P3-01; production rollout smoke for Phase 2 remains open |
+| Phase 3 — Devices/scoring/realtime   | In progress | P3-01/P3-02 landed locally; P3-03+ and Phase 3 exit remain |
 | Phase 4 — Private R2 media           | Not started | Depends on tenant and session ownership                                                                                  |
 | Phase 5 — TTLock/automation          | Not started | Depends on access-point catalog, sessions, and device commands                                                           |
 | Phase 6 — Replay edge                | Not started | Depends on devices and private media                                                                                     |
@@ -444,28 +444,28 @@ Provision venue devices securely and make PostgreSQL-backed play sessions the au
 
 ### P3-01 — Device registry and enrollment
 
-- [ ] Add tenant/venue-owned devices with type, capability, firmware, and health.
-- [ ] Add one-time expiring enrollment/provisioning.
-- [ ] Store hashed, versioned, rotatable credentials with revocation.
-- [ ] Create dedicated `/api/device/v1/*` authentication separate from player auth.
+- [x] Add tenant/venue-owned devices with type, capability, firmware, and health.
+- [x] Add one-time expiring enrollment/provisioning.
+- [x] Store hashed, versioned, rotatable credentials with revocation.
+- [x] Create dedicated `/api/device/v1/*` authentication separate from player auth.
 
 Build guide: simulator first, HTTPS transport first, MQTT only after the contract is stable.
 
 Done means:
 
-- [ ] One-time enrollment, expiry, rotation, and revocation tests pass; raw device secrets are never stored or logged.
+- [x] One-time enrollment, expiry, rotation, and revocation tests pass; raw device secrets are never stored or logged.
 
 ### P3-02 — Assignments and configuration
 
-- [ ] Assign device roles/capabilities to resources with effective time windows.
-- [ ] Enforce one active assignment where required.
-- [ ] Deliver versioned configuration and acknowledge applied versions.
+- [x] Assign device roles/capabilities to resources with effective time windows.
+- [x] Enforce one active assignment where required.
+- [x] Deliver versioned configuration and acknowledge applied versions.
 
 Build guide: device identity remains separate from resource identity so hardware can be replaced/reassigned without changing tables/bookings.
 
 Done means:
 
-- [ ] Wrong-tenant, wrong-resource, wrong-role, and stale-assignment devices are rejected.
+- [x] Wrong-tenant, wrong-resource, wrong-role, and stale-assignment devices are rejected.
 
 ### P3-03 — Heartbeats and fleet health
 

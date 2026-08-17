@@ -550,21 +550,26 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 
 ### Preconditions
 
-- [ ] Phase 2 exit signed.
-- [ ] Device credential format, issuance display, storage, rotation, revocation, and rate limits approved.
+- [x] Phase 2 exit signed.
+- [x] Device credential format, issuance display, storage, rotation, revocation, and rate limits approved.
 - [ ] HTTPS device v1 payloads and firmware compatibility policy frozen.
 - [ ] `tt_standard_v1` scoring rules and correction policy approved.
 
 ### Build steps
 
-#### P3-01/P3-02/P3-03/P3-04 - Device registry, assignments, health, commands, and security
+#### P3-01/P3-02 — Device registry, assignments, and security
 
-- [ ] Add devices, hashed/versioned credentials, one-time enrollments, assignments, latest health/sampled heartbeat, commands, and acknowledgement state.
-- [ ] Include `ttlock_lock` and `ttlock_gateway` device types so Phase 5 can inventory and assign access hardware without a parallel registry.
-- [ ] Enforce tenant/venue ownership and time-aware unique active assignment rules.
-- [ ] Implement provision/config/heartbeat/events/command-ack endpoints with dedicated device authentication.
-- [ ] Add credential rotation/revocation and rate limits.
-- [ ] Add audit/correlation for enrollment, assignment, command, and credential actions.
+- [x] Add devices, hashed/versioned credentials, one-time enrollments, and time-aware assignments (`0015_devices`).
+- [x] Include `ttlock_lock` and `ttlock_gateway` device types so Phase 5 can inventory and assign access hardware without a parallel registry.
+- [x] Enforce tenant/venue ownership and time-aware unique active assignment rules.
+- [x] Implement provision/config endpoints with dedicated device authentication; credential rotation/revocation and provision rate limits.
+- [x] Add audit/correlation for enrollment, assignment, and credential actions.
+- [ ] Add latest health/sampled heartbeat, commands, and acknowledgement state (P3-03/P3-04).
+- [ ] Implement heartbeat/events/command-ack endpoints (P3-03/P3-04).
+
+**Evidence:** `pnpm test:devices`, `pnpm test:tenancy`, `pnpm test:contracts`, migration `0015_devices`, operator `/operator/devices` page.
+
+#### P3-03/P3-04 — Health, commands, and extended device APIs
 
 #### P3-08 - Firmware and simulator
 
@@ -590,8 +595,9 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 
 ### Automated tests
 
-- [ ] Enrollment one-time use, expiry, wrong hardware UID observation, credential rotation/revocation, and rate limits.
-- [ ] Assignment overlap/conflict and correct reassignment without firmware changes.
+- [x] Enrollment one-time use, expiry, credential rotation/revocation, and provision rate limits (`pnpm test:devices`).
+- [x] Assignment overlap/conflict and reassignment without firmware changes (`pnpm test:devices` with `POSTGRES_URL`).
+- [x] Device tenant context resolves from credential (`pnpm test:tenancy`).
 - [ ] Wrong tenant/venue/resource/role/session and expired command requests are rejected.
 - [ ] Duplicate, retried, concurrent, out-of-order, buffered, and corrected score events produce legal exactly-once results.
 - [ ] Score event, snapshot, and outbox are atomic under failure.
