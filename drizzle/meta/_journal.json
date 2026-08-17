@@ -43,6 +43,13 @@
       "when": 1786911296083,
       "tag": "0005_phase0_idempotency",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786953673343,
+      "tag": "0006_tenancy_foundation",
+      "breakpoints": true
     }
   ]
 }

@@ -61,3 +61,61 @@ set
   sort_order = excluded.sort_order,
   is_active = excluded.is_active,
   metadata = excluded.metadata;
+
+insert into tenants (
+  id,
+  name,
+  slug,
+  status
+)
+values (
+  '33333333-3333-3333-3333-333333333333',
+  'PlayTT',
+  'playtt',
+  'active'
+)
+on conflict (id) do update
+set
+  name = excluded.name,
+  slug = excluded.slug,
+  status = excluded.status;
+
+insert into brands (
+  id,
+  tenant_id,
+  name,
+  slug,
+  is_default
+)
+values (
+  '44444444-4444-4444-4444-444444444444',
+  '33333333-3333-3333-3333-333333333333',
+  'PlayTT',
+  'playtt',
+  true
+)
+on conflict (id) do update
+set
+  tenant_id = excluded.tenant_id,
+  name = excluded.name,
+  slug = excluded.slug,
+  is_default = excluded.is_default;
+
+insert into tenant_memberships (
+  tenant_id,
+  user_id,
+  role,
+  status
+)
+select
+  '33333333-3333-3333-3333-333333333333',
+  u.id,
+  'customer',
+  'active'
+from "user" u
+where not exists (
+  select 1
+  from tenant_memberships tm
+  where tm.tenant_id = '33333333-3333-3333-3333-333333333333'
+    and tm.user_id = u.id
+);

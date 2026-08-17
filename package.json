@@ -26,6 +26,7 @@
     "test:actions": "node --test src/actions/create-pending-booking-coordinator.test.mjs src/server/bookings/ownership-coordinator.test.mjs",
     "test:contracts": "node --test scripts/validate-api-contracts.test.mjs scripts/validate-web-actions.test.mjs && node scripts/validate-api-contracts.mjs && node scripts/validate-web-actions.mjs",
     "test:compatibility": "node --test src/lib/compatibility/status-labels.test.mjs src/lib/compatibility/replay-status.test.mjs",
+    "test:tenancy": "node --test src/server/tenancy/permissions.test.mjs src/server/tenancy/tenancy-seed.test.mjs",
     "test:secret-scan": "node scripts/secret-scan.mjs",
     "e2e:seed-user": "node scripts/e2e/seed-test-user.mjs",
     "test:e2e": "playwright test",

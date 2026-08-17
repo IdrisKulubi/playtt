@@ -19,6 +19,9 @@
     },
     "0005_phase0_idempotency": {
       "sha256": "f3b418b6a8a37523b7ee8dfcdd8899f168eac65ce09b5b541bed3043a343c159"
+    },
+    "0006_tenancy_foundation": {
+      "sha256": "b1e5fa9eacfa01988a899edf3691b09d11bf7427e02ef81072e42b5af9545731"
     }
   },
   "acknowledgedMetadataDrift": [],

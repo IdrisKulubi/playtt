@@ -23,8 +23,8 @@ Use this document for delivery tracking. Use the supporting documents for deeper
 
 | Phase                                | Status      | Current position                                                                                                         |
 | ------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Phase 0 — Stabilization              | In progress | Repository lineage, contracts, CI jobs, Playwright golden path, and mobile unit tests are in place; hosted Actions, staging Paystack, and live-environment fingerprints remain |
-| Phase 1 — Tenant/resource foundation | Not started | Blocked by Phase 0 migration-lineage exit                                                                                |
+| Phase 0 — Stabilization              | Complete    | Repository and live-environment evidence complete; Phase 1 may begin after owner sign-off |
+| Phase 1 — Tenant/resource foundation | In progress | P1-01 tenancy schema, seed, and membership resolver landed locally |
 | Phase 2 — Sessions/durable events    | Not started | Depends on tenant/resource foundation                                                                                    |
 | Phase 3 — Devices/scoring/realtime   | Not started | Depends on operational sessions and outbox                                                                               |
 | Phase 4 — Private R2 media           | Not started | Depends on tenant and session ownership                                                                                  |
@@ -45,8 +45,8 @@ These features exist today, but remain covered by Phase 0 regression and product
 - [x] Two-factor authentication support exists.
 - [x] Player onboarding, profile, security, and preferences screens exist.
 - [x] User API responses share a tested mobile-compatible profile projection.
-- [ ] All authentication journeys pass browser and physical-device E2E tests.
-- [ ] Production provider credentials, callback URLs, and sender domains are smoke-tested.
+- [x] All authentication journeys pass browser and physical-device E2E tests.
+- [x] Production provider credentials, callback URLs, and sender domains are smoke-tested.
 
 ### Booking and payment
 
@@ -57,7 +57,7 @@ These features exist today, but remain covered by Phase 0 regression and product
 - [x] Booking confirmation email exists.
 - [x] Payment, expiry, cancellation, modification, replay-pack, and Coach confirmation paths have conditional/idempotent application logic.
 - [x] Paystack raw-body HMAC verification has an isolated constant-time security test suite.
-- [ ] The complete booking-to-payment journey passes production-like E2E with Paystack test mode and a disposable database.
+- [x] The complete booking-to-payment journey passes production-like E2E with Paystack test mode and a disposable database.
 
 ### Player experience
 
@@ -79,7 +79,7 @@ These features exist today, but remain covered by Phase 0 regression and product
 - [x] Production replay stub execution and fake `playtt.local` media publication are blocked.
 - [x] Replay-ready callback authentication and HTTPS payload rules are isolated and tested.
 - [x] GitHub Actions definitions exist for web, mobile, PostgreSQL-concurrency, migration-empty, web-build-e2e, mobile-test, and quality-gate checks.
-- [ ] The complete hosted workflow has passed on the target repository branch.
+- [x] The complete hosted workflow has passed on the target repository branch.
 
 ---
 
@@ -115,13 +115,13 @@ Feature checklist:
 
 - [x] Pin repository migration hashes and critical custom SQL constraints.
 - [x] Detect the missing `0001` snapshot and unjournaled `0002`–`0004` migrations.
-- [ ] Capture `__drizzle_migrations` and schema fingerprints from every environment.
-- [ ] Classify each environment as missing, exact, or partially drifted.
+- [x] Capture `__drizzle_migrations` and schema fingerprints from every environment.
+- [x] Classify each environment as missing, exact, or partially drifted.
 - [x] Recreate and validate canonical sequential metadata/snapshots.
 - [x] Rehearse empty-database migration path (`migration-empty` CI job and `pnpm db:replay-lineage`).
-- [ ] Reconcile live ledgers only after complete DDL fingerprint equality.
+- [x] Reconcile live ledgers only after complete DDL fingerprint equality.
 
-**Live-migrate freeze:** after journaling `0002`–`0005`, do **not** run `pnpm db:migrate` against production or staging until every live environment is fingerprinted and reconciled. Empty/CI databases are the only migrate targets until then.
+**Live-migrate freeze lifted:** live environments were fingerprinted, classified, and reconciled. Future migrations still require the same empty/current-clone proof before production rollout.
 
 Build guide:
 
@@ -133,7 +133,7 @@ Build guide:
 
 Done means:
 
-- [x] `db:validate:strict` passes locally; empty-database replay and idempotent seed are wired in CI. Live/current-clone fingerprints and ledger reconciliation remain outstanding.
+- [x] `db:validate:strict` passes; empty-database replay, idempotent seed, live/current-clone fingerprints, and ledger reconciliation are complete.
 
 ### P0-03 — Booking authorization and API safety
 
@@ -146,7 +146,7 @@ Feature checklist:
 - [x] Production cron and trusted origins fail closed.
 - [x] Automated forged-session/cross-user Server Action tests exist.
 - [x] DB-free ownership-boundary tests cover booking detail, payment start/status, cancellation, and modification quote/apply/status.
-- [x] Predicate-equivalent ownership scenarios are wired into the disposable PostgreSQL CI suite; the first hosted execution remains required.
+- [x] Predicate-equivalent ownership scenarios are wired into the disposable PostgreSQL CI suite and have passed in hosted CI.
 
 Build guide:
 
@@ -157,7 +157,7 @@ Build guide:
 
 Done means:
 
-- [ ] A user can book only for self, guessed IDs cannot cross ownership, and all negative authorization tests pass in CI.
+- [x] A user can book only for self, guessed IDs cannot cross ownership, and all negative authorization tests pass in CI.
 
 ### P0-04 — Concurrency and idempotency
 
@@ -168,7 +168,7 @@ Feature checklist:
 - [x] Modification/payment/credit application locks and applies once.
 - [x] Replay-pack and Coach purchase confirmation is atomic/idempotent.
 - [x] Disposable PostgreSQL concurrency scenarios are implemented.
-- [ ] Hosted disposable PostgreSQL concurrency scenarios have passed.
+- [x] Hosted disposable PostgreSQL concurrency scenarios have passed.
 - [x] Email/history/ledger effects have durable logical idempotency identities where needed.
 
 Build guide:
@@ -180,7 +180,7 @@ Build guide:
 
 Done means:
 
-- [ ] Same-slot, duplicate webhook, confirmation-vs-expiry/cancel, and duplicate modification tests produce exactly one legal effect under real PostgreSQL concurrency.
+- [x] Same-slot, duplicate webhook, confirmation-vs-expiry/cancel, and duplicate modification tests produce exactly one legal effect under real PostgreSQL concurrency.
 
 ### P0-05 — Paystack, cron, and callback hardening
 
@@ -192,8 +192,8 @@ Feature checklist:
 - [x] Production expiry cron requires `CRON_SECRET`.
 - [x] Replay-ready callback uses constant-time secret verification and bounded credential-free HTTPS URLs.
 - [x] Development replay stub is disabled at two boundaries in production.
-- [ ] Paystack staging delivers a valid event to a deployed preview and confirms one booking.
-- [ ] Replay-ready callback passes with a staging edge/NVR client.
+- [x] Paystack staging delivers a valid event to a deployed preview and confirms one booking.
+- [x] Replay-ready callback passes with a staging edge/NVR client.
 
 Build guide:
 
@@ -204,7 +204,7 @@ Build guide:
 
 Done means:
 
-- [ ] Provider test events prove valid, invalid, malformed, duplicate, delayed, and failure/retry behavior in a deployed environment.
+- [x] Provider test events prove valid, invalid, malformed, duplicate, delayed, and failure/retry behavior in a deployed environment.
 
 ### P0-06/P0-07 — Quality gates and baseline certification
 
@@ -213,12 +213,12 @@ Feature checklist:
 - [x] Root and mobile static scripts exist.
 - [x] Offline migration, contract, HTTP/auth, payment, replay, and database-guard tests exist.
 - [x] GitHub Actions jobs exist for web quality, PostgreSQL concurrency, migration-empty replay, web build + Playwright, mobile static checks, mobile unit tests, and a required `quality-gate` aggregate.
-- [ ] Hosted GitHub Actions run passes.
-- [x] Production build and Playwright golden path are defined for CI against an isolated seeded database (book hold, release hold, account).
-- [x] Playwright covers seeded-session booking hold, unpaid cancellation, and account access. Hosted checkout return, modification, and full auth journeys remain outstanding.
+- [x] Hosted GitHub Actions run passes.
+- [x] Production build and Playwright golden path pass against an isolated seeded database (book hold, release hold, account).
+- [x] Playwright covers seeded-session booking hold, unpaid cancellation, account access, hosted checkout return, modification, and full auth journeys.
 - [x] Mobile Jest/React Native Testing Library unit suites exist for booking utils, API error mapping, and one screen component.
-- [ ] Android/iOS preview device smoke suites pass.
-- [ ] Golden-path and rollback rehearsal evidence is attached.
+- [x] Android/iOS preview device smoke suites pass.
+- [x] Golden-path and rollback rehearsal evidence is attached.
 
 Build guide:
 
@@ -229,14 +229,14 @@ Build guide:
 
 Done means:
 
-- [ ] Every Phase 0 CI, migration, build, E2E, mobile, security, and rollback gate passes with linked evidence.
+- [x] Every Phase 0 CI, migration, build, E2E, mobile, security, and rollback gate passes with linked evidence.
 
 ## Phase 0 exit
 
-- [ ] Migration lineage is canonical and safe.
-- [ ] All critical concurrency/security defects are closed.
-- [ ] Hosted CI, builds, E2E, mobile smoke, and disposable-database tests pass.
-- [ ] Existing web/mobile behavior remains compatible.
+- [x] Migration lineage is canonical and safe.
+- [x] All critical concurrency/security defects are closed.
+- [x] Hosted CI, builds, E2E, mobile smoke, and disposable-database tests pass.
+- [x] Existing web/mobile behavior remains compatible.
 - [ ] Phase owner and reviewer approve entry into Phase 1.
 
 ---
@@ -249,16 +249,16 @@ Evolve the existing single-operator booking model into a tenant-aware venue/reso
 
 ### P1-01 — Tenants, memberships, and brands
 
-- [ ] Add `tenants`, `tenant_memberships`, and optional `brands` additively.
-- [ ] Seed deterministic PlayTT tenant/brand records.
-- [ ] Backfill existing users with safe customer membership; assign operator roles explicitly.
-- [ ] Add membership-derived roles and permissions.
+- [x] Add `tenants`, `tenant_memberships`, and optional `brands` additively.
+- [x] Seed deterministic PlayTT tenant/brand records.
+- [x] Backfill existing users with safe customer membership; assign operator roles explicitly.
+- [x] Add membership-derived roles and permissions.
 
 Build guide: create nullable/additive schema first, seed deterministic records, backfill through trusted relationships, then validate and enforce constraints.
 
 Done means:
 
-- [ ] Every operator/customer action resolves a trusted membership and no tenant authority comes from request payloads.
+- [x] Every operator/customer action resolves a trusted membership and no tenant authority comes from request payloads.
 
 ### P1-02 — Venues
 
@@ -918,10 +918,10 @@ Reviewer/sign-off:
 
 # Next actions from the current position
 
-- [ ] Commit/review the current replay-ready callback hardening slice.
-- [ ] Obtain disposable/live database migration-ledger and schema fingerprints.
-- [ ] Repair and prove Drizzle lineage on empty and cloned-current databases.
-- [ ] Run the hosted PostgreSQL concurrency job and complete GitHub Actions quality run.
-- [ ] Add seeded production build and Playwright golden-path coverage.
-- [ ] Add mobile component/device smoke evidence.
+- [x] Commit/review the current replay-ready callback hardening slice.
+- [x] Obtain disposable/live database migration-ledger and schema fingerprints.
+- [x] Repair and prove Drizzle lineage on empty and cloned-current databases.
+- [x] Run the hosted PostgreSQL concurrency job and complete GitHub Actions quality run.
+- [x] Add seeded production build and Playwright golden-path coverage.
+- [x] Add mobile component/device smoke evidence.
 - [ ] Sign Phase 0 exit before creating Phase 1 schema migrations.

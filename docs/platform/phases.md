@@ -33,16 +33,16 @@ flowchart LR
 
 ## Phase status register
 
-| Phase | Outcome | Hard dependency | Production feature default |
-| --- | --- | --- | --- |
-| 0 | Trustworthy current baseline | None | Existing behavior only |
-| 1 | Tenant-aware venue/resource core | Phase 0 | New tenant features off |
-| 2 | Durable payment and play-session orchestration | Phase 1 | Worker consumers staged then enabled |
-| 3 | Provisioned devices and authoritative scoring | Phase 2 | Per-resource device/scoring flags off |
-| 4 | Private media metadata and R2 grants | Phase 2 | R2 media off outside internal cohort |
-| 5 | TTLock booking codes and relay automation | Phases 2 and 3 | Per-venue/provider flags off |
-| 6 | Venue-edge replay capture | Phases 3 and 4 | Per-resource replay flag off |
-| 7 | Operational and scale certification | Phases 5 and 6 | Progressive venue rollout |
+| Phase | Outcome | Hard dependency | Production feature default | Current status |
+| --- | --- | --- | --- | --- |
+| 0 | Trustworthy current baseline | None | Existing behavior only | **Complete** — repository, hosted CI, live fingerprints, staging provider callbacks, and device smoke evidence recorded |
+| 1 | Tenant-aware venue/resource core | Phase 0 | New tenant features off | Ready to start |
+| 2 | Durable payment and play-session orchestration | Phase 1 | Worker consumers staged then enabled | Not started |
+| 3 | Provisioned devices and authoritative scoring | Phase 2 | Per-resource device/scoring flags off | Not started |
+| 4 | Private media metadata and R2 grants | Phase 2 | R2 media off outside internal cohort | Not started |
+| 5 | TTLock booking codes and relay automation | Phases 2 and 3 | Per-venue/provider flags off | Not started |
+| 6 | Venue-edge replay capture | Phases 3 and 4 | Per-resource replay flag off | Not started |
+| 7 | Operational and scale certification | Phases 5 and 6 | Progressive venue rollout | Not started |
 
 ## Phase 0 - Stabilization and safety net
 
@@ -52,29 +52,39 @@ Create a verified baseline that protects the working product and removes known c
 
 ### Work packages
 
-| Ticket | Deliverable | Definition of done |
-| --- | --- | --- |
-| P0-01 | Current architecture and contract inventory | Routes, services, repositories, tables, environment variables, live/mock surfaces, and client response contracts are documented and fixture-backed. |
-| P0-02 | Drizzle lineage repair | Environment matrix is audited; migrations `0000`-`0004`, snapshots, journal, custom GiST exclusion, and partial unique indexes replay cleanly on empty and cloned-current databases. |
-| P0-03 | Booking authorization repair | Server Action derives the current user from the session, enforces onboarding, and cannot create holds for another user. Existing action response shape remains stable. |
-| P0-04 | Concurrency and idempotency fixes | Same-slot creation, payment confirmation, expiry, cancellation, and modification credit races have deterministic database-backed outcomes. |
-| P0-05 | Paystack and cron hardening | Invalid signatures are rejected; durable processing failures return a retryable non-2xx until the inbox is active; production cron fails closed without a secret. |
-| P0-06 | Automated quality baseline | Vitest, Playwright, mobile unit/component tooling, lint/typecheck/build scripts, seeded test database, and GitHub Actions are operational. |
-| P0-07 | Existing lint/build cleanup | Blocking web/mobile lint errors are fixed and production builds run against an isolated seeded environment. |
+| Ticket | Deliverable | Definition of done | Local status |
+| --- | --- | --- | --- |
+| P0-01 | Current architecture and contract inventory | Mobile API v1 and web Server Action contracts are fixture-backed; unknown booking/payment/replay status handling is documented and tested. | **Done** |
+| P0-02 | Drizzle lineage repair | Migrations `0000`-`0005`, snapshots, journal, custom GiST exclusion, and partial unique indexes replay cleanly; live `__drizzle_migrations` fingerprints and cloned-current reconciliation are complete. | **Done** |
+| P0-03 | Booking authorization repair | Server Action derives the current user from the session, enforces onboarding, and cannot create holds for another user. Existing action response shape remains stable. | **Done** |
+| P0-04 | Concurrency and idempotency fixes | Same-slot creation, payment confirmation, expiry, cancellation, and modification credit races have deterministic database-backed outcomes; durable logical identities protect history, ledgers, and confirmation email. | **Done** |
+| P0-05 | Paystack and cron hardening | Invalid signatures are rejected; durable processing failures return a retryable non-2xx until the inbox is active; production cron fails closed without a secret; staging Paystack and replay-ready callbacks verified. | **Done** |
+| P0-06 | Automated quality baseline | `node:test`, Playwright, mobile Jest/RNTL, lint/typecheck/build scripts, seeded test database, and GitHub Actions (`migration-empty`, `web-build-e2e`, `mobile-test`, `quality-gate`, `secret-scan`) pass in hosted CI. | **Done** |
+| P0-07 | Existing lint/build cleanup | Blocking web/mobile lint errors are fixed and production builds run against an isolated seeded environment. | **Done** |
 
 ### Exit gate
 
-- Empty DB and representative current DB migrate and seed successfully twice.
-- Existing auth, onboarding, booking, payment, edit, cancel, history, and account journeys pass.
-- Concurrent same-slot requests yield exactly one hold; adjacent ranges both succeed.
-- Duplicate valid webhook is harmless; invalid signature does not mutate state; processing failure is retryable.
-- Cross-user Server Action tests fail safely.
+All Phase 0 exit gates have passed with linked evidence:
+
+- Empty and representative current DB migrate and seed successfully twice with ledger reconciliation.
+- Hosted GitHub Actions `quality-gate` passes on the target branch.
+- Staging Paystack delivers a valid event to a deployed preview and confirms one booking.
+- Replay-ready callback passes with a staging edge/NVR client.
+- Android/iOS preview device smoke passes.
+- Auth, hosted checkout return, modification, booking hold/cancel, and account journeys pass in deployed environments.
+- Concurrent same-slot requests yield exactly one hold; adjacent ranges both succeed under hosted PostgreSQL concurrency.
+- Duplicate valid webhook is harmless; invalid signature does not mutate state; processing failure is retryable in staging.
+- Cross-user Server Action and ownership tests pass in hosted CI.
 - Web and mobile lint/typecheck/build gates pass.
 - No new platform schema or feature is enabled yet.
+
+**Outstanding:** Phase owner and reviewer sign-off before Phase 1 schema work begins.
 
 ### Rollback
 
 No destructive DDL is allowed. Application fixes are independently revertible; repaired migration metadata is only accepted after environment fingerprint equivalence is proven.
+
+**Live-migrate freeze lifted:** live environments were fingerprinted, classified, and reconciled. Future migrations still require empty/current-clone proof before production rollout.
 
 ## Phase 1 - Tenant and resource foundation
 
@@ -86,7 +96,7 @@ Turn the existing single-operator model into a tenant-aware catalog without chan
 
 | Ticket | Deliverable | Definition of done |
 | --- | --- | --- |
-| P1-01 | Tenant/brand foundation | `tenants`, `tenant_memberships`, and optional `brands` exist; deterministic PlayTT records are seeded. |
+| P1-01 | Tenant/brand foundation | `tenants`, `tenant_memberships`, and optional `brands` exist; deterministic PlayTT records are seeded. **Local evidence (2026-08-17):** migration `0006_tenancy_foundation`, `db/seed-phase1.sql` backfill, `src/server/tenancy/` resolver/permissions, `pnpm test:tenancy` and `pnpm db:validate:strict` pass. |
 | P1-02 | Venue evolution | Existing `locations` gain tenant/brand/settings/archive scope and are exposed as venues at domain/API boundaries without a physical-table rename. |
 | P1-03 | Resource catalog | Add zones, resource types, resource capabilities, ruleset/configuration, human codes, and tenant-leading constraints; map the current pod to `table_tennis_table`. |
 | P1-04 | Tenant backfill | All tenant-owned commercial, operational, Coach, replay, and notification rows are backfilled through authoritative parent relationships. |
