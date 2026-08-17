@@ -52,6 +52,9 @@
     },
     "0016_device_health_commands": {
       "sha256": "4b925d444e9e0e2aa8d9c4eb76e0c9318b7f76e6bfe15a7067f9ff284b71f742"
+    },
+    "0017_tenant_catalog_assignment_integrity": {
+      "sha256": "069c1c0fc8919406ef1ae5df49337a3fe9dd0404c237fee82ad2935f215c9af6"
     }
   },
   "acknowledgedMetadataDrift": [],
@@ -80,6 +83,25 @@
       "patterns": [
         "create\\s+unique\\s+index\\s+\"access_credentials_external_reference_unique\"",
         "\\(\"provider\",\\s*\"external_reference\"\\)\\s+where\\s+\"external_reference\"\\s+is\\s+not\\s+null"
+      ]
+    },
+    {
+      "name": "device_assignments_device_window_excl",
+      "migration": "0017_tenant_catalog_assignment_integrity",
+      "patterns": [
+        "add\\s+constraint\\s+\"device_assignments_device_window_excl\"\\s+exclude\\s+using\\s+gist",
+        "\"tenant_id\"\\s+with\\s+=",
+        "\"device_id\"\\s+with\\s+=",
+        "tstzrange\\(\"effective_from\",\\s*coalesce\\(\"effective_to\",\\s*'infinity'::timestamptz\\),\\s*'\\[\\)'\\)\\s+with\\s+&&"
+      ]
+    },
+    {
+      "name": "device_assignments_score_input_window_excl",
+      "migration": "0017_tenant_catalog_assignment_integrity",
+      "patterns": [
+        "add\\s+constraint\\s+\"device_assignments_score_input_window_excl\"\\s+exclude\\s+using\\s+gist",
+        "\"resource_id\"\\s+with\\s+=",
+        "where\\s*\\(\"role\"\\s*=\\s*'score_input'\\s+and\\s+\"resource_id\"\\s+is\\s+not\\s+null\\)"
       ]
     }
   ]

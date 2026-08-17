@@ -25,7 +25,7 @@ export async function replayDurableWork(
   context: TenantContext,
   input: z.infer<typeof replaySchema>,
 ) {
-  authorize(context, "catalog.read")
+  authorize(context, "catalog.manage")
   const payload = replaySchema.parse(input)
 
   if (payload.kind === "inbox") {

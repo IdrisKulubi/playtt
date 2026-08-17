@@ -72,6 +72,24 @@ jobs:
       - name: Test tenancy permissions and seed
         run: pnpm test:tenancy
 
+      - name: Test tenant RBAC boundaries
+        run: pnpm test:tenant-rbac
+
+      - name: Test durable workers
+        run: pnpm test:workers
+
+      - name: Test session lifecycle
+        run: pnpm test:sessions
+
+      - name: Test operator authorization
+        run: pnpm test:operator
+
+      - name: Test access point boundaries
+        run: pnpm test:access-points
+
+      - name: Test device API contracts
+        run: pnpm test:devices
+
       - name: Test catalog seed and venue mapper
         run: pnpm test:catalog
 
@@ -234,6 +252,12 @@ jobs:
         run: |
           pnpm db:replay-lineage
           pnpm e2e:seed-user
+
+      - name: Run database-backed domain tests
+        run: |
+          pnpm test:sessions
+          pnpm test:access-points
+          pnpm test:devices
 
       - name: Build web app
         run: pnpm build

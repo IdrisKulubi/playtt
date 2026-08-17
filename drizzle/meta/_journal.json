@@ -120,6 +120,13 @@
       "when": 1786968000000,
       "tag": "0016_device_health_commands",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1786995870058,
+      "tag": "0017_tenant_catalog_assignment_integrity",
+      "breakpoints": true
     }
   ]
 }

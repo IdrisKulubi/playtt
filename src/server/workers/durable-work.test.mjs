@@ -19,6 +19,14 @@ import {
 
 const repoRoot = join(import.meta.dirname, "..", "..", "..")
 
+test("Vercel deployment schedules durable work and booking expiry", () => {
+  const deployment = JSON.parse(readFileSync(join(repoRoot, "vercel.json"), "utf8"))
+  assert.deepEqual(deployment.crons, [
+    { path: "/api/cron/durable-work", schedule: "* * * * *" },
+    { path: "/api/cron/expire-bookings", schedule: "*/5 * * * *" },
+  ])
+})
+
 test("schema and migration define outbox events with lease and idempotency identity", () => {
   const schemaSource = readFileSync(join(repoRoot, "db", "schema.ts"), "utf8")
   const migrationSource = readFileSync(
@@ -194,7 +202,8 @@ test("unregistered outbox types are not claimed", async () => {
   assert.equal(report.outbox.claimed, 0)
 })
 
-test("unsupported registered versions are skipped without dead-lettering", async () => {
+test("unsupported registered versions are dead-lettered without dispatch", async () => {
+  const failures = []
   const result = await processClaimedOutboxRow({
     row: {
       id: "outbox-2",
@@ -205,13 +214,16 @@ test("unsupported registered versions are skipped without dead-lettering", async
     registry: {
       "payment.confirmed.v1": { eventVersion: 1, consume: async () => {} },
     },
-    markProcessed: async () => {},
-    markRetryOrDeadLetter: async () => {
-      throw new Error("should not retry unsupported versions")
+    markProcessed: async () => {
+      throw new Error("unsupported versions must not be processed")
     },
+    markRetryOrDeadLetter: async (id, next) => failures.push({ id, ...next }),
   })
 
-  assert.equal(result.outcome, "skipped-unsupported")
+  assert.equal(result.outcome, "dead_letter")
+  assert.equal(failures.length, 1)
+  assert.equal(failures[0].id, "outbox-2")
+  assert.equal(failures[0].status, "dead_letter")
 })
 
 test("reconcile hook runs before claiming and extra outbox rounds drain follow-up work", async () => {

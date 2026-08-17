@@ -1,4 +1,9 @@
 import { createPaymentConfirmedEmailConsumers } from "@/server/payments/confirmation-email-consumer"
+import {
+  expireStaleDeviceCommands,
+  failExhaustedDeviceCommands,
+} from "@/server/devices/commands"
+import { pruneAllDeviceHeartbeatHistory } from "@/server/devices/heartbeats"
 import { handlePaystackWebhookEvent } from "@/server/payments/service"
 import {
   claimWebhookInboxWork,
@@ -6,7 +11,10 @@ import {
   markWebhookInboxProcessed,
   markWebhookInboxRetryOrDeadLetter,
 } from "@/server/payments/webhook-inbox-repository"
-import { createSessionLifecycleConsumers, reconcilePlaySessionLifecycle } from "@/server/sessions/lifecycle"
+import {
+  createSessionLifecycleConsumers,
+  reconcilePlaySessionLifecycle,
+} from "@/server/sessions/lifecycle"
 import { getRegisteredOutboxConsumers } from "@/server/workers/consumers.mjs"
 import {
   claimOutboxWork,
@@ -24,7 +32,24 @@ export async function runDurableWorkCycle() {
       ...createPaymentConfirmedEmailConsumers(),
       ...createSessionLifecycleConsumers(),
     },
-    reconcile: () => reconcilePlaySessionLifecycle(),
+    reconcile: async () => {
+      const [sessions, expiredCommands, failedCommands, prunedHeartbeats] =
+        await Promise.all([
+          reconcilePlaySessionLifecycle(),
+          expireStaleDeviceCommands(),
+          failExhaustedDeviceCommands(),
+          pruneAllDeviceHeartbeatHistory(),
+        ])
+
+      return {
+        sessions,
+        devices: {
+          expiredCommands,
+          failedCommands,
+          prunedHeartbeats,
+        },
+      }
+    },
     outboxRounds: 6,
     inboxRepository: {
       claimWebhookInboxWork,

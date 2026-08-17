@@ -10,7 +10,7 @@ test("operator repository scopes queries by tenant context", () => {
   assert.match(source, /eq\([a-zA-Z]+\.tenantId, context\.tenantId\)/)
 })
 
-test("operator API routes reject client tenant headers at membership resolution", () => {
+test("operator API routes resolve tenant headers through authenticated membership", () => {
   const catalogRoute = readFileSync(
     join(import.meta.dirname, "../../app/api/operator/catalog/route.ts"),
     "utf8",
@@ -19,4 +19,12 @@ test("operator API routes reject client tenant headers at membership resolution"
   assert.match(catalogRoute, /x-tenant-id/)
   assert.match(catalogRoute, /canAccessOperatorShell/)
   assert.match(catalogRoute, /isOperatorShellEnabledForTenant/)
+
+  const membershipResolver = readFileSync(
+    join(operatorRoot, "../tenancy/resolve-membership.ts"),
+    "utf8",
+  )
+  assert.match(membershipResolver, /eq\(tenantMemberships\.userId, input\.userId\)/)
+  assert.match(membershipResolver, /eq\(tenantMemberships\.tenantId, tenantId\)/)
+  assert.match(membershipResolver, /eq\(tenantMemberships\.status, "active"\)/)
 })

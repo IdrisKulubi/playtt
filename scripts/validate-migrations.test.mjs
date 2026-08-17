@@ -76,6 +76,19 @@ test("current repository matches its explicit migration drift baseline", () => {
   assert.deepEqual(classified.acknowledged, [])
 })
 
+test("device assignment exclusion constraints are integrity-pinned", () => {
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+  const result = validateMigrationRepository(root)
+  const names = result.manifest.requiredCustomSql.map((entry) => entry.name)
+
+  assert.ok(names.includes("device_assignments_device_window_excl"))
+  assert.ok(names.includes("device_assignments_score_input_window_excl"))
+  assert.equal(
+    result.findings.some((item) => item.code === "CUSTOM_SQL_MISSING"),
+    false,
+  )
+})
+
 test("detects an unjournaled migration", (context) => {
   const root = createFixture()
   context.after(() => rmSync(root, { recursive: true, force: true }))

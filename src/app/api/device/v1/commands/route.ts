@@ -10,23 +10,19 @@ export async function GET(req: NextRequest) {
 
     const commands = await postgresDeviceCommandBus.listPendingForDevice(
       auth.device.tenantId,
-      auth.device.id,
+      auth.device.id
     )
 
     const delivered = await Promise.all(
       commands.map(async (command) => {
-        if (command.status === "pending") {
-          return (
-            (await postgresDeviceCommandBus.markDelivered(
-              auth.device.tenantId,
-              auth.device.id,
-              command.id,
-            )) ?? command
-          )
-        }
-
-        return command
-      }),
+        return (
+          (await postgresDeviceCommandBus.markDelivered(
+            auth.device.tenantId,
+            auth.device.id,
+            command.id
+          )) ?? command
+        )
+      })
     )
 
     return Response.json({

@@ -1,14 +1,19 @@
-import { and, desc, eq, inArray } from "drizzle-orm"
+import { and, desc, eq, gt, inArray, isNull, lte, or } from "drizzle-orm"
 
 import db from "@/db/drizzle"
-import { deviceHeartbeats, devices } from "@/db/schema"
+import { deviceAssignments, deviceHeartbeats, devices } from "@/db/schema"
 import { DeviceError } from "@/server/devices/errors"
 import {
   deriveDeviceHealth,
   getHeartbeatSampleIntervalSeconds,
+  getHeartbeatRetentionCount,
   type DeviceHealthStatus,
 } from "@/server/devices/health-policy"
-import { updateAppliedConfigVersion } from "@/server/devices/commands"
+import {
+  evaluateConfigAcknowledgement,
+  nextHeartbeatTimestamp,
+  validateHeartbeatObservedAt,
+} from "@/server/devices/policies.mjs"
 
 export interface DeviceHeartbeatInput {
   tenantId: string
@@ -46,7 +51,7 @@ export interface DeviceHeartbeatResult {
 }
 
 function mapHeartbeat(
-  row: typeof deviceHeartbeats.$inferSelect,
+  row: typeof deviceHeartbeats.$inferSelect
 ): DeviceHeartbeatRecord {
   return {
     id: row.id,
@@ -65,64 +70,123 @@ function mapHeartbeat(
 }
 
 export async function recordDeviceHeartbeat(
-  input: DeviceHeartbeatInput,
+  input: DeviceHeartbeatInput
 ): Promise<DeviceHeartbeatResult> {
-  const observedAt = input.observedAt
-    ? new Date(input.observedAt)
-    : new Date()
-
-  if (Number.isNaN(observedAt.getTime())) {
+  const now = new Date()
+  const timestamp = validateHeartbeatObservedAt(input.observedAt, now)
+  if (!timestamp.ok || !timestamp.observedAt) {
     throw new DeviceError(
       "VALIDATION_ERROR",
-      "Heartbeat observedAt must be a valid timestamp.",
-      400,
+      timestamp.reason === "future_timestamp"
+        ? "Heartbeat observedAt is too far in the future."
+        : "Heartbeat observedAt must be a valid timestamp.",
+      400
     )
   }
+  const observedAt = timestamp.observedAt
 
-  const [device] = await db
-    .select()
-    .from(devices)
-    .where(
-      and(eq(devices.tenantId, input.tenantId), eq(devices.id, input.deviceId)),
+  return db.transaction(async (tx) => {
+    const [device] = await tx
+      .select()
+      .from(devices)
+      .where(
+        and(
+          eq(devices.tenantId, input.tenantId),
+          eq(devices.id, input.deviceId)
+        )
+      )
+      .limit(1)
+      .for("update")
+
+    if (!device) {
+      throw new DeviceError("DEVICE_NOT_FOUND", "Device not found.", 404)
+    }
+
+    if (device.status === "revoked") {
+      throw new DeviceError("DEVICE_REVOKED", "Device has been revoked.", 403)
+    }
+
+    const [latestSample] = await tx
+      .select({ observedAt: deviceHeartbeats.observedAt })
+      .from(deviceHeartbeats)
+      .where(
+        and(
+          eq(deviceHeartbeats.tenantId, input.tenantId),
+          eq(deviceHeartbeats.deviceId, input.deviceId)
+        )
+      )
+      .orderBy(desc(deviceHeartbeats.observedAt))
+      .limit(1)
+
+    const sampleIntervalMs = getHeartbeatSampleIntervalSeconds() * 1000
+    const shouldSample =
+      !latestSample ||
+      observedAt.getTime() - latestSample.observedAt.getTime() >=
+        sampleIntervalMs
+    const authoritativeHeartbeatAt = nextHeartbeatTimestamp(
+      device.lastHeartbeatAt,
+      observedAt
     )
-    .limit(1)
 
-  if (!device) {
-    throw new DeviceError("DEVICE_NOT_FOUND", "Device not found.", 404)
-  }
+    let configAck: { assignmentId: string; kind: string } | null = null
+    if (typeof input.appliedConfigVersion === "number") {
+      const [assignment] = await tx
+        .select({
+          id: deviceAssignments.id,
+          configVersion: deviceAssignments.configVersion,
+          appliedConfigVersion: deviceAssignments.appliedConfigVersion,
+        })
+        .from(deviceAssignments)
+        .where(
+          and(
+            eq(deviceAssignments.tenantId, input.tenantId),
+            eq(deviceAssignments.deviceId, input.deviceId),
+            lte(deviceAssignments.effectiveFrom, now),
+            or(
+              isNull(deviceAssignments.effectiveTo),
+              gt(deviceAssignments.effectiveTo, now)
+            )
+          )
+        )
+        .orderBy(desc(deviceAssignments.effectiveFrom))
+        .limit(1)
 
-  if (device.status === "revoked") {
-    throw new DeviceError("DEVICE_REVOKED", "Device has been revoked.", 403)
-  }
+      if (!assignment) {
+        throw new DeviceError(
+          "ASSIGNMENT_STALE",
+          "Device has no current assignment for this configuration acknowledgement.",
+          409
+        )
+      }
 
-  const sampleIntervalMs = getHeartbeatSampleIntervalSeconds() * 1000
-  const [latestSample] = await db
-    .select({ observedAt: deviceHeartbeats.observedAt })
-    .from(deviceHeartbeats)
-    .where(
-      and(
-        eq(deviceHeartbeats.tenantId, input.tenantId),
-        eq(deviceHeartbeats.deviceId, input.deviceId),
-      ),
-    )
-    .orderBy(desc(deviceHeartbeats.observedAt))
-    .limit(1)
+      const decision = evaluateConfigAcknowledgement({
+        received: input.appliedConfigVersion,
+        configVersion: assignment.configVersion,
+        appliedConfigVersion: assignment.appliedConfigVersion,
+      })
+      if (decision.kind === "invalid" || decision.kind === "ahead") {
+        throw new DeviceError(
+          "CONFIG_VERSION_INVALID",
+          "Applied configuration version is invalid for the current assignment.",
+          409
+        )
+      }
+      configAck = { assignmentId: assignment.id, kind: decision.kind }
+    }
 
-  const shouldSample =
-    !latestSample ||
-    observedAt.getTime() - latestSample.observedAt.getTime() >= sampleIntervalMs
-
-  await db.transaction(async (tx) => {
     await tx
       .update(devices)
       .set({
-        lastSeenAt: observedAt,
-        lastHeartbeatAt: observedAt,
+        lastSeenAt: authoritativeHeartbeatAt,
+        lastHeartbeatAt: authoritativeHeartbeatAt,
         firmwareVersion: input.firmwareVersion ?? device.firmwareVersion,
-        updatedAt: new Date(),
+        updatedAt: now,
       })
       .where(
-        and(eq(devices.tenantId, input.tenantId), eq(devices.id, input.deviceId)),
+        and(
+          eq(devices.tenantId, input.tenantId),
+          eq(devices.id, input.deviceId)
+        )
       )
 
     if (shouldSample) {
@@ -139,30 +203,34 @@ export async function recordDeviceHeartbeat(
         correlationId: input.correlationId,
       })
     }
+
+    if (configAck?.kind === "apply") {
+      await tx
+        .update(deviceAssignments)
+        .set({
+          appliedConfigVersion: input.appliedConfigVersion,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(deviceAssignments.tenantId, input.tenantId),
+            eq(deviceAssignments.id, configAck.assignmentId)
+          )
+        )
+    }
+
+    return {
+      health: deriveDeviceHealth(authoritativeHeartbeatAt, now),
+      lastHeartbeatAt: authoritativeHeartbeatAt.toISOString(),
+      sampled: shouldSample,
+    }
   })
-
-  if (
-    typeof input.appliedConfigVersion === "number" &&
-    Number.isFinite(input.appliedConfigVersion)
-  ) {
-    await updateAppliedConfigVersion(
-      input.tenantId,
-      input.deviceId,
-      input.appliedConfigVersion,
-    )
-  }
-
-  return {
-    health: deriveDeviceHealth(observedAt),
-    lastHeartbeatAt: observedAt.toISOString(),
-    sampled: shouldSample,
-  }
 }
 
 export async function listRecentDeviceHeartbeats(
   tenantId: string,
   deviceId: string,
-  limit = 20,
+  limit = 20
 ): Promise<DeviceHeartbeatRecord[]> {
   const rows = await db
     .select()
@@ -170,8 +238,8 @@ export async function listRecentDeviceHeartbeats(
     .where(
       and(
         eq(deviceHeartbeats.tenantId, tenantId),
-        eq(deviceHeartbeats.deviceId, deviceId),
-      ),
+        eq(deviceHeartbeats.deviceId, deviceId)
+      )
     )
     .orderBy(desc(deviceHeartbeats.observedAt))
     .limit(limit)
@@ -182,7 +250,7 @@ export async function listRecentDeviceHeartbeats(
 export async function pruneDeviceHeartbeatHistory(
   tenantId: string,
   deviceId: string,
-  retainCount = 100,
+  retainCount = 100
 ) {
   const rows = await db
     .select({ id: deviceHeartbeats.id })
@@ -190,8 +258,8 @@ export async function pruneDeviceHeartbeatHistory(
     .where(
       and(
         eq(deviceHeartbeats.tenantId, tenantId),
-        eq(deviceHeartbeats.deviceId, deviceId),
-      ),
+        eq(deviceHeartbeats.deviceId, deviceId)
+      )
     )
     .orderBy(desc(deviceHeartbeats.observedAt))
     .offset(retainCount)
@@ -207,10 +275,29 @@ export async function pruneDeviceHeartbeatHistory(
       and(
         eq(deviceHeartbeats.tenantId, tenantId),
         eq(deviceHeartbeats.deviceId, deviceId),
-        inArray(deviceHeartbeats.id, ids),
-      ),
+        inArray(deviceHeartbeats.id, ids)
+      )
     )
     .returning({ id: deviceHeartbeats.id })
 
   return deleted.length
+}
+
+export async function pruneAllDeviceHeartbeatHistory(
+  retainCount = getHeartbeatRetentionCount()
+) {
+  const rows = await db
+    .select({ tenantId: devices.tenantId, id: devices.id })
+    .from(devices)
+  let deleted = 0
+
+  for (const device of rows) {
+    deleted += await pruneDeviceHeartbeatHistory(
+      device.tenantId,
+      device.id,
+      retainCount
+    )
+  }
+
+  return deleted
 }

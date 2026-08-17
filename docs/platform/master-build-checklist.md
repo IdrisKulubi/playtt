@@ -25,8 +25,8 @@ Use this document for delivery tracking. Use the supporting documents for deeper
 | ------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
 | Phase 0 — Stabilization              | Complete    | Repository and live-environment evidence complete; Phase 1 may begin after owner sign-off |
 | Phase 1 — Tenant/resource foundation | In progress | P1-01–P1-08 landed locally; Phase 1 exit gates remain |
-| Phase 2 — Sessions/durable events    | Complete    | P2-01 through P2-07 and Phase 2 exit evidence complete locally |
-| Phase 3 — Devices/scoring/realtime   | In progress | P3-01/P3-02/P3-03/P3-04 landed locally; P3-05+ and Phase 3 exit remain |
+| Phase 2 — Sessions/durable events    | In progress | P2-01 through P2-07 implemented; repaired clone/DB acceptance must pass in hosted CI |
+| Phase 3 — Devices/scoring/realtime   | In progress | P3-01–P3-04 implemented/hardened; DB race, retry, and physical-device acceptance remain before P3-05 |
 | Phase 4 — Private R2 media           | Not started | Depends on tenant and session ownership                                                                                  |
 | Phase 5 — TTLock/automation          | Not started | Depends on access-point catalog, sessions, and device commands                                                           |
 | Phase 6 — Replay edge                | Not started | Depends on devices and private media                                                                                     |
@@ -270,7 +270,7 @@ Build guide: expand `locations`, dual-read if necessary, backfill, validate comp
 
 Done means:
 
-- [x] Existing Hurlingham booking works unchanged and a second tenant/venue can be configured without code forks.
+- [ ] Existing Hurlingham booking works unchanged and a second tenant/venue can be configured without code forks.
 
 ### P1-03 — Zones, resource types, capabilities, and rules
 
@@ -283,7 +283,7 @@ Build guide: use data-driven types/capabilities; retain the legacy enum during m
 
 Done means:
 
-- [x] A new resource type such as `golf_bay` can be configured without changing booking/payment core code.
+- [ ] A new resource type such as `golf_bay` can be configured through the operator workflow without changing booking/payment core code.
 
 ### P1-04 — Tenant backfill and database integrity
 
@@ -296,7 +296,7 @@ Build guide: expand → resumable backfill → dual-write/read → `NOT VALID` c
 
 Done means:
 
-- [x] Zero tenant nulls, orphans, and cross-tenant parent mismatches exist in the production-like clone.
+- [ ] Zero tenant nulls, orphans, and cross-tenant parent mismatches exist in the production-like clone.
 
 ### P1-05 — TenantContext and RBAC
 
@@ -309,11 +309,11 @@ Build guide: default legacy clients to the PlayTT tenant server-side; never acce
 
 Done means:
 
-- [x] Tenant A cannot read or mutate Tenant B data using guessed IDs across APIs, repositories, media, realtime, or operator tools.
+- [ ] Tenant A cannot read or mutate Tenant B data using guessed IDs across every implemented API/repository/operator path; media and realtime are gated in their later phases.
 
 ### P1-06/P1-07 — Operator catalog and legacy compatibility
 
-- [x] Build authorized operator screens/APIs for tenants, venues, zones, resources, capabilities, and memberships.
+- [ ] Build authorized operator create/update screens/APIs for tenants, venues, zones, resources, capabilities, and memberships. Current catalog and membership surfaces are primarily inspection-only.
 - [x] Preserve existing unversioned web/mobile contracts and IDs.
 - [x] Add fields only; feature-flag new tenant/operator behavior.
 
@@ -321,7 +321,7 @@ Build guide: keep the modular monolith and current endpoint adapters; introduce 
 
 Done means:
 
-- [x] Old client fixtures pass while operators can configure two isolated tenants and venues.
+- [ ] Old client fixtures pass while operators can configure two isolated tenants and venues.
 
 ### P1-08 — Access-point and door catalog
 
@@ -334,7 +334,7 @@ Build guide: model logical access points first; provider locks/gateways are assi
 
 Done means:
 
-- [x] Hurlingham and a second venue can configure shared and table-specific doors without TTLock-specific code.
+- [ ] Hurlingham and a second venue can configure shared and table-specific doors without TTLock-specific code.
 
 ## Phase 1 exit
 
@@ -429,10 +429,10 @@ Done means:
 
 ## Phase 2 exit
 
-- [x] Inbox/outbox/session migrations pass empty and current-clone tests.
-- [x] Duplicate, delayed, reordered, crash, retry, and dead-letter suites pass.
-- [x] Worker observability and reconciliation are operational.
-- [x] Existing checkout and callback UX remains unchanged.
+- [ ] Inbox/outbox/session migrations pass empty and current-clone tests in hosted PostgreSQL after the repaired 0000–0017 ordering.
+- [ ] Duplicate, delayed, reordered, crash, retry, and dead-letter suites pass in hosted CI.
+- [ ] Worker observability, tenant-scoped replay, and scheduled reconciliation are verified in the deployed environment.
+- [ ] Existing checkout and callback UX is smoke-tested unchanged.
 
 ---
 
@@ -453,7 +453,7 @@ Build guide: simulator first, HTTPS transport first, MQTT only after the contrac
 
 Done means:
 
-- [x] One-time enrollment, expiry, rotation, and revocation tests pass; raw device secrets are never stored or logged.
+- [ ] One-time enrollment, expiry, rotation, and revocation tests pass in hosted PostgreSQL; raw device secrets are never stored or logged.
 
 ### P3-02 — Assignments and configuration
 
@@ -465,7 +465,7 @@ Build guide: device identity remains separate from resource identity so hardware
 
 Done means:
 
-- [x] Wrong-tenant, wrong-resource, wrong-role, and stale-assignment devices are rejected.
+- [ ] Wrong-tenant, wrong-resource, wrong-role, overlapping-window, and stale-assignment devices are rejected in hosted PostgreSQL.
 
 ### P3-03 — Heartbeats and fleet health
 
@@ -477,19 +477,20 @@ Build guide: keep latest health cheap; sample/partition history instead of stori
 
 Done means:
 
-- [x] One offline device is detected without affecting or misreporting another resource.
+- [ ] Two-device isolation, monotonic timestamps, future-clock rejection, sampling, and retention pass in hosted PostgreSQL.
 
 ### P3-04 — Commands and acknowledgements
 
 - [x] Add expiring commands, attempts, delivery state, acknowledgements, results, and correlation.
 - [x] Reject expired/replayed commands and duplicate ACKs safely.
 - [x] Add provider-neutral `DeviceCommandBus`/transport.
+- [ ] Add session/outbox-origin command intents; direct operator commands remain a diagnostic/manual path.
 
 Build guide: commands originate from outbox/session intent and are never required for booking/payment transaction success.
 
 Done means:
 
-- [x] Retry, timeout, expiry, duplicate ACK, disconnect, and restart tests converge to one command outcome.
+- [ ] Retry, max-attempt timeout, expiry, concurrent duplicate ACK, disconnect, and restart tests converge to one command outcome in hosted PostgreSQL.
 
 ### P3-05/P3-06 — Authoritative table-tennis scoring
 

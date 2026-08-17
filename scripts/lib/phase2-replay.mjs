@@ -14,6 +14,21 @@ export const PHASE2_MIGRATION_FILES = [
   "0014_play_sessions.sql",
 ]
 
+export const PHASE1_MIGRATION_FILES = [
+  "0000_curvy_hiroim.sql",
+  "0001_user_onboarding.sql",
+  "0002_booking_edits.sql",
+  "0003_coach_replay_credits.sql",
+  "0004_booking_credit_ledger.sql",
+  "0005_phase0_idempotency.sql",
+  "0006_tenancy_foundation.sql",
+  "0007_venue_resource_catalog.sql",
+  "0008_tenant_scope_expand.sql",
+  "0009_tenant_scope_enforce.sql",
+  "0010_tenant_composite_fks.sql",
+  "0011_access_points.sql",
+]
+
 export function readSeedSql(rootDirectory) {
   return readFileSync(join(rootDirectory, "db", "seed-phase1.sql"), "utf8")
 }
@@ -35,8 +50,23 @@ export function readConfirmationEmailBackfillSql(rootDirectory) {
 
 export function migrationFilesUpToPhase1(drizzleDirectory) {
   const files = listMigrationSqlFiles(drizzleDirectory)
-  const phase2Set = new Set(PHASE2_MIGRATION_FILES)
-  return files.filter((file) => !phase2Set.has(file))
+  const available = new Set(files)
+  for (const file of PHASE1_MIGRATION_FILES) {
+    if (!available.has(file)) {
+      throw new Error(`Missing required Phase 1 migration: ${file}`)
+    }
+  }
+  return [...PHASE1_MIGRATION_FILES]
+}
+
+export function migrationFilesAfterPhase2(drizzleDirectory) {
+  const phase1And2 = new Set([
+    ...PHASE1_MIGRATION_FILES,
+    ...PHASE2_MIGRATION_FILES,
+  ])
+  return listMigrationSqlFiles(drizzleDirectory).filter(
+    (file) => !phase1And2.has(file),
+  )
 }
 
 export async function runSeedAndTenantBackfill(sql, rootDirectory) {
@@ -67,8 +97,13 @@ export async function replayPhase1CloneLineage(
   await runSeedAndTenantBackfill(sql, rootDirectory)
   await applyMigrationFiles(sql, drizzleDirectory, PHASE2_MIGRATION_FILES)
   await runPhase2Backfills(sql, rootDirectory)
+  const laterFiles = migrationFilesAfterPhase2(drizzleDirectory)
+  await applyMigrationFiles(sql, drizzleDirectory, laterFiles)
   const fingerprint = await collectSchemaFingerprint(sql)
-  return { appliedFiles: [...phase1Files, ...PHASE2_MIGRATION_FILES], fingerprint }
+  return {
+    appliedFiles: [...phase1Files, ...PHASE2_MIGRATION_FILES, ...laterFiles],
+    fingerprint,
+  }
 }
 
 export async function assertPhase2CloneMatchesEmptyReplay(

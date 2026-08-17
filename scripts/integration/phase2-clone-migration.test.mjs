@@ -8,7 +8,12 @@ import {
   hasIntegrationDatabase,
   listCanonicalMigrationTags,
 } from "../lib/disposable-migration-harness.mjs"
-import { PHASE2_MIGRATION_FILES } from "../lib/phase2-replay.mjs"
+import {
+  PHASE1_MIGRATION_FILES,
+  PHASE2_MIGRATION_FILES,
+  migrationFilesAfterPhase2,
+  migrationFilesUpToPhase1,
+} from "../lib/phase2-replay.mjs"
 import { validateMigrationRepository } from "../lib/migration-integrity.mjs"
 
 const repoRoot = join(import.meta.dirname, "..", "..")
@@ -51,6 +56,24 @@ test("phase 2 migrations are journaled and integrity-pinned", () => {
   assert.equal(validation.findings.length, 0)
 })
 
+test("clone topology keeps Phase 1 and Phase 2 boundaries stable", () => {
+  const drizzleDirectory = join(repoRoot, "drizzle")
+  assert.deepEqual(migrationFilesUpToPhase1(drizzleDirectory), PHASE1_MIGRATION_FILES)
+  assert.deepEqual(
+    listCanonicalMigrationTags().slice(0, 12),
+    PHASE1_MIGRATION_FILES.map((file) => file.replace(/\.sql$/, "")),
+  )
+  assert.deepEqual(
+    listCanonicalMigrationTags().slice(12, 15),
+    PHASE2_MIGRATION_FILES.map((file) => file.replace(/\.sql$/, "")),
+  )
+  assert.ok(
+    migrationFilesAfterPhase2(drizzleDirectory).every(
+      (file) => Number(file.slice(0, 4)) > 14,
+    ),
+  )
+})
+
 test("0011 clone then 0012-0014 matches full empty replay fingerprint", async (t) => {
   if (!hasIntegrationDatabase()) {
     t.skip("PLAYTT_TEST_DATABASE_URL is not configured")
@@ -61,8 +84,5 @@ test("0011 clone then 0012-0014 matches full empty replay fingerprint", async (t
   const clone = await harness.replayPhase1Clone()
 
   assert.equal(empty.fingerprint.digest, clone.fingerprint.digest)
-  assert.deepEqual(
-    listCanonicalMigrationTags().slice(-3),
-    PHASE2_MIGRATION_FILES.map((file) => file.replace(/\.sql$/, "")),
-  )
+  assert.deepEqual(clone.appliedFiles, empty.appliedFiles)
 })

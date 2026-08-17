@@ -110,25 +110,40 @@ export async function persistPaystackWebhook(
       rawPayload: input.rawBody,
       status: "received",
     })
-    .onConflictDoNothing({
-      target: [paymentWebhookInbox.provider, paymentWebhookInbox.payloadHash],
-    })
+    .onConflictDoNothing()
     .returning()
 
   if (inserted.length > 0) {
     return mapInboxRow(inserted[0])
   }
 
-  const [existing] = await db
-    .select()
-    .from(paymentWebhookInbox)
-    .where(
-      and(
-        eq(paymentWebhookInbox.provider, "paystack"),
-        eq(paymentWebhookInbox.payloadHash, payloadHash),
-      ),
-    )
-    .limit(1)
+  const [providerEventMatch] = input.providerEventId
+    ? await db
+        .select()
+        .from(paymentWebhookInbox)
+        .where(
+          and(
+            eq(paymentWebhookInbox.provider, "paystack"),
+            eq(paymentWebhookInbox.providerEventId, input.providerEventId),
+          ),
+        )
+        .limit(1)
+    : []
+
+  const [payloadMatch] = providerEventMatch
+    ? []
+    : await db
+        .select()
+        .from(paymentWebhookInbox)
+        .where(
+          and(
+            eq(paymentWebhookInbox.provider, "paystack"),
+            eq(paymentWebhookInbox.payloadHash, payloadHash),
+          ),
+        )
+        .limit(1)
+
+  const existing = providerEventMatch ?? payloadMatch
 
   if (!existing) {
     throw new Error("Could not persist Paystack webhook inbox row.")
@@ -201,13 +216,14 @@ export async function replayWebhookInbox(inboxId: string) {
   return updated ? mapInboxRow(updated) : null
 }
 
-export async function countWebhookInboxByStatus() {
+export async function countWebhookInboxByStatus(tenantId?: string) {
   const rows = await db
     .select({
       status: paymentWebhookInbox.status,
       count: sql<number>`count(*)::int`,
     })
     .from(paymentWebhookInbox)
+    .where(tenantId ? eq(paymentWebhookInbox.tenantId, tenantId) : undefined)
     .groupBy(paymentWebhookInbox.status)
 
   return Object.fromEntries(rows.map((row) => [row.status, row.count])) as Record<

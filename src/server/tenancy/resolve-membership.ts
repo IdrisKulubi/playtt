@@ -6,7 +6,7 @@ import { PLAYTT_TENANT_ID } from "./constants"
 import { TenancyError } from "./errors"
 import {
   mapMembershipToTenantContext,
-  rejectClientTenantId,
+  resolveRequestedTenantId,
 } from "./membership-context.mjs"
 import type { TenantContext } from "./types"
 
@@ -15,7 +15,11 @@ export async function resolvePlayTtMembershipForUser(input: {
   correlationId: string
   clientTenantId?: string | null
 }): Promise<TenantContext> {
-  rejectClientTenantId(input.clientTenantId)
+  await ensureDefaultPlayTtMembershipForUser(input.userId)
+  const tenantId = resolveRequestedTenantId(
+    input.clientTenantId,
+    PLAYTT_TENANT_ID,
+  )
 
   const rows = await db
     .select({
@@ -28,7 +32,8 @@ export async function resolvePlayTtMembershipForUser(input: {
     .where(
       and(
         eq(tenantMemberships.userId, input.userId),
-        eq(tenantMemberships.tenantId, PLAYTT_TENANT_ID),
+        eq(tenantMemberships.tenantId, tenantId),
+        eq(tenantMemberships.status, "active"),
       ),
     )
     .limit(1)
@@ -50,4 +55,18 @@ export async function resolvePlayTtMembershipForUser(input: {
     status: membership.status,
     correlationId: input.correlationId,
   }) as TenantContext
+}
+
+export async function ensureDefaultPlayTtMembershipForUser(userId: string) {
+  await db
+    .insert(tenantMemberships)
+    .values({
+      tenantId: PLAYTT_TENANT_ID,
+      userId,
+      role: "customer",
+      status: "active",
+    })
+    .onConflictDoNothing({
+      target: [tenantMemberships.tenantId, tenantMemberships.userId],
+    })
 }

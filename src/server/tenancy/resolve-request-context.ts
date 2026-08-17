@@ -1,4 +1,3 @@
-import { rejectClientTenantId } from "./membership-context.mjs"
 import { resolvePlayTtMembershipForUser } from "./resolve-membership"
 import { TenancyError } from "./errors"
 import type { TenantContext } from "./types"
@@ -8,8 +7,6 @@ export async function resolveRequestTenantContext(input: {
   correlationId: string
   clientTenantId?: string | null
 }): Promise<TenantContext> {
-  rejectClientTenantId(input.clientTenantId)
-
   if (!input.userId) {
     throw new TenancyError(
       "NOT_AUTHENTICATED",

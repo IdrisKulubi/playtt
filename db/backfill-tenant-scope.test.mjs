@@ -5,8 +5,6 @@ import test from "node:test"
 
 import {
   PLAYTT_TENANT_ID,
-  TENANT_MISMATCH_CHECKS,
-  TENANT_SCOPED_TABLES,
 } from "../src/server/tenancy/backfill-queries.mjs"
 
 const root = join(import.meta.dirname, "..")
@@ -64,4 +62,31 @@ test("migration 0010 replaces partial parent keys and validates composite FKs", 
   assert.match(migrationSql, /DROP INDEX IF EXISTS "locations_tenant_id_unique"/)
   assert.match(migrationSql, /bookings_tenant_location_fk[\s\S]*NOT VALID/i)
   assert.match(migrationSql, /VALIDATE CONSTRAINT "bookings_tenant_location_fk"/)
+})
+
+test("migration 0017 stages and validates catalog tenant foreign keys", () => {
+  const migrationSql = readFileSync(
+    join(root, "drizzle", "0017_tenant_catalog_assignment_integrity.sql"),
+    "utf8",
+  )
+
+  for (const constraint of [
+    "locations_tenant_brand_fk",
+    "zones_tenant_location_fk",
+    "resources_tenant_location_fk",
+    "resources_tenant_zone_fk",
+    "resources_tenant_resource_type_fk",
+    "resource_capabilities_tenant_resource_fk",
+    "outbox_events_tenant_venue_fk",
+    "outbox_events_tenant_resource_fk",
+  ]) {
+    assert.match(
+      migrationSql,
+      new RegExp(`ADD CONSTRAINT "${constraint}"[\\s\\S]*?NOT VALID`, "i"),
+    )
+    assert.match(
+      migrationSql,
+      new RegExp(`VALIDATE CONSTRAINT "${constraint}"`, "i"),
+    )
+  }
 })

@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm"
+import { and, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import {
@@ -17,7 +17,10 @@ import type {
   EnqueueDeviceCommandInput,
 } from "@/server/devices/command-bus"
 import { DeviceError } from "@/server/devices/errors"
-import { DEFAULT_COMMAND_TTL_SECONDS } from "@/server/devices/health-policy"
+import {
+  DEFAULT_COMMAND_RETRY_INTERVAL_SECONDS,
+  DEFAULT_COMMAND_TTL_SECONDS,
+} from "@/server/devices/health-policy"
 
 export type DeviceCommandKind =
   (typeof deviceCommandKindEnum.enumValues)[number]
@@ -46,7 +49,9 @@ export interface DeviceCommandRecord {
   updatedAt: string
 }
 
-function mapCommand(row: typeof deviceCommands.$inferSelect): DeviceCommandRecord {
+function mapCommand(
+  row: typeof deviceCommands.$inferSelect
+): DeviceCommandRecord {
   return {
     id: row.id,
     tenantId: row.tenantId,
@@ -97,20 +102,65 @@ export async function expireStaleDeviceCommands(now: Date = new Date()) {
     .where(
       and(
         inArray(deviceCommands.status, ["pending", "delivered"]),
-        lte(deviceCommands.expiresAt, now),
-      ),
+        lte(deviceCommands.expiresAt, now)
+      )
     )
     .returning({ id: deviceCommands.id })
 
   return expired.length
 }
 
+export async function failExhaustedDeviceCommands(
+  now: Date = new Date(),
+  tenantId?: string,
+  deviceId?: string
+) {
+  const retryBefore = new Date(
+    now.getTime() - DEFAULT_COMMAND_RETRY_INTERVAL_SECONDS * 1000
+  )
+  const failed = await db
+    .update(deviceCommands)
+    .set({
+      status: "failed",
+      failedAt: now,
+      lastError: "Device command acknowledgement timed out.",
+      updatedAt: now,
+    })
+    .where(
+      and(
+        tenantId ? eq(deviceCommands.tenantId, tenantId) : undefined,
+        deviceId ? eq(deviceCommands.deviceId, deviceId) : undefined,
+        eq(deviceCommands.status, "delivered"),
+        sql`${deviceCommands.attemptCount} >= ${deviceCommands.maxAttempts}`,
+        lte(deviceCommands.deliveredAt, retryBefore)
+      )
+    )
+    .returning({ id: deviceCommands.id })
+
+  return failed.length
+}
+
 export async function enqueueDeviceCommand(
-  input: EnqueueDeviceCommandInput,
+  input: EnqueueDeviceCommandInput
 ): Promise<DeviceCommandRecord> {
   await assertActiveDevice(input.tenantId, input.deviceId)
 
   const expiresInSeconds = input.expiresInSeconds ?? DEFAULT_COMMAND_TTL_SECONDS
+  if (!Number.isFinite(expiresInSeconds) || expiresInSeconds <= 0) {
+    throw new DeviceError(
+      "VALIDATION_ERROR",
+      "Device command expiry must be positive.",
+      400
+    )
+  }
+  const maxAttempts = input.maxAttempts ?? 3
+  if (!Number.isInteger(maxAttempts) || maxAttempts <= 0) {
+    throw new DeviceError(
+      "VALIDATION_ERROR",
+      "Device command max attempts must be a positive integer.",
+      400
+    )
+  }
   const expiresAt = new Date(Date.now() + expiresInSeconds * 1000)
 
   const [created] = await db
@@ -123,7 +173,7 @@ export async function enqueueDeviceCommand(
       expiresAt,
       correlationId: input.correlationId,
       causationId: input.causationId ?? null,
-      maxAttempts: input.maxAttempts ?? 3,
+      maxAttempts,
     })
     .returning()
 
@@ -132,9 +182,14 @@ export async function enqueueDeviceCommand(
 
 export async function listPendingDeviceCommands(
   tenantId: string,
-  deviceId: string,
+  deviceId: string
 ): Promise<DeviceCommandRecord[]> {
-  await expireStaleDeviceCommands()
+  const now = new Date()
+  await expireStaleDeviceCommands(now)
+  const retryBefore = new Date(
+    now.getTime() - DEFAULT_COMMAND_RETRY_INTERVAL_SECONDS * 1000
+  )
+  await failExhaustedDeviceCommands(now, tenantId, deviceId)
 
   const rows = await db
     .select()
@@ -143,9 +198,16 @@ export async function listPendingDeviceCommands(
       and(
         eq(deviceCommands.tenantId, tenantId),
         eq(deviceCommands.deviceId, deviceId),
-        inArray(deviceCommands.status, ["pending", "delivered"]),
-        gt(deviceCommands.expiresAt, new Date()),
-      ),
+        or(
+          eq(deviceCommands.status, "pending"),
+          and(
+            eq(deviceCommands.status, "delivered"),
+            sql`${deviceCommands.attemptCount} < ${deviceCommands.maxAttempts}`,
+            lte(deviceCommands.deliveredAt, retryBefore)
+          )
+        ),
+        gt(deviceCommands.expiresAt, now)
+      )
     )
     .orderBy(deviceCommands.createdAt)
 
@@ -155,7 +217,7 @@ export async function listPendingDeviceCommands(
 export async function markDeviceCommandDelivered(
   tenantId: string,
   deviceId: string,
-  commandId: string,
+  commandId: string
 ): Promise<DeviceCommandRecord | null> {
   const now = new Date()
 
@@ -172,9 +234,10 @@ export async function markDeviceCommandDelivered(
         eq(deviceCommands.tenantId, tenantId),
         eq(deviceCommands.deviceId, deviceId),
         eq(deviceCommands.id, commandId),
-        eq(deviceCommands.status, "pending"),
-        gt(deviceCommands.expiresAt, now),
-      ),
+        inArray(deviceCommands.status, ["pending", "delivered"]),
+        sql`${deviceCommands.attemptCount} < ${deviceCommands.maxAttempts}`,
+        gt(deviceCommands.expiresAt, now)
+      )
     )
     .returning()
 
@@ -189,8 +252,8 @@ export async function markDeviceCommandDelivered(
       and(
         eq(deviceCommands.tenantId, tenantId),
         eq(deviceCommands.deviceId, deviceId),
-        eq(deviceCommands.id, commandId),
-      ),
+        eq(deviceCommands.id, commandId)
+      )
     )
     .limit(1)
 
@@ -198,7 +261,7 @@ export async function markDeviceCommandDelivered(
 }
 
 export async function acknowledgeDeviceCommand(
-  input: AcknowledgeDeviceCommandInput,
+  input: AcknowledgeDeviceCommandInput
 ): Promise<DeviceCommandRecord> {
   const now = new Date()
 
@@ -210,20 +273,25 @@ export async function acknowledgeDeviceCommand(
         and(
           eq(deviceCommands.tenantId, input.tenantId),
           eq(deviceCommands.deviceId, input.deviceId),
-          eq(deviceCommands.id, input.commandId),
-        ),
+          eq(deviceCommands.id, input.commandId)
+        )
       )
       .limit(1)
+      .for("update")
 
     if (!command) {
-      throw new DeviceError("COMMAND_NOT_FOUND", "Device command not found.", 404)
+      throw new DeviceError(
+        "COMMAND_NOT_FOUND",
+        "Device command not found.",
+        404
+      )
     }
 
     if (command.status === "expired" || command.expiredAt) {
       throw new DeviceError(
         "COMMAND_EXPIRED",
         "Device command has expired.",
-        409,
+        409
       )
     }
 
@@ -240,7 +308,7 @@ export async function acknowledgeDeviceCommand(
       throw new DeviceError(
         "COMMAND_EXPIRED",
         "Device command has expired.",
-        409,
+        409
       )
     }
 
@@ -250,8 +318,8 @@ export async function acknowledgeDeviceCommand(
       .where(
         and(
           eq(deviceCommandAcks.commandId, input.commandId),
-          eq(deviceCommandAcks.idempotencyKey, input.idempotencyKey),
-        ),
+          eq(deviceCommandAcks.idempotencyKey, input.idempotencyKey)
+        )
       )
       .limit(1)
 
@@ -263,7 +331,11 @@ export async function acknowledgeDeviceCommand(
         .limit(1)
 
       if (!current) {
-        throw new DeviceError("COMMAND_NOT_FOUND", "Device command not found.", 404)
+        throw new DeviceError(
+          "COMMAND_NOT_FOUND",
+          "Device command not found.",
+          404
+        )
       }
 
       return mapCommand(current)
@@ -302,8 +374,8 @@ export async function acknowledgeDeviceCommand(
       .where(
         and(
           eq(deviceCommands.id, input.commandId),
-          inArray(deviceCommands.status, ["pending", "delivered"]),
-        ),
+          inArray(deviceCommands.status, ["pending", "delivered"])
+        )
       )
       .returning()
 
@@ -315,7 +387,11 @@ export async function acknowledgeDeviceCommand(
         .limit(1)
 
       if (!current) {
-        throw new DeviceError("COMMAND_NOT_FOUND", "Device command not found.", 404)
+        throw new DeviceError(
+          "COMMAND_NOT_FOUND",
+          "Device command not found.",
+          404
+        )
       }
 
       return mapCommand(current)
@@ -336,7 +412,7 @@ export const postgresDeviceCommandBus: DeviceCommandBus = {
 export async function updateAppliedConfigVersion(
   tenantId: string,
   deviceId: string,
-  appliedConfigVersion: number,
+  appliedConfigVersion: number
 ) {
   const now = new Date()
 
@@ -353,8 +429,8 @@ export async function updateAppliedConfigVersion(
         lte(deviceAssignments.effectiveFrom, now),
         or(
           isNull(deviceAssignments.effectiveTo),
-          gt(deviceAssignments.effectiveTo, now),
-        ),
-      ),
+          gt(deviceAssignments.effectiveTo, now)
+        )
+      )
     )
 }

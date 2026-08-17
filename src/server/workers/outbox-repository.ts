@@ -223,13 +223,14 @@ export async function replayOutboxEvent(eventId: string) {
   return updated ? mapOutboxRow(updated) : null
 }
 
-export async function countOutboxEventsByStatus() {
+export async function countOutboxEventsByStatus(tenantId?: string) {
   const rows = await db
     .select({
       status: outboxEvents.status,
       count: sql<number>`count(*)::int`,
     })
     .from(outboxEvents)
+    .where(tenantId ? eq(outboxEvents.tenantId, tenantId) : undefined)
     .groupBy(outboxEvents.status)
 
   return Object.fromEntries(rows.map((row) => [row.status, row.count])) as Record<

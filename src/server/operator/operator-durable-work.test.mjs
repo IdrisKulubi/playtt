@@ -14,6 +14,8 @@ test("operator durable work repository scopes dead-letter queries by tenant", ()
 
   assert.match(source, /eq\(paymentWebhookInbox\.tenantId, context\.tenantId\)/)
   assert.match(source, /eq\(outboxEvents\.tenantId, context\.tenantId\)/)
+  assert.match(source, /countWebhookInboxByStatus\(context\.tenantId\)/)
+  assert.match(source, /countOutboxEventsByStatus\(context\.tenantId\)/)
   assert.match(source, /eq\(paymentWebhookInbox\.status, "dead_letter"\)/)
   assert.match(source, /eq\(outboxEvents\.status, "dead_letter"\)/)
 })
@@ -47,6 +49,7 @@ test("operator durable work routes use session auth and replay audit writes", ()
   assert.match(service, /writeAuditLog/)
   assert.match(service, /replayWebhookInbox/)
   assert.match(service, /replayOutboxEvent/)
+  assert.match(service, /authorize\(context, "catalog\.manage"\)/)
 })
 
 test("operator shell links to durable work page", () => {

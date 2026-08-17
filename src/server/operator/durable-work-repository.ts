@@ -56,8 +56,8 @@ export async function getOperatorDurableWorkOverview(
 ): Promise<OperatorDurableWorkOverview> {
   const [inboxBacklog, outboxBacklog, deadLetterInbox, deadLetterOutbox] =
     await Promise.all([
-      countWebhookInboxByStatus(),
-      countOutboxEventsByStatus(),
+      countWebhookInboxByStatus(context.tenantId),
+      countOutboxEventsByStatus(context.tenantId),
       db
         .select({
           id: paymentWebhookInbox.id,

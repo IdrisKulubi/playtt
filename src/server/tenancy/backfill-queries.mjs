@@ -25,6 +25,30 @@ export const TENANT_SCOPED_TABLES = [
 
 export const TENANT_MISMATCH_CHECKS = [
   {
+    name: "locations_brand_tenant",
+    sql: `select count(*)::int as count from locations l inner join brands b on l.brand_id = b.id where l.tenant_id is distinct from b.tenant_id`,
+  },
+  {
+    name: "zones_location_tenant",
+    sql: `select count(*)::int as count from zones z inner join locations l on z.location_id = l.id where z.tenant_id is distinct from l.tenant_id`,
+  },
+  {
+    name: "resources_location_tenant",
+    sql: `select count(*)::int as count from resources r inner join locations l on r.location_id = l.id where r.tenant_id is distinct from l.tenant_id`,
+  },
+  {
+    name: "resources_zone_tenant",
+    sql: `select count(*)::int as count from resources r inner join zones z on r.zone_id = z.id where r.tenant_id is distinct from z.tenant_id`,
+  },
+  {
+    name: "resources_resource_type_tenant",
+    sql: `select count(*)::int as count from resources r inner join resource_types rt on r.resource_type_id = rt.id where r.tenant_id is distinct from rt.tenant_id`,
+  },
+  {
+    name: "resource_capabilities_resource_tenant",
+    sql: `select count(*)::int as count from resource_capabilities rc inner join resources r on rc.resource_id = r.id where rc.tenant_id is distinct from r.tenant_id`,
+  },
+  {
     name: "bookings_location_tenant",
     sql: `
       select count(*)::int as count
