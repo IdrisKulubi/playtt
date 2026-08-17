@@ -100,7 +100,28 @@ P2-01 and P2-02 landed in the working tree:
 - **Worker:** `GET /api/cron/durable-work` claims inbox and registered outbox rows with `FOR UPDATE SKIP LOCKED`, bounded leases, exponential backoff, dead-letter, and replay helpers. Unsupported outbox versions are skipped; unregistered types stay unclaimed until a consumer is deployed.
 - **Tests:** `pnpm test:payments` and `pnpm test:workers` pass; `pnpm test:contracts` unchanged.
 
-**Outstanding:** Phase 1 exit gates remain open. P2-03 play sessions are next.
+**Outstanding:** Phase 1 exit gates remain open. P2-05 durable lifecycle scheduler is next.
+
+### Implementation log - 2026-08-17 (P2-04 atomic confirmation)
+
+P2-04 landed in the working tree:
+
+- `writeConfirmationDurableSideEffects` folds play session upsert and `payment.confirmed.v1` / `booking.confirmed.v1` outbox enqueue into the `confirmBookingPayment` transaction.
+- `repairConfirmationDurableSideEffects` heals already-confirmed bookings without re-mutating payment/booking rows.
+- Versioned event builders live in `src/server/workers/events.mjs`; confirmation email still sends after commit.
+
+**Evidence:** `pnpm test:payments`, `pnpm test:sessions`, `pnpm test:contracts`, and `pnpm test:workers` pass locally.
+
+### Implementation log - 2026-08-17 (P2-03 operational play sessions)
+
+P2-03 landed in the working tree:
+
+- Migration `0014_play_sessions` adds `play_sessions`, `session_participants`, nullable `play_session_id` compatibility links, and tenant-scoped composite foreign keys.
+- Pure transition machine in `src/server/sessions/state-machine.mjs` with audited illegal transitions.
+- Tenant-scoped ensure/get/transition service plus idempotent `db/backfill-play-sessions.sql`.
+- Post-confirm session ensure and outbox enqueue now run atomically inside `confirmBookingPayment` (P2-04).
+
+**Evidence:** `pnpm test:sessions`, `pnpm test:contracts`, `pnpm test:payments`, and `pnpm test:workers` pass locally.
 
 ### Implementation log - 2026-08-17 (P1-08 access-point catalog)
 
@@ -437,17 +458,17 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 
 #### P2-03 - Add operational sessions
 
-- [ ] Add `play_sessions` with unique booking ID, tenant/venue/resource scope, state, scheduled/actual timestamps, correlation ID, and configuration snapshot/version.
-- [ ] Add `session_participants` and nullable `play_session_id` compatibility links to matches, access credentials, current session events, and replays.
-- [ ] Backfill sessions for existing paid confirmed/completed bookings using an idempotent upsert.
-- [ ] Implement pure transition rules for held/confirmed/preparing/active/ending/completed/resetting/available semantics.
+- [x] Add `play_sessions` with unique booking ID, tenant/venue/resource scope, state, scheduled/actual timestamps, correlation ID, and configuration snapshot/version.
+- [x] Add `session_participants` and nullable `play_session_id` compatibility links to matches, access credentials, current session events, and replays.
+- [x] Backfill sessions for existing paid confirmed/completed bookings using an idempotent upsert.
+- [x] Implement pure transition rules for held/confirmed/preparing/active/ending/completed/resetting/available semantics.
 
 #### P2-04 - Make confirmation atomic
 
-- [ ] Conditionally mark payment and booking once.
-- [ ] Upsert the operational session once by booking ID.
-- [ ] Write booking/payment history and versioned events in the same transaction.
-- [ ] Preserve callback verification and current API/customer state.
+- [x] Conditionally mark payment and booking once.
+- [x] Upsert the operational session once by booking ID.
+- [x] Write booking/payment history and versioned events in the same transaction.
+- [x] Preserve callback verification and current API/customer state.
 
 #### P2-05 - Durable scheduling
 

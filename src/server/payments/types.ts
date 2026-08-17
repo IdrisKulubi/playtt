@@ -68,6 +68,7 @@ export type BookingPaymentContext = {
   id: string
   userId: string
   locationId: string
+  resourceId: string
   status: string
   paymentStatus: string
   totalAmount: string
@@ -80,4 +81,5 @@ export type BookingPaymentContext = {
   resourceName: string
   startTime: Date
   endTime: Date
+  pricingRuleSnapshot: Record<string, unknown> | null
 }
