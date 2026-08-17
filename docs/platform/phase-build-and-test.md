@@ -87,7 +87,32 @@ Live and hosted acceptance evidence is now recorded:
 
 **Outstanding:** Phase owner and reviewer sign-off before Phase 1 schema migrations begin.
 
-**Outstanding:** P1-08 and Phase 1 exit gates remain open.
+**Outstanding:** Phase 1 exit gates remain open.
+
+**Outstanding:** Phase 1 exit gates remain open.
+
+### Implementation log - 2026-08-17 (P2-01/P2-02 webhook inbox, outbox, and worker)
+
+P2-01 and P2-02 landed in the working tree:
+
+- **Schema:** migration `0012_payment_webhook_inbox` stores verified Paystack payloads by provider identity/payload hash; migration `0013_outbox_events` adds a versioned outbox envelope with leases, backoff availability, and idempotency keys. Inbox rows gain `available_at` / lease columns for worker claims.
+- **Acknowledgement:** `/api/webhooks/paystack` verifies HMAC, persists the inbox row, and returns 2xx without inline domain processing. Invalid signatures never enter the inbox; persist failures return retryable 500.
+- **Worker:** `GET /api/cron/durable-work` claims inbox and registered outbox rows with `FOR UPDATE SKIP LOCKED`, bounded leases, exponential backoff, dead-letter, and replay helpers. Unsupported outbox versions are skipped; unregistered types stay unclaimed until a consumer is deployed.
+- **Tests:** `pnpm test:payments` and `pnpm test:workers` pass; `pnpm test:contracts` unchanged.
+
+**Outstanding:** Phase 1 exit gates remain open. P2-03 play sessions are next.
+
+### Implementation log - 2026-08-17 (P1-08 access-point catalog)
+
+P1-08 landed in the working tree:
+
+- **Schema:** migration `0011_access_points` adds `access_points` and `access_point_resources` with `access_point_kind`, tenant/venue/zone scope, composite tenant FKs, and no provider lock columns.
+- **Seed:** `db/seed-phase1.sql` seeds Hurlingham Main Entrance and Main Hall Door mapped to Table 01 in journey order.
+- **Resolution:** `src/server/catalog/access-points.ts` + service layer expose ordered `resolveRequiredAccessPoints` for Phase 5 without touching booking/mobile contracts.
+- **Operator:** venue detail shows required doors; `POST /api/operator/access-points` and `/mappings` gated by `catalog.manage` with audit writes.
+- **Tests:** `pnpm test:access-points` and expanded `pnpm test:catalog` pass; `pnpm test:contracts` unchanged.
+
+**Outstanding:** Phase 1 exit gates remain open.
 
 ### Implementation log - 2026-08-17 (P1-07 legacy compatibility)
 
@@ -98,7 +123,7 @@ P1-07 landed in the working tree:
 - **Feature flag:** `public_venue_api` with `PUBLIC_VENUE_API_ENABLED` / non-production fallback; disabled requests 404. Client `x-tenant-id` and `tenantId` query values are rejected.
 - **Tests:** `pnpm test:catalog` covers v1 adapters and legacy bootstrap shape; `pnpm test:contracts` remains the released-mobile gate.
 
-**Outstanding:** P1-08 and Phase 1 exit gates remain open.
+**Outstanding:** Phase 1 exit gates remain open.
 
 ### Implementation log - 2026-08-17 (P1-06 operator shell)
 
@@ -109,7 +134,7 @@ P1-06 landed in the working tree:
 - **UI:** `/operator` shell with overview, venues (detail with zones/resources/capabilities), resource types, memberships, and feature flags. Customers redirect to dashboard.
 - **Tests:** `pnpm test:operator` passes; `pnpm test:contracts` unchanged.
 
-**Outstanding:** P1-08 and Phase 1 exit gates remain open.
+**Outstanding:** Phase 1 exit gates remain open.
 
 ### Implementation log - 2026-08-17 (P1-05 TenantContext and RBAC)
 
@@ -120,7 +145,7 @@ P1-05 landed in the working tree:
 - **Repositories:** Bookings, modifications, payments, coach, and replays repositories/services require `TenantContext` and filter/insert by `tenant_id`. Webhook/cron confirm flows use `createServiceTenantContext` from the looked-up row's tenant.
 - **Tests:** `pnpm test:tenancy` (authorize, public/service context, audit helper) and `pnpm test:tenant-rbac` (scoped repository queries, HTTP mapping, client-tenant rejection) pass; `pnpm test:actions` and `pnpm test:contracts` pass.
 
-**Outstanding:** P1-06–P1-08 and Phase 1 exit gates remain open.
+**Outstanding:** Phase 1 exit gates remain open.
 
 ### Implementation log - 2026-08-17 (P1-04 tenant backfill and integrity)
 
@@ -131,7 +156,7 @@ P1-04 landed in the working tree:
 - **Validation:** `scripts/validate-tenant-backfill.mjs` and `src/server/tenancy/backfill-queries.mjs` check nulls, orphans, and cross-tenant mismatches.
 - **Tests:** `pnpm test:tenant-backfill` passes; `pnpm db:validate:strict` passes.
 
-**Outstanding:** P1-06–P1-08 and Phase 1 exit gates remain open.
+**Outstanding:** Phase 1 exit gates remain open.
 
 ### Implementation log - 2026-08-17 (P1-02/P1-03 venue and catalog foundation)
 
@@ -142,7 +167,7 @@ P1-02 and P1-03 landed in the working tree:
 - **Catalog:** `src/server/catalog/` exposes deterministic IDs, capability codes, `Venue` type, and `mapLocationToVenue` — booking routes unchanged; no new public venue APIs.
 - **Tests:** `pnpm test:catalog` covers seed assertions, venue mapper, and capability code validation; `pnpm db:validate:strict` passes.
 
-**Outstanding:** P1-04–P1-08 and Phase 1 exit gates remain open.
+**Outstanding:** Phase 1 exit gates remain open.
 
 ### Implementation log - 2026-08-17 (P1-01 local tenancy foundation)
 
@@ -153,7 +178,7 @@ P1-01 landed in the working tree:
 - **Identity:** `src/server/tenancy/` exposes `TenantContext`, role/action permissions, and `resolvePlayTtMembershipForUser` — client-supplied tenant IDs are rejected; booking routes are unchanged until P1-05.
 - **Tests:** `pnpm test:tenancy` covers the permission matrix, forged-tenant rejection, disabled-membership failure, and idempotent seed SQL assertions; `pnpm db:validate:strict` passes.
 
-**Outstanding:** P1-04–P1-08 and Phase 1 exit gates remain open.
+**Outstanding:** Phase 1 exit gates remain open.
 
 ### Implementation log - 2026-08-16
 
@@ -314,10 +339,11 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 
 #### P1-08 - Model venue access points
 
-- [ ] Add tenant/venue/optional-zone-scoped `access_points` for entrances, halls, and private resource doors.
-- [ ] Add `access_point_resources` so one booking can require multiple doors and one shared entrance can serve multiple resources.
-- [ ] Seed the Hurlingham entrance/access path without provider-specific lock IDs in booking code.
-- [ ] Add operator configuration and authorization for access-point/resource mapping.
+- [x] Add tenant/venue/optional-zone-scoped `access_points` for entrances, halls, and private resource doors.
+- [x] Add `access_point_resources` so one booking can require multiple doors and one shared entrance can serve multiple resources.
+- [x] Seed the Hurlingham entrance/access path without provider-specific lock IDs in booking code.
+- [x] Add operator configuration and authorization for access-point/resource mapping.
+- [x] Run `pnpm test:access-points`, expanded `pnpm test:catalog`, and `pnpm test:contracts`.
 
 #### P1-04 - Enforce tenant/catalog integrity
 
@@ -395,19 +421,19 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 
 #### P2-01 and P2-02 - Add inbox, outbox, and worker before producers
 
-- [ ] Add `payment_webhook_inbox` with unique provider identity/payload hash, signature state, processing state, attempts, and errors.
-- [ ] Add `outbox_events` with aggregate, tenant/venue/resource/session scope, event version, correlation/causation, availability, lease, attempts, processed/dead-letter state, and idempotency identity.
-- [ ] Add worker claiming with bounded leases or `FOR UPDATE SKIP LOCKED`.
-- [ ] Add consumer registry, exponential backoff, dead-letter visibility, and replay tooling.
-- [ ] Deploy worker capable of safely ignoring unsupported event versions before any producer emits them.
+- [x] Add `payment_webhook_inbox` with unique provider identity/payload hash, signature state, processing state, attempts, and errors.
+- [x] Add `outbox_events` with aggregate, tenant/venue/resource/session scope, event version, correlation/causation, availability, lease, attempts, processed/dead-letter state, and idempotency identity.
+- [x] Add worker claiming with bounded leases or `FOR UPDATE SKIP LOCKED`.
+- [x] Add consumer registry, exponential backoff, dead-letter visibility, and replay tooling.
+- [x] Deploy worker capable of safely ignoring unsupported event versions before any producer emits them.
 
 #### P2-01 - Change webhook acknowledgement
 
-- [ ] Verify Paystack HMAC over the raw body.
-- [ ] Reject invalid signatures without inbox/domain mutation.
-- [ ] Insert a valid event durably and idempotently before returning 2xx.
-- [ ] Return retryable non-2xx if the inbox write fails.
-- [ ] Process inbox rows through the worker; record final/retry/dead-letter outcomes.
+- [x] Verify Paystack HMAC over the raw body.
+- [x] Reject invalid signatures without inbox/domain mutation.
+- [x] Insert a valid event durably and idempotently before returning 2xx.
+- [x] Return retryable non-2xx if the inbox write fails.
+- [x] Process inbox rows through the worker; record final/retry/dead-letter outcomes.
 
 #### P2-03 - Add operational sessions
 

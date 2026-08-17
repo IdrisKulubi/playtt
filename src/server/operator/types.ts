@@ -1,4 +1,5 @@
 import type {
+  accessPointKindEnum,
   resourceTypeEnum,
   tenantMembershipRoleEnum,
   tenantMembershipStatusEnum,
@@ -13,6 +14,9 @@ export type OperatorMembershipRole =
 
 export type OperatorMembershipStatus =
   (typeof tenantMembershipStatusEnum.enumValues)[number]
+
+export type OperatorAccessPointKind =
+  (typeof accessPointKindEnum.enumValues)[number]
 
 export type OperatorResourceKind =
   (typeof resourceTypeEnum.enumValues)[number]
@@ -81,6 +85,20 @@ export interface OperatorResourceType {
   code: string
   name: string
   description: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface OperatorAccessPoint {
+  id: string
+  tenantId: string
+  locationId: string
+  zoneId: string | null
+  code: string
+  name: string
+  kind: OperatorAccessPointKind
+  sortOrder: number
+  isActive: boolean
   createdAt: string
   updatedAt: string
 }

@@ -4,6 +4,7 @@ import { OperatorShell } from "@/components/operator/operator-shell"
 import { OperatorVenueDetail } from "@/components/operator/operator-venue-detail"
 import { requireOperatorPageAccess } from "@/server/operator/gate"
 import { getVenueCatalogDetail } from "@/server/operator/service"
+import { canPerformTenantAction } from "@/server/tenancy/permissions"
 
 export const dynamic = "force-dynamic"
 
@@ -26,7 +27,10 @@ export default async function OperatorVenueDetailPage({ params }: PageProps) {
       eyebrow="Venue catalog"
       backHref="/operator/venues"
     >
-      <OperatorVenueDetail detail={detail} />
+      <OperatorVenueDetail
+        detail={detail}
+        canManage={canPerformTenantAction(context.role, "catalog.manage")}
+      />
     </OperatorShell>
   )
 }

@@ -74,6 +74,18 @@ export const paymentMethodEnum = pgEnum("payment_method", [
   "manual_override",
 ]);
 
+export const paymentWebhookInboxStatusEnum = pgEnum(
+  "payment_webhook_inbox_status",
+  ["received", "processing", "processed", "failed", "dead_letter"],
+);
+
+export const outboxEventStatusEnum = pgEnum("outbox_event_status", [
+  "pending",
+  "processing",
+  "processed",
+  "dead_letter",
+]);
+
 export const hardwareProviderTypeEnum = pgEnum("hardware_provider_type", [
   "ttlock",
   "tuya",
@@ -174,6 +186,12 @@ export const tenantMembershipRoleEnum = pgEnum("tenant_membership_role", [
 export const tenantMembershipStatusEnum = pgEnum("tenant_membership_status", [
   "active",
   "disabled",
+]);
+
+export const accessPointKindEnum = pgEnum("access_point_kind", [
+  "entrance",
+  "hall",
+  "resource",
 ]);
 
 export const tenants = pgTable(
@@ -574,6 +592,82 @@ export const resourceCapabilities = pgTable(
   ],
 );
 
+export const accessPoints = pgTable(
+  "access_points",
+  {
+    id: uuid("id").primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
+    zoneId: uuid("zone_id").references(() => zones.id, {
+      onDelete: "restrict",
+    }),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    kind: accessPointKindEnum("kind").notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("access_points_tenant_location_code_unique").on(
+      table.tenantId,
+      table.locationId,
+      table.code,
+    ),
+    uniqueIndex("access_points_tenant_id_unique").on(table.tenantId, table.id),
+    index("access_points_tenant_id_idx").on(table.tenantId),
+    index("access_points_location_id_idx").on(table.locationId),
+    index("access_points_zone_id_idx").on(table.zoneId),
+  ],
+);
+
+export const accessPointResources = pgTable(
+  "access_point_resources",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    accessPointId: uuid("access_point_id")
+      .notNull()
+      .references(() => accessPoints.id, { onDelete: "restrict" }),
+    resourceId: uuid("resource_id")
+      .notNull()
+      .references(() => resources.id, { onDelete: "restrict" }),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("access_point_resources_point_resource_unique").on(
+      table.accessPointId,
+      table.resourceId,
+    ),
+    uniqueIndex("access_point_resources_tenant_id_unique").on(
+      table.tenantId,
+      table.id,
+    ),
+    index("access_point_resources_tenant_id_idx").on(table.tenantId),
+    index("access_point_resources_access_point_id_idx").on(table.accessPointId),
+    index("access_point_resources_resource_id_idx").on(table.resourceId),
+  ],
+);
+
 export const featureFlags = pgTable(
   "feature_flags",
   {
@@ -861,6 +955,109 @@ export const payments = pgTable(
     index("payments_booking_status_idx").on(table.bookingId, table.status),
     index("payments_user_created_idx").on(table.userId, table.createdAt),
     check("payments_amount_positive", sql`${table.amount} > 0`),
+  ],
+);
+
+export const paymentWebhookInbox = pgTable(
+  "payment_webhook_inbox",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id").references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
+    provider: paymentProviderEnum("provider").default("paystack").notNull(),
+    providerEventId: text("provider_event_id"),
+    payloadHash: text("payload_hash").notNull(),
+    signature: text("signature").notNull(),
+    eventType: text("event_type").notNull(),
+    rawPayload: text("raw_payload").notNull(),
+    status: paymentWebhookInboxStatusEnum("status").default("received").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    lastError: text("last_error"),
+    availableAt: timestamp("available_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    leaseOwner: text("lease_owner"),
+    receivedAt: timestamp("received_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("payment_webhook_inbox_provider_payload_hash_unique").on(
+      table.provider,
+      table.payloadHash,
+    ),
+    uniqueIndex("payment_webhook_inbox_provider_event_unique")
+      .on(table.provider, table.providerEventId)
+      .where(sql`${table.providerEventId} is not null`),
+    index("payment_webhook_inbox_status_received_idx").on(
+      table.status,
+      table.receivedAt,
+    ),
+    index("payment_webhook_inbox_claim_idx").on(
+      table.status,
+      table.availableAt,
+    ),
+    index("payment_webhook_inbox_provider_event_idx").on(
+      table.provider,
+      table.providerEventId,
+    ),
+  ],
+);
+
+export const outboxEvents = pgTable(
+  "outbox_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id").references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
+    venueId: uuid("venue_id").references(() => locations.id, {
+      onDelete: "restrict",
+    }),
+    resourceId: uuid("resource_id").references(() => resources.id, {
+      onDelete: "restrict",
+    }),
+    sessionId: uuid("session_id"),
+    aggregateType: text("aggregate_type").notNull(),
+    aggregateId: text("aggregate_id").notNull(),
+    eventType: text("event_type").notNull(),
+    eventVersion: integer("event_version").default(1).notNull(),
+    correlationId: text("correlation_id").notNull(),
+    causationId: text("causation_id"),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    status: outboxEventStatusEnum("status").default("pending").notNull(),
+    availableAt: timestamp("available_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    leaseOwner: text("lease_owner"),
+    attempts: integer("attempts").default(0).notNull(),
+    lastError: text("last_error"),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("outbox_events_idempotency_unique").on(table.idempotencyKey),
+    index("outbox_events_claim_idx").on(table.status, table.availableAt),
+    index("outbox_events_tenant_id_idx").on(table.tenantId),
+    index("outbox_events_event_type_idx").on(table.eventType, table.eventVersion),
   ],
 );
 
@@ -1359,6 +1556,8 @@ export const tenantRelations = relations(tenants, ({ many }) => ({
   resourceTypes: many(resourceTypes),
   resources: many(resources),
   resourceCapabilities: many(resourceCapabilities),
+  accessPoints: many(accessPoints),
+  accessPointResources: many(accessPointResources),
   featureFlags: many(featureFlags),
   auditLogs: many(auditLogs),
   bookings: many(bookings),
@@ -1428,6 +1627,7 @@ export const locationRelations = relations(locations, ({ one, many }) => ({
   matches: many(matches),
   replays: many(replays),
   notifications: many(notifications),
+  accessPoints: many(accessPoints),
 }));
 
 export const zoneRelations = relations(zones, ({ one, many }) => ({
@@ -1440,6 +1640,7 @@ export const zoneRelations = relations(zones, ({ one, many }) => ({
     references: [locations.id],
   }),
   resources: many(resources),
+  accessPoints: many(accessPoints),
 }));
 
 export const resourceTypeRelations = relations(resourceTypes, ({ one, many }) => ({
@@ -1468,6 +1669,7 @@ export const resourceRelations = relations(resources, ({ one, many }) => ({
     references: [resourceTypes.id],
   }),
   capabilities: many(resourceCapabilities),
+  accessPointResources: many(accessPointResources),
   bookings: many(bookings),
 }));
 
@@ -1480,6 +1682,40 @@ export const resourceCapabilityRelations = relations(
     }),
     resource: one(resources, {
       fields: [resourceCapabilities.resourceId],
+      references: [resources.id],
+    }),
+  }),
+);
+
+export const accessPointRelations = relations(accessPoints, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [accessPoints.tenantId],
+    references: [tenants.id],
+  }),
+  location: one(locations, {
+    fields: [accessPoints.locationId],
+    references: [locations.id],
+  }),
+  zone: one(zones, {
+    fields: [accessPoints.zoneId],
+    references: [zones.id],
+  }),
+  resourceMappings: many(accessPointResources),
+}));
+
+export const accessPointResourceRelations = relations(
+  accessPointResources,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [accessPointResources.tenantId],
+      references: [tenants.id],
+    }),
+    accessPoint: one(accessPoints, {
+      fields: [accessPointResources.accessPointId],
+      references: [accessPoints.id],
+    }),
+    resource: one(resources, {
+      fields: [accessPointResources.resourceId],
       references: [resources.id],
     }),
   }),
