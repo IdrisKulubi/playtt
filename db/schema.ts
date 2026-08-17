@@ -251,6 +251,13 @@ export const deviceCommandKindEnum = pgEnum("device_command_kind", [
   "reboot",
 ]);
 
+export const scoreEventKindEnum = pgEnum("score_event_kind", [
+  "point",
+  "correction",
+]);
+
+export const scoreSideEnum = pgEnum("score_side", ["a", "b"]);
+
 export const tenants = pgTable(
   "tenants",
   {
@@ -1562,6 +1569,96 @@ export const deviceCommandAcks = pgTable(
   ],
 );
 
+export const scoreEvents = pgTable(
+  "score_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => devices.id, { onDelete: "restrict" }),
+    playSessionId: uuid("play_session_id")
+      .notNull()
+      .references(() => playSessions.id, { onDelete: "restrict" }),
+    assignmentId: uuid("assignment_id")
+      .notNull()
+      .references(() => deviceAssignments.id, { onDelete: "restrict" }),
+    resourceId: uuid("resource_id")
+      .notNull()
+      .references(() => resources.id, { onDelete: "restrict" }),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
+    bootId: text("boot_id").notNull(),
+    sequence: integer("sequence").notNull(),
+    kind: scoreEventKindEnum("kind").notNull(),
+    side: scoreSideEnum("side").notNull(),
+    delta: integer("delta").default(1).notNull(),
+    ruleset: text("ruleset").notNull(),
+    correlationId: text("correlation_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("score_events_device_boot_sequence_unique").on(
+      table.deviceId,
+      table.bootId,
+      table.sequence,
+    ),
+    uniqueIndex("score_events_tenant_id_unique").on(table.tenantId, table.id),
+    index("score_events_tenant_id_idx").on(table.tenantId),
+    index("score_events_play_session_id_idx").on(table.playSessionId),
+    index("score_events_device_id_idx").on(table.deviceId),
+  ],
+);
+
+export const scoreSnapshots = pgTable(
+  "score_snapshots",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    playSessionId: uuid("play_session_id")
+      .notNull()
+      .references(() => playSessions.id, { onDelete: "restrict" }),
+    resourceId: uuid("resource_id")
+      .notNull()
+      .references(() => resources.id, { onDelete: "restrict" }),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
+    version: integer("version").default(0).notNull(),
+    state: jsonb("state").$type<Record<string, unknown>>().notNull(),
+    lastEventId: uuid("last_event_id").references(() => scoreEvents.id, {
+      onDelete: "set null",
+    }),
+    lastSequence: integer("last_sequence"),
+    lastBootId: text("last_boot_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("score_snapshots_play_session_unique").on(table.playSessionId),
+    uniqueIndex("score_snapshots_tenant_id_unique").on(
+      table.tenantId,
+      table.id,
+    ),
+    index("score_snapshots_tenant_id_idx").on(table.tenantId),
+    index("score_snapshots_resource_id_idx").on(table.resourceId),
+  ],
+);
+
 export const bookingStatusHistory = pgTable(
   "booking_status_history",
   {
@@ -2305,6 +2402,11 @@ export const playSessionRelations = relations(playSessions, ({ one, many }) => (
     references: [resources.id],
   }),
   participants: many(sessionParticipants),
+  scoreEvents: many(scoreEvents),
+  scoreSnapshot: one(scoreSnapshots, {
+    fields: [playSessions.id],
+    references: [scoreSnapshots.playSessionId],
+  }),
 }));
 
 export const sessionParticipantRelations = relations(
@@ -2339,6 +2441,7 @@ export const deviceRelations = relations(devices, ({ one, many }) => ({
   heartbeats: many(deviceHeartbeats),
   commands: many(deviceCommands),
   commandAcks: many(deviceCommandAcks),
+  scoreEvents: many(scoreEvents),
   enrollments: many(deviceEnrollments, {
     relationName: "consumedDevice",
   }),
@@ -2445,6 +2548,56 @@ export const deviceCommandAckRelations = relations(
     }),
   }),
 );
+
+export const scoreEventRelations = relations(scoreEvents, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [scoreEvents.tenantId],
+    references: [tenants.id],
+  }),
+  device: one(devices, {
+    fields: [scoreEvents.deviceId],
+    references: [devices.id],
+  }),
+  playSession: one(playSessions, {
+    fields: [scoreEvents.playSessionId],
+    references: [playSessions.id],
+  }),
+  assignment: one(deviceAssignments, {
+    fields: [scoreEvents.assignmentId],
+    references: [deviceAssignments.id],
+  }),
+  resource: one(resources, {
+    fields: [scoreEvents.resourceId],
+    references: [resources.id],
+  }),
+  location: one(locations, {
+    fields: [scoreEvents.locationId],
+    references: [locations.id],
+  }),
+}));
+
+export const scoreSnapshotRelations = relations(scoreSnapshots, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [scoreSnapshots.tenantId],
+    references: [tenants.id],
+  }),
+  playSession: one(playSessions, {
+    fields: [scoreSnapshots.playSessionId],
+    references: [playSessions.id],
+  }),
+  resource: one(resources, {
+    fields: [scoreSnapshots.resourceId],
+    references: [resources.id],
+  }),
+  location: one(locations, {
+    fields: [scoreSnapshots.locationId],
+    references: [locations.id],
+  }),
+  lastEvent: one(scoreEvents, {
+    fields: [scoreSnapshots.lastEventId],
+    references: [scoreEvents.id],
+  }),
+}));
 
 export const bookingModificationRelations = relations(
   bookingModifications,

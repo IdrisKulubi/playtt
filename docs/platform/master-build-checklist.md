@@ -19,18 +19,24 @@ Use this document for delivery tracking. Use the supporting documents for deeper
 - Add the owner, ticket/PR, feature flag, migration, test report, deployment, and rollback evidence to the delivery record for every work package.
 - Hardware/provider items require simulator tests and physical staging evidence.
 
+
+
 ## Program progress
 
-| Phase                                | Status      | Current position                                                                                                         |
-| ------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Phase 0 — Stabilization              | Complete    | Repository and live-environment evidence complete; Phase 1 may begin after owner sign-off |
-| Phase 1 — Tenant/resource foundation | In progress | P1-01–P1-08 landed locally; Phase 1 exit gates remain |
-| Phase 2 — Sessions/durable events    | In progress | P2-01 through P2-07 implemented; repaired clone/DB acceptance must pass in hosted CI |
-| Phase 3 — Devices/scoring/realtime   | In progress | P3-01–P3-04 implemented/hardened; DB race, retry, and physical-device acceptance remain before P3-05 |
-| Phase 4 — Private R2 media           | Not started | Depends on tenant and session ownership                                                                                  |
-| Phase 5 — TTLock/automation          | Not started | Depends on access-point catalog, sessions, and device commands                                                           |
-| Phase 6 — Replay edge                | Not started | Depends on devices and private media                                                                                     |
-| Phase 7 — Operations/scale           | Not started | Depends on TTLock and replay-edge completion                                                                             |
+
+| Phase                                | Status      | Current position                                                                                     |
+| ------------------------------------ | ----------- | ---------------------------------------------------------------------------------------------------- |
+| Phase 0 — Stabilization              | Complete    | Repository and live-environment evidence complete; Phase 1 may begin after owner sign-off            |
+| Phase 1 — Tenant/resource foundation | In progress | P1-01–P1-08 landed locally; Phase 1 exit gates remain                                                |
+| Phase 2 — Sessions/durable events    | In progress | P2-01 through P2-07 implemented; repaired clone/DB acceptance must pass in hosted CI                 |
+| Phase 3 — Devices/scoring/realtime   | In progress | P3-01–P3-07 landed locally; hosted acceptance and P3-08 remain |
+| Phase 4 — Private R2 media           | Not started | Depends on tenant and session ownership                                                              |
+| Phase 5 — TTLock/automation          | Not started | Depends on access-point catalog, sessions, and device commands                                       |
+| Phase 6 — Replay edge                | Not started | Depends on devices and private media                                                                 |
+| Phase 7 — Operations/scale           | Not started | Depends on TTLock and replay-edge completion                                                         |
+
+
+
 
 ## Current product baseline
 
@@ -48,6 +54,8 @@ These features exist today, but remain covered by Phase 0 regression and product
 - [x] All authentication journeys pass browser and physical-device E2E tests.
 - [x] Production provider credentials, callback URLs, and sender domains are smoke-tested.
 
+
+
 ### Booking and payment
 
 - [x] Venue/resource bootstrap, availability, quote, and server-side pricing exist.
@@ -59,6 +67,8 @@ These features exist today, but remain covered by Phase 0 regression and product
 - [x] Paystack raw-body HMAC verification has an isolated constant-time security test suite.
 - [x] The complete booking-to-payment journey passes production-like E2E with Paystack test mode and a disposable database.
 
+
+
 ### Player experience
 
 - [x] Marketing, booking, dashboard, bookings, activity, account, and help surfaces exist.
@@ -69,6 +79,8 @@ These features exist today, but remain covered by Phase 0 regression and product
 - [ ] Push notifications are implemented and production-certified.
 - [ ] Replay capture uses real private media; the current automatic replay path is a development-only stub.
 - [ ] Live access codes replace preview access data.
+
+
 
 ### Platform safety already implemented
 
@@ -83,7 +95,11 @@ These features exist today, but remain covered by Phase 0 regression and product
 
 ---
 
+
+
 # Phase 0 — Stabilization and safety net
+
+
 
 ## Phase objective
 
@@ -108,6 +124,8 @@ Build guide:
 Done means:
 
 - [x] Every released web/mobile contract has a producer, consumer, success fixture, representative errors, and an automated validation result.
+
+
 
 ### P0-02 — Drizzle migration lineage repair
 
@@ -135,6 +153,8 @@ Done means:
 
 - [x] `db:validate:strict` passes; empty-database replay, idempotent seed, live/current-clone fingerprints, and ledger reconciliation are complete.
 
+
+
 ### P0-03 — Booking authorization and API safety
 
 Feature checklist:
@@ -159,6 +179,8 @@ Done means:
 
 - [x] A user can book only for self, guessed IDs cannot cross ownership, and all negative authorization tests pass in CI.
 
+
+
 ### P0-04 — Concurrency and idempotency
 
 Feature checklist:
@@ -181,6 +203,8 @@ Build guide:
 Done means:
 
 - [x] Same-slot, duplicate webhook, confirmation-vs-expiry/cancel, and duplicate modification tests produce exactly one legal effect under real PostgreSQL concurrency.
+
+
 
 ### P0-05 — Paystack, cron, and callback hardening
 
@@ -205,6 +229,8 @@ Build guide:
 Done means:
 
 - [x] Provider test events prove valid, invalid, malformed, duplicate, delayed, and failure/retry behavior in a deployed environment.
+
+
 
 ### P0-06/P0-07 — Quality gates and baseline certification
 
@@ -231,6 +257,8 @@ Done means:
 
 - [x] Every Phase 0 CI, migration, build, E2E, mobile, security, and rollback gate passes with linked evidence.
 
+
+
 ## Phase 0 exit
 
 - [x] Migration lineage is canonical and safe.
@@ -241,7 +269,11 @@ Done means:
 
 ---
 
+
+
 # Phase 1 — Tenant and resource foundation
+
+
 
 ## Phase objective
 
@@ -260,6 +292,8 @@ Done means:
 
 - [x] Every operator/customer action resolves a trusted membership and no tenant authority comes from request payloads.
 
+
+
 ### P1-02 — Venues
 
 - [x] Evolve existing `locations` as the Venue aggregate; do not add a duplicate venue table.
@@ -271,6 +305,8 @@ Build guide: expand `locations`, dual-read if necessary, backfill, validate comp
 Done means:
 
 - [ ] Existing Hurlingham booking works unchanged and a second tenant/venue can be configured without code forks.
+
+
 
 ### P1-03 — Zones, resource types, capabilities, and rules
 
@@ -285,6 +321,8 @@ Done means:
 
 - [ ] A new resource type such as `golf_bay` can be configured through the operator workflow without changing booking/payment core code.
 
+
+
 ### P1-04 — Tenant backfill and database integrity
 
 - [x] Add nullable `tenant_id` to all tenant-owned tables in dependency order.
@@ -297,6 +335,8 @@ Build guide: expand → resumable backfill → dual-write/read → `NOT VALID` c
 Done means:
 
 - [ ] Zero tenant nulls, orphans, and cross-tenant parent mismatches exist in the production-like clone.
+
+
 
 ### P1-05 — TenantContext and RBAC
 
@@ -311,6 +351,8 @@ Done means:
 
 - [ ] Tenant A cannot read or mutate Tenant B data using guessed IDs across every implemented API/repository/operator path; media and realtime are gated in their later phases.
 
+
+
 ### P1-06/P1-07 — Operator catalog and legacy compatibility
 
 - [ ] Build authorized operator create/update screens/APIs for tenants, venues, zones, resources, capabilities, and memberships. Current catalog and membership surfaces are primarily inspection-only.
@@ -322,6 +364,8 @@ Build guide: keep the modular monolith and current endpoint adapters; introduce 
 Done means:
 
 - [ ] Old client fixtures pass while operators can configure two isolated tenants and venues.
+
+
 
 ### P1-08 — Access-point and door catalog
 
@@ -336,6 +380,8 @@ Done means:
 
 - [ ] Hurlingham and a second venue can configure shared and table-specific doors without TTLock-specific code.
 
+
+
 ## Phase 1 exit
 
 - [ ] All tenant backfills and composite constraints are validated.
@@ -346,7 +392,11 @@ Done means:
 
 ---
 
+
+
 # Phase 2 — Payment hardening, play sessions, and durable events
+
+
 
 ## Phase objective
 
@@ -366,6 +416,8 @@ Done means:
 
 - [x] Duplicate/reordered valid events create one inbox identity and invalid signatures never enter processing.
 
+
+
 ### P2-02 — Transactional outbox and workers
 
 - [x] Add versioned outbox envelope with tenant/venue/resource/session/correlation scope.
@@ -377,6 +429,8 @@ Build guide: PostgreSQL is the durable queue of record; Redis may accelerate fan
 Done means:
 
 - [x] Worker crashes/restarts recover committed work without duplicate logical effects.
+
+
 
 ### P2-03 — Operational play sessions
 
@@ -391,6 +445,8 @@ Done means:
 
 - [x] Every confirmed booking has exactly one legal operational session and illegal transitions are rejected/audited.
 
+
+
 ### P2-04 — Atomic confirmation
 
 - [x] Confirm payment and booking conditionally once.
@@ -402,6 +458,8 @@ Build guide: no external email/device/media call occurs inside the transaction; 
 Done means:
 
 - [x] Concurrent duplicate confirmation creates one payment transition, booking confirmation, session, history record, and logical event.
+
+
 
 ### P2-05 — Durable lifecycle scheduler
 
@@ -415,6 +473,8 @@ Done means:
 
 - [x] Restarting the application cannot lose a session transition or permanently duplicate it.
 
+
+
 ### P2-06/P2-07 — Side effects and compatibility
 
 - [x] Move confirmation email behind an idempotent outbox consumer.
@@ -427,6 +487,8 @@ Done means:
 
 - [x] Existing clients pass while all durable side effects recover after simulated crashes.
 
+
+
 ## Phase 2 exit
 
 - [ ] Inbox/outbox/session migrations pass empty and current-clone tests in hosted PostgreSQL after the repaired 0000–0017 ordering.
@@ -436,7 +498,11 @@ Done means:
 
 ---
 
+
+
 # Phase 3 — Devices, ESP32 scoring, and realtime
+
+
 
 ## Phase objective
 
@@ -455,6 +521,8 @@ Done means:
 
 - [ ] One-time enrollment, expiry, rotation, and revocation tests pass in hosted PostgreSQL; raw device secrets are never stored or logged.
 
+
+
 ### P3-02 — Assignments and configuration
 
 - [x] Assign device roles/capabilities to resources with effective time windows.
@@ -467,6 +535,8 @@ Done means:
 
 - [ ] Wrong-tenant, wrong-resource, wrong-role, overlapping-window, and stale-assignment devices are rejected in hosted PostgreSQL.
 
+
+
 ### P3-03 — Heartbeats and fleet health
 
 - [x] Record latest device health and sampled history.
@@ -478,6 +548,8 @@ Build guide: keep latest health cheap; sample/partition history instead of stori
 Done means:
 
 - [ ] Two-device isolation, monotonic timestamps, future-clock rejection, sampling, and retention pass in hosted PostgreSQL.
+
+
 
 ### P3-04 — Commands and acknowledgements
 
@@ -492,31 +564,37 @@ Done means:
 
 - [ ] Retry, max-attempt timeout, expiry, concurrent duplicate ACK, disconnect, and restart tests converge to one command outcome in hosted PostgreSQL.
 
+
+
 ### P3-05/P3-06 — Authoritative table-tennis scoring
 
-- [ ] Add immutable score events unique by device/boot/sequence.
-- [ ] Add versioned score snapshots and correction/audit flow.
-- [ ] Validate active session and current assignment before accepting input.
-- [ ] Implement `tt_standard_v1` behind a `SportRulesAdapter`.
+- [x] Add immutable score events unique by device/boot/sequence.
+- [x] Add versioned score snapshots and correction/audit flow.
+- [x] Validate active session and current assignment before accepting input.
+- [x] Implement `tt_standard_v1` behind a `SportRulesAdapter`.
 
 Build guide: transactionally insert event, apply rules/update snapshot, and write outbox event.
 
 Done means:
 
-- [ ] Duplicate/out-of-order inputs never double-score and concurrent points produce one authoritative result.
+- [ ] Duplicate/out-of-order inputs never double-score and concurrent points produce one authoritative result in hosted PostgreSQL.
+
+
 
 ### P3-07 — Realtime displays
 
-- [ ] Add provider-neutral broadcaster and tenant/venue/resource/session channels.
-- [ ] Build kiosk and TV live-score displays.
-- [ ] Treat broadcasts as hints; clients reconcile authoritative snapshots.
-- [ ] Keep Redis optional for fan-out/presence only.
+- [x] Add provider-neutral broadcaster and tenant/venue/resource/session channels.
+- [x] Build kiosk and TV live-score displays.
+- [x] Treat broadcasts as hints; clients reconcile authoritative snapshots.
+- [x] Keep Redis optional for fan-out/presence only.
 
 Build guide: publish after database commit/outbox processing, then refetch on gaps/reconnect.
 
 Done means:
 
 - [ ] Two displays converge after missed events and Redis outage does not lose score truth.
+
+
 
 ### P3-08 — ESP32 firmware and simulator
 
@@ -530,6 +608,8 @@ Done means:
 
 - [ ] Simulator and staging ESP32 pass authentication, offline/retry, scoring, config, heartbeat, and command suites.
 
+
+
 ## Phase 3 exit
 
 - [ ] Device enrollment, assignment, credential, heartbeat, command, and scoring suites pass.
@@ -539,7 +619,11 @@ Done means:
 
 ---
 
+
+
 # Phase 4 — Private R2 media foundation
+
+
 
 ## Phase objective
 
@@ -557,6 +641,8 @@ Done means:
 
 - [ ] Every new object has one authorized metadata owner and a recoverable lifecycle state.
 
+
+
 ### P4-02 — MediaStore and R2 adapter
 
 - [ ] Define provider-neutral `MediaStore` operations.
@@ -568,6 +654,8 @@ Build guide: no R2 credential or provider-specific key logic enters browser/mobi
 Done means:
 
 - [ ] Adapter contract tests pass and public bucket access is disabled.
+
+
 
 ### P4-03 — Authorized upload/download grants
 
@@ -581,6 +669,8 @@ Done means:
 
 - [ ] Guessed IDs/keys and cross-user/tenant requests are denied even with a structurally valid key.
 
+
+
 ### P4-04 — Completion, deletion, and reconciliation
 
 - [ ] Process upload completion idempotently.
@@ -592,6 +682,8 @@ Build guide: use inbox/idempotency identities for callbacks and keep failures re
 Done means:
 
 - [ ] Duplicate callbacks are harmless and missing/unexpected/orphan/deletion-pending objects are detected.
+
+
 
 ### P4-05/P4-06 — Replay compatibility and infrastructure security
 
@@ -606,6 +698,8 @@ Done means:
 
 - [ ] Authenticated short-lived playback works, old clients pass, and no storage secret/public object leaks.
 
+
+
 ## Phase 4 exit
 
 - [ ] Metadata, grants, R2 adapter, callback, deletion, and reconciliation suites pass.
@@ -615,7 +709,11 @@ Done means:
 
 ---
 
+
+
 # Phase 5 — TTLock access and venue automation
+
+
 
 ## Phase objective
 
@@ -633,6 +731,8 @@ Done means:
 
 - [ ] Provider contract tests prove one logical credential lifecycle across retries and failures.
 
+
+
 ### P5-02 — TTLock connection, gateway, lock, and access-point inventory
 
 - [ ] Store encrypted/server-only tenant TTLock connection credentials and token expiry.
@@ -646,6 +746,8 @@ Build guide: commission development TTLock first, then staging gateway/locks; ne
 Done means:
 
 - [ ] Operators can see correct tenant/venue/access-point assignments and no tenant can access another tenant's TTLock account or inventory.
+
+
 
 ### P5-03 — Booking-specific TTLock codes
 
@@ -661,6 +763,8 @@ Done means:
 
 - [ ] One paid booking receives one individual code that opens only its assigned doors during the approved time window.
 
+
+
 ### P5-04 — Modify, revoke, expire, and reconcile
 
 - [ ] Reschedule updates code validity safely.
@@ -675,6 +779,8 @@ Done means:
 
 - [ ] Cancelled/expired bookings cannot open doors, reschedules have no overlap gap, and partial failures recover visibly.
 
+
+
 ### P5-05 — Player access experience
 
 - [ ] Replace preview PIN with authorized live code/status.
@@ -687,6 +793,8 @@ Build guide: fetch access by booking ownership; never return codes in booking-li
 Done means:
 
 - [ ] Web/mobile owner can reveal the valid code and all negative ownership/state cases are denied.
+
+
 
 ### P5-06 — TTLock operator tools
 
@@ -701,6 +809,8 @@ Done means:
 
 - [ ] Operators can diagnose/recover access without database edits and all sensitive actions are audited.
 
+
+
 ### P5-07/P5-08 — Relays, venue preparation, and notifications
 
 - [ ] Add `RelayProvider`/device commands for lighting, HVAC, scoreboard/display, and reset.
@@ -714,6 +824,8 @@ Done means:
 
 - [ ] Provider outage leaves bookings valid, manual operation possible, and every failed action visible/recoverable.
 
+
+
 ## Phase 5 exit
 
 - [ ] Simulator and physical TTLock contract suites pass.
@@ -724,7 +836,11 @@ Done means:
 
 ---
 
+
+
 # Phase 6 — Replay edge pipeline
+
+
 
 ## Phase objective
 
@@ -742,6 +858,8 @@ Done means:
 
 - [ ] Duplicate player/API requests debit once and create one request/asset.
 
+
+
 ### P6-02 — VenueEdge protocol and commands
 
 - [ ] Define authenticated edge enrollment, heartbeat, configuration, command, ACK, retry, and status contract.
@@ -753,6 +871,8 @@ Build guide: use one venue edge per venue initially; configure resources/cameras
 Done means:
 
 - [ ] Wrong tenant/resource/edge, expired command, duplicate command, and reconnect cases are safe.
+
+
 
 ### P6-03 — Local buffer extraction and direct upload
 
@@ -767,6 +887,8 @@ Done means:
 
 - [ ] Retry/disconnect creates one correct private clip and never mixes tables/cameras.
 
+
+
 ### P6-04/P6-05 — Multi-resource configuration and playback
 
 - [ ] Configure camera/edge assignments per resource without code forks.
@@ -780,6 +902,8 @@ Done means:
 
 - [ ] Ten resources select their configured cameras correctly and only authorized owners can play clips.
 
+
+
 ### P6-06 — Failure recovery and capacity
 
 - [ ] Recover edge offline queue, process restart, missing buffer, extraction failure, upload failure, callback loss, and R2 outage.
@@ -792,6 +916,8 @@ Done means:
 
 - [ ] Edge/R2 failure cannot affect booking/payment/session completion and measured venue capacity meets target.
 
+
+
 ## Phase 6 exit
 
 - [ ] End-to-end request → edge → private upload → ready → playback passes.
@@ -801,7 +927,11 @@ Done means:
 
 ---
 
+
+
 # Phase 7 — Operations and scale certification
+
+
 
 ## Phase objective
 
@@ -820,6 +950,8 @@ Done means:
 
 - [ ] Operators can detect, diagnose, and recover every rehearsed failure without direct database edits.
 
+
+
 ### P7-03 — Environment isolation and disaster recovery
 
 - [ ] Verify dev/preview/staging/production isolation for DB, R2, Redis, Paystack, TTLock, device, realtime, and edge credentials.
@@ -832,6 +964,8 @@ Build guide: restore into isolated infrastructure and run migration plus product
 Done means:
 
 - [ ] Backup restore, credential rotation, and provider isolation evidence meets approved recovery objectives.
+
+
 
 ### P7-04 — Venue network and fleet certification
 
@@ -846,6 +980,8 @@ Done means:
 
 - [ ] Network isolation tests and measured ten-resource load pass at the pilot venue.
 
+
+
 ### P7-05 — Single-table acceptance
 
 - [ ] Player authenticates, books, pays, and receives one play session.
@@ -858,6 +994,8 @@ Done means:
 
 - [ ] The entire journey passes repeatedly on physical Table 01 with failure/rollback evidence.
 
+
+
 ### P7-06 — Ten-table and multi-tenant acceptance
 
 - [ ] Configure ten resources without code forks.
@@ -869,6 +1007,8 @@ Done means:
 Done means:
 
 - [ ] Ten-table and two-tenant suites pass performance, isolation, correctness, and operational recovery targets.
+
+
 
 ### P7-07 — Progressive rollout
 
@@ -886,6 +1026,8 @@ Done means:
 
 - [ ] General availability is approved only after all acceptance evidence, alerts, runbooks, support ownership, and rollback controls are live.
 
+
+
 ## Phase 7 and program exit
 
 - [ ] All single-table, ten-table, multi-tenant, and failure-recovery suites pass.
@@ -896,6 +1038,8 @@ Done means:
 - [ ] The complete PlayTT platform is approved for general availability.
 
 ---
+
+
 
 # Per-feature delivery record template
 
@@ -917,6 +1061,8 @@ Rollback tested:
 Open risks:
 Reviewer/sign-off:
 ```
+
+
 
 # Next actions from the current position
 
