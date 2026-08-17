@@ -572,10 +572,12 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 
 #### P3-08 - Firmware and simulator
 
-- [ ] Add `firmware/esp32-controller/` without reorganizing existing apps.
-- [ ] Implement provisioning mode, protected credential storage, TLS, heartbeat, configuration version, physical debounce, boot/sequence identity, ordered offline event buffer, retries, and command acknowledgement.
-- [ ] Provide a command-line/device simulator that implements the same protocol and failure modes.
-- [ ] Define signed OTA workflow; stage Secure Boot/flash encryption certification for production hardware.
+- [x] Add `firmware/esp32-controller/` without reorganizing existing apps.
+- [x] Implement provisioning mode, protected credential storage, TLS, heartbeat, configuration version, physical debounce, boot/sequence identity, ordered offline event buffer, retries, and command acknowledgement.
+- [x] Provide a command-line/device simulator that implements the same protocol and failure modes.
+- [x] Define signed OTA workflow; stage Secure Boot/flash encryption certification for production hardware.
+
+**Evidence:** `firmware/protocol/`, `firmware/esp32-controller/` (ESP32-S3 HTTPS firmware), `pnpm sim:device`, `pnpm test:firmware`, `docs/hardware/firmware-ota-policy.md`, `docs/hardware/esp32-s3-desk-bringup.md`.
 
 #### P3-05 and P3-06 - Authoritative scoring and sport rules
 

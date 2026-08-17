@@ -18,6 +18,24 @@ function logRedisAdapterError(action: string, error: unknown) {
   console.error(`[realtime:redis] ${action} failed`, error)
 }
 
+async function loadRedisCreateClient() {
+  try {
+    // Keep redis optional: avoid bundler static analysis of the peer package.
+    const loadModule = new Function(
+      "specifier",
+      "return import(specifier)",
+    ) as (specifier: string) => Promise<{
+      createClient: (options: { url: string }) => RedisClient
+    }>
+
+    const module = await loadModule("redis")
+    return module.createClient
+  } catch (error) {
+    logRedisAdapterError("module load", error)
+    return null
+  }
+}
+
 export class RedisRealtimeAdapter implements RealtimeAdapter {
   private publisher: RedisClient | null = null
   private subscriber: RedisClient | null = null
@@ -34,8 +52,12 @@ export class RedisRealtimeAdapter implements RealtimeAdapter {
       return this.publisher
     }
 
-    const { createClient } = await import("redis")
-    this.publisher = createClient({ url: this.redisUrl }) as RedisClient
+    const createClient = await loadRedisCreateClient()
+    if (!createClient) {
+      throw new Error("Redis client module is unavailable.")
+    }
+
+    this.publisher = createClient({ url: this.redisUrl })
     this.publisher.on("error", (error: unknown) => {
       logRedisAdapterError("publisher error", error)
     })

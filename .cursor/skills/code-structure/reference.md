@@ -30,6 +30,10 @@
 | `/api/webhooks/paystack` | `src/app/api/webhooks/paystack/route.ts` | Paystack webhook |
 | `/api/replays/*` | `src/app/api/replays/` | Replay credits, requests, library |
 | `/api/coach/*` | `src/app/api/coach/` | Coach subscription and content |
+| `firmware/protocol/` | `firmware/protocol/` | Shared device v1 protocol (debounce, buffer, client) |
+| `firmware/simulator/cli.mjs` | `firmware/simulator/cli.mjs` | CLI device simulator (`pnpm sim:device`) |
+| `firmware/esp32-controller/` | `firmware/esp32-controller/` | ESP32-S3 flashable firmware (HTTPS to theplaytt.com) |
+| `docs/hardware/esp32-s3-desk-bringup.md` | `docs/hardware/esp32-s3-desk-bringup.md` | Physical ESP32 desk bring-up checklist |
 
 ## Booking domain files
 
@@ -68,7 +72,7 @@ From `docs/system_overview.md` — do **not** assume these exist when reading or
 | Booking modifications and account credits | Implemented |
 | Replay credits and Coach product payments | Implemented; mobile preview mode remains enabled |
 | Realtime broadcaster (SSE + optional Redis) | Implemented |
-| ESP32 device registry and scoring | Implemented (P3-05/06); firmware simulator remains P3-08 |
+| ESP32 device registry and scoring | Implemented (P3-05/06); firmware simulator in `firmware/` |
 | Cloudflare R2 private media | Planned |
 | TTLock smart locks | Planned; access UI is preview only |
 | Smart relays (lighting/HVAC) | Planned |

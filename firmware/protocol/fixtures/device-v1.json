@@ -1,0 +1,128 @@
+{
+  "version": "device-v1",
+  "authHeader": "Authorization: Device <deviceId> <secret>",
+  "routes": {
+    "provision": {
+      "method": "POST",
+      "path": "/api/device/v1/provision",
+      "auth": false,
+      "request": {
+        "enrollmentCode": "string",
+        "hardwareUid": "string",
+        "firmwareVersion": "string?"
+      },
+      "response": {
+        "data": {
+          "deviceId": "uuid",
+          "secret": "string",
+          "credentialVersion": "number"
+        }
+      }
+    },
+    "heartbeat": {
+      "method": "POST",
+      "path": "/api/device/v1/heartbeat",
+      "request": {
+        "bootId": "string",
+        "observedAt": "datetime?",
+        "firmwareVersion": "string?",
+        "uptimeMs": "number?",
+        "wifiRssi": "number?",
+        "freeHeapBytes": "number?",
+        "metrics": "object?",
+        "appliedConfigVersion": "number?"
+      },
+      "response": {
+        "data": {
+          "health": "string",
+          "lastHeartbeatAt": "datetime",
+          "sampled": "boolean",
+          "pendingCommandCount": "number"
+        }
+      }
+    },
+    "config": {
+      "method": "GET",
+      "path": "/api/device/v1/config",
+      "response": {
+        "data": {
+          "configVersion": "number",
+          "assignment": {
+            "id": "uuid",
+            "locationId": "uuid",
+            "effectiveFrom": "datetime",
+            "effectiveTo": "datetime?"
+          },
+          "resourceId": "uuid",
+          "role": "score_input | lock | gateway | display",
+          "config": "object"
+        }
+      }
+    },
+    "commands": {
+      "method": "GET",
+      "path": "/api/device/v1/commands",
+      "response": {
+        "data": {
+          "commands": [
+            {
+              "id": "uuid",
+              "kind": "string",
+              "payload": "object",
+              "expiresAt": "datetime",
+              "correlationId": "string",
+              "attemptCount": "number"
+            }
+          ]
+        }
+      }
+    },
+    "commandAck": {
+      "method": "POST",
+      "path": "/api/device/v1/commands/:commandId/ack",
+      "request": {
+        "idempotencyKey": "string",
+        "success": "boolean",
+        "result": "object?"
+      },
+      "response": {
+        "data": {
+          "command": {
+            "id": "uuid",
+            "status": "string",
+            "acknowledgedAt": "datetime?",
+            "failedAt": "datetime?",
+            "result": "object?"
+          }
+        }
+      }
+    },
+    "events": {
+      "method": "POST",
+      "path": "/api/device/v1/events",
+      "request": {
+        "bootId": "string",
+        "sequence": "number",
+        "kind": "point | correction",
+        "side": "a | b",
+        "delta": "number?"
+      },
+      "response": {
+        "data": {
+          "snapshotVersion": "number",
+          "state": "object",
+          "duplicate": "boolean",
+          "eventId": "uuid"
+        }
+      }
+    }
+  },
+  "errors": [
+    "DEVICE_UNAUTHENTICATED",
+    "SESSION_INACTIVE",
+    "SEQUENCE_GAP",
+    "SCORE_FORBIDDEN",
+    "ENROLLMENT_EXPIRED",
+    "ENROLLMENT_CONSUMED"
+  ]
+}
