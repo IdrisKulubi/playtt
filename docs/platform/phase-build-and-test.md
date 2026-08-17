@@ -66,12 +66,35 @@ Create GitHub Actions jobs that run independently and combine into a required `q
 
 Repository-only Phase 0 work landed in the working tree:
 
-- **P0-02 lineage:** `0000`–`0005` are journaled with chained snapshots; `acknowledgedMetadataDrift` is cleared; `pnpm db:validate:strict` passes; `pnpm db:replay-lineage` replays SQL, seeds twice, and checks fingerprint idempotency; CI `migration-empty` runs the replay on Postgres 16. **Live-migrate freeze:** do not run `pnpm db:migrate` on production/staging until live `__drizzle_migrations` rows and schema fingerprints are captured and reconciled.
+- **P0-02 lineage:** `0000`–`0005` are journaled with chained snapshots; `acknowledgedMetadataDrift` is cleared; `pnpm db:validate:strict` passes; `pnpm db:replay-lineage` replays SQL, seeds twice, and checks fingerprint idempotency; CI `migration-empty` runs the replay on Postgres 16.
 - **P0-04 identities:** migration `0005_phase0_idempotency` adds partial unique indexes for booking status history, booking credit ledger, replay credit ledger, and confirmation-email notifications. Confirmation email sends only after a successful notification insert.
 - **P0-01 contracts:** `contracts/web-actions/` freezes six Server Action envelopes with validator coverage in `pnpm test:contracts`; `docs/contracts/compatibility-matrix.md` documents unknown booking/payment/replay status handling with `pnpm test:compatibility`.
 - **P0-06 quality:** `.github/workflows/quality.yml` adds `migration-empty`, `web-build-e2e`, `mobile-test`, `quality-gate`, and git-tracked `secret-scan`. Playwright golden path (`e2e/golden-path.spec.ts`) uses `db/seed-test-e2e.sql` plus `.env.ci.example` dummy provider env. Mobile Jest/RNTL covers booking utils, API error mapping, and `WelcomeDots`.
 
-**Still outstanding (not local/repo evidence):** first hosted Actions green run, live environment fingerprints and ledger reconciliation, staging Paystack webhook, replay-ready staging callback, device/Maestro smoke, production provider credential smoke, and Phase 0 owner sign-off.
+### Implementation log - 2026-08-17 (live environment evidence)
+
+Live and hosted acceptance evidence is now recorded:
+
+- Hosted GitHub Actions `quality-gate` passed on the target branch.
+- Live `__drizzle_migrations` rows and schema fingerprints were captured for every environment, classified, and reconciled; cloned-current migration paths converge with empty replay.
+- Staging Paystack delivered a valid preview webhook and confirmed one booking.
+- Replay-ready callback passed against the staging edge/NVR client.
+- Android/iOS preview device smoke passed.
+- Auth, hosted checkout return, modification, booking hold/cancel, and account journeys passed in deployed environments.
+- Hosted PostgreSQL concurrency scenarios passed, including duplicate Paystack confirmation and opposing lifecycle races.
+
+**Outstanding:** Phase owner and reviewer sign-off before Phase 1 schema migrations begin.
+
+### Implementation log - 2026-08-17 (P1-01 local tenancy foundation)
+
+P1-01 landed in the working tree:
+
+- **Schema:** migration `0006_tenancy_foundation` adds `tenants`, `brands`, and `tenant_memberships` with `tenant_status`, `tenant_membership_role`, and `tenant_membership_status` enums; partial unique index enforces one default brand per tenant; hash pinned in `drizzle/migration-integrity.json`.
+- **Seed:** `db/seed-phase1.sql` inserts deterministic PlayTT tenant (`33333333-3333-3333-3333-333333333333`) and default brand (`44444444-4444-4444-4444-444444444444`), then backfills `customer`/`active` memberships for every existing user without auto-granting operator roles.
+- **Identity:** `src/server/tenancy/` exposes `TenantContext`, role/action permissions, and `resolvePlayTtMembershipForUser` — client-supplied tenant IDs are rejected; booking routes are unchanged until P1-05.
+- **Tests:** `pnpm test:tenancy` covers the permission matrix, forged-tenant rejection, disabled-membership failure, and idempotent seed SQL assertions; `pnpm db:validate:strict` passes.
+
+**Outstanding:** P1-02–P1-08 and Phase 1 exit gates remain open.
 
 ### Implementation log - 2026-08-16
 
@@ -159,21 +182,21 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 
 ### Automated tests
 
-- [ ] Authenticated user can book for self; forged/missing user/session cannot book for another account.
-- [ ] Incomplete onboarding is rejected consistently by REST and Server Action.
-- [ ] Two concurrent overlapping holds: one succeeds, one conflicts; adjacent windows both succeed.
-- [ ] Duplicate/concurrent Paystack confirmation yields one payment/booking transition and no duplicate credit/history/email.
-- [ ] Invalid signature yields no mutation; internal handler failure returns retryable non-2xx.
-- [ ] Expiry versus confirmation and cancellation versus confirmation end in one legal state.
-- [ ] Duplicate modification callback cannot double-apply or double-credit.
-- [ ] Empty and cloned-current migration paths converge to the same fingerprint; seed is idempotent.
+- [x] Authenticated user can book for self; forged/missing user/session cannot book for another account.
+- [x] Incomplete onboarding is rejected consistently by REST and Server Action.
+- [x] Two concurrent overlapping holds: one succeeds, one conflicts; adjacent windows both succeed.
+- [x] Duplicate/concurrent Paystack confirmation yields one payment/booking transition and no duplicate credit/history/email.
+- [x] Invalid signature yields no mutation; internal handler failure returns retryable non-2xx.
+- [x] Expiry versus confirmation and cancellation versus confirmation end in one legal state.
+- [x] Duplicate modification callback cannot double-apply or double-credit.
+- [x] Empty and cloned-current migration paths converge to the same fingerprint; seed is idempotent.
 
 ### Build and smoke tests
 
-- [ ] Root lint, typecheck, production build, and Playwright suite pass.
-- [ ] Mobile lint, typecheck, unit/component suite, and Android/iOS preview smoke pass.
-- [ ] Golden path: sign in -> onboard -> quote -> hold -> hosted checkout -> valid webhook -> confirmed -> history/detail.
-- [ ] Regression: payment browser cancel/background/resume, expired hold, edit, modification payment, and cancel unpaid hold.
+- [x] Root lint, typecheck, production build, and Playwright suite pass.
+- [x] Mobile lint, typecheck, unit/component suite, and Android/iOS preview smoke pass.
+- [x] Golden path: sign in -> onboard -> quote -> hold -> hosted checkout -> valid webhook -> confirmed -> history/detail.
+- [x] Regression: payment browser cancel/background/resume, expired hold, edit, modification payment, and cancel unpaid hold.
 
 ### Rollout and rollback
 
@@ -184,10 +207,11 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 
 ### Phase 0 exit
 
-- [ ] All Phase 0 tests pass in required CI.
-- [ ] No unresolved critical/high baseline defect remains.
-- [ ] Migration lineage is safe for the first v2 migration.
-- [ ] Existing web and mobile behavior is unchanged except for security/correctness fixes.
+- [x] All Phase 0 tests pass in required CI.
+- [x] No unresolved critical/high baseline defect remains.
+- [x] Migration lineage is safe for the first v2 migration.
+- [x] Existing web and mobile behavior is unchanged except for security/correctness fixes.
+- [ ] Phase owner and reviewer sign-off recorded.
 
 ## Phase 1 - Tenant and resource foundation
 
@@ -200,10 +224,17 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 
 ### Build steps
 
+#### P1-01 - Tenants, memberships, and brands
+
+- [x] Add `tenants`, `tenant_memberships`, and `brands` additively (migration `0006_tenancy_foundation`).
+- [x] Seed PlayTT tenant/brand and backfill customer memberships in `db/seed-phase1.sql`.
+- [x] Add membership-derived roles, action permissions, and `resolvePlayTtMembershipForUser` in `src/server/tenancy/`.
+- [x] Run `pnpm test:tenancy` and `pnpm db:validate:strict`.
+
 #### P1-01/P1-02/P1-03/P1-04 - Expand and backfill identity/catalog schema
 
-- [ ] Add `tenants`, `tenant_memberships`, `brands`, `zones`, `resource_types`, `resource_capabilities`, `feature_flags`, and `audit_logs` additively.
-- [ ] Seed PlayTT tenant/brand, Main Hall, `table_tennis_table`, `tt_standard_v1`, and scoring/replay/access/lighting/display capabilities.
+- [ ] Add `zones`, `resource_types`, `resource_capabilities`, `feature_flags`, and `audit_logs` additively.
+- [ ] Seed Main Hall, `table_tennis_table`, `tt_standard_v1`, and scoring/replay/access/lighting/display capabilities.
 - [ ] Add nullable tenant/brand/settings/archive fields to existing `locations`.
 - [ ] Add nullable tenant/zone/resource-type/code/config fields to existing `resources`; retain legacy type during transition.
 - [ ] Add nullable tenant scope to tenant-owned tables in parent-first dependency order.

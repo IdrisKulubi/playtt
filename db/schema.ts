@@ -160,6 +160,66 @@ export const notificationStatusEnum = pgEnum("notification_status", [
   "cancelled",
 ]);
 
+export const tenantStatusEnum = pgEnum("tenant_status", ["active", "suspended"]);
+
+export const tenantMembershipRoleEnum = pgEnum("tenant_membership_role", [
+  "customer",
+  "operator",
+  "owner",
+  "support",
+]);
+
+export const tenantMembershipStatusEnum = pgEnum("tenant_membership_status", [
+  "active",
+  "disabled",
+]);
+
+export const tenants = pgTable(
+  "tenants",
+  {
+    id: uuid("id").primaryKey(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    status: tenantStatusEnum("status").default("active").notNull(),
+    settings: jsonb("settings").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [uniqueIndex("tenants_slug_unique").on(table.slug)],
+);
+
+export const brands = pgTable(
+  "brands",
+  {
+    id: uuid("id").primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    isDefault: boolean("is_default").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("brands_tenant_slug_unique").on(table.tenantId, table.slug),
+    uniqueIndex("brands_tenant_default_unique")
+      .on(table.tenantId)
+      .where(sql`${table.isDefault} = true`),
+    index("brands_tenant_id_idx").on(table.tenantId),
+  ],
+);
+
 export const user = pgTable(
   "user",
   {
@@ -201,6 +261,39 @@ export const user = pgTable(
   (table) => [
     uniqueIndex("user_phone_unique").on(table.phone),
     index("user_default_location_idx").on(table.defaultLocationId),
+  ],
+);
+
+export const tenantMemberships = pgTable(
+  "tenant_memberships",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    role: tenantMembershipRoleEnum("role").default("customer").notNull(),
+    status: tenantMembershipStatusEnum("status").default("active").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("tenant_memberships_tenant_user_unique").on(
+      table.tenantId,
+      table.userId,
+    ),
+    index("tenant_memberships_user_id_idx").on(table.userId),
+    index("tenant_memberships_tenant_status_idx").on(
+      table.tenantId,
+      table.status,
+    ),
   ],
 );
 
@@ -936,6 +1029,7 @@ export const userRelations = relations(user, ({ many, one }) => ({
   sessions: many(session),
   accounts: many(account),
   twoFactors: many(twoFactor),
+  tenantMemberships: many(tenantMemberships),
   defaultLocation: one(locations, {
     fields: [user.defaultLocationId],
     references: [locations.id],
@@ -950,6 +1044,32 @@ export const userRelations = relations(user, ({ many, one }) => ({
   replays: many(replays),
   notifications: many(notifications),
 }));
+
+export const tenantRelations = relations(tenants, ({ many }) => ({
+  brands: many(brands),
+  memberships: many(tenantMemberships),
+}));
+
+export const brandRelations = relations(brands, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [brands.tenantId],
+    references: [tenants.id],
+  }),
+}));
+
+export const tenantMembershipRelations = relations(
+  tenantMemberships,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [tenantMemberships.tenantId],
+      references: [tenants.id],
+    }),
+    user: one(user, {
+      fields: [tenantMemberships.userId],
+      references: [user.id],
+    }),
+  }),
+);
 
 export const sessionRelations = relations(session, ({ one }) => ({
   user: one(user, {
