@@ -13,8 +13,13 @@ function readSeedSql() {
   return readFileSync(join(root, "db", "seed-phase1.sql"), "utf8")
 }
 
+function readBackfillSql() {
+  return readFileSync(join(root, "db", "backfill-tenant-scope.sql"), "utf8")
+}
+
 async function runSeed(sql) {
   await sql.unsafe(readSeedSql())
+  await sql.unsafe(readBackfillSql())
 }
 
 async function main() {

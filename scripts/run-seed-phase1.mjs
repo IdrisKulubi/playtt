@@ -14,7 +14,9 @@ if (!url) {
 url = url.replace(/^['"]+|['"]+$/g, "").trim();
 
 const sql = postgres(url, { max: 1 });
-const file = readFileSync(join(root, "db", "seed-phase1.sql"), "utf8");
-await sql.unsafe(file);
+const seedFile = readFileSync(join(root, "db", "seed-phase1.sql"), "utf8");
+const backfillFile = readFileSync(join(root, "db", "backfill-tenant-scope.sql"), "utf8");
+await sql.unsafe(seedFile);
+await sql.unsafe(backfillFile);
 await sql.end();
-console.log("Seed complete: db/seed-phase1.sql");
+console.log("Seed complete: db/seed-phase1.sql + db/backfill-tenant-scope.sql");

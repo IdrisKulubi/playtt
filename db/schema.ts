@@ -14,6 +14,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+const PLAYTT_TENANT_ID = "33333333-3333-3333-3333-333333333333";
+
 export const userSkillLevelEnum = pgEnum("user_skill_level", [
   "beginner",
   "intermediate",
@@ -400,11 +402,22 @@ export const locations = pgTable(
   "locations",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
+    brandId: uuid("brand_id").references(() => brands.id, {
+      onDelete: "restrict",
+    }),
     name: text("name").notNull(),
     slug: text("slug").notNull(),
     address: text("address").notNull(),
     timezone: text("timezone").default("Africa/Nairobi").notNull(),
     isActive: boolean("is_active").default(true).notNull(),
+    settings: jsonb("settings").$type<Record<string, unknown>>(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -417,6 +430,72 @@ export const locations = pgTable(
   (table) => [
     uniqueIndex("locations_slug_unique").on(table.slug),
     index("locations_is_active_idx").on(table.isActive),
+    index("locations_tenant_id_idx").on(table.tenantId),
+    uniqueIndex("locations_tenant_slug_unique")
+      .on(table.tenantId, table.slug)
+      .where(sql`${table.tenantId} is not null`),
+    uniqueIndex("locations_tenant_id_unique")
+      .on(table.tenantId, table.id)
+      .where(sql`${table.tenantId} is not null`),
+  ],
+);
+
+export const zones = pgTable(
+  "zones",
+  {
+    id: uuid("id").primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("zones_tenant_location_slug_unique").on(
+      table.tenantId,
+      table.locationId,
+      table.slug,
+    ),
+    uniqueIndex("zones_tenant_id_unique").on(table.tenantId, table.id),
+    index("zones_location_id_idx").on(table.locationId),
+    index("zones_tenant_id_idx").on(table.tenantId),
+  ],
+);
+
+export const resourceTypes = pgTable(
+  "resource_types",
+  {
+    id: uuid("id").primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("resource_types_tenant_code_unique").on(table.tenantId, table.code),
+    uniqueIndex("resource_types_tenant_id_unique").on(table.tenantId, table.id),
+    index("resource_types_tenant_id_idx").on(table.tenantId),
   ],
 );
 
@@ -424,16 +503,31 @@ export const resources = pgTable(
   "resources",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
     locationId: uuid("location_id")
       .notNull()
       .references(() => locations.id, { onDelete: "restrict" }),
+    zoneId: uuid("zone_id").references(() => zones.id, {
+      onDelete: "restrict",
+    }),
+    resourceTypeId: uuid("resource_type_id").references(() => resourceTypes.id, {
+      onDelete: "restrict",
+    }),
     name: text("name").notNull(),
     slug: text("slug").notNull(),
+    code: text("code"),
     type: resourceTypeEnum("type").default("pod").notNull(),
+    ruleset: text("ruleset"),
     capacity: integer("capacity").default(2).notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
     isActive: boolean("is_active").default(true).notNull(),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    configuration: jsonb("configuration").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -445,7 +539,92 @@ export const resources = pgTable(
   (table) => [
     uniqueIndex("resources_location_slug_unique").on(table.locationId, table.slug),
     index("resources_location_active_idx").on(table.locationId, table.isActive),
+    index("resources_tenant_id_idx").on(table.tenantId),
+    uniqueIndex("resources_tenant_location_code_unique")
+      .on(table.tenantId, table.locationId, table.code)
+      .where(sql`${table.code} is not null`),
+    uniqueIndex("resources_tenant_id_unique")
+      .on(table.tenantId, table.id)
+      .where(sql`${table.tenantId} is not null`),
     check("resources_capacity_positive", sql`${table.capacity} > 0`),
+  ],
+);
+
+export const resourceCapabilities = pgTable(
+  "resource_capabilities",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    resourceId: uuid("resource_id")
+      .notNull()
+      .references(() => resources.id, { onDelete: "restrict" }),
+    code: text("code").notNull(),
+    config: jsonb("config").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("resource_capabilities_resource_code_unique").on(
+      table.resourceId,
+      table.code,
+    ),
+    index("resource_capabilities_tenant_id_idx").on(table.tenantId),
+    index("resource_capabilities_resource_id_idx").on(table.resourceId),
+  ],
+);
+
+export const featureFlags = pgTable(
+  "feature_flags",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    key: text("key").notNull(),
+    enabled: boolean("enabled").default(false).notNull(),
+    scope: jsonb("scope").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("feature_flags_tenant_key_unique").on(table.tenantId, table.key),
+    index("feature_flags_tenant_id_idx").on(table.tenantId),
+  ],
+);
+
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    actorType: text("actor_type").notNull(),
+    actorId: text("actor_id").notNull(),
+    action: text("action").notNull(),
+    targetType: text("target_type"),
+    targetId: text("target_id"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    correlationId: text("correlation_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("audit_logs_tenant_created_idx").on(table.tenantId, table.createdAt),
+    index("audit_logs_tenant_id_idx").on(table.tenantId),
   ],
 );
 
@@ -453,6 +632,12 @@ export const bookings = pgTable(
   "bookings",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
     locationId: uuid("location_id")
       .notNull()
       .references(() => locations.id, { onDelete: "restrict" }),
@@ -493,6 +678,10 @@ export const bookings = pgTable(
       .notNull(),
   },
   (table) => [
+    index("bookings_tenant_id_idx").on(table.tenantId),
+    uniqueIndex("bookings_tenant_id_unique")
+      .on(table.tenantId, table.id)
+      .where(sql`${table.tenantId} is not null`),
     index("bookings_location_start_idx").on(table.locationId, table.startTime),
     index("bookings_resource_time_idx").on(
       table.resourceId,
@@ -525,6 +714,12 @@ export const bookingModifications = pgTable(
   "booking_modifications",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => bookings.id, { onDelete: "cascade" }),
@@ -558,29 +753,46 @@ export const bookingModifications = pgTable(
       .notNull(),
   },
   (table) => [
+    index("booking_modifications_tenant_id_idx").on(table.tenantId),
     index("booking_modifications_booking_idx").on(table.bookingId),
     index("booking_modifications_status_idx").on(table.status),
   ],
 );
 
-export const bookingCreditBalances = pgTable("booking_credit_balances", {
-  userId: text("user_id")
-    .primaryKey()
-    .references(() => user.id, { onDelete: "cascade" }),
-  balanceAmount: numeric("balance_amount", { precision: 12, scale: 2 })
-    .default("0")
-    .notNull(),
-  currency: text("currency").default("KES").notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .$onUpdate(() => new Date())
-    .notNull(),
-});
+export const bookingCreditBalances = pgTable(
+  "booking_credit_balances",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => user.id, { onDelete: "cascade" }),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
+    balanceAmount: numeric("balance_amount", { precision: 12, scale: 2 })
+      .default("0")
+      .notNull(),
+    currency: text("currency").default("KES").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [index("booking_credit_balances_tenant_id_idx").on(table.tenantId)],
+);
 
 export const bookingCreditLedger = pgTable(
   "booking_credit_ledger",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -599,6 +811,7 @@ export const bookingCreditLedger = pgTable(
       .notNull(),
   },
   (table) => [
+    index("booking_credit_ledger_tenant_id_idx").on(table.tenantId),
     index("booking_credit_ledger_user_created_idx").on(
       table.userId,
       table.createdAt,
@@ -614,6 +827,12 @@ export const payments = pgTable(
   "payments",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => bookings.id, { onDelete: "cascade" }),
@@ -641,6 +860,7 @@ export const payments = pgTable(
       .notNull(),
   },
   (table) => [
+    index("payments_tenant_id_idx").on(table.tenantId),
     uniqueIndex("payments_provider_reference_unique").on(
       table.provider,
       table.providerReference,
@@ -656,6 +876,12 @@ export const bookingStatusHistory = pgTable(
   "booking_status_history",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => bookings.id, { onDelete: "cascade" }),
@@ -668,6 +894,7 @@ export const bookingStatusHistory = pgTable(
       .notNull(),
   },
   (table) => [
+    index("booking_status_history_tenant_id_idx").on(table.tenantId),
     index("booking_status_history_booking_idx").on(table.bookingId),
     uniqueIndex("booking_status_history_logical_unique")
       .on(table.bookingId, table.toStatus, table.reason)
@@ -681,6 +908,12 @@ export const hardwareConfigs = pgTable(
   "hardware_configs",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
     locationId: uuid("location_id")
       .notNull()
       .references(() => locations.id, { onDelete: "cascade" }),
@@ -698,6 +931,7 @@ export const hardwareConfigs = pgTable(
       .notNull(),
   },
   (table) => [
+    index("hardware_configs_tenant_id_idx").on(table.tenantId),
     uniqueIndex("hardware_configs_location_provider_key_unique").on(
       table.locationId,
       table.providerType,
@@ -711,6 +945,12 @@ export const accessCredentials = pgTable(
   "access_credentials",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => bookings.id, { onDelete: "cascade" }),
@@ -738,6 +978,7 @@ export const accessCredentials = pgTable(
       .notNull(),
   },
   (table) => [
+    index("access_credentials_tenant_id_idx").on(table.tenantId),
     index("access_credentials_booking_idx").on(table.bookingId),
     index("access_credentials_external_reference_idx").on(
       table.provider,
@@ -754,6 +995,12 @@ export const sessionEvents = pgTable(
   "session_events",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => bookings.id, { onDelete: "cascade" }),
@@ -769,6 +1016,7 @@ export const sessionEvents = pgTable(
       .notNull(),
   },
   (table) => [
+    index("session_events_tenant_id_idx").on(table.tenantId),
     index("session_events_booking_idx").on(table.bookingId, table.eventType),
     index("session_events_location_created_idx").on(table.locationId, table.createdAt),
   ],
@@ -778,6 +1026,12 @@ export const matches = pgTable(
   "matches",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => bookings.id, { onDelete: "cascade" }),
@@ -799,6 +1053,7 @@ export const matches = pgTable(
       .notNull(),
   },
   (table) => [
+    index("matches_tenant_id_idx").on(table.tenantId),
     uniqueIndex("matches_booking_unique").on(table.bookingId),
     index("matches_location_status_idx").on(table.locationId, table.status),
     check(
@@ -812,6 +1067,12 @@ export const replays = pgTable(
   "replays",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => bookings.id, { onDelete: "cascade" }),
@@ -832,26 +1093,43 @@ export const replays = pgTable(
       .notNull(),
   },
   (table) => [
+    index("replays_tenant_id_idx").on(table.tenantId),
     index("replays_booking_idx").on(table.bookingId, table.status),
     index("replays_user_requested_idx").on(table.userId, table.requestedAt),
   ],
 );
 
-export const replayCreditBalances = pgTable("replay_credit_balances", {
-  userId: text("user_id")
-    .primaryKey()
-    .references(() => user.id, { onDelete: "cascade" }),
-  balance: integer("balance").default(0).notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .$onUpdate(() => new Date())
-    .notNull(),
-});
+export const replayCreditBalances = pgTable(
+  "replay_credit_balances",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => user.id, { onDelete: "cascade" }),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
+    balance: integer("balance").default(0).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [index("replay_credit_balances_tenant_id_idx").on(table.tenantId)],
+);
 
 export const productPayments = pgTable(
   "product_payments",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "restrict" }),
@@ -873,6 +1151,7 @@ export const productPayments = pgTable(
       .notNull(),
   },
   (table) => [
+    index("product_payments_tenant_id_idx").on(table.tenantId),
     uniqueIndex("product_payments_provider_reference_unique").on(
       table.provider,
       table.providerReference,
@@ -886,6 +1165,12 @@ export const replayCreditLedger = pgTable(
   "replay_credit_ledger",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -906,6 +1191,7 @@ export const replayCreditLedger = pgTable(
       .notNull(),
   },
   (table) => [
+    index("replay_credit_ledger_tenant_id_idx").on(table.tenantId),
     index("replay_credit_ledger_user_created_idx").on(
       table.userId,
       table.createdAt,
@@ -920,6 +1206,12 @@ export const coachSubscriptions = pgTable(
   "coach_subscriptions",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -939,6 +1231,7 @@ export const coachSubscriptions = pgTable(
       .notNull(),
   },
   (table) => [
+    index("coach_subscriptions_tenant_id_idx").on(table.tenantId),
     uniqueIndex("coach_subscriptions_user_unique").on(table.userId),
     index("coach_subscriptions_status_idx").on(table.status),
   ],
@@ -948,6 +1241,12 @@ export const coachInsights = pgTable(
   "coach_insights",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -964,6 +1263,7 @@ export const coachInsights = pgTable(
       .notNull(),
   },
   (table) => [
+    index("coach_insights_tenant_id_idx").on(table.tenantId),
     index("coach_insights_user_created_idx").on(table.userId, table.createdAt),
     uniqueIndex("coach_insights_replay_unique").on(table.replayId),
   ],
@@ -973,6 +1273,12 @@ export const coachTrainingItems = pgTable(
   "coach_training_items",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -989,6 +1295,7 @@ export const coachTrainingItems = pgTable(
       .notNull(),
   },
   (table) => [
+    index("coach_training_items_tenant_id_idx").on(table.tenantId),
     index("coach_training_items_user_sort_idx").on(table.userId, table.sortOrder),
   ],
 );
@@ -997,6 +1304,12 @@ export const notifications = pgTable(
   "notifications",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
     bookingId: uuid("booking_id").references(() => bookings.id, {
       onDelete: "cascade",
     }),
@@ -1015,6 +1328,7 @@ export const notifications = pgTable(
       .notNull(),
   },
   (table) => [
+    index("notifications_tenant_id_idx").on(table.tenantId),
     index("notifications_booking_channel_idx").on(table.bookingId, table.channel),
     index("notifications_user_created_idx").on(table.userId, table.createdAt),
     uniqueIndex("notifications_booking_email_template_unique")
@@ -1048,13 +1362,24 @@ export const userRelations = relations(user, ({ many, one }) => ({
 export const tenantRelations = relations(tenants, ({ many }) => ({
   brands: many(brands),
   memberships: many(tenantMemberships),
+  locations: many(locations),
+  zones: many(zones),
+  resourceTypes: many(resourceTypes),
+  resources: many(resources),
+  resourceCapabilities: many(resourceCapabilities),
+  featureFlags: many(featureFlags),
+  auditLogs: many(auditLogs),
+  bookings: many(bookings),
+  payments: many(payments),
+  notifications: many(notifications),
 }));
 
-export const brandRelations = relations(brands, ({ one }) => ({
+export const brandRelations = relations(brands, ({ one, many }) => ({
   tenant: one(tenants, {
     fields: [brands.tenantId],
     references: [tenants.id],
   }),
+  locations: many(locations),
 }));
 
 export const tenantMembershipRelations = relations(
@@ -1092,7 +1417,16 @@ export const twoFactorRelations = relations(twoFactor, ({ one }) => ({
   }),
 }));
 
-export const locationRelations = relations(locations, ({ many }) => ({
+export const locationRelations = relations(locations, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [locations.tenantId],
+    references: [tenants.id],
+  }),
+  brand: one(brands, {
+    fields: [locations.brandId],
+    references: [brands.id],
+  }),
+  zones: many(zones),
   resources: many(resources),
   bookings: many(bookings),
   payments: many(payments),
@@ -1104,15 +1438,80 @@ export const locationRelations = relations(locations, ({ many }) => ({
   notifications: many(notifications),
 }));
 
+export const zoneRelations = relations(zones, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [zones.tenantId],
+    references: [tenants.id],
+  }),
+  location: one(locations, {
+    fields: [zones.locationId],
+    references: [locations.id],
+  }),
+  resources: many(resources),
+}));
+
+export const resourceTypeRelations = relations(resourceTypes, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [resourceTypes.tenantId],
+    references: [tenants.id],
+  }),
+  resources: many(resources),
+}));
+
 export const resourceRelations = relations(resources, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [resources.tenantId],
+    references: [tenants.id],
+  }),
   location: one(locations, {
     fields: [resources.locationId],
     references: [locations.id],
   }),
+  zone: one(zones, {
+    fields: [resources.zoneId],
+    references: [zones.id],
+  }),
+  resourceType: one(resourceTypes, {
+    fields: [resources.resourceTypeId],
+    references: [resourceTypes.id],
+  }),
+  capabilities: many(resourceCapabilities),
   bookings: many(bookings),
 }));
 
+export const resourceCapabilityRelations = relations(
+  resourceCapabilities,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [resourceCapabilities.tenantId],
+      references: [tenants.id],
+    }),
+    resource: one(resources, {
+      fields: [resourceCapabilities.resourceId],
+      references: [resources.id],
+    }),
+  }),
+);
+
+export const featureFlagRelations = relations(featureFlags, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [featureFlags.tenantId],
+    references: [tenants.id],
+  }),
+}));
+
+export const auditLogRelations = relations(auditLogs, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [auditLogs.tenantId],
+    references: [tenants.id],
+  }),
+}));
+
 export const bookingRelations = relations(bookings, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [bookings.tenantId],
+    references: [tenants.id],
+  }),
   location: one(locations, {
     fields: [bookings.locationId],
     references: [locations.id],
