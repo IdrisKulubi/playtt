@@ -81,14 +81,4 @@ CREATE INDEX "product_payments_tenant_id_idx" ON "product_payments" USING btree 
 CREATE INDEX "replay_credit_balances_tenant_id_idx" ON "replay_credit_balances" USING btree ("tenant_id");--> statement-breakpoint
 CREATE INDEX "replay_credit_ledger_tenant_id_idx" ON "replay_credit_ledger" USING btree ("tenant_id");--> statement-breakpoint
 CREATE INDEX "replays_tenant_id_idx" ON "replays" USING btree ("tenant_id");--> statement-breakpoint
-CREATE INDEX "session_events_tenant_id_idx" ON "session_events" USING btree ("tenant_id");--> statement-breakpoint
-ALTER TABLE "bookings" ADD CONSTRAINT "bookings_tenant_location_fk" FOREIGN KEY ("tenant_id","location_id") REFERENCES "public"."locations"("tenant_id","id") NOT VALID;--> statement-breakpoint
-ALTER TABLE "bookings" ADD CONSTRAINT "bookings_tenant_resource_fk" FOREIGN KEY ("tenant_id","resource_id") REFERENCES "public"."resources"("tenant_id","id") NOT VALID;--> statement-breakpoint
-ALTER TABLE "payments" ADD CONSTRAINT "payments_tenant_booking_fk" FOREIGN KEY ("tenant_id","booking_id") REFERENCES "public"."bookings"("tenant_id","id") NOT VALID;--> statement-breakpoint
-ALTER TABLE "booking_modifications" ADD CONSTRAINT "booking_modifications_tenant_booking_fk" FOREIGN KEY ("tenant_id","booking_id") REFERENCES "public"."bookings"("tenant_id","id") NOT VALID;--> statement-breakpoint
-ALTER TABLE "booking_status_history" ADD CONSTRAINT "booking_status_history_tenant_booking_fk" FOREIGN KEY ("tenant_id","booking_id") REFERENCES "public"."bookings"("tenant_id","id") NOT VALID;--> statement-breakpoint
-ALTER TABLE "access_credentials" ADD CONSTRAINT "access_credentials_tenant_booking_fk" FOREIGN KEY ("tenant_id","booking_id") REFERENCES "public"."bookings"("tenant_id","id") NOT VALID;--> statement-breakpoint
-ALTER TABLE "session_events" ADD CONSTRAINT "session_events_tenant_booking_fk" FOREIGN KEY ("tenant_id","booking_id") REFERENCES "public"."bookings"("tenant_id","id") NOT VALID;--> statement-breakpoint
-ALTER TABLE "matches" ADD CONSTRAINT "matches_tenant_booking_fk" FOREIGN KEY ("tenant_id","booking_id") REFERENCES "public"."bookings"("tenant_id","id") NOT VALID;--> statement-breakpoint
-ALTER TABLE "replays" ADD CONSTRAINT "replays_tenant_booking_fk" FOREIGN KEY ("tenant_id","booking_id") REFERENCES "public"."bookings"("tenant_id","id") NOT VALID;--> statement-breakpoint
-ALTER TABLE "hardware_configs" ADD CONSTRAINT "hardware_configs_tenant_location_fk" FOREIGN KEY ("tenant_id","location_id") REFERENCES "public"."locations"("tenant_id","id") NOT VALID;
+CREATE INDEX "session_events_tenant_id_idx" ON "session_events" USING btree ("tenant_id");
