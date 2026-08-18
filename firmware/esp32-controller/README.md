@@ -31,14 +31,17 @@ idf.py build
 idf.py -p COMx flash monitor
 ```
 
-Replace `COMx` with the USB serial port from Device Manager. If the port is missing, hold **BOOT**, tap **RESET**, then retry.
+Replace `COMx` with the **USB JTAG/serial debug unit** port from Device Manager (not a secondary UART port). If the port is missing, hold **BOOT**, tap **RESET**, then retry.
 
 If `set-target` refuses to clean a stale `build/` folder, delete it manually then rerun `idf.py set-target esp32s3`.
+
+After flash, if the monitor shows `waiting for download`, press **RESET** once (without holding BOOT).
 
 ## First boot wizard
 
 The serial monitor prompts for:
 
+0. Press **Enter** once when connected (setup waits for input)
 1. Wi-Fi SSID
 2. Wi-Fi password
 3. Enrollment code

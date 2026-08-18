@@ -159,6 +159,14 @@ bool playtt_nvs_run_setup_wizard(playtt_nvs_state_t *state) {
 
   printf("\n=== PlayTT ESP32 setup ===\n");
   printf("Default API: %s\n\n", PLAYTT_DEFAULT_BASE_URL);
+  printf("Press Enter when the serial monitor is connected...\n");
+  fflush(stdout);
+
+  char ready[8] = {0};
+  if (fgets(ready, sizeof(ready), stdin) == NULL) {
+    ESP_LOGW(TAG, "Serial input unavailable. Connect idf monitor and retry.");
+    return false;
+  }
 
   read_line("Wi-Fi SSID: ", state->wifi_ssid, sizeof(state->wifi_ssid));
   read_line("Wi-Fi password: ", state->wifi_password, sizeof(state->wifi_password));

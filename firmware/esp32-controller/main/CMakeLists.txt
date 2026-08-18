@@ -5,10 +5,12 @@ idf_component_register(
         "playtt_net.c"
         "playtt_api.c"
         "playtt_buffer.c"
+        "playtt_console.c"
     INCLUDE_DIRS
         "."
     REQUIRES
         nvs_flash
+        esp_driver_usb_serial_jtag
         esp_wifi
         esp_http_client
         esp_netif

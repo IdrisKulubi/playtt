@@ -9,6 +9,7 @@
 #include "playtt_api.h"
 #include "playtt_buffer.h"
 #include "playtt_config.h"
+#include "playtt_console.h"
 #include "playtt_net.h"
 #include "playtt_nvs.h"
 
@@ -143,12 +144,13 @@ static esp_err_t bootstrap_device(void) {
 
 void app_main(void) {
   ESP_LOGI(TAG, "PlayTT ESP32-S3 controller %s", PLAYTT_FIRMWARE_VERSION);
+  ESP_ERROR_CHECK(playtt_console_init_interactive());
   ESP_ERROR_CHECK(playtt_nvs_init());
   gpio_init();
 
-  if (bootstrap_device() != ESP_OK) {
-    ESP_LOGE(TAG, "Bootstrap failed. Erase flash and retry setup.");
-    return;
+  while (bootstrap_device() != ESP_OK) {
+    ESP_LOGE(TAG, "Setup failed. Retrying in 3 seconds...");
+    vTaskDelay(pdMS_TO_TICKS(3000));
   }
 
   while (true) {
