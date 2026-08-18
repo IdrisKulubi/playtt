@@ -8,6 +8,8 @@ export const DEFAULT_PENDING_BOOKING_WINDOW_MINUTES = 10;
 
 export const BOOKING_SLOT_INTERVAL_MINUTES = 30;
 
+export const DEFAULT_VENUE_TIMEZONE = "Africa/Nairobi";
+
 export const PEAK_PRICING_WINDOWS = [
   {
     label: "weekday_evening_peak",

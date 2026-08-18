@@ -182,13 +182,17 @@ export async function listActiveResourcesByLocation(
       slug: resources.slug,
       type: resources.type,
       capacity: resources.capacity,
+      timezone: locations.timezone,
     })
     .from(resources)
+    .innerJoin(locations, eq(resources.locationId, locations.id))
     .where(
       and(
         eq(resources.tenantId, context.tenantId),
+        eq(locations.tenantId, context.tenantId),
         eq(resources.locationId, locationId),
         eq(resources.isActive, true),
+        eq(locations.isActive, true),
       ),
     )
     .orderBy(asc(resources.sortOrder), asc(resources.name));

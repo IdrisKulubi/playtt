@@ -6,7 +6,6 @@ import {
 import {
   buildDateTimeRange,
   roundDateToSlot,
-  sameBookingDay,
 } from "@/server/bookings/utils"
 import { assertBookingEditable } from "@/server/bookings/modifications/eligibility"
 import { BookingModificationError } from "@/server/bookings/modifications/errors"
@@ -109,14 +108,6 @@ export async function quoteBookingModification(input: {
       throw new BookingModificationError(
         "INVALID_SLOT",
         "Bookings must start on a 30-minute boundary.",
-        400
-      )
-    }
-
-    if (sameBookingDay(start) !== sameBookingDay(end)) {
-      throw new BookingModificationError(
-        "INVALID_SLOT",
-        "Bookings must start and end on the same day.",
         400
       )
     }

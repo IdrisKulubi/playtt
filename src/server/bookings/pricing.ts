@@ -1,14 +1,12 @@
-import { getDay, getHours } from "date-fns";
-
 import {
   BASE_GROUP_SIZE,
-  EXTRA_PLAYER_SURCHARGE,
-} from "@/server/bookings/constants";
-import {
   DEFAULT_BOOKING_CURRENCY,
+  DEFAULT_VENUE_TIMEZONE,
+  EXTRA_PLAYER_SURCHARGE,
   OFF_PEAK_RATE_PER_30_MINUTES,
   PEAK_PRICING_WINDOWS,
 } from "@/server/bookings/constants";
+import { getZonedDay, getZonedHours } from "@/server/bookings/utils";
 import type { BookingQuote } from "@/server/bookings/types";
 
 export function calculateBookingQuote(input: {
@@ -18,8 +16,12 @@ export function calculateBookingQuote(input: {
   end: Date;
   durationMinutes: number;
   groupSize: number;
+  timeZone?: string;
 }): BookingQuote {
-  const pricingWindow = resolvePricingWindow(input.start);
+  const pricingWindow = resolvePricingWindow(
+    input.start,
+    input.timeZone ?? DEFAULT_VENUE_TIMEZONE,
+  );
   const units = input.durationMinutes / 30;
   const subtotalAmount = pricingWindow.ratePer30Minutes * units;
   const extraPlayers = Math.max(0, input.groupSize - BASE_GROUP_SIZE);
@@ -52,9 +54,9 @@ export function calculateBookingQuote(input: {
   };
 }
 
-function resolvePricingWindow(start: Date) {
-  const day = getDay(start);
-  const hour = getHours(start);
+function resolvePricingWindow(start: Date, timeZone: string) {
+  const day = getZonedDay(start, timeZone);
+  const hour = getZonedHours(start, timeZone);
 
   const peakWindow =
     PEAK_PRICING_WINDOWS.find(
