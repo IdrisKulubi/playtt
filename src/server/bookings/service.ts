@@ -1,11 +1,9 @@
-import { parseISO } from "date-fns"
-
+import { DEFAULT_VENUE_TIMEZONE } from "@/server/bookings/constants"
 import {
   buildDateTimeRange,
   buildDaySlots,
   getPendingBookingExpiry,
   roundDateToSlot,
-  sameBookingDay,
 } from "@/server/bookings/utils"
 import { calculateBookingQuote } from "@/server/bookings/pricing"
 import {
@@ -76,6 +74,7 @@ export async function getBookingQuote(
     end,
     durationMinutes: parsed.durationMinutes,
     groupSize: parsed.groupSize,
+    timeZone: resourceContext.timezone ?? DEFAULT_VENUE_TIMEZONE,
   })
 }
 
@@ -87,9 +86,8 @@ export async function getLocationAvailability(
   await runBookingExpirySweep()
 
   const parsed = locationAvailabilityInputSchema.parse(input)
-  const day = parseISO(`${parsed.date}T00:00:00`)
 
-  if (Number.isNaN(day.getTime())) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(parsed.date)) {
     throw new Error("Invalid availability date.")
   }
 
@@ -102,11 +100,19 @@ export async function getLocationAvailability(
     return []
   }
 
-  const slots = buildDaySlots(day, parsed.durationMinutes)
+  const timeZone = activeResources[0]?.timezone ?? DEFAULT_VENUE_TIMEZONE
+  const slots = buildDaySlots(parsed.date, parsed.durationMinutes, timeZone)
+  const firstSlot = slots[0]
+  const lastSlot = slots.at(-1)
+
+  if (!firstSlot || !lastSlot) {
+    return []
+  }
+
   const blockingBookings = await findBlockingBookingsForResources(context, {
     resourceIds: activeResources.map((resource) => resource.id),
-    start: slots[0]?.startsAt ?? day,
-    end: slots.at(-1)?.endsAt ?? day,
+    start: firstSlot.startsAt,
+    end: lastSlot.endsAt,
   })
 
   const now = new Date()
@@ -136,6 +142,7 @@ export async function getLocationAvailability(
       end: slot.endsAt,
       durationMinutes: parsed.durationMinutes,
       groupSize: parsed.groupSize,
+      timeZone,
     })
 
     return {
@@ -187,10 +194,6 @@ export async function createPendingBooking(
     throw new Error("Bookings must start on a 30-minute boundary.")
   }
 
-  if (sameBookingDay(start) !== sameBookingDay(end)) {
-    throw new Error("Bookings must start and end on the same day.")
-  }
-
   if (start <= new Date()) {
     throw new Error("Bookings must be made for a future time.")
   }
@@ -212,6 +215,7 @@ export async function createPendingBooking(
     end,
     durationMinutes: parsed.durationMinutes,
     groupSize: parsed.groupSize,
+    timeZone: resourceContext.timezone ?? DEFAULT_VENUE_TIMEZONE,
   })
 
   try {
