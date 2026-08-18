@@ -24,6 +24,8 @@ static int64_t s_last_press_b_us = 0;
 static bool s_side_a_down = false;
 static bool s_side_b_down = false;
 static bool s_boot_down = false;
+static bool s_network_ready = false;
+static bool s_time_synced = false;
 
 static void led_set(bool on) {
   gpio_set_level(PLAYTT_GPIO_LED, on ? 1 : 0);
@@ -111,20 +113,28 @@ static void handle_buttons(void) {
 }
 
 static esp_err_t bootstrap_device(void) {
-  ESP_ERROR_CHECK(playtt_net_init());
+  if (!s_network_ready) {
+    ESP_ERROR_CHECK(playtt_net_init());
 
-  if (playtt_nvs_load(&s_state) != ESP_OK || !s_state.setup_complete) {
-    if (!playtt_nvs_run_setup_wizard(&s_state)) {
+    if (playtt_nvs_load(&s_state) != ESP_OK || !s_state.setup_complete) {
+      if (!playtt_nvs_run_setup_wizard(&s_state)) {
+        return ESP_FAIL;
+      }
+      ESP_ERROR_CHECK(playtt_nvs_save(&s_state));
+    }
+
+    if (playtt_net_connect(&s_state) != ESP_OK) {
       return ESP_FAIL;
     }
-    ESP_ERROR_CHECK(playtt_nvs_save(&s_state));
+
+    s_network_ready = true;
   }
 
-  if (playtt_net_connect(&s_state) != ESP_OK) {
-    return ESP_FAIL;
-  }
-  if (playtt_net_sync_time() != ESP_OK) {
-    return ESP_FAIL;
+  if (!s_time_synced) {
+    if (playtt_net_sync_time() != ESP_OK) {
+      return ESP_FAIL;
+    }
+    s_time_synced = true;
   }
 
   if (!s_state.provisioned) {
@@ -134,6 +144,7 @@ static esp_err_t bootstrap_device(void) {
   }
 
   if (playtt_api_get_config(&s_state) != ESP_OK) {
+    ESP_LOGW(TAG, "Waiting for operator assignment in theplaytt.com dashboard...");
     return ESP_FAIL;
   }
   playtt_buffer_init(&s_buffer, &s_state);
@@ -157,8 +168,8 @@ void app_main(void) {
   gpio_init();
 
   while (bootstrap_device() != ESP_OK) {
-    ESP_LOGE(TAG, "Setup failed. Retrying in 3 seconds...");
-    vTaskDelay(pdMS_TO_TICKS(3000));
+    ESP_LOGE(TAG, "Setup incomplete. Retrying in 10 seconds...");
+    vTaskDelay(pdMS_TO_TICKS(10000));
   }
 
   while (true) {

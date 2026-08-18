@@ -20,6 +20,7 @@ static EventGroupHandle_t s_wifi_event_group;
 static bool s_connected = false;
 static bool s_net_initialized = false;
 static bool s_wifi_started = false;
+static bool s_sntp_started = false;
 
 static void wifi_event_handler(void *arg,
                                esp_event_base_t event_base,
@@ -104,9 +105,12 @@ esp_err_t playtt_net_connect(const playtt_nvs_state_t *state) {
 }
 
 esp_err_t playtt_net_sync_time(void) {
-  sntp_setoperatingmode(SNTP_OPMODE_POLL);
-  sntp_setservername(0, "pool.ntp.org");
-  sntp_init();
+  if (!s_sntp_started) {
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    sntp_setservername(0, "pool.ntp.org");
+    sntp_init();
+    s_sntp_started = true;
+  }
 
   for (int attempt = 0; attempt < 20; attempt += 1) {
     time_t now = 0;

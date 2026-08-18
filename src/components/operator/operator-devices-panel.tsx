@@ -39,8 +39,12 @@ export function OperatorDevicesPanel({
     "esp32_controller" | "ttlock_lock" | "ttlock_gateway"
   >("esp32_controller")
   const [enrollmentCode, setEnrollmentCode] = useState<string | null>(null)
-  const [assignDeviceId, setAssignDeviceId] = useState("")
-  const [assignResourceId, setAssignResourceId] = useState("")
+  const [assignDeviceId, setAssignDeviceId] = useState<string | undefined>(
+    undefined,
+  )
+  const [assignResourceId, setAssignResourceId] = useState<string | undefined>(
+    undefined,
+  )
   const [assignRole, setAssignRole] = useState<
     "score_input" | "lock" | "gateway" | "display"
   >("score_input")
@@ -77,13 +81,23 @@ export function OperatorDevicesPanel({
   async function handleAssignDevice() {
     setMessage(null)
 
+    if (!assignDeviceId) {
+      setMessage("Select a device first.")
+      return
+    }
+
+    if (assignRole === "score_input" && !assignResourceId) {
+      setMessage("Score input devices must be assigned to a table resource.")
+      return
+    }
+
     const response = await fetch("/api/operator/devices/assignments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+        body: JSON.stringify({
         deviceId: assignDeviceId,
         locationId: selectedVenueId,
-        resourceId: assignResourceId || null,
+        resourceId: assignResourceId ?? null,
         role: assignRole,
       }),
     })
@@ -94,6 +108,8 @@ export function OperatorDevicesPanel({
       return
     }
 
+    setAssignDeviceId(undefined)
+    setAssignResourceId(undefined)
     startTransition(() => router.refresh())
   }
 
@@ -166,19 +182,40 @@ export function OperatorDevicesPanel({
             <CardTitle>Assign device</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              After an ESP32 provisions, refresh this page. Then pick the device,
+              choose a table resource, and assign role{" "}
+              <span className="font-medium">Score input</span>.
+            </p>
+            <Button
+              variant="outline"
+              disabled={isPending}
+              onClick={() => startTransition(() => router.refresh())}
+            >
+              Refresh device list
+            </Button>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="assign-device-id">Device</Label>
-                <Select value={assignDeviceId} onValueChange={setAssignDeviceId}>
+                <Select
+                  value={assignDeviceId}
+                  onValueChange={setAssignDeviceId}
+                >
                   <SelectTrigger id="assign-device-id">
                     <SelectValue placeholder="Select device" />
                   </SelectTrigger>
                   <SelectContent>
-                    {devices.map((device) => (
-                      <SelectItem key={device.id} value={device.id}>
-                        {device.hardwareUid} ({device.type})
+                    {devices.length === 0 ? (
+                      <SelectItem value="__none" disabled>
+                        No devices at this venue yet
                       </SelectItem>
-                    ))}
+                    ) : (
+                      devices.map((device) => (
+                        <SelectItem key={device.id} value={device.id}>
+                          {device.hardwareUid} ({device.type})
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -189,14 +226,20 @@ export function OperatorDevicesPanel({
                   onValueChange={setAssignResourceId}
                 >
                   <SelectTrigger id="assign-resource-id">
-                    <SelectValue placeholder="Optional for gateways" />
+                    <SelectValue placeholder="Select table resource" />
                   </SelectTrigger>
                   <SelectContent>
-                    {venueResources.map((resource) => (
-                      <SelectItem key={resource.id} value={resource.id}>
-                        {resource.name}
+                    {venueResources.length === 0 ? (
+                      <SelectItem value="__none" disabled>
+                        No resources at this venue
                       </SelectItem>
-                    ))}
+                    ) : (
+                      venueResources.map((resource) => (
+                        <SelectItem key={resource.id} value={resource.id}>
+                          {resource.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -220,7 +263,14 @@ export function OperatorDevicesPanel({
                 </Select>
               </div>
             </div>
-            <Button disabled={isPending || !assignDeviceId} onClick={handleAssignDevice}>
+            <Button
+              disabled={
+                isPending ||
+                !assignDeviceId ||
+                (assignRole === "score_input" && !assignResourceId)
+              }
+              onClick={handleAssignDevice}
+            >
               Assign device
             </Button>
           </CardContent>
