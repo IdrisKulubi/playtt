@@ -287,3 +287,24 @@ where not exists (
   where tm.tenant_id = '33333333-3333-3333-3333-333333333333'
     and tm.user_id = u.id
 );
+
+insert into feature_flags (
+  tenant_id,
+  key,
+  enabled
+)
+select
+  '33333333-3333-3333-3333-333333333333',
+  flags.key,
+  true
+from (
+  values
+    ('operator_shell'),
+    ('device_registry')
+) as flags(key)
+where not exists (
+  select 1
+  from feature_flags ff
+  where ff.tenant_id = '33333333-3333-3333-3333-333333333333'
+    and ff.key = flags.key
+);

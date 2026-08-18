@@ -15,8 +15,8 @@ Wire each button between the GPIO and **GND**.
 
 ## Prerequisites (Windows)
 
-1. Install [ESP-IDF 5.4](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/get-started/windows-setup.html)
-2. Open **ESP-IDF 5.4 PowerShell**
+1. Install [ESP-IDF 5.4+](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/get-started/windows-setup.html) (6.x works; `main/idf_component.yml` pulls `espressif/cjson`)
+2. Open **ESP-IDF PowerShell** (activate the IDF environment)
 3. Operator account on https://www.theplaytt.com
 4. Enrollment code from https://www.theplaytt.com/operator/devices (`esp32_controller`)
 
@@ -32,6 +32,8 @@ idf.py -p COMx flash monitor
 ```
 
 Replace `COMx` with the USB serial port from Device Manager. If the port is missing, hold **BOOT**, tap **RESET**, then retry.
+
+If `set-target` refuses to clean a stale `build/` folder, delete it manually then rerun `idf.py set-target esp32s3`.
 
 ## First boot wizard
 

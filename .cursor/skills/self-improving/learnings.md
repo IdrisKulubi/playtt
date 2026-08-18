@@ -1,5 +1,11 @@
 # PlayTT Agent Learnings
 
+## 2026-08-18 — Production /operator gate
+
+- **Context:** Same operator account could open `/operator` on localhost but was redirected to `/dashboard` on theplaytt.com.
+- **Fix:** Production requires an enabled `operator_shell` feature-flag row (or `OPERATOR_SHELL_ENABLED=true`). Localhost falls back to `NODE_ENV !== "production"`. Role must still be `support`, `operator`, or `owner`.
+- **Updated:** `run-project/env-reference.md`, `db/seed-phase1.sql`
+
 ## 2026-06-06 — Repo flatten
 
 - **Context:** Nested `playtt/playtt/` was flattened so the web app lives at repo root; mobile moved to `playtt-mobile/`.
