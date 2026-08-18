@@ -272,6 +272,24 @@ export async function provisionDevice(input: {
   const deviceId = randomUUID()
 
   await db.transaction(async (tx) => {
+    await tx.insert(devices).values({
+      id: deviceId,
+      tenantId: enrollment.tenantId,
+      locationId: enrollment.locationId,
+      type: enrollment.deviceType,
+      hardwareUid: input.hardwareUid,
+      firmwareVersion: input.firmwareVersion ?? null,
+      status: "active",
+    })
+
+    await tx.insert(deviceCredentials).values({
+      tenantId: enrollment.tenantId,
+      deviceId,
+      version: 1,
+      secretHash,
+      status: "active",
+    })
+
     const consumed = await tx
       .update(deviceEnrollments)
       .set({
@@ -294,24 +312,6 @@ export async function provisionDevice(input: {
         403
       )
     }
-
-    await tx.insert(devices).values({
-      id: deviceId,
-      tenantId: enrollment.tenantId,
-      locationId: enrollment.locationId,
-      type: enrollment.deviceType,
-      hardwareUid: input.hardwareUid,
-      firmwareVersion: input.firmwareVersion ?? null,
-      status: "active",
-    })
-
-    await tx.insert(deviceCredentials).values({
-      tenantId: enrollment.tenantId,
-      deviceId,
-      version: 1,
-      secretHash,
-      status: "active",
-    })
   })
 
   return {

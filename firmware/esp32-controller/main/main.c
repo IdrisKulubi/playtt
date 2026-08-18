@@ -120,14 +120,22 @@ static esp_err_t bootstrap_device(void) {
     ESP_ERROR_CHECK(playtt_nvs_save(&s_state));
   }
 
-  ESP_ERROR_CHECK(playtt_net_connect(&s_state));
-  ESP_ERROR_CHECK(playtt_net_sync_time());
-
-  if (!s_state.provisioned) {
-    ESP_ERROR_CHECK(playtt_api_provision(&s_state));
+  if (playtt_net_connect(&s_state) != ESP_OK) {
+    return ESP_FAIL;
+  }
+  if (playtt_net_sync_time() != ESP_OK) {
+    return ESP_FAIL;
   }
 
-  ESP_ERROR_CHECK(playtt_api_get_config(&s_state));
+  if (!s_state.provisioned) {
+    if (playtt_api_provision(&s_state) != ESP_OK) {
+      return ESP_FAIL;
+    }
+  }
+
+  if (playtt_api_get_config(&s_state) != ESP_OK) {
+    return ESP_FAIL;
+  }
   playtt_buffer_init(&s_buffer, &s_state);
 
   s_boot_time_us = esp_timer_get_time();
