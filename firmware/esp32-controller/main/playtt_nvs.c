@@ -1,5 +1,6 @@
 #include "playtt_nvs.h"
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -175,7 +176,11 @@ bool playtt_nvs_run_setup_wizard(playtt_nvs_state_t *state) {
 
   read_line("Hardware UID (Enter for auto): ", state->hardware_uid, sizeof(state->hardware_uid));
   if (state->hardware_uid[0] == '\0') {
-    snprintf(state->hardware_uid, sizeof(state->hardware_uid), "esp32s3-%08x", esp_random());
+    snprintf(
+        state->hardware_uid,
+        sizeof(state->hardware_uid),
+        "esp32s3-%08" PRIx32,
+        (uint32_t)esp_random());
   }
 
   if (state->wifi_ssid[0] == '\0' || state->enrollment_code[0] == '\0') {

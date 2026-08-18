@@ -13,7 +13,7 @@ idf_component_register(
         esp_http_client
         esp_netif
         esp_event
-        driver
+        esp_driver_gpio
         esp_timer
         lwip
         esp-tls
