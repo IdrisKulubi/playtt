@@ -18,3 +18,9 @@ test("seed-phase1.sql backfills customer memberships without duplicating", () =>
   assert.match(seedSql, /'customer'/)
   assert.match(seedSql, /where not exists/i)
 })
+
+test("seed-phase1.sql enables operator shell and device registry for PlayTT", () => {
+  assert.match(seedSql, /insert into feature_flags/i)
+  assert.match(seedSql, /'operator_shell'/)
+  assert.match(seedSql, /'device_registry'/)
+})

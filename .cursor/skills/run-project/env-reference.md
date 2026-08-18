@@ -133,6 +133,18 @@ When mobile uses the hosted API, ensure these are set on the server (e.g. Vercel
 | `APPLE_APP_BUNDLE_IDENTIFIER`               | `com.theplaytt.app` — required for EAS/production Apple sign-in       |
 | `APPLE_EXPO_CLIENT_ID`                      | Optional; defaults to `host.exp.Exponent` for Expo Go testing         |
 
+### Operator and device feature flags
+
+`/operator` is allowed locally when `NODE_ENV` is not `production`. In production it stays closed unless the PlayTT tenant has an enabled `feature_flags` row, or the matching env override is set.
+
+| Variable                   | Used in                              | Purpose                                                                                          |
+| -------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `OPERATOR_SHELL_ENABLED`   | `src/server/operator/feature-policy` | Set `true` to allow `/operator` when no `operator_shell` flag row exists                         |
+| `DEVICE_REGISTRY_ENABLED`  | `src/server/devices/feature-policy`  | Set `true` to allow `/operator/devices` when no `device_registry` flag row exists                |
+| `PUBLIC_VENUE_API_ENABLED` | `src/server/catalog/feature-policy`  | Set `true` to allow the public venue API when no `public_venue_api` flag row exists              |
+
+Phase 1 seed inserts enabled `operator_shell` and `device_registry` rows for the PlayTT tenant. Operator roles are still assigned explicitly; customer memberships cannot open `/operator`.
+
 ## Notes
 
 - Never commit `.env.local`, `.env`, or real secrets to version control.
