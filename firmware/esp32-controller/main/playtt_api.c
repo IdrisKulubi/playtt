@@ -14,6 +14,9 @@ static const char *TAG = "playtt_api";
 
 static char s_request_body[512];
 static char s_response_body[PLAYTT_HTTP_BODY_MAX];
+static playtt_api_response_t s_work_response;
+static char s_url[256];
+static char s_auth_header[256];
 
 static esp_err_t http_event_handler(esp_http_client_event_t *evt) {
   static int output_len = 0;
@@ -46,8 +49,7 @@ static esp_err_t playtt_api_request(playtt_nvs_state_t *state,
                                     const char *body,
                                     bool authenticated,
                                     playtt_api_response_t *response) {
-  char url[256];
-  snprintf(url, sizeof(url), "%s%s", state->base_url, path);
+  snprintf(s_url, sizeof(s_url), "%s%s", state->base_url, path);
 
   memset(s_response_body, 0, sizeof(s_response_body));
   if (response != NULL) {
@@ -55,7 +57,7 @@ static esp_err_t playtt_api_request(playtt_nvs_state_t *state,
   }
 
   esp_http_client_config_t config = {
-      .url = url,
+      .url = s_url,
       .method = strcmp(method, "POST") == 0 ? HTTP_METHOD_POST : HTTP_METHOD_GET,
       .timeout_ms = PLAYTT_HTTP_TIMEOUT_MS,
       .event_handler = http_event_handler,
@@ -70,13 +72,12 @@ static esp_err_t playtt_api_request(playtt_nvs_state_t *state,
   esp_http_client_set_header(client, "Content-Type", "application/json");
 
   if (authenticated) {
-    char auth_header[256];
-    snprintf(auth_header,
-             sizeof(auth_header),
+    snprintf(s_auth_header,
+             sizeof(s_auth_header),
              "Device %s %s",
              state->device_id,
              state->device_secret);
-    esp_http_client_set_header(client, "Authorization", auth_header);
+    esp_http_client_set_header(client, "Authorization", s_auth_header);
   }
 
   if (body != NULL) {
@@ -113,14 +114,14 @@ esp_err_t playtt_api_provision(playtt_nvs_state_t *state) {
            state->hardware_uid,
            PLAYTT_FIRMWARE_VERSION);
 
-  playtt_api_response_t response = {0};
+  memset(&s_work_response, 0, sizeof(s_work_response));
   esp_err_t err = playtt_api_request(
-      state, "POST", "/api/device/v1/provision", s_request_body, false, &response);
+      state, "POST", "/api/device/v1/provision", s_request_body, false, &s_work_response);
   if (err != ESP_OK) {
     return err;
   }
 
-  cJSON *root = cJSON_Parse(response.response);
+  cJSON *root = cJSON_Parse(s_work_response.response);
   if (root == NULL) {
     return ESP_FAIL;
   }
@@ -147,14 +148,14 @@ esp_err_t playtt_api_provision(playtt_nvs_state_t *state) {
 }
 
 esp_err_t playtt_api_get_config(playtt_nvs_state_t *state) {
-  playtt_api_response_t response = {0};
+  memset(&s_work_response, 0, sizeof(s_work_response));
   esp_err_t err =
-      playtt_api_request(state, "GET", "/api/device/v1/config", NULL, true, &response);
+      playtt_api_request(state, "GET", "/api/device/v1/config", NULL, true, &s_work_response);
   if (err != ESP_OK) {
     return err;
   }
 
-  cJSON *root = cJSON_Parse(response.response);
+  cJSON *root = cJSON_Parse(s_work_response.response);
   if (root == NULL) {
     return ESP_FAIL;
   }
@@ -187,9 +188,9 @@ esp_err_t playtt_api_heartbeat(playtt_nvs_state_t *state, int64_t uptime_ms) {
            (long long)uptime_ms,
            (long)state->config_version);
 
-  playtt_api_response_t response = {0};
+  memset(&s_work_response, 0, sizeof(s_work_response));
   esp_err_t err = playtt_api_request(
-      state, "POST", "/api/device/v1/heartbeat", s_request_body, true, &response);
+      state, "POST", "/api/device/v1/heartbeat", s_request_body, true, &s_work_response);
   if (err != ESP_OK) {
     return err;
   }
@@ -199,14 +200,14 @@ esp_err_t playtt_api_heartbeat(playtt_nvs_state_t *state, int64_t uptime_ms) {
 }
 
 esp_err_t playtt_api_poll_commands(playtt_nvs_state_t *state) {
-  playtt_api_response_t response = {0};
+  memset(&s_work_response, 0, sizeof(s_work_response));
   esp_err_t err =
-      playtt_api_request(state, "GET", "/api/device/v1/commands", NULL, true, &response);
+      playtt_api_request(state, "GET", "/api/device/v1/commands", NULL, true, &s_work_response);
   if (err != ESP_OK) {
     return err;
   }
 
-  cJSON *root = cJSON_Parse(response.response);
+  cJSON *root = cJSON_Parse(s_work_response.response);
   if (root == NULL) {
     return ESP_OK;
   }
@@ -261,17 +262,18 @@ esp_err_t playtt_api_post_event(playtt_nvs_state_t *state,
            delta);
 
   esp_err_t err = playtt_api_request(
-      state, "POST", "/api/device/v1/events", s_request_body, true, response);
+      state, "POST", "/api/device/v1/events", s_request_body, true, response != NULL ? response : &s_work_response);
   if (err != ESP_OK) {
     return err;
   }
 
-  if (response != NULL) {
-    cJSON *root = cJSON_Parse(response->response);
+  playtt_api_response_t *parsed = response != NULL ? response : &s_work_response;
+  if (parsed->response[0] != '\0') {
+    cJSON *root = cJSON_Parse(parsed->response);
     if (root != NULL) {
       cJSON *data = cJSON_GetObjectItem(root, "data");
       cJSON *duplicate = data ? cJSON_GetObjectItem(data, "duplicate") : NULL;
-      response->duplicate = cJSON_IsTrue(duplicate);
+      parsed->duplicate = cJSON_IsTrue(duplicate);
       cJSON_Delete(root);
     }
   }
