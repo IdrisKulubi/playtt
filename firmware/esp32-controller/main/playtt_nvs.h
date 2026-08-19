@@ -24,5 +24,6 @@ typedef struct {
 esp_err_t playtt_nvs_init(void);
 esp_err_t playtt_nvs_load(playtt_nvs_state_t *state);
 esp_err_t playtt_nvs_save(const playtt_nvs_state_t *state);
+esp_err_t playtt_nvs_begin_boot(playtt_nvs_state_t *state);
 esp_err_t playtt_nvs_erase_all(void);
 bool playtt_nvs_run_setup_wizard(playtt_nvs_state_t *state);

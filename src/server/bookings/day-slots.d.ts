@@ -16,3 +16,8 @@ export function buildDaySlots(
   durationMinutes: number,
   timeZone?: string,
 ): { startsAt: Date; endsAt: Date }[]
+
+export function isSlotClosedForBooking(
+  startsAt: Date | string,
+  now?: Date | number,
+): boolean

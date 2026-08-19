@@ -5,6 +5,7 @@ import {
 } from "@/server/bookings/repository"
 import {
   buildDateTimeRange,
+  isSlotClosedForBooking,
   roundDateToSlot,
 } from "@/server/bookings/utils"
 import { assertBookingEditable } from "@/server/bookings/modifications/eligibility"
@@ -112,7 +113,7 @@ export async function quoteBookingModification(input: {
       )
     }
 
-    if (start <= new Date()) {
+    if (isSlotClosedForBooking(start)) {
       throw new BookingModificationError(
         "BOOKING_IN_PAST",
         "Bookings must be made for a future time.",

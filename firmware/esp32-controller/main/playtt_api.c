@@ -17,6 +17,30 @@ static char s_response_body[PLAYTT_HTTP_BODY_MAX];
 static playtt_api_response_t s_work_response;
 static char s_url[256];
 static char s_auth_header[256];
+static char s_last_error_code[48];
+
+const char *playtt_api_last_error_code(void) {
+  return s_last_error_code;
+}
+
+static void capture_error_code(const char *body) {
+  s_last_error_code[0] = '\0';
+  if (body == NULL || body[0] == '\0') {
+    return;
+  }
+
+  cJSON *root = cJSON_Parse(body);
+  if (root == NULL) {
+    return;
+  }
+
+  cJSON *code = cJSON_GetObjectItem(root, "code");
+  if (cJSON_IsString(code) && code->valuestring != NULL) {
+    strncpy(s_last_error_code, code->valuestring, sizeof(s_last_error_code) - 1);
+  }
+
+  cJSON_Delete(root);
+}
 
 static esp_err_t http_event_handler(esp_http_client_event_t *evt) {
   static int output_len = 0;
@@ -52,6 +76,7 @@ static esp_err_t playtt_api_request(playtt_nvs_state_t *state,
   snprintf(s_url, sizeof(s_url), "%s%s", state->base_url, path);
 
   memset(s_response_body, 0, sizeof(s_response_body));
+  s_last_error_code[0] = '\0';
   if (response != NULL) {
     memset(response, 0, sizeof(*response));
   }
@@ -99,6 +124,7 @@ static esp_err_t playtt_api_request(playtt_nvs_state_t *state,
   esp_http_client_cleanup(client);
 
   if (status < 200 || status >= 300) {
+    capture_error_code(s_response_body);
     ESP_LOGE(TAG, "HTTP %d for %s: %s", status, path, s_response_body);
     return ESP_FAIL;
   }

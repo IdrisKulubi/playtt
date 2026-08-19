@@ -147,6 +147,13 @@ esp_err_t playtt_nvs_save(const playtt_nvs_state_t *state) {
   return err;
 }
 
+esp_err_t playtt_nvs_begin_boot(playtt_nvs_state_t *state) {
+  generate_boot_id(state->boot_id, sizeof(state->boot_id));
+  state->next_sequence = 1;
+  ESP_LOGI(TAG, "new boot %s sequence=1", state->boot_id);
+  return playtt_nvs_save(state);
+}
+
 esp_err_t playtt_nvs_erase_all(void) {
   return nvs_flash_erase();
 }

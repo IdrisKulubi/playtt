@@ -23,7 +23,7 @@ Quick checklist for flashing your **ESP32-S3-N16R8** against production PlayTT.
 ## Verify scoring
 
 - Serial: type `a` then `b`
-- Or press GPIO4 / GPIO5 / BOOT
+- Or press red (GPIO15 / side A) / blue (GPIO16 / side B) / BOOT
 - TV and scoreboard should update within a few seconds
 
 ## Offline test

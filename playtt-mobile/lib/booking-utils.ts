@@ -8,7 +8,8 @@ export function extraPlayerSurcharge(groupSize: number) {
 }
 
 export function isSlotStartInPast(startsAtIso: string, nowMs = Date.now()) {
-  return new Date(startsAtIso).getTime() <= nowMs
+  const slotIntervalMs = 30 * 60 * 1000
+  return nowMs >= new Date(startsAtIso).getTime() + slotIntervalMs
 }
 
 export function formatPricingTierLabel(

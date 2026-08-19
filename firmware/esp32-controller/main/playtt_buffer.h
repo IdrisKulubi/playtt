@@ -17,6 +17,7 @@ typedef struct {
 
 typedef struct {
   playtt_score_event_t events[PLAYTT_MAX_EVENT_QUEUE];
+  char boot_id[40];
   int head;
   int tail;
   int count;

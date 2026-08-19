@@ -6,12 +6,20 @@ Flashable firmware for the PlayTT device v1 HTTPS protocol. Targets **ESP32-S3-N
 
 | Pin | Role |
 |-----|------|
-| GPIO4 | Side A button (active low, internal pull-up) |
-| GPIO5 | Side B button (active low, internal pull-up) |
+| GPIO15 | Side A (red button switch) |
+| GPIO16 | Side B (blue button switch) |
+| GND | Both button grounds |
 | GPIO0 | BOOT button (also scores side A for smoke tests) |
 | GPIO2 | Status LED |
 
-Wire each button between the GPIO and **GND**.
+Wire each button between its GPIO and **GND** (active low, internal pull-up).
+
+| Button | Wire | ESP32 pin |
+|--------|------|-----------|
+| Red | switch pin | GPIO15 (side A) |
+| Red | switch pin | GND |
+| Blue | switch pin | GPIO16 (side B) |
+| Blue | switch pin | GND |
 
 ## Prerequisites (Windows)
 
@@ -73,7 +81,7 @@ In the serial monitor:
 - `b` — point for side B
 - `u` — correction undo on side A
 
-Pressing GPIO buttons or BOOT should update the hosted TV/kiosk.
+Pressing the red (A) or blue (B) table buttons, or BOOT, should update the hosted TV/kiosk.
 
 ## Reset / reprovision
 
@@ -92,7 +100,7 @@ Then create a **new** enrollment code on theplaytt.com (codes are one-time).
 | `SESSION_INACTIVE` | Start/confirm active play session on assigned resource |
 | `SCORE_FORBIDDEN` | Assignment role must be `score_input` |
 | Provision 404 | Deploy latest PlayTT to production |
-| `SEQUENCE_GAP` | Reboot board (new bootId) or erase NVS |
+| `SEQUENCE_GAP` | Firmware now starts sequence 1 on each boot; reflash if you still see leftover seq numbers |
 
 ## Protocol reference
 
