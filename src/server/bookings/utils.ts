@@ -9,6 +9,7 @@ export {
   buildDaySlots,
   getZonedDay,
   getZonedHours,
+  isSlotClosedForBooking,
   sameBookingDay,
   zonedWallTime,
 } from "./day-slots.mjs";

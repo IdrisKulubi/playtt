@@ -133,3 +133,11 @@ export function buildDaySlots(
 
   return slots
 }
+
+export function isSlotClosedForBooking(startsAt, now = new Date()) {
+  const startMs =
+    startsAt instanceof Date ? startsAt.getTime() : new Date(startsAt).getTime()
+  const nowMs = now instanceof Date ? now.getTime() : Number(now)
+
+  return nowMs >= startMs + BOOKING_SLOT_INTERVAL_MINUTES * 60 * 1000
+}

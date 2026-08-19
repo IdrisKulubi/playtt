@@ -24,3 +24,4 @@ esp_err_t playtt_api_post_event(playtt_nvs_state_t *state,
                                 const char *side,
                                 int delta,
                                 playtt_api_response_t *response);
+const char *playtt_api_last_error_code(void);

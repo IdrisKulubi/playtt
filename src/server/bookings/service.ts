@@ -3,6 +3,7 @@ import {
   buildDateTimeRange,
   buildDaySlots,
   getPendingBookingExpiry,
+  isSlotClosedForBooking,
   roundDateToSlot,
 } from "@/server/bookings/utils"
 import { calculateBookingQuote } from "@/server/bookings/pricing"
@@ -63,7 +64,7 @@ export async function getBookingQuote(
     parsed.durationMinutes,
   )
 
-  if (start <= new Date()) {
+  if (isSlotClosedForBooking(start)) {
     throw new Error("Bookings must be made for a future time.")
   }
 
@@ -118,7 +119,7 @@ export async function getLocationAvailability(
   const now = new Date()
 
   return slots.map((slot) => {
-    const slotInPast = slot.startsAt <= now
+    const slotInPast = isSlotClosedForBooking(slot.startsAt, now)
 
     const availableResourceIds = slotInPast
       ? []
@@ -194,7 +195,7 @@ export async function createPendingBooking(
     throw new Error("Bookings must start on a 30-minute boundary.")
   }
 
-  if (start <= new Date()) {
+  if (isSlotClosedForBooking(start)) {
     throw new Error("Bookings must be made for a future time.")
   }
 

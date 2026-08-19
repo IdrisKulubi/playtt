@@ -1,7 +1,12 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { buildDaySlots, getZonedHours, zonedWallTime } from "./day-slots.mjs"
+import {
+  buildDaySlots,
+  getZonedHours,
+  isSlotClosedForBooking,
+  zonedWallTime,
+} from "./day-slots.mjs"
 
 const TIME_ZONE = "Africa/Nairobi"
 const DATE_KEY = "2026-08-19"
@@ -34,4 +39,13 @@ test("Nairobi wall clock hours stay stable regardless of server timezone", () =>
   assert.equal(lateEvening.toISOString(), "2026-08-19T19:00:00.000Z")
   assert.equal(getZonedHours(peakStart, TIME_ZONE), 18)
   assert.equal(getZonedHours(lateEvening, TIME_ZONE), 22)
+})
+
+test("current 30-minute slot stays bookable until the next slot starts", () => {
+  const startsAt = zonedWallTime(DATE_KEY, 18, 30, TIME_ZONE)
+  const stillOpen = new Date(startsAt.getTime() + 2 * 60 * 1000)
+  const nextSlot = new Date(startsAt.getTime() + 30 * 60 * 1000)
+
+  assert.equal(isSlotClosedForBooking(startsAt, stillOpen), false)
+  assert.equal(isSlotClosedForBooking(startsAt, nextSlot), true)
 })

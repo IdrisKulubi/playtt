@@ -3,6 +3,7 @@
 import { format, isSameDay, isToday } from "date-fns"
 import { ArrowLeftIcon, MapPinIcon } from "@phosphor-icons/react"
 
+import { isSlotStartInPast } from "@/components/bookings/booking-utils"
 import { SlotRow } from "@/components/bookings/slot-row"
 import { Button } from "@/components/ui/button"
 import type { LocationSummary, SlotAvailability } from "@/server/bookings/types"
@@ -180,7 +181,7 @@ export function TimingPanel({
         ) : (
           slots.map((slot) => {
             const selected = selectedSlot?.startsAt === slot.startsAt
-            const startInPast = new Date(slot.startsAt).getTime() <= nowMs
+            const startInPast = isSlotStartInPast(slot.startsAt, nowMs)
             const rowDisabled = !slot.isAvailable || isPending || startInPast
 
             return (

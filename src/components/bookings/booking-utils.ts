@@ -1,7 +1,7 @@
 import { subHours } from "date-fns"
 
 import { formatUnknownEnumValue } from "@/lib/compatibility/status-values"
-import { BOOKING_EDIT_CUTOFF_HOURS } from "@/server/bookings/constants"
+import { BOOKING_EDIT_CUTOFF_HOURS, BOOKING_SLOT_INTERVAL_MINUTES } from "@/server/bookings/constants"
 import type { SlotAvailability, UserBookingSummary } from "@/server/bookings/types"
 
 export const GROUP_SIZE_OPTIONS = [2, 3, 4, 5, 6, 7, 8] as const
@@ -24,7 +24,10 @@ export function formatPricingTierLabel(
 }
 
 export function isSlotStartInPast(startsAtIso: string, nowMs: number): boolean {
-  return new Date(startsAtIso).getTime() <= nowMs
+  return (
+    nowMs >=
+    new Date(startsAtIso).getTime() + BOOKING_SLOT_INTERVAL_MINUTES * 60 * 1000
+  )
 }
 
 export function availabilitySubtitle(
