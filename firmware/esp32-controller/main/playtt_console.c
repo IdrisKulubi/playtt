@@ -36,3 +36,9 @@ esp_err_t playtt_console_init_interactive(void) {
 
   return ESP_OK;
 }
+
+void playtt_console_set_nonblocking(void) {
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+  fcntl(fileno(stdin), F_SETFL, O_NONBLOCK);
+#endif
+}
