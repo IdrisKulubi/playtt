@@ -56,7 +56,10 @@ export function AdminShell({
         <p className="mt-4 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
           Admin
         </p>
-        <nav aria-label="Admin navigation" className="player-shell__nav">
+        <nav
+          aria-label="Admin navigation"
+          className="player-shell__nav max-h-[calc(100vh-12rem)] overflow-y-auto"
+        >
           {navigation.map(({ href, label, icon: Icon, exact }) => {
             const active = exact
               ? pathname === href
@@ -104,8 +107,11 @@ export function AdminShell({
         <div className="player-shell__content">{children}</div>
       </section>
 
-      <nav aria-label="Admin navigation" className="player-shell__mobile-nav">
-        {navigation.slice(0, 5).map(({ href, label, icon: Icon, exact }) => {
+      <nav
+        aria-label="Admin navigation"
+        className="player-shell__mobile-nav overflow-x-auto"
+      >
+        {navigation.map(({ href, label, icon: Icon, exact }) => {
           const active = exact
             ? pathname === href
             : pathname === href || pathname.startsWith(`${href}/`)

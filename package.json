@@ -13,7 +13,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "node --env-file=.env.local scripts/run-seed-phase1.mjs",
+    "admin:promote-owner": "node --env-file=.env.local scripts/promote-admin-owner.mjs",
     "db:validate": "node scripts/validate-migrations.mjs",
     "db:validate:strict": "node scripts/validate-migrations.mjs --strict",
     "db:replay-lineage": "node scripts/replay-drizzle-lineage.mjs",

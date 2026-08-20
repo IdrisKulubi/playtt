@@ -9,3 +9,11 @@ export function canAccessAdminShell(role) {
 export function canManageAdminPlatform(role) {
   return role === "owner"
 }
+
+export function canManageAdminCatalog(role) {
+  return canPerformTenantAction(role, "catalog.manage")
+}
+
+export function canManageAdminMembers(role) {
+  return canPerformTenantAction(role, "membership.manage")
+}

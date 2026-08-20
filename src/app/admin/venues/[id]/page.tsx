@@ -18,7 +18,7 @@ type PageProps = {
 
 export default async function AdminVenueDetailPage({ params }: PageProps) {
   const { id } = await params
-  const { context, isOwner } = await requireAdminPageAccess()
+  const { context, canManageCatalog } = await requireAdminPageAccess()
   const detail = await getVenueCatalogDetail(context, id)
 
   if (!detail) {
@@ -41,7 +41,7 @@ export default async function AdminVenueDetailPage({ params }: PageProps) {
           </Button>
         </div>
         <OperatorVenueDetail detail={detail} canManage={canManage} />
-        {isOwner ? (
+        {canManageCatalog ? (
           <AdminVenueCatalogForms
             venueId={id}
             zones={detail.zones.map((zone) => ({ id: zone.id, name: zone.name }))}
