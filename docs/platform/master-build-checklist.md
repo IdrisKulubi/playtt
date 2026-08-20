@@ -355,7 +355,7 @@ Done means:
 
 ### P1-06/P1-07 — Operator catalog and legacy compatibility
 
-- [ ] Build authorized operator create/update screens/APIs for tenants, venues, zones, resources, capabilities, and memberships. Current catalog and membership surfaces are primarily inspection-only.
+- [x] Build authorized admin create/update screens/APIs for venues, zones, resources, memberships, vendors, and platform analytics. `/operator/*` redirects to `/admin`.
 - [x] Preserve existing unversioned web/mobile contracts and IDs.
 - [x] Add fields only; feature-flag new tenant/operator behavior.
 

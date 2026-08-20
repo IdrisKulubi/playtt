@@ -18,9 +18,11 @@ There is no shared package or root workspace orchestrator.
 
 | Layer | Path | Responsibility |
 |-------|------|----------------|
-| Routes | `src/app/` | App Router pages + `api/auth/[...all]` |
+| Routes | `src/app/` | App Router pages + `api/auth/[...all]`; Super Admin console at `src/app/admin/` (`/admin/*`; legacy `/operator/*` redirects) |
 | Actions | `src/actions/` | Server Actions (thin; delegate to server/) |
 | Domain | `src/server/bookings/` | service, repository, pricing, validators, types, constants |
+| Admin | `src/server/admin/` | Super Admin analytics, members, vendors; gate at `gate.ts` |
+| Operator (legacy reads) | `src/server/operator/` | Tenant catalog reads, durable work; shared with admin shell |
 | UI | `src/components/` | auth, bookings, home, layout, ui (shadcn) |
 | Emails | `src/emails/` | React Email templates |
 | DB | `db/` | Drizzle schema + client |

@@ -67,7 +67,7 @@ The venue owner/operator (You). Responsible for monitoring system health, managi
 ### Phase 1: Daily Monitoring & Analytics
 * **Action:** Admin opens the web dashboard on their laptop.
 * **Flow:**
-  1. Logs into the Admin portal.
+  1. Logs into the Admin portal at `/admin`.
   2. Views the "Live Status" dashboard: Shows which pods are currently occupied, upcoming bookings for the day, and live hardware statuses (e.g., "Door Locked", "Lights ON").
   3. Checks the "Revenue" tab: Views M-Pesa settlements and calculates daily peak vs. off-peak earnings.
 

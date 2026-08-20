@@ -143,7 +143,11 @@ When mobile uses the hosted API, ensure these are set on the server (e.g. Vercel
 | `DEVICE_REGISTRY_ENABLED`  | `src/server/devices/feature-policy`  | Set `true` to allow `/operator/devices` when no `device_registry` flag row exists                |
 | `PUBLIC_VENUE_API_ENABLED` | `src/server/catalog/feature-policy`  | Set `true` to allow the public venue API when no `public_venue_api` flag row exists              |
 
-Phase 1 seed inserts enabled `operator_shell` and `device_registry` rows for the PlayTT tenant. Operator roles are still assigned explicitly; customer memberships cannot open `/operator`.
+Phase 1 seed inserts enabled `operator_shell` and `device_registry` rows for the PlayTT tenant. Customer memberships cannot open `/admin`.
+
+| Variable | Used in | Purpose |
+| -------- | ------- | ------- |
+| `PLAYTT_ADMIN_EMAIL` | `scripts/run-seed-phase1.mjs` | Optional. Promotes the matching user to PlayTT `owner` membership after seed (Super Admin access). |
 
 ## Notes
 

@@ -134,6 +134,13 @@
       "when": 1786997000000,
       "tag": "0018_score_events",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1787261168697,
+      "tag": "0019_integration_vendors",
+      "breakpoints": true
     }
   ]
 }

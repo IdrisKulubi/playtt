@@ -11,7 +11,7 @@ Quick checklist for flashing your **ESP32-S3-N16R8** against production PlayTT.
 
 ## Operator steps
 
-1. Go to https://www.theplaytt.com/operator/devices
+1. Go to https://www.theplaytt.com/admin/devices
 2. Create enrollment → type **esp32_controller** → copy code
 3. Flash firmware (see [`firmware/esp32-controller/README.md`](../../firmware/esp32-controller/README.md))
 4. Complete serial wizard (Wi-Fi + enrollment code)

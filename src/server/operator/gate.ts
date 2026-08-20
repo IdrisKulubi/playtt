@@ -16,7 +16,7 @@ export async function requireOperatorPageAccess(): Promise<OperatorPageAccess> {
   const session = await auth.api.getSession({ headers: await headers() })
 
   if (!session?.user?.id) {
-    redirect("/sign-in?callbackUrl=/operator")
+    redirect("/sign-in?callbackUrl=/admin")
   }
 
   const context = await resolveTenantContextFromWebSession()
