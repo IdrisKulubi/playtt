@@ -58,6 +58,9 @@
     },
     "0018_score_events": {
       "sha256": "ab82444c726610ec8d152111dbc166ce6f869234c6635c4cba08c4f2f1757b7d"
+    },
+    "0019_integration_vendors": {
+      "sha256": "9e12f1a7526073dd027f40e71415607c4685e5d18418b4b76f29c5f43251e339"
     }
   },
   "acknowledgedMetadataDrift": [],

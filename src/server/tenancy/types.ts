@@ -16,6 +16,7 @@ export type TenantAction =
   | "membership.manage"
   | "catalog.read"
   | "catalog.manage"
+  | "analytics.read"
 
 export type TenantActorType = "user" | "device" | "service"
 

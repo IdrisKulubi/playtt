@@ -54,8 +54,10 @@ export function OperatorOverviewCards({
 
 export function OperatorVenueList({
   overview,
+  venueHrefPrefix = "/operator/venues",
 }: {
   overview: OperatorCatalogOverview
+  venueHrefPrefix?: string
 }) {
   if (overview.venues.length === 0) {
     return (
@@ -76,7 +78,7 @@ export function OperatorVenueList({
         {overview.venues.map(({ venue, zoneCount, resourceCount, capabilityCount }) => (
           <Link
             key={venue.id}
-            href={`/operator/venues/${venue.id}`}
+            href={`${venueHrefPrefix}/${venue.id}`}
             className="flex items-center justify-between rounded-2xl border border-white/8 bg-background/40 px-4 py-3 transition hover:border-white/16"
           >
             <div>

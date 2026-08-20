@@ -251,6 +251,25 @@ export const deviceCommandKindEnum = pgEnum("device_command_kind", [
   "reboot",
 ]);
 
+export const integrationVendorKindEnum = pgEnum("integration_vendor_kind", [
+  "ttlock",
+  "camera",
+  "esp32",
+  "paystack",
+  "other",
+]);
+
+export const integrationVendorStatusEnum = pgEnum("integration_vendor_status", [
+  "active",
+  "inactive",
+]);
+
+export const venueIntegrationStatusEnum = pgEnum("venue_integration_status", [
+  "active",
+  "inactive",
+  "pending",
+]);
+
 export const scoreEventKindEnum = pgEnum("score_event_kind", [
   "point",
   "correction",
@@ -784,6 +803,90 @@ export const featureFlags = pgTable(
   (table) => [
     uniqueIndex("feature_flags_tenant_key_unique").on(table.tenantId, table.key),
     index("feature_flags_tenant_id_idx").on(table.tenantId),
+  ],
+);
+
+export const integrationVendors = pgTable(
+  "integration_vendors",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    kind: integrationVendorKindEnum("kind").notNull(),
+    status: integrationVendorStatusEnum("status").default("active").notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("integration_vendors_tenant_id_unique").on(
+      table.tenantId,
+      table.id,
+    ),
+    index("integration_vendors_tenant_id_idx").on(table.tenantId),
+    index("integration_vendors_tenant_status_idx").on(
+      table.tenantId,
+      table.status,
+    ),
+  ],
+);
+
+export const venueIntegrations = pgTable(
+  "venue_integrations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
+    vendorId: uuid("vendor_id")
+      .notNull()
+      .references(() => integrationVendors.id, { onDelete: "restrict" }),
+    status: venueIntegrationStatusEnum("status").default("pending").notNull(),
+    config: jsonb("config").$type<Record<string, unknown>>(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("venue_integrations_tenant_id_unique").on(
+      table.tenantId,
+      table.id,
+    ),
+    uniqueIndex("venue_integrations_tenant_location_vendor_unique").on(
+      table.tenantId,
+      table.locationId,
+      table.vendorId,
+    ),
+    index("venue_integrations_tenant_id_idx").on(table.tenantId),
+    index("venue_integrations_location_id_idx").on(table.locationId),
+    index("venue_integrations_vendor_id_idx").on(table.vendorId),
+    index("venue_integrations_tenant_status_idx").on(table.tenantId, table.status),
+    foreignKey({
+      columns: [table.tenantId, table.locationId],
+      foreignColumns: [locations.tenantId, locations.id],
+      name: "venue_integrations_tenant_location_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.tenantId, table.vendorId],
+      foreignColumns: [integrationVendors.tenantId, integrationVendors.id],
+      name: "venue_integrations_tenant_vendor_fk",
+    }).onDelete("restrict"),
   ],
 );
 
@@ -2173,6 +2276,8 @@ export const tenantRelations = relations(tenants, ({ many }) => ({
   accessPoints: many(accessPoints),
   accessPointResources: many(accessPointResources),
   featureFlags: many(featureFlags),
+  integrationVendors: many(integrationVendors),
+  venueIntegrations: many(venueIntegrations),
   auditLogs: many(auditLogs),
   bookings: many(bookings),
   payments: many(payments),
@@ -2245,6 +2350,7 @@ export const locationRelations = relations(locations, ({ one, many }) => ({
   devices: many(devices),
   deviceEnrollments: many(deviceEnrollments),
   deviceAssignments: many(deviceAssignments),
+  venueIntegrations: many(venueIntegrations),
 }));
 
 export const zoneRelations = relations(zones, ({ one, many }) => ({
@@ -2344,6 +2450,35 @@ export const featureFlagRelations = relations(featureFlags, ({ one }) => ({
     references: [tenants.id],
   }),
 }));
+
+export const integrationVendorRelations = relations(
+  integrationVendors,
+  ({ one, many }) => ({
+    tenant: one(tenants, {
+      fields: [integrationVendors.tenantId],
+      references: [tenants.id],
+    }),
+    venueIntegrations: many(venueIntegrations),
+  }),
+);
+
+export const venueIntegrationRelations = relations(
+  venueIntegrations,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [venueIntegrations.tenantId],
+      references: [tenants.id],
+    }),
+    location: one(locations, {
+      fields: [venueIntegrations.locationId],
+      references: [locations.id],
+    }),
+    vendor: one(integrationVendors, {
+      fields: [venueIntegrations.vendorId],
+      references: [integrationVendors.id],
+    }),
+  }),
+);
 
 export const auditLogRelations = relations(auditLogs, ({ one }) => ({
   tenant: one(tenants, {

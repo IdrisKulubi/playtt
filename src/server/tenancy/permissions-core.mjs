@@ -11,6 +11,7 @@ export const TENANT_ACTIONS = [
   "membership.manage",
   "catalog.read",
   "catalog.manage",
+  "analytics.read",
 ]
 
 const CUSTOMER_ACTIONS = [
@@ -37,6 +38,7 @@ const OPERATOR_ACTIONS = [
   "catalog.read",
   "catalog.manage",
   "venue.manage",
+  "analytics.read",
 ]
 
 const OWNER_ACTIONS = [...OPERATOR_ACTIONS, "membership.manage"]
