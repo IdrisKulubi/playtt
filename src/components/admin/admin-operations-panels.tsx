@@ -3,9 +3,10 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 
+import { useAdminSearchFilter } from "@/components/admin/admin-context"
+import { AdminDashboardCard } from "@/components/admin/admin-dashboard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -23,130 +24,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { AdminBookingRow } from "@/server/admin/analytics-service"
 import type { AdminIntegrationVendor, AdminVenueIntegration } from "@/server/admin/vendors-service"
 import type { OperatorVenue } from "@/server/operator/types"
-
-export function AdminBookingsTable({
-  bookings,
-  venues,
-}: {
-  bookings: AdminBookingRow[]
-  venues: OperatorVenue[]
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Platform bookings ({bookings.length})</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>When</TableHead>
-              <TableHead>Player</TableHead>
-              <TableHead>Venue</TableHead>
-              <TableHead>Table</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Payment</TableHead>
-              <TableHead>Total</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {bookings.map((booking) => (
-              <TableRow key={booking.id}>
-                <TableCell className="whitespace-nowrap text-sm">
-                  {new Date(booking.startTime).toLocaleString()}
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <p>{booking.userName}</p>
-                    <p className="text-xs text-muted-foreground">{booking.userEmail}</p>
-                  </div>
-                </TableCell>
-                <TableCell>{booking.locationName}</TableCell>
-                <TableCell>{booking.resourceName}</TableCell>
-                <TableCell>
-                  <Badge variant="outline">{booking.status}</Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary">{booking.paymentStatus}</Badge>
-                </TableCell>
-                <TableCell>
-                  {booking.currency} {booking.totalAmount}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  )
-}
-
-export function AdminRevenuePanel({
-  byVenue,
-  byDay,
-}: {
-  byVenue: { locationName: string; totalAmount: string; paymentCount: number }[]
-  byDay: { day: string; totalAmount: string; paymentCount: number }[]
-}) {
-  return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>Revenue by venue (30 days)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Venue</TableHead>
-                <TableHead>Payments</TableHead>
-                <TableHead>Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {byVenue.map((row) => (
-                <TableRow key={row.locationName}>
-                  <TableCell>{row.locationName}</TableCell>
-                  <TableCell>{row.paymentCount}</TableCell>
-                  <TableCell>KES {Number(row.totalAmount).toLocaleString()}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Revenue by day (30 days)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Day</TableHead>
-                <TableHead>Payments</TableHead>
-                <TableHead>Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {byDay.map((row) => (
-                <TableRow key={row.day}>
-                  <TableCell>{row.day}</TableCell>
-                  <TableCell>{row.paymentCount}</TableCell>
-                  <TableCell>KES {Number(row.totalAmount).toLocaleString()}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
 
 export function AdminVendorsPanel({
   vendors,
@@ -168,6 +47,13 @@ export function AdminVendorsPanel({
   >("ttlock")
   const [attachVenueId, setAttachVenueId] = useState<string | undefined>()
   const [attachVendorId, setAttachVendorId] = useState<string | undefined>()
+
+  const filteredVendors = useAdminSearchFilter(vendors, (vendor) =>
+    [vendor.name, vendor.kind, vendor.status].join(" "),
+  )
+  const filteredIntegrations = useAdminSearchFilter(integrations, (row) =>
+    [row.locationName, row.vendorName, row.vendorKind, row.status].join(" "),
+  )
 
   async function handleCreateVendor() {
     setMessage(null)
@@ -209,11 +95,8 @@ export function AdminVendorsPanel({
     <div className="space-y-6">
       {canManage ? (
         <div className="grid gap-4 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Add integration vendor</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <AdminDashboardCard title="Add integration vendor">
+            <div className="space-y-3 p-5">
               <div className="space-y-2">
                 <Label htmlFor="vendor-name">Name</Label>
                 <Input
@@ -240,14 +123,11 @@ export function AdminVendorsPanel({
               <Button onClick={handleCreateVendor} disabled={isPending || !vendorName.trim()}>
                 Create vendor
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </AdminDashboardCard>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Attach vendor to venue</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <AdminDashboardCard title="Attach vendor to venue">
+            <div className="space-y-3 p-5">
               <Select value={attachVenueId} onValueChange={setAttachVenueId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Venue" />
@@ -278,55 +158,63 @@ export function AdminVendorsPanel({
               >
                 Attach integration
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </AdminDashboardCard>
         </div>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Vendors ({vendors.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
+      <AdminDashboardCard title={`Vendors (${filteredVendors.length})`}>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Kind</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredVendors.length === 0 ? (
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Kind</TableHead>
-                <TableHead>Status</TableHead>
+                <TableCell colSpan={3} className="py-8 text-center text-muted-foreground">
+                  {vendors.length === 0 ? "No vendors yet." : "No vendors match your search."}
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {vendors.map((vendor) => (
+            ) : (
+              filteredVendors.map((vendor) => (
                 <TableRow key={vendor.id}>
-                  <TableCell>{vendor.name}</TableCell>
+                  <TableCell className="font-medium">{vendor.name}</TableCell>
                   <TableCell>{vendor.kind}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{vendor.status}</Badge>
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </AdminDashboardCard>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Venue integrations ({integrations.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
+      <AdminDashboardCard title={`Venue integrations (${filteredIntegrations.length})`}>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Venue</TableHead>
+              <TableHead>Vendor</TableHead>
+              <TableHead>Kind</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredIntegrations.length === 0 ? (
               <TableRow>
-                <TableHead>Venue</TableHead>
-                <TableHead>Vendor</TableHead>
-                <TableHead>Kind</TableHead>
-                <TableHead>Status</TableHead>
+                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                  {integrations.length === 0
+                    ? "No venue integrations yet."
+                    : "No integrations match your search."}
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {integrations.map((row) => (
+            ) : (
+              filteredIntegrations.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell>{row.locationName}</TableCell>
                   <TableCell>{row.vendorName}</TableCell>
@@ -335,11 +223,11 @@ export function AdminVendorsPanel({
                     <Badge variant="outline">{row.status}</Badge>
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </AdminDashboardCard>
 
       {message ? <p className="text-sm text-destructive">{message}</p> : null}
     </div>

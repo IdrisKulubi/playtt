@@ -23,6 +23,7 @@ export interface AdminOverviewMetrics {
   pendingDevices: number
   venueCount: number
   memberCount: number
+  totalActiveResources: number
 }
 
 export interface AdminBookingRow {
@@ -123,6 +124,16 @@ export async function getAdminOverviewMetrics(
     .from(tenantMemberships)
     .where(eq(tenantMemberships.tenantId, context.tenantId))
 
+  const [totalActiveResourcesRow] = await db
+    .select({ value: count() })
+    .from(resources)
+    .where(
+      and(
+        eq(resources.tenantId, context.tenantId),
+        eq(resources.isActive, true),
+      ),
+    )
+
   return {
     todayBookings: Number(todayBookingsRow?.value ?? 0),
     activeSessions: Number(activeSessionsRow?.value ?? 0),
@@ -132,6 +143,7 @@ export async function getAdminOverviewMetrics(
     pendingDevices: Number(pendingDevicesRow?.value ?? 0),
     venueCount: Number(venueCountRow?.value ?? 0),
     memberCount: Number(memberCountRow?.value ?? 0),
+    totalActiveResources: Number(totalActiveResourcesRow?.value ?? 0),
   }
 }
 
