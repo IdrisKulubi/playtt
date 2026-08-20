@@ -24,6 +24,8 @@ static int64_t s_last_press_b_us = 0;
 static bool s_side_a_down = false;
 static bool s_side_b_down = false;
 static bool s_boot_down = false;
+static bool s_seen_idle_a = false;
+static bool s_seen_idle_b = false;
 static bool s_network_ready = false;
 static bool s_time_synced = false;
 static bool s_scoring_ready = false;
@@ -195,6 +197,13 @@ static void handle_buttons(void) {
   bool side_b = gpio_level_b() == 0;
   bool boot = gpio_level_boot() == 0;
 
+  if (!side_a) {
+    s_seen_idle_a = true;
+  }
+  if (!side_b) {
+    s_seen_idle_b = true;
+  }
+
   if (!s_scoring_ready) {
     s_side_a_down = side_a;
     s_side_b_down = side_b;
@@ -202,12 +211,12 @@ static void handle_buttons(void) {
     return;
   }
 
-  if (side_a && !s_side_a_down && debounce_side(&s_last_press_a_us)) {
+  if (s_seen_idle_a && side_a && !s_side_a_down && debounce_side(&s_last_press_a_us)) {
     queue_press("point", "a", 1);
   }
   s_side_a_down = side_a;
 
-  if (side_b && !s_side_b_down && debounce_side(&s_last_press_b_us)) {
+  if (s_seen_idle_b && side_b && !s_side_b_down && debounce_side(&s_last_press_b_us)) {
     queue_press("point", "b", 1);
   }
   s_side_b_down = side_b;
@@ -266,6 +275,14 @@ static esp_err_t bootstrap_device(void) {
   printf("\nReady. Serial: a=point A, b=point B, u=undo A, g=gpio test\n");
   printf("GPIO: %d=A, %d=B, BOOT=%d\n\n", PLAYTT_GPIO_SIDE_A, PLAYTT_GPIO_SIDE_B, PLAYTT_GPIO_BOOT);
   s_scoring_ready = true;
+  s_side_a_down = gpio_level_a() == 0;
+  s_side_b_down = gpio_level_b() == 0;
+  s_boot_down = gpio_level_boot() == 0;
+  if (s_side_a_down || s_side_b_down) {
+    ESP_LOGW(TAG,
+             "GPIO15/16 are stuck LOW. Those pads are shorted to GND (LED wires or solder). "
+             "Serial a/b still works. Buttons will score only after a pin returns to idle=1.");
+  }
 
   return ESP_OK;
 }
@@ -285,6 +302,8 @@ void app_main(void) {
       vTaskDelay(pdMS_TO_TICKS(20));
     }
   }
+
+  playtt_console_set_nonblocking();
 
   while (true) {
     handle_buttons();
