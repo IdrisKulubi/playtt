@@ -4,6 +4,8 @@ import { redirect } from "next/navigation"
 import { auth } from "../../../auth"
 import {
   canAccessAdminShell,
+  canManageAdminCatalog,
+  canManageAdminMembers,
   canManageAdminPlatform,
 } from "@/server/admin/access.mjs"
 import { isOperatorShellEnabledForTenant } from "@/server/operator/feature-policy"
@@ -14,6 +16,8 @@ export type AdminPageAccess = {
   userId: string
   context: TenantContext
   isOwner: boolean
+  canManageCatalog: boolean
+  canManageMembers: boolean
 }
 
 export async function requireAdminPageAccess(): Promise<AdminPageAccess> {
@@ -37,6 +41,8 @@ export async function requireAdminPageAccess(): Promise<AdminPageAccess> {
     userId: session.user.id,
     context,
     isOwner: canManageAdminPlatform(context.role),
+    canManageCatalog: canManageAdminCatalog(context.role),
+    canManageMembers: canManageAdminMembers(context.role),
   }
 }
 

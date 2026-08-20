@@ -10,7 +10,7 @@ import { listVenues } from "@/server/operator/service"
 export const dynamic = "force-dynamic"
 
 export default async function AdminVendorsPage() {
-  const { context, isOwner } = await requireAdminPageAccess()
+  const { context, canManageCatalog } = await requireAdminPageAccess()
   const [vendors, integrations, venues] = await Promise.all([
     listVendorsForAdmin(context),
     listVenueIntegrationsForAdmin(context),
@@ -23,7 +23,7 @@ export default async function AdminVendorsPage() {
         vendors={vendors}
         integrations={integrations}
         venues={venues}
-        canManage={isOwner || context.role === "operator"}
+        canManage={canManageCatalog}
       />
     </AdminShell>
   )
