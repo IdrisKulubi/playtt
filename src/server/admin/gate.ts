@@ -14,6 +14,8 @@ import type { TenantContext } from "@/server/tenancy/types"
 
 export type AdminPageAccess = {
   userId: string
+  userName: string
+  userEmail: string
   context: TenantContext
   isOwner: boolean
   canManageCatalog: boolean
@@ -39,6 +41,8 @@ export async function requireAdminPageAccess(): Promise<AdminPageAccess> {
 
   return {
     userId: session.user.id,
+    userName: session.user.name,
+    userEmail: session.user.email,
     context,
     isOwner: canManageAdminPlatform(context.role),
     canManageCatalog: canManageAdminCatalog(context.role),

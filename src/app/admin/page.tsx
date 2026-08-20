@@ -1,50 +1,60 @@
 import Link from "next/link"
 
-import { AdminOverviewMetricsCards, AdminShell } from "@/components/admin/admin-shell"
+import { AdminBookingsTable } from "@/components/admin/admin-overview-charts"
+import { AdminKpiGrid } from "@/components/admin/admin-dashboard"
+import { AdminOverviewCharts } from "@/components/admin/admin-overview-charts"
 import { AdminSetupBanner } from "@/components/admin/admin-setup-banner"
-import { OperatorOverviewCards, OperatorVenueList } from "@/components/operator/operator-overview"
+import { AdminShell } from "@/components/admin/admin-shell"
+import { adminShellUser } from "@/components/admin/admin-utils"
 import { Button } from "@/components/ui/button"
-import { getOverviewForAdmin } from "@/server/admin/analytics-service"
+import {
+  getOverviewForAdmin,
+  getRevenueByDayForAdmin,
+  listBookingsForAdmin,
+} from "@/server/admin/analytics-service"
 import { requireAdminPageAccess } from "@/server/admin/gate"
-import { getCatalogOverview } from "@/server/operator/service"
 
 export const dynamic = "force-dynamic"
 
 export default async function AdminOverviewPage() {
-  const { context, isOwner, canManageCatalog, canManageMembers } =
-    await requireAdminPageAccess()
-  const [metrics, overview] = await Promise.all([
+  const access = await requireAdminPageAccess()
+  const { context, isOwner, canManageCatalog, canManageMembers } = access
+  const [metrics, revenueByDay, recentBookings] = await Promise.all([
     getOverviewForAdmin(context),
-    getCatalogOverview(context),
+    getRevenueByDayForAdmin(context, 30),
+    listBookingsForAdmin(context, { limit: 8 }),
   ])
 
   return (
-    <AdminShell title="Platform overview" eyebrow="Admin">
-      <div className="space-y-6">
-        {!isOwner ? <AdminSetupBanner role={context.role} /> : null}
-        <AdminOverviewMetricsCards metrics={metrics} />
-        {canManageCatalog || canManageMembers ? (
-          <div className="flex flex-wrap gap-3">
+    <AdminShell
+      title="Platform overview"
+      subtitle="Monitor revenue, occupancy, and bookings across PlayTT."
+      user={adminShellUser(access)}
+      actions={
+        canManageCatalog || canManageMembers ? (
+          <>
             {canManageCatalog ? (
-              <Button asChild>
+              <Button asChild size="sm">
                 <Link href="/admin/venues/new">Add venue</Link>
               </Button>
             ) : null}
-            {canManageMembers ? (
-              <Button asChild variant="outline">
-                <Link href="/admin/members">Manage members</Link>
-              </Button>
-            ) : null}
             {canManageCatalog ? (
-              <Button asChild variant="outline">
+              <Button asChild size="sm" variant="outline">
                 <Link href="/admin/vendors">Manage vendors</Link>
               </Button>
             ) : null}
-          </div>
-        ) : null}
-        <OperatorOverviewCards overview={overview} />
-        <OperatorVenueList overview={overview} venueHrefPrefix="/admin/venues" />
-      </div>
+          </>
+        ) : null
+      }
+    >
+      {!isOwner ? <AdminSetupBanner role={context.role} /> : null}
+      <AdminKpiGrid metrics={metrics} />
+      <AdminOverviewCharts metrics={metrics} revenueByDay={revenueByDay} />
+      <AdminBookingsTable
+        bookings={recentBookings}
+        title="Recent bookings"
+        showViewAll
+      />
     </AdminShell>
   )
 }

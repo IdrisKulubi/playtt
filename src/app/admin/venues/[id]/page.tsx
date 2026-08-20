@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 
 import { AdminVenueCatalogForms } from "@/components/admin/admin-catalog-forms"
 import { AdminShell } from "@/components/admin/admin-shell"
+import { adminShellUser } from "@/components/admin/admin-utils"
 import { OperatorVenueDetail } from "@/components/operator/operator-venue-detail"
 import { Button } from "@/components/ui/button"
 import { requireAdminPageAccess } from "@/server/admin/gate"
@@ -18,30 +19,33 @@ type PageProps = {
 
 export default async function AdminVenueDetailPage({ params }: PageProps) {
   const { id } = await params
-  const { context, canManageCatalog } = await requireAdminPageAccess()
-  const detail = await getVenueCatalogDetail(context, id)
+  const access = await requireAdminPageAccess()
+  const detail = await getVenueCatalogDetail(access.context, id)
 
   if (!detail) {
     notFound()
   }
 
-  const devices = await listDevicesForOperator(context, id)
-  const canManage = canPerformTenantAction(context.role, "catalog.manage")
+  const devices = await listDevicesForOperator(access.context, id)
+  const canManage = canPerformTenantAction(access.context.role, "catalog.manage")
 
   return (
     <AdminShell
       title={detail.venue.name}
-      eyebrow="Venue catalog"
+      subtitle={detail.venue.address}
       backHref="/admin/venues"
+      user={adminShellUser(access)}
+      actions={
+        <Button asChild size="sm" variant="outline">
+          <Link href={`/admin/devices?venueId=${id}`}>Devices ({devices.length})</Link>
+        </Button>
+      }
     >
       <div className="space-y-6">
-        <div className="flex flex-wrap gap-3">
-          <Button asChild variant="outline">
-            <Link href={`/admin/devices?venueId=${id}`}>Manage devices ({devices.length})</Link>
-          </Button>
+        <div className="admin-dashboard-card">
+          <OperatorVenueDetail detail={detail} canManage={canManage} />
         </div>
-        <OperatorVenueDetail detail={detail} canManage={canManage} />
-        {canManageCatalog ? (
+        {access.canManageCatalog ? (
           <AdminVenueCatalogForms
             venueId={id}
             zones={detail.zones.map((zone) => ({ id: zone.id, name: zone.name }))}
