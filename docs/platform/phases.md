@@ -39,7 +39,7 @@ flowchart LR
 | 1 | Tenant-aware venue/resource core | Phase 0 | New tenant features off | Ready to start |
 | 2 | Durable payment and play-session orchestration | Phase 1 | Worker consumers staged then enabled | **In progress** — P2-01 through P2-07 implemented; repaired hosted clone/DB acceptance remains |
 | 3 | Provisioned devices and authoritative scoring | Phase 2 | Per-resource device/scoring flags off | **In progress** — P3-01 through P3-04 implemented/hardened; hosted DB race/retry acceptance remains |
-| 4 | Private media metadata and R2 grants | Phase 2 | R2 media off outside internal cohort | Not started |
+| 4 | Private media metadata and R2 grants | Phase 2 | R2 media off outside internal cohort | **In progress** — P4-01 through P4-06 implemented locally; hosted R2 staging acceptance remains |
 | 5 | TTLock booking codes and relay automation | Phases 2 and 3 | Per-venue/provider flags off | Not started |
 | 6 | Venue-edge replay capture | Phases 3 and 4 | Per-resource replay flag off | Not started |
 | 7 | Operational and scale certification | Phases 5 and 6 | Progressive venue rollout | Not started |
@@ -191,14 +191,14 @@ Create secure, tenant-authorized media storage without exposing cloud credential
 
 ### Work packages
 
-| Ticket | Deliverable | Definition of done |
-| --- | --- | --- |
-| P4-01 | Media metadata | `media_assets` owns tenant/venue/resource/session/user scope, immutable object key, type, size, checksum, retention, and state. |
-| P4-02 | MediaStore and R2 adapter | Private dev/staging/prod buckets and exact-object operations are isolated behind a tested port. |
-| P4-03 | Authorized grants | Short-lived PUT/GET grants require database ownership and exact key, operation, content policy, and expiry. |
-| P4-04 | Upload completion | Callback or R2 event transitions metadata idempotently and can trigger processing. |
-| P4-05 | Existing replay compatibility | Current `replays` gain optional media linkage; legacy URLs remain explicit legacy assets until migrated and verified. |
-| P4-06 | Security configuration | Public access is disabled; scoped tokens, exact CORS, lifecycle, retention, deletion, and reconciliation are documented and reproducible. |
+| Ticket | Deliverable | Definition of done | Local status |
+| --- | --- | --- | --- |
+| P4-01 | Media metadata | `media_assets` owns tenant/venue/resource/session/user scope, immutable object key, type, size, checksum, retention, and state. | **Implemented** — migration `0020_media_assets`, `replays.media_asset_id`, `pnpm test:media` |
+| P4-02 | MediaStore and R2 adapter | Private dev/staging/prod buckets and exact-object operations are isolated behind a tested port. | **Implemented locally** — `src/server/media/` fake + R2 adapters; hosted bucket rollout pending |
+| P4-03 | Authorized grants | Short-lived PUT/GET grants require database ownership and exact key, operation, content policy, and expiry. | **Implemented** — `/api/v1/media/*` routes, owner-scoped authorization |
+| P4-04 | Upload completion | Callback or R2 event transitions metadata idempotently and can trigger processing. | **Implemented** — `media_event_inbox`, complete route, delete outbox consumer, reconciliation hook |
+| P4-05 | Existing replay compatibility | Current `replays` gain optional media linkage; legacy URLs remain explicit legacy assets until migrated and verified. | **Implemented** — dual-read in `listUserReplays`, legacy `playtt.local` preserved |
+| P4-06 | Security configuration | Public access is disabled; scoped tokens, exact CORS, lifecycle, retention, deletion, and reconciliation are documented and reproducible. | **Implemented locally** — [r2-security.md](./r2-security.md), secret scan patterns, `private_media` flag |
 
 ### Exit gate
 

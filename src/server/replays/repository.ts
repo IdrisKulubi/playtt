@@ -407,6 +407,7 @@ export async function listReplaysForUser(
       title: replays.metadata,
       status: replays.status,
       videoUrl: replays.videoUrl,
+      mediaAssetId: replays.mediaAssetId,
       requestedAt: replays.requestedAt,
       readyAt: replays.readyAt,
       locationName: locations.name,

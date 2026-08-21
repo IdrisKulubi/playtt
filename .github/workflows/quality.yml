@@ -90,6 +90,9 @@ jobs:
       - name: Test device API contracts
         run: pnpm test:devices
 
+      - name: Test private media contracts
+        run: pnpm test:media
+
       - name: Test catalog seed and venue mapper
         run: pnpm test:catalog
 

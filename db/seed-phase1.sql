@@ -300,7 +300,8 @@ select
 from (
   values
     ('operator_shell'),
-    ('device_registry')
+    ('device_registry'),
+    ('private_media')
 ) as flags(key)
 where not exists (
   select 1

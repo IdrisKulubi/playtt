@@ -25,6 +25,10 @@ import {
 } from "@/server/replays/repository"
 import { enqueueCoachAnalysis } from "@/server/coach/analysis"
 import { enqueueNvrClip } from "@/server/replays/nvr-worker"
+import { isLegacyReplayUrl } from "@/server/media/content-policy"
+import { isPrivateMediaEnabledForTenant } from "@/server/media/feature-policy"
+import { createPlaybackGrantForMediaAsset } from "@/server/media/service"
+import { listMediaAssetsByIds } from "@/server/media/repository"
 import { authorize } from "@/server/tenancy/authorize-context.mjs"
 import type { TenantContext } from "@/server/tenancy/types"
 
@@ -159,17 +163,56 @@ export async function requestReplayCapture(input: {
 export async function listUserReplays(context: TenantContext, userId: string) {
   authorize(context, "account.read")
   const rows = await listReplaysForUser(context, userId)
+  const privateMediaEnabled = await isPrivateMediaEnabledForTenant(context)
+  const mediaAssetIds = rows
+    .map((row) => row.mediaAssetId)
+    .filter((value): value is string => Boolean(value))
+  const mediaAssets = privateMediaEnabled
+    ? await listMediaAssetsByIds(context, mediaAssetIds)
+    : []
+  const mediaById = new Map(mediaAssets.map((asset) => [asset.id, asset]))
 
-  return rows.map((row) => ({
-    id: row.id,
-    title: metadataTitle(row.title as Record<string, unknown> | null),
-    recordedAt: (row.readyAt ?? row.requestedAt).toISOString(),
-    durationSeconds: REPLAY_CLIP_DURATION_SECONDS,
-    locationName: row.locationName,
-    status: row.status,
-    videoUrl: row.videoUrl,
-    bookingId: row.bookingId,
-  }))
+  return Promise.all(
+    rows.map(async (row) => {
+      let videoUrl = row.videoUrl
+      let mediaId: string | undefined
+      let playbackExpiresAt: string | undefined
+
+      if (privateMediaEnabled && row.mediaAssetId) {
+        const asset = mediaById.get(row.mediaAssetId)
+
+        if (asset?.status === "ready") {
+          try {
+            const grant = await createPlaybackGrantForMediaAsset({
+              context,
+              userId,
+              mediaId: asset.id,
+            })
+            videoUrl = grant.url
+            mediaId = asset.id
+            playbackExpiresAt = grant.expiresAt
+          } catch {
+            videoUrl = row.videoUrl
+          }
+        }
+      } else if (isLegacyReplayUrl(row.videoUrl)) {
+        videoUrl = row.videoUrl
+      }
+
+      return {
+        id: row.id,
+        title: metadataTitle(row.title as Record<string, unknown> | null),
+        recordedAt: (row.readyAt ?? row.requestedAt).toISOString(),
+        durationSeconds: REPLAY_CLIP_DURATION_SECONDS,
+        locationName: row.locationName,
+        status: row.status,
+        videoUrl,
+        bookingId: row.bookingId,
+        ...(mediaId ? { mediaId } : {}),
+        ...(playbackExpiresAt ? { playbackExpiresAt } : {}),
+      }
+    }),
+  )
 }
 
 export async function markReplayReady(input: {

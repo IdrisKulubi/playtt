@@ -61,6 +61,9 @@
     },
     "0019_integration_vendors": {
       "sha256": "9e12f1a7526073dd027f40e71415607c4685e5d18418b4b76f29c5f43251e339"
+    },
+    "0020_media_assets": {
+      "sha256": "750a198e961cd934faacbb26f204a1ba2ec6c6295dcbe2b4506503794d3405dc"
     }
   },
   "acknowledgedMetadataDrift": [],

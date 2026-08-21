@@ -277,6 +277,35 @@ export const scoreEventKindEnum = pgEnum("score_event_kind", [
 
 export const scoreSideEnum = pgEnum("score_side", ["a", "b"]);
 
+export const mediaKindEnum = pgEnum("media_kind", [
+  "source_video",
+  "preview_image",
+  "derived_video",
+]);
+
+export const mediaStatusEnum = pgEnum("media_status", [
+  "pending_upload",
+  "uploaded",
+  "ready",
+  "failed",
+  "deletion_pending",
+  "deleted",
+]);
+
+export const mediaRetentionClassEnum = pgEnum("media_retention_class", [
+  "session_short",
+  "replay_standard",
+  "replay_owned",
+]);
+
+export const mediaEventInboxStatusEnum = pgEnum("media_event_inbox_status", [
+  "received",
+  "processing",
+  "processed",
+  "failed",
+  "dead_letter",
+]);
+
 export const tenants = pgTable(
   "tenants",
   {
@@ -1762,6 +1791,109 @@ export const scoreSnapshots = pgTable(
   ],
 );
 
+export const mediaAssets = pgTable(
+  "media_assets",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
+    resourceId: uuid("resource_id")
+      .notNull()
+      .references(() => resources.id, { onDelete: "restrict" }),
+    playSessionId: uuid("play_session_id")
+      .notNull()
+      .references(() => playSessions.id, { onDelete: "restrict" }),
+    ownerUserId: text("owner_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    objectKey: text("object_key").notNull(),
+    kind: mediaKindEnum("kind").notNull(),
+    contentType: text("content_type"),
+    sizeBytes: integer("size_bytes"),
+    checksumSha256: text("checksum_sha256"),
+    expectedContentType: text("expected_content_type").notNull(),
+    expectedMaxBytes: integer("expected_max_bytes").notNull(),
+    status: mediaStatusEnum("status").default("pending_upload").notNull(),
+    retentionClass: mediaRetentionClassEnum("retention_class")
+      .default("replay_standard")
+      .notNull(),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true }),
+    readyAt: timestamp("ready_at", { withTimezone: true }),
+    deletionRequestedAt: timestamp("deletion_requested_at", {
+      withTimezone: true,
+    }),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("media_assets_object_key_unique").on(table.objectKey),
+    uniqueIndex("media_assets_tenant_id_unique").on(table.tenantId, table.id),
+    index("media_assets_tenant_id_idx").on(table.tenantId),
+    index("media_assets_play_session_id_idx").on(table.playSessionId),
+    index("media_assets_owner_user_id_idx").on(table.ownerUserId),
+    index("media_assets_status_idx").on(table.status),
+  ],
+);
+
+export const mediaEventInbox = pgTable(
+  "media_event_inbox",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id").references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
+    mediaId: uuid("media_id")
+      .notNull()
+      .references(() => mediaAssets.id, { onDelete: "restrict" }),
+    eventType: text("event_type").notNull(),
+    payloadHash: text("payload_hash").notNull(),
+    rawPayload: text("raw_payload").notNull(),
+    status: mediaEventInboxStatusEnum("status").default("received").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    lastError: text("last_error"),
+    availableAt: timestamp("available_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    leaseOwner: text("lease_owner"),
+    receivedAt: timestamp("received_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("media_event_inbox_media_event_payload_unique").on(
+      table.mediaId,
+      table.eventType,
+      table.payloadHash,
+    ),
+    index("media_event_inbox_status_received_idx").on(
+      table.status,
+      table.receivedAt,
+    ),
+    index("media_event_inbox_claim_idx").on(table.status, table.availableAt),
+    index("media_event_inbox_media_id_idx").on(table.mediaId),
+  ],
+);
+
 export const bookingStatusHistory = pgTable(
   "booking_status_history",
   {
@@ -1986,6 +2118,9 @@ export const replays = pgTable(
       .references(() => locations.id, { onDelete: "restrict" }),
     userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
     matchId: uuid("match_id").references(() => matches.id, { onDelete: "set null" }),
+    mediaAssetId: uuid("media_asset_id").references(() => mediaAssets.id, {
+      onDelete: "set null",
+    }),
     status: replayStatusEnum("status").default("queued").notNull(),
     videoUrl: text("video_url"),
     requestedAt: timestamp("requested_at", { withTimezone: true })
@@ -2002,6 +2137,7 @@ export const replays = pgTable(
     index("replays_booking_idx").on(table.bookingId, table.status),
     index("replays_play_session_id_idx").on(table.playSessionId),
     index("replays_user_requested_idx").on(table.userId, table.requestedAt),
+    index("replays_media_asset_id_idx").on(table.mediaAssetId),
   ],
 );
 
@@ -2886,7 +3022,47 @@ export const replayRelations = relations(replays, ({ one, many }) => ({
     fields: [replays.matchId],
     references: [matches.id],
   }),
+  mediaAsset: one(mediaAssets, {
+    fields: [replays.mediaAssetId],
+    references: [mediaAssets.id],
+  }),
   coachInsights: many(coachInsights),
+}));
+
+export const mediaAssetRelations = relations(mediaAssets, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [mediaAssets.tenantId],
+    references: [tenants.id],
+  }),
+  location: one(locations, {
+    fields: [mediaAssets.locationId],
+    references: [locations.id],
+  }),
+  resource: one(resources, {
+    fields: [mediaAssets.resourceId],
+    references: [resources.id],
+  }),
+  playSession: one(playSessions, {
+    fields: [mediaAssets.playSessionId],
+    references: [playSessions.id],
+  }),
+  owner: one(user, {
+    fields: [mediaAssets.ownerUserId],
+    references: [user.id],
+  }),
+  replays: many(replays),
+  inboxEvents: many(mediaEventInbox),
+}));
+
+export const mediaEventInboxRelations = relations(mediaEventInbox, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [mediaEventInbox.tenantId],
+    references: [tenants.id],
+  }),
+  mediaAsset: one(mediaAssets, {
+    fields: [mediaEventInbox.mediaId],
+    references: [mediaAssets.id],
+  }),
 }));
 
 export const replayCreditBalanceRelations = relations(
