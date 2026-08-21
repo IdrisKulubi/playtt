@@ -2,7 +2,7 @@ import { type NextRequest } from "next/server"
 
 import { getRealtimeAdapter } from "@/server/realtime/broadcaster"
 import { getDisplaySnapshotForResource } from "@/server/realtime/display-query"
-import { resourceChannel } from "@/server/realtime/types"
+import { isReplayReadyHint, resourceChannel } from "@/server/realtime/types"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -42,6 +42,11 @@ export async function GET(req: NextRequest, routeContext: RouteContext) {
       send(`event: ready\ndata: ${JSON.stringify({ resourceId })}\n\n`)
 
       const subscription = adapter.subscribe(channel, (hint) => {
+        if (isReplayReadyHint(hint)) {
+          send(`event: replay\ndata: ${JSON.stringify(hint)}\n\n`)
+          return
+        }
+
         send(`event: score\ndata: ${JSON.stringify(hint)}\n\n`)
       })
 

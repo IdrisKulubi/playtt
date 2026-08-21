@@ -10,7 +10,7 @@ export function LiveScoreDisplay({
   resourceId: string
   variant: "kiosk" | "tv"
 }) {
-  const { payload, isLoading, error } = useLiveScore(resourceId)
+  const { payload, isLoading, error, replayOverlay } = useLiveScore(resourceId)
 
   if (isLoading && !payload) {
     return (
@@ -39,5 +39,21 @@ export function LiveScoreDisplay({
     )
   }
 
-  return <LiveScoreBoard payload={payload} variant={variant} />
+  return (
+    <>
+      <LiveScoreBoard payload={payload} variant={variant} />
+      {replayOverlay ? (
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
+          <video
+            key={replayOverlay.playbackUrl}
+            className="max-h-[80vh] w-full max-w-5xl rounded-2xl bg-black shadow-2xl"
+            autoPlay
+            muted
+            playsInline
+            src={replayOverlay.playbackUrl}
+          />
+        </div>
+      ) : null}
+    </>
+  )
 }

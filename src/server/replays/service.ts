@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto"
+
 import {
   getProductPaymentCallbackUrl,
   kesToPaystackAmount,
@@ -14,6 +16,8 @@ import {
   REPLAY_PACK_PRICE_KES,
 } from "@/server/replays/constants"
 import { ReplayServiceError } from "@/server/replays/errors"
+import { isReplayEdgeEnabledForTenant } from "@/server/replays/feature-policy"
+import { createReplayRequest } from "@/server/replays/replay-requests-service"
 import {
   debitReplayCredit,
   getActiveBookingForReplay,
@@ -23,6 +27,7 @@ import {
   insertProductPayment,
   listReplaysForUser,
 } from "@/server/replays/repository"
+import { getPlaySessionByBookingId } from "@/server/sessions/play-sessions"
 import { enqueueCoachAnalysis } from "@/server/coach/analysis"
 import { enqueueNvrClip } from "@/server/replays/nvr-worker"
 import { isLegacyReplayUrl } from "@/server/media/content-policy"
@@ -115,7 +120,41 @@ export async function requestReplayCapture(input: {
   context: TenantContext
   userId: string
   bookingId: string
+  playSessionId?: string
+  clientIdempotencyKey?: string
 }) {
+  if (await isReplayEdgeEnabledForTenant(input.context)) {
+    const playSessionId =
+      input.playSessionId ??
+      (await getPlaySessionByBookingId(input.context, input.bookingId))?.id
+
+    if (!playSessionId) {
+      throw new ReplayServiceError(
+        "SESSION_NOT_ACTIVE",
+        "Replay capture is only available during an active confirmed session.",
+        409,
+      )
+    }
+
+    const result = await createReplayRequest({
+      context: input.context,
+      userId: input.userId,
+      playSessionId,
+      clientIdempotencyKey:
+        input.clientIdempotencyKey ?? randomUUID(),
+    })
+
+    return {
+      replayId: result.replayId,
+      status: "queued" as const,
+      remainingCredits: result.remainingCredits,
+      podMessage: "Clipping your highlight…",
+      replayRequestId: result.replayRequestId,
+      mediaAssetId: result.mediaAssetId,
+      correlationId: result.correlationId,
+    }
+  }
+
   authorize(input.context, "booking.read")
   const booking = await getActiveBookingForReplay(input.context, {
     bookingId: input.bookingId,

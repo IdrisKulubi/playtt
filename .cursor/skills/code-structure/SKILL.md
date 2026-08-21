@@ -11,6 +11,7 @@ description: Maps PlayTT folders, conventions, and where to add new code. Use wh
 |-----------|-------|------|
 | Repo root | Next.js 16, React 19, Drizzle, better-auth, pnpm | Web, admin, API, database |
 | `playtt-mobile/` | Expo 54, React Native, Expo Router, npm | Mobile app |
+| `services/venue-edge/` | Node 22, SQLite, FFmpeg | Venue-local replay capture |
 
 There is no shared package or root workspace orchestrator.
 

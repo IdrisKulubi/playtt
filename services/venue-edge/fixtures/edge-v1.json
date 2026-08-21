@@ -1,0 +1,121 @@
+{
+  "version": "edge-v1",
+  "authHeader": "Authorization: Device <deviceId> <secret>",
+  "routes": {
+    "config": {
+      "method": "GET",
+      "path": "/api/edge/v1/config",
+      "response": {
+        "data": {
+          "configVersion": "number",
+          "assignment": {
+            "id": "uuid",
+            "locationId": "uuid",
+            "effectiveFrom": "datetime",
+            "effectiveTo": "datetime?"
+          },
+          "resourceId": "uuid",
+          "role": "venue_edge",
+          "config": "object"
+        }
+      }
+    },
+    "heartbeat": {
+      "method": "POST",
+      "path": "/api/edge/v1/heartbeat",
+      "request": {
+        "bootId": "string",
+        "observedAt": "datetime?",
+        "firmwareVersion": "string?",
+        "uptimeMs": "number?",
+        "metrics": "object?",
+        "appliedConfigVersion": "number?"
+      },
+      "response": {
+        "data": {
+          "health": "string",
+          "lastHeartbeatAt": "datetime",
+          "sampled": "boolean",
+          "pendingCommandCount": "number"
+        }
+      }
+    },
+    "commands": {
+      "method": "GET",
+      "path": "/api/edge/v1/commands",
+      "response": {
+        "data": {
+          "commands": [
+            {
+              "id": "uuid",
+              "kind": "capture_replay",
+              "payload": "CaptureReplayPayload",
+              "expiresAt": "datetime",
+              "correlationId": "string",
+              "attemptCount": "number"
+            }
+          ]
+        }
+      }
+    },
+    "commandAck": {
+      "method": "POST",
+      "path": "/api/edge/v1/commands/:commandId/ack",
+      "request": {
+        "idempotencyKey": "string",
+        "success": "boolean",
+        "result": "object?"
+      }
+    },
+    "uploadUrl": {
+      "method": "POST",
+      "path": "/api/edge/v1/media/:mediaId/upload-url",
+      "response": {
+        "data": {
+          "uploadGrant": {
+            "url": "string",
+            "expiresAt": "datetime"
+          }
+        }
+      }
+    },
+    "replayProgress": {
+      "method": "POST",
+      "path": "/api/edge/v1/replay-requests/:id/progress",
+      "request": {
+        "status": "edge_acknowledged | capturing | extracting | uploading | verifying | ready | edge_offline | buffer_missing | extraction_failed | upload_failed | expired | failed",
+        "failureReason": "string?"
+      }
+    }
+  },
+  "captureReplayPayload": {
+    "replayRequestId": "uuid",
+    "replayId": "uuid",
+    "mediaAssetId": "uuid",
+    "objectKey": "string",
+    "captureAt": "datetime",
+    "preRollSeconds": 12,
+    "postRollSeconds": 3,
+    "sourceType": "edge_buffer | nvr_playback",
+    "resourceId": "uuid",
+    "playSessionId": "uuid",
+    "uploadGrant": {
+      "url": "string",
+      "expiresAt": "datetime"
+    }
+  },
+  "progressStatuses": [
+    "edge_acknowledged",
+    "capturing",
+    "extracting",
+    "uploading",
+    "verifying",
+    "ready",
+    "edge_offline",
+    "buffer_missing",
+    "extraction_failed",
+    "upload_failed",
+    "expired",
+    "failed"
+  ]
+}

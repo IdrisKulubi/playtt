@@ -1,0 +1,296 @@
+import { mkdir } from "node:fs/promises"
+import { join } from "node:path"
+
+import {
+  commandMatchesEdgeAssignment,
+  resolveCameraSource,
+} from "../cameras/source"
+import type { EdgeV1Client, EdgeConfig } from "../cloud/client"
+import type { VenueEdgeEnv } from "../config/env"
+import { createReplayLimiter } from "../concurrency/limits"
+import { safeLog } from "../health/metrics"
+import type { EdgeRepositories } from "../local-storage/repositories"
+import type { LocalStoragePaths } from "../local-storage/paths"
+import { runDeterministicSimulatorCapture } from "../simulator/engine"
+import { uploadToPresignedUrl } from "../upload/direct-upload"
+import { renewUploadGrant } from "../upload/grant-client"
+import { RollingBufferVideoAdapter } from "../video-adapters/rolling-buffer-adapter"
+import { VigiNvrPlaybackAdapter } from "../video-adapters/vigi-nvr-playback-adapter"
+import type { VideoAdapter } from "../video-adapters/types"
+
+export interface ReplayOrchestratorDeps {
+  env: VenueEdgeEnv
+  client: EdgeV1Client
+  repositories: EdgeRepositories
+  paths: LocalStoragePaths
+  getEdgeConfig: () => EdgeConfig | null
+  fetchImpl?: typeof fetch
+}
+
+const PROGRESS_SEQUENCE = [
+  "edge_acknowledged",
+  "capturing",
+  "extracting",
+  "uploading",
+  "verifying",
+  "ready",
+] as const
+
+export class ReplayOrchestrator {
+  private readonly limiter
+
+  constructor(private readonly deps: ReplayOrchestratorDeps) {
+    this.limiter = createReplayLimiter(deps.env.maxConcurrentReplays)
+  }
+
+  async resumeJob(replayRequestId: string): Promise<void> {
+    const job = this.deps.repositories.getReplayJob(replayRequestId)
+    if (!job || job.status === "ready" || job.status === "failed") {
+      return
+    }
+
+    const command = this.deps.repositories.getCommandById(job.commandId)
+    if (!command) {
+      return
+    }
+
+    await this.processCaptureReplay(command.id, command.payload, {
+      resumeFrom: job.status,
+    })
+  }
+
+  async processCaptureReplay(
+    commandId: string,
+    payload: Parameters<ReplayOrchestrator["handleCapture"]>[1],
+    options: { resumeFrom?: string } = {},
+  ): Promise<void> {
+    return this.limiter.run(() =>
+      this.handleCapture(commandId, payload, options),
+    )
+  }
+
+  private async handleCapture(
+    commandId: string,
+    payload: import("../cloud/client.ts").CaptureReplayPayload,
+    options: { resumeFrom?: string },
+  ): Promise<void> {
+    const edgeConfig = this.deps.getEdgeConfig()
+    const validation = commandMatchesEdgeAssignment(
+      edgeConfig,
+      payload.resourceId,
+    )
+
+    if (!validation.accepted) {
+      safeLog("warn", "Rejected capture_replay command", {
+        commandId,
+        replayRequestId: payload.replayRequestId,
+        reason: validation.reason,
+      })
+
+      this.deps.repositories.updateCommandStatus(commandId, "rejected", {
+        reason: validation.reason,
+      })
+
+      await this.deps.client.acknowledgeCommand(commandId, {
+        idempotencyKey: `reject-${commandId}`,
+        success: false,
+        result: { reason: validation.reason },
+      })
+
+      return
+    }
+
+    const job = this.deps.repositories.createReplayJob({
+      commandId,
+      payload,
+      status: "pending",
+    })
+
+    if (job.status === "ready") {
+      safeLog("info", "Duplicate capture_replay ignored", {
+        replayRequestId: payload.replayRequestId,
+      })
+      return
+    }
+
+    const startIndex = options.resumeFrom
+      ? Math.max(0, PROGRESS_SEQUENCE.indexOf(options.resumeFrom as never))
+      : 0
+
+    try {
+      for (let index = startIndex; index < PROGRESS_SEQUENCE.length; index += 1) {
+        const status = PROGRESS_SEQUENCE[index]!
+        await this.advance(payload, status, commandId)
+      }
+
+      await this.deps.client.acknowledgeCommand(commandId, {
+        idempotencyKey: `ack-${commandId}`,
+        success: true,
+        result: { replayRequestId: payload.replayRequestId },
+      })
+
+      this.deps.repositories.updateCommandStatus(commandId, "acknowledged", {
+        replayRequestId: payload.replayRequestId,
+      })
+    } catch (error) {
+      const failureReason =
+        error instanceof Error ? error.message : "capture_failed"
+      const terminalStatus = mapFailureStatus(failureReason)
+
+      await this.deps.client.reportReplayProgress(payload.replayRequestId, {
+        status: terminalStatus,
+        failureReason,
+      })
+
+      this.deps.repositories.updateReplayJob(payload.replayRequestId, {
+        status: "failed",
+        failureReason,
+      })
+
+      this.deps.repositories.updateCommandStatus(commandId, "failed", {
+        reason: failureReason,
+      })
+
+      await this.deps.client.acknowledgeCommand(commandId, {
+        idempotencyKey: `fail-${commandId}`,
+        success: false,
+        result: { reason: failureReason },
+      })
+    }
+  }
+
+  private async advance(
+    payload: import("../cloud/client.ts").CaptureReplayPayload,
+    status: (typeof PROGRESS_SEQUENCE)[number],
+    commandId: string,
+  ): Promise<void> {
+    await this.deps.client.reportReplayProgress(payload.replayRequestId, {
+      status,
+    })
+
+    this.deps.repositories.updateReplayJob(payload.replayRequestId, {
+      status: status as never,
+    })
+
+    if (status === "extracting") {
+      await this.extractClip(payload)
+    }
+
+    if (status === "uploading") {
+      await this.uploadClip(payload)
+    }
+  }
+
+  private async extractClip(
+    payload: import("../cloud/client.ts").CaptureReplayPayload,
+  ): Promise<void> {
+    const edgeConfig = this.deps.getEdgeConfig()
+    const camera = resolveCameraSource(this.deps.env, edgeConfig)
+    const simulate = this.deps.env.mode === "simulate"
+
+    if (simulate) {
+      await runDeterministicSimulatorCapture({
+        payload,
+        paths: this.deps.paths,
+        repositories: this.deps.repositories,
+      })
+      return
+    }
+
+    const adapters: VideoAdapter[] = [
+      new RollingBufferVideoAdapter(
+        camera,
+        this.deps.paths,
+        this.deps.repositories,
+        { simulate },
+      ),
+      new VigiNvrPlaybackAdapter(
+        typeof edgeConfig?.config?.nvr === "object"
+          ? String((edgeConfig.config.nvr as Record<string, unknown>).model ?? "")
+          : undefined,
+      ),
+    ]
+
+    const outputDir = this.deps.paths.pendingForReplay(payload.replayRequestId)
+    await mkdir(outputDir, { recursive: true })
+    const outputPath = join(outputDir, "clip.mp4")
+
+    let lastError: Error | null = null
+
+    for (const adapter of adapters) {
+      if (!(await adapter.isAvailable())) {
+        continue
+      }
+
+      try {
+        const result = await adapter.extractClip({
+          replayRequestId: payload.replayRequestId,
+          captureAt: payload.captureAt,
+          preRollSeconds: payload.preRollSeconds,
+          postRollSeconds: payload.postRollSeconds,
+          outputPath,
+        })
+
+        this.deps.repositories.updateReplayJob(payload.replayRequestId, {
+          localClipPath: result.outputPath,
+        })
+
+        return
+      } catch (error) {
+        lastError =
+          error instanceof Error ? error : new Error(String(error))
+      }
+    }
+
+    throw lastError ?? new Error("buffer_missing")
+  }
+
+  private async uploadClip(
+    payload: import("../cloud/client.ts").CaptureReplayPayload,
+  ): Promise<void> {
+    const job = this.deps.repositories.getReplayJob(payload.replayRequestId)
+    if (!job?.localClipPath) {
+      throw new Error("upload_failed")
+    }
+
+    const grant = await renewUploadGrant(
+      this.deps.client,
+      payload.mediaAssetId,
+      job.uploadGrant ?? payload.uploadGrant,
+    )
+
+    this.deps.repositories.updateReplayJob(payload.replayRequestId, {
+      uploadGrant: grant,
+    })
+
+    if (this.deps.env.mode === "simulate") {
+      safeLog("info", "Simulator upload skipped (mock PUT)", {
+        replayRequestId: payload.replayRequestId,
+        bytes: "fixture",
+      })
+      return
+    }
+
+    await uploadToPresignedUrl({
+      grant,
+      filePath: job.localClipPath,
+      fetchImpl: this.deps.fetchImpl,
+    })
+  }
+}
+
+function mapFailureStatus(reason: string): import("../cloud/client.ts").ReplayProgressStatus {
+  if (reason === "buffer_missing") {
+    return "buffer_missing"
+  }
+
+  if (reason === "extraction_failed") {
+    return "extraction_failed"
+  }
+
+  if (reason === "upload_failed") {
+    return "upload_failed"
+  }
+
+  return "failed"
+}

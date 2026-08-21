@@ -8,6 +8,7 @@
 | Target | PlayTT Platform Engineering Specification v2.0 |
 | Delivery strategy | Foundation first, incremental modular monolith |
 | Companion roadmap | [phases.md](./phases.md) |
+| Replay edge spec | [replay-edge.md](./replay-edge.md) |
 | Execution playbook | [phase-build-and-test.md](./phase-build-and-test.md) |
 
 This document translates the target engineering specification into a repository-specific implementation design. It is intentionally incremental: existing authentication, booking, payment, account, and mobile flows remain operational while the platform becomes multi-tenant, multi-venue, device-aware, and capable of running autonomous venues.

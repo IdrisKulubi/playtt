@@ -39,9 +39,9 @@ flowchart LR
 | 1 | Tenant-aware venue/resource core | Phase 0 | New tenant features off | Ready to start |
 | 2 | Durable payment and play-session orchestration | Phase 1 | Worker consumers staged then enabled | **In progress** — P2-01 through P2-07 implemented; repaired hosted clone/DB acceptance remains |
 | 3 | Provisioned devices and authoritative scoring | Phase 2 | Per-resource device/scoring flags off | **In progress** — P3-01 through P3-04 implemented/hardened; hosted DB race/retry acceptance remains |
-| 4 | Private media metadata and R2 grants | Phase 2 | R2 media off outside internal cohort | **In progress** — P4-01 through P4-06 implemented locally; hosted R2 staging acceptance remains |
+| 4 | Private media metadata and R2 grants | Phase 2 | R2 media off outside internal cohort | **Complete** — P4-01 through P4-06 implemented; `pnpm test:media`, `pnpm test:r2`, and `pnpm test:media-flow` pass against live R2 |
 | 5 | TTLock booking codes and relay automation | Phases 2 and 3 | Per-venue/provider flags off | Not started |
-| 6 | Venue-edge replay capture | Phases 3 and 4 | Per-resource replay flag off | Not started |
+| 6 | Venue-edge replay capture | Phases 3 and 4 | Per-resource replay flag off | **In progress** — P6-01 through P6-06 implemented locally; `pnpm test:replay-edge`, `pnpm test:venue-edge` pass; hardware/ten-table certification remains |
 | 7 | Operational and scale certification | Phases 5 and 6 | Progressive venue rollout | Not started |
 
 ## Phase 0 - Stabilization and safety net
@@ -193,12 +193,12 @@ Create secure, tenant-authorized media storage without exposing cloud credential
 
 | Ticket | Deliverable | Definition of done | Local status |
 | --- | --- | --- | --- |
-| P4-01 | Media metadata | `media_assets` owns tenant/venue/resource/session/user scope, immutable object key, type, size, checksum, retention, and state. | **Implemented** — migration `0020_media_assets`, `replays.media_asset_id`, `pnpm test:media` |
-| P4-02 | MediaStore and R2 adapter | Private dev/staging/prod buckets and exact-object operations are isolated behind a tested port. | **Implemented locally** — `src/server/media/` fake + R2 adapters; hosted bucket rollout pending |
-| P4-03 | Authorized grants | Short-lived PUT/GET grants require database ownership and exact key, operation, content policy, and expiry. | **Implemented** — `/api/v1/media/*` routes, owner-scoped authorization |
-| P4-04 | Upload completion | Callback or R2 event transitions metadata idempotently and can trigger processing. | **Implemented** — `media_event_inbox`, complete route, delete outbox consumer, reconciliation hook |
-| P4-05 | Existing replay compatibility | Current `replays` gain optional media linkage; legacy URLs remain explicit legacy assets until migrated and verified. | **Implemented** — dual-read in `listUserReplays`, legacy `playtt.local` preserved |
-| P4-06 | Security configuration | Public access is disabled; scoped tokens, exact CORS, lifecycle, retention, deletion, and reconciliation are documented and reproducible. | **Implemented locally** — [r2-security.md](./r2-security.md), secret scan patterns, `private_media` flag |
+| P4-01 | Media metadata | `media_assets` owns tenant/venue/resource/session/user scope, immutable object key, type, size, checksum, retention, and state. | **Done** — migration `0020_media_assets`, `replays.media_asset_id`, `pnpm test:media` |
+| P4-02 | MediaStore and R2 adapter | Private dev/staging/prod buckets and exact-object operations are isolated behind a tested port. | **Done** — fake + R2 adapters; dev bucket/token verified by `pnpm test:r2` |
+| P4-03 | Authorized grants | Short-lived PUT/GET grants require database ownership and exact key, operation, content policy, and expiry. | **Done** — `/api/v1/media/*` routes; full flow verified by `pnpm test:media-flow` |
+| P4-04 | Upload completion | Callback or R2 event transitions metadata idempotently and can trigger processing. | **Done** — inbox, complete route, delete consumer, reconciliation hook |
+| P4-05 | Existing replay compatibility | Current `replays` gain optional media linkage; legacy URLs remain explicit legacy assets until migrated and verified. | **Done** — dual-read in `listUserReplays`; legacy `playtt.local` preserved |
+| P4-06 | Security configuration | Public access is disabled; scoped tokens, exact CORS, lifecycle, retention, deletion, and reconciliation are documented and reproducible. | **Done** — [r2-security.md](./r2-security.md), secret scan, `private_media` flag |
 
 ### Exit gate
 
@@ -257,12 +257,12 @@ Replace the production NVR stub with a vendor-neutral, private, idempotent repla
 
 | Ticket | Deliverable | Definition of done |
 | --- | --- | --- |
-| P6-01 | Replay requests | Authorized active-session requests create one durable request, correlation ID, media identity, and edge command. |
-| P6-02 | VideoAdapter and edge protocol | Source selection, buffer window, extraction, upload request, status, retry, and acknowledgement are vendor-neutral. |
-| P6-03 | Prototype edge | One-table rolling buffer extracts a valid clip and uploads directly using the Phase 4 grant. |
-| P6-04 | Resource/camera configuration | Device assignments and capabilities select cameras for ten resources without hard-coded IPs or code forks. |
-| P6-05 | Playback and activity | Ready media appears through existing authenticated replay/activity APIs with short-lived playback access. |
-| P6-06 | Failure recovery | Edge disconnect, upload retry, duplicate callback, missing source, and partial processing are visible and resumable. |
+| P6-01 | Replay requests | Authorized active-session requests create one durable request, correlation ID, media identity, and edge command. **Local evidence (2026-08-21):** migration `0021_replay_requests`, `createReplayRequest` orchestration, `POST /api/v1/sessions/:sessionId/replay-requests`, `pnpm test:replay-edge`. |
+| P6-02 | VideoAdapter and edge protocol | Source selection, buffer window, extraction, upload request, status, retry, and acknowledgement are vendor-neutral. **Local evidence:** `services/venue-edge/`, `/api/edge/v1/*`, frozen protocol fixtures, `pnpm test:venue-edge`. |
+| P6-03 | Prototype edge | One-table rolling buffer extracts a valid clip and uploads directly using the Phase 4 grant. **Local evidence:** simulator mode + buffer supervisor in venue-edge; restart/resume tests pass. |
+| P6-04 | Resource/camera configuration | Device assignments and capabilities select cameras for ten resources without hard-coded IPs or code forks. **Local evidence:** assignment-driven edge config, isolation tests; ten-table hardware measurement pending. |
+| P6-05 | Playback and activity | Ready media appears through existing authenticated replay/activity APIs with short-lived playback access. **Local evidence:** `replay.ready.v1`, playback API, `/replays/:id`, mobile rollout flag `EXPO_PUBLIC_LIVE_REPLAY_LIBRARY`. |
+| P6-06 | Failure recovery | Edge disconnect, upload retry, duplicate callback, missing source, and partial processing are visible and resumable. **Local evidence:** explicit failure states, SQLite recovery, concurrency limits; measured ten-table capacity pending. |
 
 ### Exit gate
 

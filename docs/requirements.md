@@ -50,7 +50,7 @@ The system is built as a single-location MVP but designed for Multi-Tenant SaaS 
 ### 5.5 In-Session Experience (Digital Scoreboard & Replays)
 * **REQ-5.1:** An in-pod tablet (or the user's mobile app) must display a digital scoreboard UI.
 * **REQ-5.2:** Scoreboard button presses must update the local state and sync via WebSockets to a main TV display in the pod.
-* **REQ-5.3:** "Instant Replay" trigger: When a user hits the physical/digital "Replay" button, the system must ping the local NVR/Camera IP to export the last 30 seconds of video and upload it to an AWS S3/Supabase Storage bucket tied to the `user_id`.
+* **REQ-5.3:** "Instant Replay" trigger: When an entitled user requests replay during an active session (app-authenticated first; physical button via device identity later), the venue-edge service extracts a configurable window (default 12s pre-roll + 3s post-roll) from the local rolling buffer or validated NVR fallback, uploads the clip directly to private Cloudflare R2 via an exact-object PUT grant, and ties the ready media to the `user_id` through `replay_requests` / `media_assets`. Legacy S3/Supabase upload paths are superseded — see [replay-edge.md](../platform/replay-edge.md).
 * **REQ-5.4:** Replay capture requires a prepaid clip credit (10-clip packs). No credits → block capture with in-app purchase path.
 * **REQ-5.5:** Coach subscription (independent of clip packs) analyzes ready replays and surfaces training guidance in the mobile Coach tab. See `playtt-mobile/docs/design-system/coach-and-replays.md`.
 

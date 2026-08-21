@@ -19,6 +19,7 @@ import { getMediaStore } from "@/server/media/factory"
 import { buildMediaObjectKey } from "@/server/media/object-keys"
 import {
   getAuthorizedMediaAsset,
+  getMediaAssetById,
   getPlaySessionForMediaCreate,
   insertMediaAsset,
   insertMediaEventInbox,
@@ -402,6 +403,42 @@ export async function createPlaybackGrantForMediaAsset(input: {
 }) {
   const result = await issueMediaDownloadGrant(input)
   return result.grant
+}
+
+export async function createPlaybackGrantForReadyMedia(input: {
+  context: TenantContext
+  mediaId: string
+}) {
+  await requirePrivateMediaEnabled(input.context)
+
+  const asset = await getMediaAssetById(input.context, input.mediaId)
+
+  if (!asset) {
+    throw new MediaServiceError("MEDIA_NOT_FOUND", "Media asset not found.", 404)
+  }
+
+  if (asset.status !== "ready") {
+    throw new MediaServiceError(
+      "MEDIA_NOT_READY",
+      "Media is not ready for playback.",
+      409,
+    )
+  }
+
+  const store = getMediaStore()
+
+  try {
+    return await store.createDownloadGrant({
+      objectKey: asset.objectKey,
+      expiresInSeconds: MEDIA_DOWNLOAD_GRANT_TTL_SECONDS,
+    })
+  } catch {
+    throw new MediaServiceError(
+      "MEDIA_STORE_UNAVAILABLE",
+      "Media storage is temporarily unavailable.",
+      503,
+    )
+  }
 }
 
 export async function isPrivateMediaEnabled(context: TenantContext) {

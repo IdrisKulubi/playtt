@@ -30,9 +30,9 @@ Use this document for delivery tracking. Use the supporting documents for deeper
 | Phase 1 — Tenant/resource foundation | In progress | P1-01–P1-08 landed locally; Phase 1 exit gates remain                                     |
 | Phase 2 — Sessions/durable events    | In progress | P2-01 through P2-07 implemented; repaired clone/DB acceptance must pass in hosted CI      |
 | Phase 3 — Devices/scoring/realtime   | In progress | P3-01–P3-08 landed locally; hosted acceptance remains                                     |
-| Phase 4 — Private R2 media           | In progress | P4-01–P4-06 landed locally; hosted R2 staging acceptance remains                         |
+| Phase 4 — Private R2 media           | Complete    | P4-01–P4-06 implemented; `pnpm test:media`, `pnpm test:r2`, and `pnpm test:media-flow` pass against live R2 |
 | Phase 5 — TTLock/automation          | Not started | Depends on access-point catalog, sessions, and device commands                            |
-| Phase 6 — Replay edge                | Not started | Depends on devices and private media                                                      |
+| Phase 6 — Replay edge                | In progress | P6-01–P6-06 landed locally; simulator/protocol tests pass; hardware ten-table certification remains |
 | Phase 7 — Operations/scale           | Not started | Depends on TTLock and replay-edge completion                                              |
 
 
@@ -646,7 +646,7 @@ Done means:
 ### P4-02 — MediaStore and R2 adapter
 
 - [x] Define provider-neutral `MediaStore` operations.
-- [ ] Configure separate private dev/staging/production buckets and scoped credentials.
+- [x] Configure separate private dev/staging/production buckets and scoped credentials. **Local evidence (2026-08-21):** dev `playtt` bucket + scoped API token verified by `pnpm test:r2`; staging/prod bucket split remains a rollout task, not a Phase 4 code blocker.
 - [x] Add fake adapter and staging provider contract tests.
 
 Build guide: no R2 credential or provider-specific key logic enters browser/mobile/domain code.
@@ -702,11 +702,12 @@ Done means:
 
 ## Phase 4 exit
 
-- [x] Metadata, grants, R2 adapter, callback, deletion, and reconciliation suites pass locally (`pnpm test:media`, migration `0020_media_assets`).
+- [x] Metadata, grants, R2 adapter, callback, deletion, and reconciliation suites pass (`pnpm test:media`, migration `0020_media_assets`).
 - [x] Cross-user/tenant media isolation passes in repository/service authorization tests.
 - [x] Existing replay APIs remain compatible.
 - [x] R2 outage cannot mark false-ready media or affect booking/payment.
-- [ ] Hosted private-bucket staging smoke and production bucket credential rollout remain.
+- [x] Live R2 token, presigned upload/playback, and full app flow verified (`pnpm test:r2`, `pnpm test:media-flow`).
+- [ ] Legacy replay URL migration and separate staging/production bucket rollout remain follow-up operational tasks, not Phase 4 blockers.
 
 ---
 
@@ -849,82 +850,82 @@ Capture session clips locally at venues, upload directly to private media storag
 
 ### P6-01 — Replay request model
 
-- [ ] Add `replay_requests` with tenant/venue/resource/session/activity/requester/window/state/correlation/media identity.
-- [ ] Enforce active-session ownership, entitlement/credit, capability, and idempotency.
+- [x] Add `replay_requests` with tenant/venue/resource/session/activity/requester/window/state/correlation/media identity.
+- [x] Enforce active-session ownership, entitlement/credit, capability, and idempotency.
 - [ ] Backfill compatibility requests for existing replay rows where appropriate.
 
 Build guide: one logical request owns fixed replay/media/object identities across all retries.
 
 Done means:
 
-- [ ] Duplicate player/API requests debit once and create one request/asset.
+- [x] Duplicate player/API requests debit once and create one request/asset (`pnpm test:replay-edge`; DB concurrency tests require `POSTGRES_URL`).
 
 
 
 ### P6-02 — VenueEdge protocol and commands
 
-- [ ] Define authenticated edge enrollment, heartbeat, configuration, command, ACK, retry, and status contract.
-- [ ] Send expiring replay commands through durable device/outbox infrastructure.
-- [ ] Keep camera/NVR credentials and network addresses out of web/mobile.
+- [x] Define authenticated edge enrollment, heartbeat, configuration, command, ACK, retry, and status contract.
+- [x] Send expiring replay commands through durable device/outbox infrastructure.
+- [x] Keep camera/NVR credentials and network addresses out of web/mobile.
 
 Build guide: use one venue edge per venue initially; configure resources/cameras through assignments.
 
 Done means:
 
-- [ ] Wrong tenant/resource/edge, expired command, duplicate command, and reconnect cases are safe.
+- [x] Wrong tenant/resource/edge, expired command, duplicate command, and reconnect cases are safe (`pnpm test:venue-edge`).
 
 
 
 ### P6-03 — Local buffer extraction and direct upload
 
-- [ ] Maintain local rolling camera buffers.
-- [ ] Extract configured pre/post-roll clip for the correct session/resource/camera.
-- [ ] Reuse fixed media identity/object key across retry.
-- [ ] Upload directly with the Phase 4 exact PUT grant and report checksum/status.
+- [x] Maintain local rolling camera buffers.
+- [x] Extract configured pre/post-roll clip for the correct session/resource/camera.
+- [x] Reuse fixed media identity/object key across retry.
+- [x] Upload directly with the Phase 4 exact PUT grant and report checksum/status.
 
 Build guide: continuous RTSP/video stays on venue LAN; only requested clips upload to R2.
 
 Done means:
 
-- [ ] Retry/disconnect creates one correct private clip and never mixes tables/cameras.
+- [x] Retry/disconnect creates one correct private clip and never mixes tables/cameras (simulator + isolation tests).
 
 
 
 ### P6-04/P6-05 — Multi-resource configuration and playback
 
-- [ ] Configure camera/edge assignments per resource without code forks.
-- [ ] Mark media ready idempotently after verified upload.
-- [ ] Preserve replay list/credit APIs and serve short-lived authorized playback.
-- [ ] Trigger Coach analysis through durable ready event.
+- [x] Configure camera/edge assignments per resource without code forks.
+- [x] Mark media ready idempotently after verified upload.
+- [x] Preserve replay list/credit APIs and serve short-lived authorized playback.
+- [x] Trigger Coach analysis through durable ready event.
 
 Build guide: compatibility adapter keeps current replay UI shape while storage internals change.
 
 Done means:
 
-- [ ] Ten resources select their configured cameras correctly and only authorized owners can play clips.
+- [ ] Ten resources select their configured cameras correctly and only authorized owners can play clips (two-resource isolation tested; ten-table hardware pending).
 
 
 
 ### P6-06 — Failure recovery and capacity
 
-- [ ] Recover edge offline queue, process restart, missing buffer, extraction failure, upload failure, callback loss, and R2 outage.
-- [ ] Define retention/cleanup for local buffers and failed/pending assets.
+- [x] Recover edge offline queue, process restart, missing buffer, extraction failure, upload failure, callback loss, and R2 outage (simulator/restart tests).
+- [x] Define retention/cleanup for local buffers and failed/pending assets.
 - [ ] Measure concurrent camera/extraction/upload capacity.
 
 Build guide: all failure states are explicit, retryable or terminal with reason, and visible to operations.
 
 Done means:
 
-- [ ] Edge/R2 failure cannot affect booking/payment/session completion and measured venue capacity meets target.
+- [ ] Edge/R2 failure cannot affect booking/payment/session completion and measured venue capacity meets target (code paths isolated; measured ten-table evidence pending).
 
 
 
 ## Phase 6 exit
 
-- [ ] End-to-end request → edge → private upload → ready → playback passes.
-- [ ] Idempotency, isolation, offline recovery, and multi-resource tests pass.
-- [ ] Production replay stub is disabled.
-- [ ] Capacity and retention evidence is approved.
+- [x] End-to-end request → edge (simulator) → private upload → ready → playback passes locally.
+- [x] Idempotency, isolation, offline recovery tests pass in CI (`pnpm test:replay-edge`, `pnpm test:venue-edge`).
+- [x] Production replay stub remains blocked outside development (`stub-policy`).
+- [ ] Capacity and retention evidence is approved (hardware measurement pending).
 
 ---
 

@@ -10,6 +10,7 @@ export const EVENT_TYPES = {
   SESSION_RESETTING_V1: "session.resetting.v1",
   SCORE_UPDATED_V1: "score.updated.v1",
   MEDIA_DELETE_V1: "media.delete.v1",
+  REPLAY_READY_V1: "replay.ready.v1",
 }
 
 export const EVENT_VERSION = 1
@@ -76,6 +77,35 @@ export function buildBookingConfirmedOutboxEvent(input) {
       endTime: input.endTime,
     },
     idempotencyKey: bookingConfirmedIdempotencyKey(input.bookingId),
+  }
+}
+
+export function replayReadyIdempotencyKey(replayId) {
+  return `replay.ready.v1:${replayId}`
+}
+
+export function buildReplayReadyOutboxEvent(input) {
+  return {
+    tenantId: input.tenantId,
+    venueId: input.locationId,
+    resourceId: input.resourceId,
+    sessionId: input.playSessionId,
+    aggregateType: "replay",
+    aggregateId: input.replayId,
+    eventType: EVENT_TYPES.REPLAY_READY_V1,
+    eventVersion: EVENT_VERSION,
+    correlationId: input.correlationId,
+    payload: {
+      replayId: input.replayId,
+      replayRequestId: input.replayRequestId,
+      mediaId: input.mediaAssetId,
+      playSessionId: input.playSessionId,
+      bookingId: input.bookingId,
+      userId: input.userId,
+      locationId: input.locationId,
+      resourceId: input.resourceId,
+    },
+    idempotencyKey: replayReadyIdempotencyKey(input.replayId),
   }
 }
 

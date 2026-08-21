@@ -63,6 +63,12 @@ jobs:
       - name: Test replay stub safety
         run: pnpm test:replays
 
+      - name: Test replay edge delivery
+        run: pnpm test:replay-edge
+
+      - name: Test venue edge service
+        run: pnpm test:venue-edge
+
       - name: Test compatibility fallbacks
         run: pnpm test:compatibility
 
