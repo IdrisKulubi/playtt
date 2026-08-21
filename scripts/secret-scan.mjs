@@ -13,6 +13,8 @@ const SECRET_FILE_PATTERNS = [
 const SUSPICIOUS_LINE_PATTERNS = [
   /sk_live_[0-9a-z]+/i,
   /\bre_[A-Za-z0-9]{24,}\b/,
+  /\bR2_SECRET_ACCESS_KEY\s*=\s*[^\s#]+\b/i,
+  /\bR2_ACCESS_KEY_ID\s*=\s*[A-Za-z0-9]{20,}\b/,
 ]
 
 function listTrackedFiles() {

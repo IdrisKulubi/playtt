@@ -16,6 +16,8 @@ import {
   reconcilePlaySessionLifecycle,
 } from "@/server/sessions/lifecycle"
 import { createScoreUpdatedConsumers } from "@/server/realtime/score-updated-consumer"
+import { createMediaDeleteConsumers } from "@/server/media/delete-consumer"
+import { reconcileMediaStorage } from "@/server/media/reconcile"
 import { getRegisteredOutboxConsumers } from "@/server/workers/consumers.mjs"
 import {
   claimOutboxWork,
@@ -33,14 +35,16 @@ export async function runDurableWorkCycle() {
       ...createPaymentConfirmedEmailConsumers(),
       ...createSessionLifecycleConsumers(),
       ...createScoreUpdatedConsumers(),
+      ...createMediaDeleteConsumers(),
     },
     reconcile: async () => {
-      const [sessions, expiredCommands, failedCommands, prunedHeartbeats] =
+      const [sessions, expiredCommands, failedCommands, prunedHeartbeats, media] =
         await Promise.all([
           reconcilePlaySessionLifecycle(),
           expireStaleDeviceCommands(),
           failExhaustedDeviceCommands(),
           pruneAllDeviceHeartbeatHistory(),
+          reconcileMediaStorage(),
         ])
 
       return {
@@ -50,6 +54,7 @@ export async function runDurableWorkCycle() {
           failedCommands,
           prunedHeartbeats,
         },
+        media,
       }
     },
     outboxRounds: 6,

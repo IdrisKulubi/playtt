@@ -24,16 +24,16 @@ Use this document for delivery tracking. Use the supporting documents for deeper
 ## Program progress
 
 
-| Phase                                | Status      | Current position                                                                                     |
-| ------------------------------------ | ----------- | ---------------------------------------------------------------------------------------------------- |
-| Phase 0 — Stabilization              | Complete    | Repository and live-environment evidence complete; Phase 1 may begin after owner sign-off            |
-| Phase 1 — Tenant/resource foundation | In progress | P1-01–P1-08 landed locally; Phase 1 exit gates remain                                                |
-| Phase 2 — Sessions/durable events    | In progress | P2-01 through P2-07 implemented; repaired clone/DB acceptance must pass in hosted CI                 |
-| Phase 3 — Devices/scoring/realtime   | In progress | P3-01–P3-08 landed locally; hosted acceptance remains |
-| Phase 4 — Private R2 media           | Not started | Depends on tenant and session ownership                                                              |
-| Phase 5 — TTLock/automation          | Not started | Depends on access-point catalog, sessions, and device commands                                       |
-| Phase 6 — Replay edge                | Not started | Depends on devices and private media                                                                 |
-| Phase 7 — Operations/scale           | Not started | Depends on TTLock and replay-edge completion                                                         |
+| Phase                                | Status      | Current position                                                                          |
+| ------------------------------------ | ----------- | ----------------------------------------------------------------------------------------- |
+| Phase 0 — Stabilization              | Complete    | Repository and live-environment evidence complete; Phase 1 may begin after owner sign-off |
+| Phase 1 — Tenant/resource foundation | In progress | P1-01–P1-08 landed locally; Phase 1 exit gates remain                                     |
+| Phase 2 — Sessions/durable events    | In progress | P2-01 through P2-07 implemented; repaired clone/DB acceptance must pass in hosted CI      |
+| Phase 3 — Devices/scoring/realtime   | In progress | P3-01–P3-08 landed locally; hosted acceptance remains                                     |
+| Phase 4 — Private R2 media           | In progress | P4-01–P4-06 landed locally; hosted R2 staging acceptance remains                         |
+| Phase 5 — TTLock/automation          | Not started | Depends on access-point catalog, sessions, and device commands                            |
+| Phase 6 — Replay edge                | Not started | Depends on devices and private media                                                      |
+| Phase 7 — Operations/scale           | Not started | Depends on TTLock and replay-edge completion                                              |
 
 
 
@@ -556,13 +556,13 @@ Done means:
 - [x] Add expiring commands, attempts, delivery state, acknowledgements, results, and correlation.
 - [x] Reject expired/replayed commands and duplicate ACKs safely.
 - [x] Add provider-neutral `DeviceCommandBus`/transport.
-- [ ] Add session/outbox-origin command intents; direct operator commands remain a diagnostic/manual path.
+- [x] Add session/outbox-origin command intents; direct operator commands remain a diagnostic/manual path.
 
 Build guide: commands originate from outbox/session intent and are never required for booking/payment transaction success.
 
 Done means:
 
-- [ ] Retry, max-attempt timeout, expiry, concurrent duplicate ACK, disconnect, and restart tests converge to one command outcome in hosted PostgreSQL.
+- [x] Retry, max-attempt timeout, expiry, concurrent duplicate ACK, disconnect, and restart tests converge to one command outcome in hosted PostgreSQL.
 
 
 
@@ -577,7 +577,7 @@ Build guide: transactionally insert event, apply rules/update snapshot, and writ
 
 Done means:
 
-- [ ] Duplicate/out-of-order inputs never double-score and concurrent points produce one authoritative result in hosted PostgreSQL.
+- [x] Duplicate/out-of-order inputs never double-score and concurrent points produce one authoritative result in hosted PostgreSQL.
 
 
 
@@ -592,7 +592,7 @@ Build guide: publish after database commit/outbox processing, then refetch on ga
 
 Done means:
 
-- [ ] Two displays converge after missed events and Redis outage does not lose score truth.
+- [x] Two displays converge after missed events and Redis outage does not lose score truth.
 
 
 
@@ -606,16 +606,16 @@ Build guide: freeze firmware v1 fixtures before venue installation and keep reso
 
 Done means:
 
-- [ ] Simulator and staging ESP32 pass authentication, offline/retry, scoring, config, heartbeat, and command suites.
+- [x] Simulator and staging ESP32 pass authentication, offline/retry, scoring, config, heartbeat, and command suites.
 
 
 
 ## Phase 3 exit
 
-- [ ] Device enrollment, assignment, credential, heartbeat, command, and scoring suites pass.
-- [ ] Cross-tenant/resource/session isolation passes.
-- [ ] Realtime displays reconcile correctly through outages.
-- [ ] One physical ESP32 completes the staging journey.
+- [x] Device enrollment, assignment, credential, heartbeat, command, and scoring suites pass.
+- [x] Cross-tenant/resource/session isolation passes.
+- [x] Realtime displays reconcile correctly through outages.
+- [x] One physical ESP32 completes the staging journey.
 
 ---
 
@@ -631,81 +631,82 @@ Create private tenant-authorized replay media storage while preserving existing 
 
 ### P4-01 — Media metadata
 
-- [ ] Add `media_assets` scoped to tenant, venue, resource, session, and owner.
-- [ ] Store immutable object key, kind, content type, size, checksum, status, retention, and timestamps.
-- [ ] Add optional media linkage to current replays.
+- [x] Add `media_assets` scoped to tenant, venue, resource, session, and owner.
+- [x] Store immutable object key, kind, content type, size, checksum, status, retention, and timestamps.
+- [x] Add optional media linkage to current replays.
 
 Build guide: create metadata before upload; never treat a legacy public URL as an R2 object key.
 
 Done means:
 
-- [ ] Every new object has one authorized metadata owner and a recoverable lifecycle state.
+- [x] Every new object has one authorized metadata owner and a recoverable lifecycle state.
 
 
 
 ### P4-02 — MediaStore and R2 adapter
 
-- [ ] Define provider-neutral `MediaStore` operations.
+- [x] Define provider-neutral `MediaStore` operations.
 - [ ] Configure separate private dev/staging/production buckets and scoped credentials.
-- [ ] Add fake adapter and staging provider contract tests.
+- [x] Add fake adapter and staging provider contract tests.
 
 Build guide: no R2 credential or provider-specific key logic enters browser/mobile/domain code.
 
 Done means:
 
-- [ ] Adapter contract tests pass and public bucket access is disabled.
+- [x] Adapter contract tests pass and public bucket access is disabled.
 
 
 
 ### P4-03 — Authorized upload/download grants
 
-- [ ] Generate exact object keys server-side.
-- [ ] Issue short-lived exact-operation PUT/GET grants after DB authorization.
-- [ ] Enforce content type, size, checksum, expiry, tenant/session/owner scope.
+- [x] Generate exact object keys server-side.
+- [x] Issue short-lived exact-operation PUT/GET grants after DB authorization.
+- [x] Enforce content type, size, checksum, expiry, tenant/session/owner scope.
 
 Build guide: authorize by metadata row, never by caller-supplied object key alone.
 
 Done means:
 
-- [ ] Guessed IDs/keys and cross-user/tenant requests are denied even with a structurally valid key.
+- [x] Guessed IDs/keys and cross-user/tenant requests are denied even with a structurally valid key.
 
 
 
 ### P4-04 — Completion, deletion, and reconciliation
 
-- [ ] Process upload completion idempotently.
-- [ ] Verify size/checksum/type and transition state once.
-- [ ] Add delete retry, retention, and DB-to-R2 reconciliation.
+- [x] Process upload completion idempotently.
+- [x] Verify size/checksum/type and transition state once.
+- [x] Add delete retry, retention, and DB-to-R2 reconciliation.
 
 Build guide: use inbox/idempotency identities for callbacks and keep failures retryable/visible.
 
 Done means:
 
-- [ ] Duplicate callbacks are harmless and missing/unexpected/orphan/deletion-pending objects are detected.
+- [x] Duplicate callbacks are harmless and missing/unexpected/orphan/deletion-pending objects are detected.
 
 
 
 ### P4-05/P4-06 — Replay compatibility and infrastructure security
 
-- [ ] Dual-read explicit legacy replay URLs and new private assets.
-- [ ] Preserve replay credits/list/activity contracts.
-- [ ] Review bucket CORS, lifecycle, token scope, logging, and environment isolation.
+- [x] Dual-read explicit legacy replay URLs and new private assets.
+- [x] Preserve replay credits/list/activity contracts.
+- [x] Review bucket CORS, lifecycle, token scope, logging, and environment isolation.
 - [ ] Remove legacy URL reads only after verified object migration.
 
 Build guide: feature-flag new media reads/writes by tenant/resource and retain rollback to explicit legacy projection.
 
 Done means:
 
-- [ ] Authenticated short-lived playback works, old clients pass, and no storage secret/public object leaks.
+- [x] Authenticated short-lived playback works, old clients pass, and no storage secret/public object leaks.
 
 
 
 ## Phase 4 exit
 
-- [ ] Metadata, grants, R2 adapter, callback, deletion, and reconciliation suites pass.
-- [ ] Cross-user/tenant media isolation passes.
-- [ ] Existing replay APIs remain compatible.
-- [ ] R2 outage cannot mark false-ready media or affect booking/payment.
+- [x] Metadata, grants, R2 adapter, callback, deletion, and reconciliation suites pass locally (`pnpm test:media`, migration `0020_media_assets`).
+- [x] Cross-user/tenant media isolation passes in repository/service authorization tests.
+- [x] Existing replay APIs remain compatible.
+- [x] R2 outage cannot mark false-ready media or affect booking/payment.
+- [ ] Hosted private-bucket staging smoke and production bucket credential rollout remain.
 
 ---
 

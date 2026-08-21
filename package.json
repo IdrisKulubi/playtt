@@ -14,6 +14,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "admin:promote-owner": "node --env-file=.env.local scripts/promote-admin-owner.mjs",
+    "test:r2": "node --env-file=.env.local scripts/test-r2-connection.mjs",
+    "test:media-flow": "node --env-file=.env.local scripts/test-media-flow.mjs",
     "db:validate": "node scripts/validate-migrations.mjs",
     "db:validate:strict": "node scripts/validate-migrations.mjs --strict",
     "db:replay-lineage": "node scripts/replay-drizzle-lineage.mjs",
@@ -35,6 +37,7 @@
     "test:tenant-rbac": "node --test src/server/bookings/tenant-rbac.test.mjs",
     "test:operator": "node --test src/server/operator/operator-access.test.mjs src/server/operator/operator-rbac.test.mjs src/server/operator/operator-durable-work.test.mjs src/server/admin/admin-access.test.mjs",
     "test:devices": "node --test src/server/devices/policies.test.mjs src/server/devices/devices.test.mjs",
+    "test:media": "node --test src/server/media/media.test.mjs src/server/media/stub-policy.test.mjs",
     "test:scoring": "node --test src/server/scoring/tt-standard-v1.test.mjs src/server/scoring/scoring-ingest.test.mjs",
     "test:realtime": "node --test src/server/realtime/broadcaster.test.mjs src/server/realtime/display.test.mjs",
     "test:firmware": "node --test firmware/protocol/protocol.test.mjs",
@@ -46,6 +49,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1115.0",
+    "@aws-sdk/s3-request-presigner": "^3.1115.0",
     "@base-ui/react": "^1.3.0",
     "@better-auth/expo": "^1.6.14",
     "@gsap/react": "^2.1.2",
@@ -86,6 +91,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.55.0",
     "@tailwindcss/postcss": "^4.2.1",
     "@types/node": "^25.5.0",
     "@types/pg": "^8.20.0",
@@ -94,7 +100,6 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.39.4",
     "eslint-config-next": "16.1.7",
-    "@playwright/test": "^1.55.0",
     "jose": "^6.2.3",
     "postcss": "^8",
     "prettier": "^3.8.1",
