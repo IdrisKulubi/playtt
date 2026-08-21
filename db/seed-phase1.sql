@@ -301,7 +301,8 @@ from (
   values
     ('operator_shell'),
     ('device_registry'),
-    ('private_media')
+    ('private_media'),
+    ('replay_edge')
 ) as flags(key)
 where not exists (
   select 1

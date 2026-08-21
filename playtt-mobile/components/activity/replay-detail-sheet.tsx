@@ -9,10 +9,11 @@ import {
   PlayTTSpacing,
 } from "@/constants/playtt-tokens"
 import { useProductTheme } from "@/hooks/use-product-theme"
-import type { MockReplay } from "@/lib/mock/mock-replays"
+import { USE_LIVE_REPLAY_LIBRARY } from "@/lib/mock/mock-config"
+import type { ReplaySummary } from "@/lib/replay-types"
 
 type ReplayDetailSheetProps = {
-  replay: MockReplay | null
+  replay: ReplaySummary | null
   visible: boolean
   onClose: () => void
 }
@@ -65,10 +66,26 @@ export function ReplayDetailSheet({
           {replay.locationName} · {replay.durationSeconds}s · {recordedLabel}
         </Text>
         <View style={styles.badgeRow}>
-          <PreviewBadge label="Sample" />
+          {USE_LIVE_REPLAY_LIBRARY ? (
+            <PreviewBadge
+              label={
+                replay.status === "ready"
+                  ? "Ready"
+                  : replay.status === "failed"
+                    ? "Failed"
+                    : "Processing"
+              }
+            />
+          ) : (
+            <PreviewBadge label="Sample" />
+          )}
         </View>
         <Text style={styles.footnote}>
-          Real replays will sync here after each session.
+          {USE_LIVE_REPLAY_LIBRARY
+            ? replay.status === "ready"
+              ? "Open this clip while your playback link is active."
+              : "This clip is still being prepared on the venue edge."
+            : "Real replays will sync here after each session."}
         </Text>
       </View>
     </BottomSheet>

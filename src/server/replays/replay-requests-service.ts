@@ -1,0 +1,420 @@
+import { randomUUID } from "node:crypto"
+
+import { and, eq } from "drizzle-orm"
+
+import db from "@/db/drizzle"
+import {
+  deviceCommands,
+  devices,
+  replayCreditBalances,
+  replayCreditLedger,
+  replays,
+} from "@/db/schema"
+import { DEFAULT_COMMAND_TTL_SECONDS } from "@/server/devices/health-policy"
+import { MEDIA_UPLOAD_GRANT_TTL_SECONDS } from "@/server/media/constants"
+import { resolveMediaContentPolicy } from "@/server/media/content-policy"
+import { getMediaStore } from "@/server/media/factory"
+import { isPrivateMediaEnabledForTenant } from "@/server/media/feature-policy"
+import { buildMediaObjectKey } from "@/server/media/object-keys"
+import { insertMediaAsset } from "@/server/media/repository"
+import {
+  REPLAY_POST_ROLL_SECONDS,
+  REPLAY_PRE_ROLL_SECONDS,
+} from "@/server/replays/constants"
+import { ReplayServiceError } from "@/server/replays/errors"
+import { isReplayEdgeEnabledForTenant } from "@/server/replays/feature-policy"
+import {
+  getActivePlaySessionForReplayRequest,
+  getReplayCreditBalance,
+  getReplayRequestByIdempotencyKey,
+  insertReplayRequest,
+  resolveVenueEdgeForResource,
+  transitionReplayRequestStatus,
+  type ReplayRequestRecord,
+} from "@/server/replays/replay-requests-repository"
+import { authorize } from "@/server/tenancy/authorize-context.mjs"
+import { createCorrelationId } from "@/server/tenancy/correlation"
+import type { TenantContext } from "@/server/tenancy/types"
+
+type DbExecutor = Parameters<Parameters<typeof db.transaction>[0]>[0]
+
+async function buildExistingReplayRequestResult(
+  context: TenantContext,
+  userId: string,
+  existing: ReplayRequestRecord,
+) {
+  const remainingCredits = await getReplayCreditBalance(context, userId)
+
+  return {
+    replayRequestId: existing.id,
+    replayId: existing.replayId,
+    mediaAssetId: existing.mediaAssetId,
+    status: existing.status,
+    remainingCredits,
+    correlationId: existing.correlationId,
+  }
+}
+
+async function assertReplayEdgePrerequisites(context: TenantContext) {
+  const [replayEdgeEnabled, privateMediaEnabled] = await Promise.all([
+    isReplayEdgeEnabledForTenant(context),
+    isPrivateMediaEnabledForTenant(context),
+  ])
+
+  if (!replayEdgeEnabled) {
+    throw new ReplayServiceError(
+      "REPLAY_EDGE_DISABLED",
+      "Venue-edge replay capture is not enabled for this tenant.",
+      503,
+    )
+  }
+
+  if (!privateMediaEnabled) {
+    throw new ReplayServiceError(
+      "PRIVATE_MEDIA_DISABLED",
+      "Private media is required for venue-edge replay capture.",
+      503,
+    )
+  }
+}
+
+async function insertCaptureReplayCommand(
+  input: {
+    tenantId: string
+    deviceId: string
+    correlationId: string
+    payload: Record<string, unknown>
+  },
+  tx: DbExecutor,
+) {
+  const expiresAt = new Date(Date.now() + DEFAULT_COMMAND_TTL_SECONDS * 1000)
+
+  const [command] = await tx
+    .insert(deviceCommands)
+    .values({
+      tenantId: input.tenantId,
+      deviceId: input.deviceId,
+      kind: "capture_replay",
+      payload: input.payload,
+      expiresAt,
+      correlationId: input.correlationId,
+      maxAttempts: 3,
+    })
+    .returning()
+
+  return command
+}
+
+export async function createReplayRequest(input: {
+  context: TenantContext
+  userId: string
+  playSessionId: string
+  clientIdempotencyKey: string
+}) {
+  authorize(input.context, "booking.read")
+  await assertReplayEdgePrerequisites(input.context)
+
+  const session = await getActivePlaySessionForReplayRequest(input.context, {
+    playSessionId: input.playSessionId,
+    requesterUserId: input.userId,
+  })
+
+  if (!session) {
+    throw new ReplayServiceError(
+      "SESSION_NOT_ACTIVE",
+      "Replay capture is only available during an active owned session with replay capability.",
+      409,
+    )
+  }
+
+  const existing = await getReplayRequestByIdempotencyKey(input.context, {
+    requesterUserId: input.userId,
+    playSessionId: input.playSessionId,
+    clientIdempotencyKey: input.clientIdempotencyKey,
+  })
+
+  if (existing) {
+    return buildExistingReplayRequestResult(
+      input.context,
+      input.userId,
+      existing,
+    )
+  }
+
+  const venueEdge = await resolveVenueEdgeForResource(
+    input.context,
+    session.resourceId,
+  )
+
+  if (!venueEdge) {
+    throw new ReplayServiceError(
+      "VENUE_EDGE_UNAVAILABLE",
+      "No venue edge device is assigned to this resource.",
+      503,
+    )
+  }
+
+  const mediaId = randomUUID()
+  const correlationId = input.context.correlationId || createCorrelationId()
+  const captureAt = new Date()
+  const objectKey = buildMediaObjectKey({
+    tenantId: session.tenantId,
+    locationId: session.locationId,
+    resourceId: session.resourceId,
+    playSessionId: session.id,
+    mediaId,
+    kind: "source_video",
+  })
+  const mediaPolicy = resolveMediaContentPolicy("source_video")
+
+  const store = getMediaStore()
+  let uploadGrant: { url: string; expiresAt: string }
+
+  try {
+    uploadGrant = await store.createUploadGrant({
+      objectKey,
+      contentType: mediaPolicy.expectedContentType,
+      maxBytes: mediaPolicy.expectedMaxBytes,
+      expiresInSeconds: MEDIA_UPLOAD_GRANT_TTL_SECONDS,
+    })
+  } catch {
+    throw new ReplayServiceError(
+      "MEDIA_STORE_UNAVAILABLE",
+      "Media storage is temporarily unavailable.",
+      503,
+    )
+  }
+
+  return db.transaction(async (tx) => {
+    const duplicate = await getReplayRequestByIdempotencyKey(
+      input.context,
+      {
+        requesterUserId: input.userId,
+        playSessionId: input.playSessionId,
+        clientIdempotencyKey: input.clientIdempotencyKey,
+      },
+      tx,
+    )
+
+    if (duplicate) {
+      return buildExistingReplayRequestResult(
+        input.context,
+        input.userId,
+        duplicate,
+      )
+    }
+
+    const [device] = await tx
+      .select({ status: devices.status })
+      .from(devices)
+      .where(
+        and(
+          eq(devices.tenantId, input.context.tenantId),
+          eq(devices.id, venueEdge.deviceId),
+        ),
+      )
+      .limit(1)
+
+    if (!device || device.status === "revoked") {
+      throw new ReplayServiceError(
+        "VENUE_EDGE_UNAVAILABLE",
+        "Venue edge device is not available.",
+        503,
+      )
+    }
+
+    await tx
+      .insert(replayCreditBalances)
+      .values({
+        tenantId: input.context.tenantId,
+        userId: input.userId,
+        balance: 0,
+      })
+      .onConflictDoNothing()
+
+    const [balanceRow] = await tx
+      .select()
+      .from(replayCreditBalances)
+      .where(
+        and(
+          eq(replayCreditBalances.tenantId, input.context.tenantId),
+          eq(replayCreditBalances.userId, input.userId),
+        ),
+      )
+      .for("update")
+      .limit(1)
+
+    const balance = balanceRow?.balance ?? 0
+
+    if (balance <= 0) {
+      throw new ReplayServiceError(
+        "NO_CREDITS",
+        "You need clip credits to capture a highlight. Buy a clip pack in the app.",
+        402,
+      )
+    }
+
+    await insertMediaAsset(
+      {
+        id: mediaId,
+        tenantId: session.tenantId,
+        locationId: session.locationId,
+        resourceId: session.resourceId,
+        playSessionId: session.id,
+        ownerUserId: input.userId,
+        objectKey,
+        kind: "source_video",
+        expectedContentType: mediaPolicy.expectedContentType,
+        expectedMaxBytes: mediaPolicy.expectedMaxBytes,
+        retentionClass: "replay_standard",
+      },
+      tx,
+    )
+
+    const [replay] = await tx
+      .insert(replays)
+      .values({
+        tenantId: session.tenantId,
+        bookingId: session.bookingId,
+        playSessionId: session.id,
+        locationId: session.locationId,
+        userId: input.userId,
+        mediaAssetId: mediaId,
+        status: "queued",
+        metadata: {
+          source: "replay_edge",
+          replayRequestCorrelationId: correlationId,
+        },
+      })
+      .returning()
+
+    await tx.insert(replayCreditLedger).values({
+      tenantId: input.context.tenantId,
+      userId: input.userId,
+      delta: -1,
+      reason: "replay_capture",
+      bookingId: session.bookingId,
+      replayId: replay.id,
+    })
+
+    await tx
+      .update(replayCreditBalances)
+      .set({ balance: balance - 1, updatedAt: new Date() })
+      .where(
+        and(
+          eq(replayCreditBalances.tenantId, input.context.tenantId),
+          eq(replayCreditBalances.userId, input.userId),
+        ),
+      )
+
+    const replayRequest = await insertReplayRequest(
+      {
+        tenantId: session.tenantId,
+        locationId: session.locationId,
+        resourceId: session.resourceId,
+        playSessionId: session.id,
+        bookingId: session.bookingId,
+        requesterUserId: input.userId,
+        replayId: replay.id,
+        mediaAssetId: mediaId,
+        venueEdgeDeviceId: venueEdge.deviceId,
+        cameraDeviceId: venueEdge.cameraDeviceId,
+        assignmentId: venueEdge.assignmentId,
+        sourceType: "edge_buffer",
+        captureAt,
+        preRollSeconds: REPLAY_PRE_ROLL_SECONDS,
+        postRollSeconds: REPLAY_POST_ROLL_SECONDS,
+        status: "authorized",
+        correlationId,
+        clientIdempotencyKey: input.clientIdempotencyKey,
+      },
+      tx,
+    )
+
+    const command = await insertCaptureReplayCommand(
+      {
+        tenantId: session.tenantId,
+        deviceId: venueEdge.deviceId,
+        correlationId,
+        payload: {
+          replayRequestId: replayRequest.id,
+          replayId: replay.id,
+          mediaAssetId: mediaId,
+          objectKey,
+          captureAt: captureAt.toISOString(),
+          preRollSeconds: REPLAY_PRE_ROLL_SECONDS,
+          postRollSeconds: REPLAY_POST_ROLL_SECONDS,
+          sourceType: "edge_buffer",
+          resourceId: session.resourceId,
+          playSessionId: session.id,
+          uploadGrant,
+        },
+      },
+      tx,
+    )
+
+    const dispatched = await transitionReplayRequestStatus(
+      input.context,
+      {
+        replayRequestId: replayRequest.id,
+        toStatus: "dispatched",
+        deviceCommandId: command.id,
+      },
+      tx,
+    )
+
+    return {
+      replayRequestId: dispatched.id,
+      replayId: replay.id,
+      mediaAssetId: mediaId,
+      status: dispatched.status,
+      remainingCredits: balance - 1,
+      correlationId,
+    }
+  })
+}
+
+export async function updateReplayRequestProgressFromEdge(input: {
+  tenantId: string
+  deviceId: string
+  replayRequestId: string
+  toStatus: ReplayRequestRecord["status"]
+  failureReason?: string | null
+}) {
+  const context: TenantContext = {
+    tenantId: input.tenantId,
+    actor: { type: "device", id: input.deviceId },
+    correlationId: createCorrelationId(),
+  }
+
+  const { getReplayRequestById } = await import(
+    "@/server/replays/replay-requests-repository"
+  )
+
+  const replayRequest = await getReplayRequestById(
+    context,
+    input.replayRequestId,
+  )
+
+  if (!replayRequest) {
+    throw new ReplayServiceError(
+      "REPLAY_REQUEST_NOT_FOUND",
+      "Replay request was not found.",
+      404,
+    )
+  }
+
+  if (replayRequest.venueEdgeDeviceId !== input.deviceId) {
+    throw new ReplayServiceError(
+      "REPLAY_REQUEST_FORBIDDEN",
+      "This replay request is not assigned to the authenticated device.",
+      403,
+    )
+  }
+
+  return transitionReplayRequestStatus(context, {
+    replayRequestId: input.replayRequestId,
+    toStatus: input.toStatus,
+    failureReason: input.failureReason,
+  })
+}

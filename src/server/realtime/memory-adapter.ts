@@ -2,8 +2,8 @@ import { EventEmitter } from "node:events"
 
 import type {
   RealtimeAdapter,
+  RealtimeMessage,
   RealtimeSubscription,
-  ScoreHint,
 } from "./types"
 
 const globalForRealtime = globalThis as typeof globalThis & {
@@ -22,15 +22,15 @@ function getEmitter() {
 export class MemoryRealtimeAdapter implements RealtimeAdapter {
   private readonly emitter = getEmitter()
 
-  async publish(channel: string, message: ScoreHint): Promise<void> {
+  async publish(channel: string, message: RealtimeMessage): Promise<void> {
     this.emitter.emit(channel, message)
   }
 
   subscribe(
     channel: string,
-    onMessage: (message: ScoreHint) => void,
+    onMessage: (message: RealtimeMessage) => void,
   ): RealtimeSubscription {
-    const handler = (message: ScoreHint) => {
+    const handler = (message: RealtimeMessage) => {
       onMessage(message)
     }
 

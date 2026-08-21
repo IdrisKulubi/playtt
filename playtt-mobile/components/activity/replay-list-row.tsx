@@ -7,10 +7,10 @@ import {
   PlayTTSpacing,
 } from "@/constants/playtt-tokens"
 import { useProductTheme } from "@/hooks/use-product-theme"
-import type { MockReplay } from "@/lib/mock/mock-replays"
+import type { ReplaySummary } from "@/lib/replay-types"
 
 type ReplayListRowProps = {
-  replay: MockReplay
+  replay: ReplaySummary
   onPress: () => void
   isLast?: boolean
 }

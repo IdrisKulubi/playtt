@@ -215,6 +215,8 @@ export const deviceTypeEnum = pgEnum("device_type", [
   "esp32_controller",
   "ttlock_lock",
   "ttlock_gateway",
+  "venue_edge",
+  "camera",
 ]);
 
 export const deviceStatusEnum = pgEnum("device_status", [
@@ -234,6 +236,10 @@ export const deviceAssignmentRoleEnum = pgEnum("device_assignment_role", [
   "lock",
   "gateway",
   "display",
+  "venue_edge",
+  "replay_primary",
+  "replay_secondary",
+  "security_camera",
 ]);
 
 export const deviceCommandStatusEnum = pgEnum("device_command_status", [
@@ -249,6 +255,7 @@ export const deviceCommandKindEnum = pgEnum("device_command_kind", [
   "apply_config",
   "reset",
   "reboot",
+  "capture_replay",
 ]);
 
 export const integrationVendorKindEnum = pgEnum("integration_vendor_kind", [
@@ -304,6 +311,29 @@ export const mediaEventInboxStatusEnum = pgEnum("media_event_inbox_status", [
   "processed",
   "failed",
   "dead_letter",
+]);
+
+export const replayRequestStatusEnum = pgEnum("replay_request_status", [
+  "requested",
+  "authorized",
+  "dispatched",
+  "edge_acknowledged",
+  "capturing",
+  "extracting",
+  "uploading",
+  "verifying",
+  "ready",
+  "edge_offline",
+  "buffer_missing",
+  "extraction_failed",
+  "upload_failed",
+  "expired",
+  "failed",
+]);
+
+export const replayCaptureSourceEnum = pgEnum("replay_capture_source", [
+  "edge_buffer",
+  "nvr_playback",
 ]);
 
 export const tenants = pgTable(
@@ -1894,6 +1924,89 @@ export const mediaEventInbox = pgTable(
   ],
 );
 
+export const replayRequests = pgTable(
+  "replay_requests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
+    resourceId: uuid("resource_id")
+      .notNull()
+      .references(() => resources.id, { onDelete: "restrict" }),
+    playSessionId: uuid("play_session_id")
+      .notNull()
+      .references(() => playSessions.id, { onDelete: "restrict" }),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => bookings.id, { onDelete: "restrict" }),
+    requesterUserId: text("requester_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    replayId: uuid("replay_id")
+      .notNull()
+      .references(() => replays.id, { onDelete: "restrict" }),
+    mediaAssetId: uuid("media_asset_id")
+      .notNull()
+      .references(() => mediaAssets.id, { onDelete: "restrict" }),
+    venueEdgeDeviceId: uuid("venue_edge_device_id").references(() => devices.id, {
+      onDelete: "set null",
+    }),
+    cameraDeviceId: uuid("camera_device_id").references(() => devices.id, {
+      onDelete: "set null",
+    }),
+    assignmentId: uuid("assignment_id").references(() => deviceAssignments.id, {
+      onDelete: "set null",
+    }),
+    sourceType: replayCaptureSourceEnum("source_type").notNull(),
+    captureAt: timestamp("capture_at", { withTimezone: true }).notNull(),
+    preRollSeconds: integer("pre_roll_seconds").default(12).notNull(),
+    postRollSeconds: integer("post_roll_seconds").default(3).notNull(),
+    status: replayRequestStatusEnum("status").default("requested").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    maxAttempts: integer("max_attempts").default(3).notNull(),
+    correlationId: text("correlation_id").notNull(),
+    clientIdempotencyKey: text("client_idempotency_key").notNull(),
+    deviceCommandId: uuid("device_command_id").references(() => deviceCommands.id, {
+      onDelete: "set null",
+    }),
+    failureReason: text("failure_reason"),
+    dispatchedAt: timestamp("dispatched_at", { withTimezone: true }),
+    edgeAcknowledgedAt: timestamp("edge_acknowledged_at", { withTimezone: true }),
+    capturingAt: timestamp("capturing_at", { withTimezone: true }),
+    extractingAt: timestamp("extracting_at", { withTimezone: true }),
+    uploadingAt: timestamp("uploading_at", { withTimezone: true }),
+    verifyingAt: timestamp("verifying_at", { withTimezone: true }),
+    readyAt: timestamp("ready_at", { withTimezone: true }),
+    failedAt: timestamp("failed_at", { withTimezone: true }),
+    expiredAt: timestamp("expired_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("replay_requests_tenant_id_unique").on(table.tenantId, table.id),
+    uniqueIndex("replay_requests_requester_session_idempotency_unique").on(
+      table.tenantId,
+      table.requesterUserId,
+      table.playSessionId,
+      table.clientIdempotencyKey,
+    ),
+    index("replay_requests_tenant_id_idx").on(table.tenantId),
+    index("replay_requests_play_session_id_idx").on(table.playSessionId),
+    index("replay_requests_replay_id_idx").on(table.replayId),
+    index("replay_requests_status_idx").on(table.status),
+  ],
+);
+
 export const bookingStatusHistory = pgTable(
   "booking_status_history",
   {
@@ -2399,6 +2512,7 @@ export const userRelations = relations(user, ({ many, one }) => ({
   payments: many(payments),
   replays: many(replays),
   notifications: many(notifications),
+  replayRequests: many(replayRequests),
 }));
 
 export const tenantRelations = relations(tenants, ({ many }) => ({
@@ -2418,6 +2532,7 @@ export const tenantRelations = relations(tenants, ({ many }) => ({
   bookings: many(bookings),
   payments: many(payments),
   notifications: many(notifications),
+  replayRequests: many(replayRequests),
 }));
 
 export const brandRelations = relations(brands, ({ one, many }) => ({
@@ -2482,6 +2597,7 @@ export const locationRelations = relations(locations, ({ one, many }) => ({
   matches: many(matches),
   replays: many(replays),
   notifications: many(notifications),
+  replayRequests: many(replayRequests),
   accessPoints: many(accessPoints),
   devices: many(devices),
   deviceEnrollments: many(deviceEnrollments),
@@ -2530,6 +2646,7 @@ export const resourceRelations = relations(resources, ({ one, many }) => ({
   capabilities: many(resourceCapabilities),
   accessPointResources: many(accessPointResources),
   bookings: many(bookings),
+  replayRequests: many(replayRequests),
 }));
 
 export const resourceCapabilityRelations = relations(
@@ -2653,6 +2770,7 @@ export const bookingRelations = relations(bookings, ({ one, many }) => ({
     fields: [bookings.id],
     references: [playSessions.bookingId],
   }),
+  replayRequests: many(replayRequests),
 }));
 
 export const playSessionRelations = relations(playSessions, ({ one, many }) => ({
@@ -2678,6 +2796,7 @@ export const playSessionRelations = relations(playSessions, ({ one, many }) => (
     fields: [playSessions.id],
     references: [scoreSnapshots.playSessionId],
   }),
+  replayRequests: many(replayRequests),
 }));
 
 export const sessionParticipantRelations = relations(
@@ -2716,6 +2835,12 @@ export const deviceRelations = relations(devices, ({ one, many }) => ({
   enrollments: many(deviceEnrollments, {
     relationName: "consumedDevice",
   }),
+  venueEdgeReplayRequests: many(replayRequests, {
+    relationName: "venueEdgeDevice",
+  }),
+  cameraReplayRequests: many(replayRequests, {
+    relationName: "cameraDevice",
+  }),
 }));
 
 export const deviceEnrollmentRelations = relations(
@@ -2753,7 +2878,7 @@ export const deviceCredentialRelations = relations(
 
 export const deviceAssignmentRelations = relations(
   deviceAssignments,
-  ({ one }) => ({
+  ({ one, many }) => ({
     tenant: one(tenants, {
       fields: [deviceAssignments.tenantId],
       references: [tenants.id],
@@ -2770,6 +2895,7 @@ export const deviceAssignmentRelations = relations(
       fields: [deviceAssignments.resourceId],
       references: [resources.id],
     }),
+    replayRequests: many(replayRequests),
   }),
 );
 
@@ -2799,6 +2925,7 @@ export const deviceCommandRelations = relations(
       references: [devices.id],
     }),
     acknowledgements: many(deviceCommandAcks),
+    replayRequests: many(replayRequests),
   }),
 );
 
@@ -3027,6 +3154,10 @@ export const replayRelations = relations(replays, ({ one, many }) => ({
     references: [mediaAssets.id],
   }),
   coachInsights: many(coachInsights),
+  replayRequest: one(replayRequests, {
+    fields: [replays.id],
+    references: [replayRequests.replayId],
+  }),
 }));
 
 export const mediaAssetRelations = relations(mediaAssets, ({ one, many }) => ({
@@ -3052,6 +3183,7 @@ export const mediaAssetRelations = relations(mediaAssets, ({ one, many }) => ({
   }),
   replays: many(replays),
   inboxEvents: many(mediaEventInbox),
+  replayRequests: many(replayRequests),
 }));
 
 export const mediaEventInboxRelations = relations(mediaEventInbox, ({ one }) => ({
@@ -3062,6 +3194,59 @@ export const mediaEventInboxRelations = relations(mediaEventInbox, ({ one }) => 
   mediaAsset: one(mediaAssets, {
     fields: [mediaEventInbox.mediaId],
     references: [mediaAssets.id],
+  }),
+}));
+
+export const replayRequestRelations = relations(replayRequests, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [replayRequests.tenantId],
+    references: [tenants.id],
+  }),
+  location: one(locations, {
+    fields: [replayRequests.locationId],
+    references: [locations.id],
+  }),
+  resource: one(resources, {
+    fields: [replayRequests.resourceId],
+    references: [resources.id],
+  }),
+  playSession: one(playSessions, {
+    fields: [replayRequests.playSessionId],
+    references: [playSessions.id],
+  }),
+  booking: one(bookings, {
+    fields: [replayRequests.bookingId],
+    references: [bookings.id],
+  }),
+  requester: one(user, {
+    fields: [replayRequests.requesterUserId],
+    references: [user.id],
+  }),
+  replay: one(replays, {
+    fields: [replayRequests.replayId],
+    references: [replays.id],
+  }),
+  mediaAsset: one(mediaAssets, {
+    fields: [replayRequests.mediaAssetId],
+    references: [mediaAssets.id],
+  }),
+  venueEdgeDevice: one(devices, {
+    fields: [replayRequests.venueEdgeDeviceId],
+    references: [devices.id],
+    relationName: "venueEdgeDevice",
+  }),
+  cameraDevice: one(devices, {
+    fields: [replayRequests.cameraDeviceId],
+    references: [devices.id],
+    relationName: "cameraDevice",
+  }),
+  assignment: one(deviceAssignments, {
+    fields: [replayRequests.assignmentId],
+    references: [deviceAssignments.id],
+  }),
+  deviceCommand: one(deviceCommands, {
+    fields: [replayRequests.deviceCommandId],
+    references: [deviceCommands.id],
   }),
 }));
 

@@ -16,6 +16,7 @@ import {
   reconcilePlaySessionLifecycle,
 } from "@/server/sessions/lifecycle"
 import { createScoreUpdatedConsumers } from "@/server/realtime/score-updated-consumer"
+import { createReplayReadyConsumers } from "@/server/replays/replay-ready-consumer"
 import { createMediaDeleteConsumers } from "@/server/media/delete-consumer"
 import { reconcileMediaStorage } from "@/server/media/reconcile"
 import { getRegisteredOutboxConsumers } from "@/server/workers/consumers.mjs"
@@ -35,6 +36,7 @@ export async function runDurableWorkCycle() {
       ...createPaymentConfirmedEmailConsumers(),
       ...createSessionLifecycleConsumers(),
       ...createScoreUpdatedConsumers(),
+      ...createReplayReadyConsumers(),
       ...createMediaDeleteConsumers(),
     },
     reconcile: async () => {

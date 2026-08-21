@@ -15,7 +15,7 @@ flowchart TB
     API[Next.js API]
     DB[(Neon DB)]
     Paystack[Paystack]
-    Storage[S3 / clip storage]
+    Storage[Private R2 clip storage]
   end
 
   subgraph pod [Physical pod]
@@ -250,7 +250,7 @@ Camera → **RTSP stream** → NVR or Raspberry Pi → clip file → cloud stora
 ## 8. NVR or edge recorder — replay clipping
 
 ### What it does
-Buffers video 24/7. On replay request, exports last 30s and uploads to S3 (or signals PlayTT worker).
+Buffers video 60–120s on VenueEdge. On replay request, extracts configured pre/post-roll (default 12s + 3s) and uploads directly to private R2 via cloud-issued PUT grant. See [replay-edge.md](../platform/replay-edge.md).
 
 ### How it connects
 1. `POST /api/replays/request` (from replay button or app) debits clip credit.

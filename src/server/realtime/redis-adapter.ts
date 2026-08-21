@@ -1,7 +1,7 @@
 import type {
   RealtimeAdapter,
+  RealtimeMessage,
   RealtimeSubscription,
-  ScoreHint,
 } from "./types"
 
 type RedisClient = {
@@ -41,7 +41,7 @@ export class RedisRealtimeAdapter implements RealtimeAdapter {
   private subscriber: RedisClient | null = null
   private readonly channelHandlers = new Map<
     string,
-    Set<(message: ScoreHint) => void>
+    Set<(message: RealtimeMessage) => void>
   >()
   private readonly subscribedChannels = new Set<string>()
 
@@ -79,7 +79,7 @@ export class RedisRealtimeAdapter implements RealtimeAdapter {
     return this.subscriber
   }
 
-  async publish(channel: string, message: ScoreHint): Promise<void> {
+  async publish(channel: string, message: RealtimeMessage): Promise<void> {
     try {
       const publisher = await this.getPublisher()
       await publisher.publish(channel, JSON.stringify(message))
@@ -90,10 +90,11 @@ export class RedisRealtimeAdapter implements RealtimeAdapter {
 
   subscribe(
     channel: string,
-    onMessage: (message: ScoreHint) => void,
+    onMessage: (message: RealtimeMessage) => void,
   ): RealtimeSubscription {
     const handlers =
-      this.channelHandlers.get(channel) ?? new Set<(message: ScoreHint) => void>()
+      this.channelHandlers.get(channel) ??
+      new Set<(message: RealtimeMessage) => void>()
 
     handlers.add(onMessage)
     this.channelHandlers.set(channel, handlers)
@@ -122,7 +123,7 @@ export class RedisRealtimeAdapter implements RealtimeAdapter {
       const subscriber = await this.getSubscriber()
       await subscriber.subscribe(channel, (rawMessage) => {
         try {
-          const parsed = JSON.parse(rawMessage) as ScoreHint
+          const parsed = JSON.parse(rawMessage) as RealtimeMessage
           const handlers = this.channelHandlers.get(channel)
 
           handlers?.forEach((handler) => {

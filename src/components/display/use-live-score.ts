@@ -60,13 +60,24 @@ function reconcileScoreHint(
   return "refetch"
 }
 
+export interface ReplayOverlayPayload {
+  replayId: string
+  mediaId: string
+  playbackUrl: string
+}
+
+const REPLAY_OVERLAY_MS = 12_000
 const POLL_MS = 5_000
 
 export function useLiveScore(resourceId: string) {
   const [payload, setPayload] = useState<DisplaySnapshotPayload | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [replayOverlay, setReplayOverlay] = useState<ReplayOverlayPayload | null>(
+    null,
+  )
   const versionRef = useRef<number | null>(null)
+  const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const applyPayload = useCallback((next: DisplaySnapshotPayload) => {
     setPayload(next)
@@ -123,6 +134,61 @@ export function useLiveScore(resourceId: string) {
       `/api/display/v1/resources/${encodeURIComponent(resourceId)}/stream`,
     )
 
+    source.addEventListener("replay", (event) => {
+      try {
+        const hint = JSON.parse(event.data) as { replayId?: string }
+
+        if (!hint.replayId) {
+          return
+        }
+
+        void fetch(
+          `/api/display/v1/resources/${encodeURIComponent(resourceId)}/replays/${encodeURIComponent(hint.replayId)}/playback`,
+          { cache: "no-store" },
+        )
+          .then(async (response) => {
+            if (!response.ok) {
+              return null
+            }
+
+            const body = (await response.json()) as {
+              data?: { playback?: { url?: string; mediaId?: string } }
+            }
+
+            const playback = body.data?.playback
+
+            if (!playback?.url) {
+              return null
+            }
+
+            return {
+              replayId: hint.replayId as string,
+              mediaId: playback.mediaId ?? "",
+              playbackUrl: playback.url,
+            }
+          })
+          .then((overlay) => {
+            if (!overlay) {
+              return
+            }
+
+            setReplayOverlay(overlay)
+
+            if (overlayTimerRef.current) {
+              clearTimeout(overlayTimerRef.current)
+            }
+
+            overlayTimerRef.current = setTimeout(() => {
+              setReplayOverlay(null)
+              overlayTimerRef.current = null
+            }, REPLAY_OVERLAY_MS)
+          })
+          .catch(() => undefined)
+      } catch {
+        // Ignore malformed replay hints.
+      }
+    })
+
     source.addEventListener("score", (event) => {
       try {
         const hint = JSON.parse(event.data) as ScoreHintPayload
@@ -164,6 +230,9 @@ export function useLiveScore(resourceId: string) {
     }
 
     return () => {
+      if (overlayTimerRef.current) {
+        clearTimeout(overlayTimerRef.current)
+      }
       source.close()
     }
   }, [fetchSnapshot, resourceId])
@@ -182,6 +251,7 @@ export function useLiveScore(resourceId: string) {
     payload,
     isLoading,
     error,
+    replayOverlay,
     refetch: fetchSnapshot,
   }
 }

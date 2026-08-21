@@ -8,6 +8,7 @@ This repo contains two independent apps. Read the skills below before making cha
 |-----------|------|
 | Repo root (`src/`, `db/`, `auth.ts`, …) | Next.js web app, API, auth, bookings, database |
 | `playtt-mobile/` | Expo mobile app |
+| `services/venue-edge/` | VenueEdge replay capture service (one per venue) |
 
 There is no root workspace orchestrator. Install and run each app from its own directory.
 
