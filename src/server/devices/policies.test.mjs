@@ -39,6 +39,32 @@ test("assignment policy rejects wrong device roles and missing capabilities", ()
     }),
     { ok: true, requiredCapability: "scoring" }
   )
+  assert.equal(
+    validateDeviceAssignmentPolicy({
+      role: "venue_edge",
+      deviceType: "esp32_controller",
+      resourceId: "table-1",
+      resourceCapabilityCodes: ["replay"],
+    }).reason,
+    "role_not_supported"
+  )
+  assert.equal(
+    validateDeviceAssignmentPolicy({
+      role: "venue_edge",
+      deviceType: "venue_edge",
+      resourceCapabilityCodes: ["replay"],
+    }).reason,
+    "resource_required"
+  )
+  assert.deepEqual(
+    validateDeviceAssignmentPolicy({
+      role: "venue_edge",
+      deviceType: "venue_edge",
+      resourceId: "table-1",
+      resourceCapabilityCodes: ["replay"],
+    }),
+    { ok: true, requiredCapability: "replay" }
+  )
 })
 
 test("heartbeat timestamps cannot move health backwards or too far forward", () => {

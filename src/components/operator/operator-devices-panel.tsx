@@ -18,6 +18,36 @@ import {
 import type { DeviceListItem } from "@/server/devices/devices"
 import type { OperatorResource, OperatorVenue } from "@/server/operator/types"
 
+type OperatorDeviceType =
+  | "esp32_controller"
+  | "ttlock_lock"
+  | "ttlock_gateway"
+  | "venue_edge"
+  | "camera"
+
+type OperatorAssignmentRole =
+  | "score_input"
+  | "lock"
+  | "gateway"
+  | "display"
+  | "venue_edge"
+  | "replay_primary"
+
+type IssuedCredentials = {
+  deviceId: string
+  secret: string
+  credentialVersion: number
+  hardwareUid: string
+  deviceType: OperatorDeviceType
+}
+
+const RESOURCE_REQUIRED_ROLES = new Set<OperatorAssignmentRole>([
+  "score_input",
+  "display",
+  "venue_edge",
+  "replay_primary",
+])
+
 type OperatorDevicesPanelProps = {
   venues: OperatorVenue[]
   resources: OperatorResource[]
@@ -35,28 +65,31 @@ export function OperatorDevicesPanel({
 }: OperatorDevicesPanelProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [deviceType, setDeviceType] = useState<
-    "esp32_controller" | "ttlock_lock" | "ttlock_gateway"
-  >("esp32_controller")
+  const [deviceType, setDeviceType] =
+    useState<OperatorDeviceType>("venue_edge")
   const [enrollmentCode, setEnrollmentCode] = useState<string | null>(null)
+  const [issuedCredentials, setIssuedCredentials] =
+    useState<IssuedCredentials | null>(null)
   const [assignDeviceId, setAssignDeviceId] = useState<string | undefined>(
     undefined,
   )
   const [assignResourceId, setAssignResourceId] = useState<string | undefined>(
     undefined,
   )
-  const [assignRole, setAssignRole] = useState<
-    "score_input" | "lock" | "gateway" | "display"
-  >("score_input")
+  const [assignRole, setAssignRole] =
+    useState<OperatorAssignmentRole>("venue_edge")
+  const [rtspUrl, setRtspUrl] = useState("")
   const [message, setMessage] = useState<string | null>(null)
 
   const venueResources = resources.filter(
     (resource) => resource.locationId === selectedVenueId,
   )
+  const resourceRequired = RESOURCE_REQUIRED_ROLES.has(assignRole)
 
   async function handleCreateEnrollment() {
     setMessage(null)
     setEnrollmentCode(null)
+    setIssuedCredentials(null)
 
     const response = await fetch("/api/operator/devices", {
       method: "POST",
@@ -73,8 +106,23 @@ export function OperatorDevicesPanel({
       return
     }
 
-    const payload = await response.json()
-    setEnrollmentCode(payload.data.enrollment.enrollmentCode)
+    const payload = (await response.json()) as {
+      data?: {
+        enrollment?: { enrollmentCode?: string }
+        credentials?: IssuedCredentials
+      }
+    }
+
+    if (payload.data?.credentials) {
+      setIssuedCredentials(payload.data.credentials)
+      setAssignDeviceId(payload.data.credentials.deviceId)
+      if (deviceType === "venue_edge") {
+        setAssignRole("venue_edge")
+      }
+    } else if (payload.data?.enrollment?.enrollmentCode) {
+      setEnrollmentCode(payload.data.enrollment.enrollmentCode)
+    }
+
     startTransition(() => router.refresh())
   }
 
@@ -86,19 +134,29 @@ export function OperatorDevicesPanel({
       return
     }
 
-    if (assignRole === "score_input" && !assignResourceId) {
-      setMessage("Score input devices must be assigned to a table resource.")
+    if (resourceRequired && !assignResourceId) {
+      setMessage("This role must be assigned to a table resource.")
       return
     }
+
+    const config =
+      assignRole === "venue_edge" && rtspUrl.trim()
+        ? {
+            camera: {
+              rtspUrl: rtspUrl.trim(),
+            },
+          }
+        : undefined
 
     const response = await fetch("/api/operator/devices/assignments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      body: JSON.stringify({
         deviceId: assignDeviceId,
         locationId: selectedVenueId,
         resourceId: assignResourceId ?? null,
         role: assignRole,
+        config,
       }),
     })
 
@@ -110,6 +168,7 @@ export function OperatorDevicesPanel({
 
     setAssignDeviceId(undefined)
     setAssignResourceId(undefined)
+    setRtspUrl("")
     startTransition(() => router.refresh())
   }
 
@@ -139,19 +198,25 @@ export function OperatorDevicesPanel({
             <CardTitle>Issue enrollment</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              VenueEdge credentials are issued immediately. Copy the secret now —
+              it is not shown again. Then assign the device to a table.
+            </p>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="device-type">Device type</Label>
                 <Select
                   value={deviceType}
                   onValueChange={(value) =>
-                    setDeviceType(value as typeof deviceType)
+                    setDeviceType(value as OperatorDeviceType)
                   }
                 >
                   <SelectTrigger id="device-type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="venue_edge">VenueEdge (replay)</SelectItem>
+                    <SelectItem value="camera">Camera</SelectItem>
                     <SelectItem value="esp32_controller">
                       ESP32 controller
                     </SelectItem>
@@ -163,14 +228,37 @@ export function OperatorDevicesPanel({
                 </Select>
               </div>
             </div>
-            <Button disabled={isPending} onClick={handleCreateEnrollment}>
-              Create enrollment code
+            <Button disabled={isPending} onClick={() => void handleCreateEnrollment()}>
+              {deviceType === "venue_edge" || deviceType === "camera"
+                ? "Issue device credentials"
+                : "Create enrollment code"}
             </Button>
             {enrollmentCode ? (
               <p className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm">
                 Enrollment code (shown once):{" "}
                 <span className="font-mono font-semibold">{enrollmentCode}</span>
               </p>
+            ) : null}
+            {issuedCredentials ? (
+              <div className="space-y-2 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm">
+                <p className="font-medium">Device credentials (shown once)</p>
+                <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-xs">
+                  {JSON.stringify(
+                    {
+                      deviceId: issuedCredentials.deviceId,
+                      secret: issuedCredentials.secret,
+                      credentialVersion: issuedCredentials.credentialVersion,
+                    },
+                    null,
+                    2,
+                  )}
+                </pre>
+                <p className="text-muted-foreground">
+                  Save as{" "}
+                  <code>services/venue-edge/.venue-edge-data/credentials.json</code>{" "}
+                  on the venue PC.
+                </p>
+              </div>
             ) : null}
           </CardContent>
         </Card>
@@ -183,9 +271,8 @@ export function OperatorDevicesPanel({
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              After an ESP32 provisions, refresh this page. Then pick the device,
-              choose a table resource, and assign role{" "}
-              <span className="font-medium">Score input</span>.
+              For replay capture, pick the VenueEdge device, choose a table, and
+              assign role <span className="font-medium">Venue edge</span>.
             </p>
             <Button
               variant="outline"
@@ -248,13 +335,15 @@ export function OperatorDevicesPanel({
                 <Select
                   value={assignRole}
                   onValueChange={(value) =>
-                    setAssignRole(value as typeof assignRole)
+                    setAssignRole(value as OperatorAssignmentRole)
                   }
                 >
                   <SelectTrigger id="assign-role">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="venue_edge">Venue edge</SelectItem>
+                    <SelectItem value="replay_primary">Replay camera</SelectItem>
                     <SelectItem value="score_input">Score input</SelectItem>
                     <SelectItem value="lock">Lock</SelectItem>
                     <SelectItem value="gateway">Gateway</SelectItem>
@@ -262,14 +351,26 @@ export function OperatorDevicesPanel({
                   </SelectContent>
                 </Select>
               </div>
+              {assignRole === "venue_edge" ? (
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="rtsp-url">RTSP URL (optional)</Label>
+                  <Input
+                    id="rtsp-url"
+                    value={rtspUrl}
+                    onChange={(event) => setRtspUrl(event.target.value)}
+                    placeholder="rtsp://user:pass@192.168.0.240:554/..."
+                    autoComplete="off"
+                  />
+                </div>
+              ) : null}
             </div>
             <Button
               disabled={
                 isPending ||
                 !assignDeviceId ||
-                (assignRole === "score_input" && !assignResourceId)
+                (resourceRequired && !assignResourceId)
               }
-              onClick={handleAssignDevice}
+              onClick={() => void handleAssignDevice()}
             >
               Assign device
             </Button>
@@ -349,7 +450,7 @@ export function OperatorDevicesPanel({
                       variant="outline"
                       size="sm"
                       disabled={isPending}
-                      onClick={() => handleRevokeDevice(device.id)}
+                      onClick={() => void handleRevokeDevice(device.id)}
                     >
                       Revoke
                     </Button>
@@ -362,7 +463,9 @@ export function OperatorDevicesPanel({
       </Card>
 
       {message ? (
-        <p className="text-sm text-destructive" role="alert">{message}</p>
+        <p className="text-sm text-destructive" role="alert">
+          {message}
+        </p>
       ) : null}
     </div>
   )

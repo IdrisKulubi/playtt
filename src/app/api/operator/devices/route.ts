@@ -3,6 +3,7 @@ import { z } from "zod/v3"
 
 import {
   createEnrollmentForOperator,
+  issueProvisionedDeviceForOperator,
   listDevicesForOperator,
   revokeDeviceForOperator,
   rotateDeviceCredentialForOperator,
@@ -16,8 +17,16 @@ import { operatorJson } from "@/server/operator/http"
 
 const createEnrollmentSchema = z.object({
   locationId: z.string().uuid(),
-  deviceType: z.enum(["esp32_controller", "ttlock_lock", "ttlock_gateway"]),
+  deviceType: z.enum([
+    "esp32_controller",
+    "ttlock_lock",
+    "ttlock_gateway",
+    "venue_edge",
+    "camera",
+  ]),
   expiresInMinutes: z.number().int().positive().max(1440).optional(),
+  issueCredentials: z.boolean().optional(),
+  hardwareUid: z.string().trim().min(1).max(160).optional(),
 })
 
 const revokeSchema = z.object({
@@ -55,6 +64,24 @@ export async function POST(req: NextRequest) {
     }
 
     const body = createEnrollmentSchema.parse(await req.json())
+    const shouldIssueCredentials =
+      body.issueCredentials === true ||
+      body.deviceType === "venue_edge" ||
+      body.deviceType === "camera"
+
+    if (shouldIssueCredentials) {
+      const credentials = await issueProvisionedDeviceForOperator(
+        resolved.context,
+        {
+          locationId: body.locationId,
+          deviceType: body.deviceType,
+          hardwareUid: body.hardwareUid,
+          expiresInMinutes: body.expiresInMinutes,
+        },
+      )
+      return operatorJson({ credentials }, 201)
+    }
+
     const enrollment = await createEnrollmentForOperator(resolved.context, body)
     return operatorJson({ enrollment }, 201)
   } catch (error) {
