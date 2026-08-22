@@ -15,6 +15,7 @@
     "db:studio": "drizzle-kit studio",
     "admin:promote-owner": "node --env-file=.env.local scripts/promote-admin-owner.mjs",
     "test:r2": "node --env-file=.env.local scripts/test-r2-connection.mjs",
+    "probe:vigi": "node --env-file=.env.local scripts/vigi-pilot-probe.mjs",
     "test:media-flow": "node --env-file=.env.local scripts/test-media-flow.mjs",
     "db:validate": "node scripts/validate-migrations.mjs",
     "db:validate:strict": "node scripts/validate-migrations.mjs --strict",
