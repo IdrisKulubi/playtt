@@ -25,6 +25,8 @@ import { ReplayServiceError } from "@/server/replays/errors"
 import { isReplayEdgeEnabledForTenant } from "@/server/replays/feature-policy"
 import {
   getActivePlaySessionForReplayRequest,
+  getActivePlaySessionOwnerForResource,
+  getInFlightReplayRequestForSession,
   getReplayCreditBalance,
   getReplayRequestByIdempotencyKey,
   insertReplayRequest,
@@ -32,7 +34,9 @@ import {
   transitionReplayRequestStatus,
   type ReplayRequestRecord,
 } from "@/server/replays/replay-requests-repository"
+import { getDisplaySnapshotForResource } from "@/server/realtime/display-query"
 import { authorize } from "@/server/tenancy/authorize-context.mjs"
+import { createServiceTenantContext } from "@/server/tenancy/context-factory"
 import { createCorrelationId } from "@/server/tenancy/correlation"
 import type { TenantContext } from "@/server/tenancy/types"
 
@@ -110,6 +114,7 @@ export async function createReplayRequest(input: {
   userId: string
   playSessionId: string
   clientIdempotencyKey: string
+  requestSource?: string
 }) {
   authorize(input.context, "booking.read")
   await assertReplayEdgePrerequisites(input.context)
@@ -282,7 +287,7 @@ export async function createReplayRequest(input: {
         mediaAssetId: mediaId,
         status: "queued",
         metadata: {
-          source: "replay_edge",
+          source: input.requestSource ?? "replay_edge",
           replayRequestCorrelationId: correlationId,
         },
       })
@@ -371,6 +376,115 @@ export async function createReplayRequest(input: {
       remainingCredits: balance - 1,
       correlationId,
     }
+  })
+}
+
+export async function getKioskReplayStatus(resourceId: string) {
+  const snapshot = await getDisplaySnapshotForResource(resourceId)
+
+  if (!snapshot) {
+    return null
+  }
+
+  const context = createServiceTenantContext({
+    tenantId: snapshot.resource.tenantId,
+    actorId: "kiosk-replay",
+    correlationId: createCorrelationId(),
+  })
+
+  if (snapshot.status === "idle") {
+    return {
+      status: "idle" as const,
+      resource: {
+        id: snapshot.resource.id,
+        name: snapshot.resource.name,
+        code: snapshot.resource.code,
+      },
+      playSession: null,
+      remainingCredits: null,
+      inFlightReplayRequestId: null,
+    }
+  }
+
+  const sessionOwner = await getActivePlaySessionOwnerForResource(
+    context,
+    resourceId,
+  )
+  const remainingCredits = sessionOwner
+    ? await getReplayCreditBalance(context, sessionOwner.ownerUserId)
+    : null
+  const inFlight = await getInFlightReplayRequestForSession(
+    context,
+    snapshot.playSession.id,
+  )
+
+  return {
+    status: "active" as const,
+    resource: {
+      id: snapshot.resource.id,
+      name: snapshot.resource.name,
+      code: snapshot.resource.code,
+    },
+    playSession: {
+      id: snapshot.playSession.id,
+    },
+    remainingCredits,
+    inFlightReplayRequestId: inFlight?.id ?? null,
+  }
+}
+
+export async function createKioskReplayRequest(input: {
+  resourceId: string
+  clientIdempotencyKey: string
+}) {
+  const snapshot = await getDisplaySnapshotForResource(input.resourceId)
+
+  if (!snapshot) {
+    throw new ReplayServiceError(
+      "RESOURCE_NOT_FOUND",
+      "We could not find that resource.",
+      404,
+    )
+  }
+
+  const context = createServiceTenantContext({
+    tenantId: snapshot.resource.tenantId,
+    actorId: "kiosk-replay",
+    correlationId: createCorrelationId(),
+  })
+
+  const sessionOwner = await getActivePlaySessionOwnerForResource(
+    context,
+    input.resourceId,
+  )
+
+  if (!sessionOwner) {
+    throw new ReplayServiceError(
+      "SESSION_NOT_ACTIVE",
+      "Replay capture is only available during an active booking with replay capability.",
+      409,
+    )
+  }
+
+  const inFlight = await getInFlightReplayRequestForSession(
+    context,
+    sessionOwner.playSessionId,
+  )
+
+  if (inFlight) {
+    throw new ReplayServiceError(
+      "REPLAY_IN_FLIGHT",
+      "A replay capture is already in progress for this table.",
+      429,
+    )
+  }
+
+  return createReplayRequest({
+    context,
+    userId: sessionOwner.ownerUserId,
+    playSessionId: sessionOwner.playSessionId,
+    clientIdempotencyKey: input.clientIdempotencyKey,
+    requestSource: "table_kiosk",
   })
 }
 

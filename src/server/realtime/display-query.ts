@@ -43,10 +43,6 @@ export type DisplaySnapshotResponse =
       snapshot: DisplaySnapshotSummary | null
     }
 
-function mapSnapshotState(state: Record<string, unknown>): ScoreState {
-  return state as unknown as ScoreState
-}
-
 export async function getDisplaySnapshotForResource(
   resourceId: string,
 ): Promise<DisplaySnapshotResponse | null> {
@@ -140,4 +136,32 @@ export async function getDisplaySnapshotForResource(
         }
       : null,
   }
+}
+
+function mapSnapshotState(state: Record<string, unknown>): ScoreState {
+  return state as unknown as ScoreState
+}
+
+export async function resolveResourceIdByCodeOrId(
+  identifier: string,
+): Promise<string | null> {
+  const trimmed = identifier.trim()
+
+  if (!trimmed) {
+    return null
+  }
+
+  const byId = await getDisplaySnapshotForResource(trimmed)
+
+  if (byId) {
+    return trimmed
+  }
+
+  const [resource] = await db
+    .select({ id: resources.id })
+    .from(resources)
+    .where(eq(resources.code, trimmed))
+    .limit(1)
+
+  return resource?.id ?? null
 }
