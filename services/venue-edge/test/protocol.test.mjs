@@ -135,3 +135,32 @@ test("cloud client paths align with frozen fixture routes", async () => {
     "/api/edge/v1/commands",
   ])
 })
+
+test("buffer_missing after extracting maps to extraction_failed", async () => {
+  const { mapReplayFailureStatus } = await import("../src/replay/orchestrator.ts")
+
+  assert.equal(mapReplayFailureStatus("buffer_missing"), "buffer_missing")
+  assert.equal(
+    mapReplayFailureStatus("buffer_missing", "capturing"),
+    "buffer_missing",
+  )
+  assert.equal(
+    mapReplayFailureStatus("buffer_missing", "extracting"),
+    "extraction_failed",
+  )
+})
+
+test("VIGI playback URL is derived from the live RTSP path", async () => {
+  const { buildVigiPlaybackUrl } = await import(
+    "../src/video-adapters/vigi-urls.ts"
+  )
+
+  const url = buildVigiPlaybackUrl(
+    "rtsp://playtt_edge:Playtt%4026@192.168.0.82:554/live/1/1/avm",
+    new Date("2026-08-22T10:00:00.000Z"),
+    new Date("2026-08-22T10:00:15.000Z"),
+  )
+
+  assert.match(url ?? "", /\/replay\/1\/1\/avm\?starttime=/)
+  assert.match(url ?? "", /192\.168\.0\.82:554/)
+})

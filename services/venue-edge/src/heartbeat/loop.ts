@@ -26,7 +26,11 @@ export class HeartbeatLoop {
     }, this.deps.env.heartbeatIntervalMs)
 
     this.commandTimer = setInterval(() => {
-      void this.deps.processor.pollAndProcess()
+      void this.deps.processor.pollAndProcess().catch((error) => {
+        safeLog("error", "Command poll failed", {
+          message: error instanceof Error ? error.message : String(error),
+        })
+      })
     }, this.deps.env.commandPollIntervalMs)
   }
 

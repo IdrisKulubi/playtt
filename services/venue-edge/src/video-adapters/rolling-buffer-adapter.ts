@@ -1,8 +1,9 @@
 import { mkdir } from "node:fs/promises"
-import { dirname, join } from "node:path"
+import { dirname, join, relative } from "node:path"
 
 import type { CameraSourceConfig } from "../cameras/source"
 import { runFfmpeg } from "../ffmpeg/runner"
+import { safeLog } from "../health/metrics"
 import type { EdgeRepositories } from "../local-storage/repositories"
 import type { LocalStoragePaths } from "../local-storage/paths"
 import type {
@@ -46,7 +47,10 @@ export class RollingBufferVideoAdapter implements VideoAdapter {
       windowEnd,
     )
 
-    if (segments.length === 0 && !this.options.simulate) {
+    const closedSegments =
+      segments.length > 1 ? segments.slice(0, -1) : segments
+
+    if (closedSegments.length === 0 && !this.options.simulate) {
       throw new Error("buffer_missing")
     }
 
@@ -75,26 +79,36 @@ export class RollingBufferVideoAdapter implements VideoAdapter {
     )
     await mkdir(dirname(concatListPath), { recursive: true })
 
-    const concatBody = segments
-      .map((segment) => `file '${segment.path.replace(/'/g, "'\\''")}'`)
+    const concatDir = dirname(concatListPath)
+    const concatBody = closedSegments
+      .map((segment) => {
+        const concatPath = relative(concatDir, segment.path).replace(/\\/g, "/")
+        return `file '${concatPath.replace(/'/g, "'\\''")}'`
+      })
       .join("\n")
 
     await import("node:fs/promises").then(({ writeFile }) =>
       writeFile(concatListPath, concatBody, "utf8"),
     )
 
-    const result = await runFfmpeg({
+    const concatInput = [
+      "-fflags",
+      "+genpts",
+      "-f",
+      "concat",
+      "-safe",
+      "0",
+      "-i",
+      concatListPath,
+      "-map",
+      "0:v:0",
+      "-map",
+      "0:a:0?",
+    ]
+
+    let result = await runFfmpeg({
       args: [
-        "-f",
-        "concat",
-        "-safe",
-        "0",
-        "-i",
-        concatListPath,
-        "-map",
-        "0:v:0",
-        "-map",
-        "0:a:0?",
+        ...concatInput,
         "-c:v",
         "copy",
         "-c:a",
@@ -103,12 +117,47 @@ export class RollingBufferVideoAdapter implements VideoAdapter {
         "64k",
         "-movflags",
         "+faststart",
+        "-y",
         request.outputPath,
       ],
       timeoutMs: 60_000,
+      logLevel: "warning",
     })
 
     if (result.exitCode !== 0) {
+      safeLog("warn", "Rolling buffer concat copy failed, retrying with transcode", {
+        exitCode: result.exitCode,
+        stderr: result.stderr.slice(-800),
+      })
+
+      result = await runFfmpeg({
+        args: [
+          ...concatInput,
+          "-c:v",
+          "libx264",
+          "-preset",
+          "veryfast",
+          "-crf",
+          "23",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "64k",
+          "-movflags",
+          "+faststart",
+          "-y",
+          request.outputPath,
+        ],
+        timeoutMs: 90_000,
+        logLevel: "warning",
+      })
+    }
+
+    if (result.exitCode !== 0) {
+      safeLog("warn", "Rolling buffer concat failed", {
+        exitCode: result.exitCode,
+        stderr: result.stderr.slice(-800),
+      })
       throw new Error("extraction_failed")
     }
 

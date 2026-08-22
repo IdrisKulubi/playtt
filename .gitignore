@@ -38,6 +38,9 @@ pnpm-debug.log*
 # env files
 .env*.local
 
+# VenueEdge local credentials and clip cache
+services/venue-edge/.venue-edge-data/
+
 # firmware simulator state
 firmware/simulator/.state/
 

@@ -39,7 +39,8 @@ export class CommandProcessor {
     if (
       persisted.status === "acknowledged" ||
       persisted.status === "rejected" ||
-      persisted.status === "failed"
+      persisted.status === "failed" ||
+      persisted.status === "delivered"
     ) {
       return false
     }
@@ -72,7 +73,16 @@ export class CommandProcessor {
       return false
     }
 
-    void this.orchestrator.processCaptureReplay(command.id, command.payload)
+    this.repositories.updateCommandStatus(command.id, "delivered")
+
+    void this.orchestrator
+      .processCaptureReplay(command.id, command.payload)
+      .catch((error) => {
+        safeLog("error", "capture_replay processing crashed", {
+          commandId: command.id,
+          message: error instanceof Error ? error.message : String(error),
+        })
+      })
     return true
   }
 }

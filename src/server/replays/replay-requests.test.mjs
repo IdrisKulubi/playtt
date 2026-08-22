@@ -215,7 +215,7 @@ test("kiosk replay repository resolves owner by resource and debounces in-flight
 
   assert.match(repositorySource, /getActivePlaySessionOwnerForResource/)
   assert.match(repositorySource, /getInFlightReplayRequestForSession/)
-  assert.match(repositorySource, /notInArray\(replayRequests\.status/)
+  assert.match(repositorySource, /inArray\(replayRequests\.status/)
   assert.match(repositorySource, /eq\(sessionParticipants\.role, "owner"\)/)
 })
 
@@ -256,7 +256,7 @@ test("display kiosk replay route exposes GET status and POST capture", () => {
   assert.match(kioskPage, /TableReplayKiosk/)
   assert.match(kioskPage, /resourceId/)
   assert.match(kioskComponent, /replay-requests/)
-  assert.match(kioskComponent, /addEventListener\("replay"/)
+  assert.match(kioskComponent, /CAPTURE_FAILURE_STATUSES/)
 })
 
 test("operator venue detail links replay kiosk and TV URLs", () => {

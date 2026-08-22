@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull, lte, notInArray, or } from "drizzle-orm"
+import { and, desc, eq, gt, inArray, isNull, lte, or } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import {
@@ -82,10 +82,15 @@ export interface ActivePlaySessionOwnerForResource {
   ownerUserId: string
 }
 
-const TERMINAL_REPLAY_REQUEST_STATUSES: ReplayRequestStatus[] = [
-  "ready",
-  "failed",
-  "expired",
+const IN_FLIGHT_REPLAY_REQUEST_STATUSES: ReplayRequestStatus[] = [
+  "requested",
+  "authorized",
+  "dispatched",
+  "edge_acknowledged",
+  "capturing",
+  "extracting",
+  "uploading",
+  "verifying",
 ]
 
 export interface VenueEdgeAssignment {
@@ -395,7 +400,28 @@ export async function getInFlightReplayRequestForSession(
       and(
         eq(replayRequests.tenantId, context.tenantId),
         eq(replayRequests.playSessionId, playSessionId),
-        notInArray(replayRequests.status, TERMINAL_REPLAY_REQUEST_STATUSES),
+        inArray(replayRequests.status, IN_FLIGHT_REPLAY_REQUEST_STATUSES),
+      ),
+    )
+    .orderBy(desc(replayRequests.createdAt))
+    .limit(1)
+
+  return row ? mapReplayRequest(row) : null
+}
+
+export async function getLatestReplayRequestForSession(
+  context: TenantContext,
+  playSessionId: string,
+  tx?: DbExecutor,
+) {
+  const executor = tx ?? db
+  const [row] = await executor
+    .select()
+    .from(replayRequests)
+    .where(
+      and(
+        eq(replayRequests.tenantId, context.tenantId),
+        eq(replayRequests.playSessionId, playSessionId),
       ),
     )
     .orderBy(desc(replayRequests.createdAt))

@@ -14,6 +14,40 @@ type KioskStatus = {
   } | null
   remainingCredits: number | null
   inFlightReplayRequestId: string | null
+  latestReplay: {
+    id: string
+    status: string
+    failureReason: string | null
+  } | null
+}
+
+const CAPTURE_FAILURE_STATUSES = new Set([
+  "failed",
+  "expired",
+  "extraction_failed",
+  "buffer_missing",
+  "upload_failed",
+  "edge_offline",
+])
+
+function describeCaptureFailure(status: string, reason: string | null) {
+  if (status === "buffer_missing") {
+    return "No camera buffer yet. Wait a few seconds after VenueEdge starts, then try again."
+  }
+
+  if (status === "extraction_failed") {
+    return "Could not cut the clip. Check the camera stream and try again."
+  }
+
+  if (status === "upload_failed") {
+    return "Clip upload failed. Check internet on the venue PC and try again."
+  }
+
+  if (status === "edge_offline") {
+    return "Replay capture is offline. Ask staff for help."
+  }
+
+  return reason || "Could not capture replay."
 }
 
 type ReplayRequestResult = {
@@ -66,6 +100,7 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const pendingReplayIdRef = useRef<string | null>(null)
   const idempotencyKeyRef = useRef<string | null>(null)
+  const dismissedFailureIdRef = useRef<string | null>(null)
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const fetchStatus = useCallback(async () => {
@@ -83,27 +118,34 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
     return body.data
   }, [resourceId])
 
-  const applyStatusToView = useCallback(
-    (next: KioskStatus, processing: boolean) => {
-      if (processing) {
-        setViewState("processing")
-        return
-      }
+  const applyStatusToView = useCallback((next: KioskStatus) => {
+    if (next.status === "idle") {
+      setViewState("idle")
+      return
+    }
 
-      if (next.status === "idle") {
-        setViewState("idle")
-        return
-      }
+    if (next.inFlightReplayRequestId) {
+      setViewState("processing")
+      return
+    }
 
-      if (next.inFlightReplayRequestId) {
-        setViewState("processing")
-        return
-      }
+    if (
+      next.latestReplay &&
+      CAPTURE_FAILURE_STATUSES.has(next.latestReplay.status) &&
+      next.latestReplay.id !== dismissedFailureIdRef.current
+    ) {
+      setViewState("error")
+      setErrorMessage(
+        describeCaptureFailure(
+          next.latestReplay.status,
+          next.latestReplay.failureReason,
+        ),
+      )
+      return
+    }
 
-      setViewState("ready")
-    },
-    [],
-  )
+    setViewState("ready")
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -113,7 +155,7 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
         const next = await fetchStatus()
 
         if (!cancelled) {
-          applyStatusToView(next, false)
+          applyStatusToView(next)
           setErrorMessage(null)
         }
       } catch (loadError) {
@@ -140,7 +182,7 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
       void fetchStatus()
         .then((next) => {
           if (viewState !== "success") {
-            applyStatusToView(next, viewState === "processing")
+            applyStatusToView(next)
           }
         })
         .catch(() => undefined)
@@ -182,7 +224,7 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
 
         successTimerRef.current = setTimeout(() => {
           void fetchStatus()
-            .then((next) => applyStatusToView(next, false))
+            .then((next) => applyStatusToView(next))
             .catch(() => {
               setViewState("ready")
             })
@@ -249,6 +291,7 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
       }
 
       pendingReplayIdRef.current = result.replayId
+      dismissedFailureIdRef.current = null
       idempotencyKeyRef.current = null
 
       setStatus((current) =>
@@ -353,10 +396,10 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
             <button
               type="button"
               onClick={() => {
+                dismissedFailureIdRef.current =
+                  status?.latestReplay?.id ?? null
                 setErrorMessage(null)
-                void fetchStatus()
-                  .then((next) => applyStatusToView(next, false))
-                  .catch(() => setViewState("error"))
+                setViewState("ready")
               }}
               className="mt-8 rounded-2xl border border-white/20 px-6 py-3 text-lg text-white/80 hover:bg-white/5"
             >

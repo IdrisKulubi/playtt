@@ -15,6 +15,7 @@ export class EdgeProtocolError extends Error {
 export interface UploadGrant {
   url: string
   expiresAt: string
+  contentType?: string
 }
 
 export interface CaptureReplayPayload {
