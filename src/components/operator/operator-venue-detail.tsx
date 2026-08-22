@@ -109,11 +109,20 @@ export function OperatorVenueDetail({
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Button asChild size="sm" variant="outline">
                       <Link
+                        href={`/replay?resourceId=${resource.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Open replay kiosk
+                      </Link>
+                    </Button>
+                    <Button asChild size="sm" variant="outline">
+                      <Link
                         href={`/pod/scoreboard?resourceId=${resource.id}`}
                         target="_blank"
                         rel="noreferrer"
                       >
-                        Open kiosk
+                        Open scoreboard
                       </Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">

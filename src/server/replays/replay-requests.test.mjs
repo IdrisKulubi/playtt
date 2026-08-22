@@ -206,3 +206,65 @@ test("cross-tenant denial patterns scope replay requests by tenant", () => {
   assert.match(serviceSource, /REPLAY_REQUEST_FORBIDDEN/)
   assert.match(serviceSource, /venueEdgeDeviceId !== input\.deviceId/)
 })
+
+test("kiosk replay repository resolves owner by resource and debounces in-flight requests", () => {
+  const repositorySource = readFileSync(
+    join(replaysRoot, "replay-requests-repository.ts"),
+    "utf8",
+  )
+
+  assert.match(repositorySource, /getActivePlaySessionOwnerForResource/)
+  assert.match(repositorySource, /getInFlightReplayRequestForSession/)
+  assert.match(repositorySource, /notInArray\(replayRequests\.status/)
+  assert.match(repositorySource, /eq\(sessionParticipants\.role, "owner"\)/)
+})
+
+test("kiosk replay service charges session owner via createReplayRequest", () => {
+  const serviceSource = readFileSync(
+    join(replaysRoot, "replay-requests-service.ts"),
+    "utf8",
+  )
+
+  assert.match(serviceSource, /createKioskReplayRequest/)
+  assert.match(serviceSource, /getKioskReplayStatus/)
+  assert.match(serviceSource, /kiosk-replay/)
+  assert.match(serviceSource, /requestSource: "table_kiosk"/)
+  assert.match(serviceSource, /REPLAY_IN_FLIGHT/)
+  assert.match(serviceSource, /sessionOwner\.ownerUserId/)
+})
+
+test("display kiosk replay route exposes GET status and POST capture", () => {
+  const kioskRoute = readFileSync(
+    join(
+      repoRoot,
+      "src/app/api/display/v1/resources/[resourceId]/replay-requests/route.ts",
+    ),
+    "utf8",
+  )
+  const kioskPage = readFileSync(
+    join(repoRoot, "src/app/replay/page.tsx"),
+    "utf8",
+  )
+  const kioskComponent = readFileSync(
+    join(repoRoot, "src/components/replay/table-replay-kiosk.tsx"),
+    "utf8",
+  )
+
+  assert.match(kioskRoute, /createKioskReplayRequest/)
+  assert.match(kioskRoute, /getKioskReplayStatus/)
+  assert.match(kioskRoute, /clientIdempotencyKey/)
+  assert.match(kioskPage, /TableReplayKiosk/)
+  assert.match(kioskPage, /resourceId/)
+  assert.match(kioskComponent, /replay-requests/)
+  assert.match(kioskComponent, /addEventListener\("replay"/)
+})
+
+test("operator venue detail links replay kiosk and TV URLs", () => {
+  const operatorDetail = readFileSync(
+    join(repoRoot, "src/components/operator/operator-venue-detail.tsx"),
+    "utf8",
+  )
+
+  assert.match(operatorDetail, /\/replay\?resourceId=/)
+  assert.match(operatorDetail, /\/pod\/tv\?resourceId=/)
+})

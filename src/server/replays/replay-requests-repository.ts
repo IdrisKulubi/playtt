@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull, lte, or } from "drizzle-orm"
+import { and, desc, eq, gt, isNull, lte, notInArray, or } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import {
@@ -72,6 +72,21 @@ export interface ActivePlaySessionForReplay {
   status: string
   bookingUserId: string
 }
+
+export interface ActivePlaySessionOwnerForResource {
+  playSessionId: string
+  tenantId: string
+  bookingId: string
+  locationId: string
+  resourceId: string
+  ownerUserId: string
+}
+
+const TERMINAL_REPLAY_REQUEST_STATUSES: ReplayRequestStatus[] = [
+  "ready",
+  "failed",
+  "expired",
+]
 
 export interface VenueEdgeAssignment {
   deviceId: string
@@ -365,6 +380,99 @@ export async function transitionReplayRequestStatus(
   }
 
   return mapReplayRequest(updated)
+}
+
+export async function getInFlightReplayRequestForSession(
+  context: TenantContext,
+  playSessionId: string,
+  tx?: DbExecutor,
+) {
+  const executor = tx ?? db
+  const [row] = await executor
+    .select()
+    .from(replayRequests)
+    .where(
+      and(
+        eq(replayRequests.tenantId, context.tenantId),
+        eq(replayRequests.playSessionId, playSessionId),
+        notInArray(replayRequests.status, TERMINAL_REPLAY_REQUEST_STATUSES),
+      ),
+    )
+    .orderBy(desc(replayRequests.createdAt))
+    .limit(1)
+
+  return row ? mapReplayRequest(row) : null
+}
+
+export async function getActivePlaySessionOwnerForResource(
+  context: TenantContext,
+  resourceId: string,
+) {
+  const now = new Date()
+
+  const [row] = await db
+    .select({
+      playSessionId: playSessions.id,
+      tenantId: playSessions.tenantId,
+      bookingId: playSessions.bookingId,
+      locationId: playSessions.locationId,
+      resourceId: playSessions.resourceId,
+      bookingStatus: bookings.status,
+      paymentStatus: bookings.paymentStatus,
+      startTime: bookings.startTime,
+      endTime: bookings.endTime,
+      ownerUserId: sessionParticipants.userId,
+      replayCapabilityId: resourceCapabilities.id,
+    })
+    .from(playSessions)
+    .innerJoin(bookings, eq(playSessions.bookingId, bookings.id))
+    .innerJoin(
+      sessionParticipants,
+      and(
+        eq(sessionParticipants.playSessionId, playSessions.id),
+        eq(sessionParticipants.role, "owner"),
+      ),
+    )
+    .innerJoin(
+      resourceCapabilities,
+      and(
+        eq(resourceCapabilities.resourceId, playSessions.resourceId),
+        eq(resourceCapabilities.tenantId, playSessions.tenantId),
+        eq(resourceCapabilities.code, "replay"),
+      ),
+    )
+    .where(
+      and(
+        eq(playSessions.tenantId, context.tenantId),
+        eq(bookings.tenantId, context.tenantId),
+        eq(sessionParticipants.tenantId, context.tenantId),
+        eq(resourceCapabilities.tenantId, context.tenantId),
+        eq(playSessions.resourceId, resourceId),
+        eq(playSessions.status, "active"),
+      ),
+    )
+    .limit(1)
+
+  if (!row) {
+    return null
+  }
+
+  if (row.bookingStatus !== "confirmed" || row.paymentStatus !== "paid") {
+    return null
+  }
+
+  if (row.startTime > now || row.endTime < now) {
+    return null
+  }
+
+  return {
+    playSessionId: row.playSessionId,
+    tenantId: row.tenantId,
+    bookingId: row.bookingId,
+    locationId: row.locationId,
+    resourceId: row.resourceId,
+    ownerUserId: row.ownerUserId,
+  } satisfies ActivePlaySessionOwnerForResource
 }
 
 export async function getActivePlaySessionForReplayRequest(
