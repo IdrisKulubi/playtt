@@ -2,6 +2,7 @@ import {
   assignDevice,
   createEnrollment,
   endDeviceAssignment,
+  issueProvisionedDevice,
   listDevices,
   revokeDevice,
   rotateDeviceCredential,
@@ -48,6 +49,32 @@ export async function createEnrollmentForOperator(
   })
 
   return enrollment
+}
+
+export async function issueProvisionedDeviceForOperator(
+  context: TenantContext,
+  input: {
+    locationId: string
+    deviceType: DeviceType
+    hardwareUid?: string
+    expiresInMinutes?: number
+  },
+) {
+  authorize(context, "venue.manage")
+  const issued = await issueProvisionedDevice(context, input)
+
+  await writeAuditLog(context, {
+    action: "device.credentials.issue",
+    targetType: "device",
+    targetId: issued.deviceId,
+    metadata: {
+      locationId: input.locationId,
+      deviceType: input.deviceType,
+      hardwareUid: issued.hardwareUid,
+    },
+  })
+
+  return issued
 }
 
 export async function assignDeviceForOperator(

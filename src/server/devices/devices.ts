@@ -224,6 +224,44 @@ export async function createEnrollment(
   }
 }
 
+export async function issueProvisionedDevice(
+  context: TenantContext,
+  input: {
+    locationId: string
+    deviceType: DeviceType
+    hardwareUid?: string
+    expiresInMinutes?: number
+  },
+): Promise<{
+  deviceId: string
+  secret: string
+  credentialVersion: number
+  hardwareUid: string
+  deviceType: DeviceType
+}> {
+  const enrollment = await createEnrollment(context, {
+    locationId: input.locationId,
+    deviceType: input.deviceType,
+    expiresInMinutes: input.expiresInMinutes,
+  })
+  const hardwareUid =
+    input.hardwareUid?.trim() || `${input.deviceType}-${randomUUID()}`
+  const provisioned = await provisionDevice({
+    enrollmentCode: enrollment.enrollmentCode,
+    hardwareUid,
+    firmwareVersion: "operator-issued",
+    correlationId: context.correlationId,
+  })
+
+  return {
+    deviceId: provisioned.deviceId,
+    secret: provisioned.secret,
+    credentialVersion: provisioned.credentialVersion,
+    hardwareUid,
+    deviceType: input.deviceType,
+  }
+}
+
 export async function provisionDevice(input: {
   enrollmentCode: string
   hardwareUid: string
@@ -280,6 +318,12 @@ export async function provisionDevice(input: {
       hardwareUid: input.hardwareUid,
       firmwareVersion: input.firmwareVersion ?? null,
       status: "active",
+      capabilityCodes:
+        enrollment.deviceType === "venue_edge"
+          ? ["replay"]
+          : enrollment.deviceType === "camera"
+            ? ["camera"]
+            : [],
     })
 
     await tx.insert(deviceCredentials).values({

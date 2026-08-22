@@ -22,12 +22,34 @@ const ROLE_POLICY = {
     capability: "display",
     resourceRequired: true,
   },
+  venue_edge: {
+    deviceTypes: new Set(["venue_edge"]),
+    capability: "replay",
+    resourceRequired: true,
+  },
+  replay_primary: {
+    deviceTypes: new Set(["camera"]),
+    capability: "camera",
+    resourceRequired: true,
+  },
+  replay_secondary: {
+    deviceTypes: new Set(["camera"]),
+    capability: "camera",
+    resourceRequired: true,
+  },
+  security_camera: {
+    deviceTypes: new Set(["camera"]),
+    capability: "camera",
+    resourceRequired: false,
+  },
 }
 
 const DEFAULT_TYPE_CAPABILITIES = {
   esp32_controller: new Set(["scoring", "display"]),
   ttlock_lock: new Set(["access"]),
   ttlock_gateway: new Set(["access"]),
+  venue_edge: new Set(["replay"]),
+  camera: new Set(["camera"]),
 }
 
 export function validateDeviceAssignmentPolicy(input) {

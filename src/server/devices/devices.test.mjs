@@ -156,8 +156,27 @@ test("provision response returns secret only at issuance", () => {
 test("operator device writes require venue.manage", () => {
   const service = readFileSync(join(devicesRoot, "devices-service.ts"), "utf8")
   const context = readFileSync(join(devicesRoot, "operator-context.ts"), "utf8")
+  const operatorRoute = readFileSync(
+    join(repoRoot, "src/app/api/operator/devices/route.ts"),
+    "utf8"
+  )
+  const assignmentRoute = readFileSync(
+    join(repoRoot, "src/app/api/operator/devices/assignments/route.ts"),
+    "utf8"
+  )
+  const devicesPanel = readFileSync(
+    join(repoRoot, "src/components/operator/operator-devices-panel.tsx"),
+    "utf8"
+  )
+
   assert.match(service, /venue\.manage/)
   assert.match(context, /venue\.manage/)
+  assert.match(service, /issueProvisionedDeviceForOperator/)
+  assert.match(operatorRoute, /venue_edge/)
+  assert.match(operatorRoute, /issueProvisionedDeviceForOperator/)
+  assert.match(assignmentRoute, /venue_edge/)
+  assert.match(devicesPanel, /Issue device credentials/)
+  assert.match(devicesPanel, /Venue edge/)
 })
 
 test("device v1 routes use dedicated device auth", () => {
