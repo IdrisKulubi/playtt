@@ -6,6 +6,7 @@ import {
   getCatalogOverview as getCatalogOverviewFromRepository,
   listCapabilities as listCapabilitiesFromRepository,
   listFeatureFlags as listFeatureFlagsFromRepository,
+  setFeatureFlagEnabled as setFeatureFlagEnabledInRepository,
   listMemberships as listMembershipsFromRepository,
   listResourceTypes as listResourceTypesFromRepository,
   listResources as listResourcesFromRepository,
@@ -45,6 +46,15 @@ export async function listFeatureFlags(
 ): Promise<OperatorFeatureFlag[]> {
   authorize(context, "catalog.read")
   return listFeatureFlagsFromRepository(context)
+}
+
+export async function setFeatureFlagEnabled(
+  context: TenantContext,
+  key: string,
+  enabled: boolean,
+): Promise<OperatorFeatureFlag> {
+  authorize(context, "catalog.manage")
+  return setFeatureFlagEnabledInRepository(context, key, enabled)
 }
 
 export async function listVenues(context: TenantContext): Promise<OperatorVenue[]> {

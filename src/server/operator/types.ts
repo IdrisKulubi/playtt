@@ -131,8 +131,8 @@ export interface OperatorFeatureFlag {
   key: string
   enabled: boolean
   scope: Record<string, unknown> | null
-  createdAt: string
-  updatedAt: string
+  createdAt: string | null
+  updatedAt: string | null
 }
 
 export interface OperatorCatalogOverviewVenue {

@@ -19,7 +19,10 @@ export default async function AdminFeatureFlagsPage() {
       searchable={false}
     >
       <div className="admin-dashboard-card p-0">
-        <OperatorFeatureFlagTable featureFlags={featureFlags} />
+        <OperatorFeatureFlagTable
+          featureFlags={featureFlags}
+          canManage={access.canManageCatalog}
+        />
       </div>
     </AdminShell>
   )

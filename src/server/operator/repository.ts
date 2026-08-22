@@ -12,6 +12,7 @@ import {
   user,
   zones,
 } from "@/db/schema"
+import { KNOWN_FEATURE_FLAG_KEYS } from "@/server/operator/feature-flag-keys"
 import type {
   OperatorCapability,
   OperatorCatalogOverview,
@@ -266,7 +267,53 @@ export async function listFeatureFlags(
     .where(eq(featureFlags.tenantId, context.tenantId))
     .orderBy(featureFlags.key)
 
-  return rows.map(mapFeatureFlag)
+  const byKey = new Map(rows.map((row) => [row.key, row]))
+
+  return KNOWN_FEATURE_FLAG_KEYS.map((key) => {
+    const row = byKey.get(key)
+
+    if (row) {
+      return mapFeatureFlag(row)
+    }
+
+    return {
+      id: key,
+      tenantId: context.tenantId,
+      key,
+      enabled: false,
+      scope: null,
+      createdAt: null,
+      updatedAt: null,
+    }
+  })
+}
+
+export async function setFeatureFlagEnabled(
+  context: TenantContext,
+  key: string,
+  enabled: boolean,
+): Promise<OperatorFeatureFlag> {
+  if (!KNOWN_FEATURE_FLAG_KEYS.includes(key as typeof KNOWN_FEATURE_FLAG_KEYS[number])) {
+    throw new Error(`Unknown feature flag key: ${key}`)
+  }
+
+  const [row] = await db
+    .insert(featureFlags)
+    .values({
+      tenantId: context.tenantId,
+      key,
+      enabled,
+    })
+    .onConflictDoUpdate({
+      target: [featureFlags.tenantId, featureFlags.key],
+      set: {
+        enabled,
+        updatedAt: new Date(),
+      },
+    })
+    .returning()
+
+  return mapFeatureFlag(row!)
 }
 
 export async function getCatalogOverview(
