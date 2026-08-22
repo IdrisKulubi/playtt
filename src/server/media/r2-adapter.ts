@@ -49,6 +49,10 @@ function createR2Client() {
       accessKeyId,
       secretAccessKey,
     },
+    // Presigned PUTs must not sign flexible checksum headers; R2 returns
+    // SignatureDoesNotMatch if the uploader sends extra x-amz-checksum-*.
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
   })
 }
 

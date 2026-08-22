@@ -27,6 +27,7 @@ import {
   getActivePlaySessionForReplayRequest,
   getActivePlaySessionOwnerForResource,
   getInFlightReplayRequestForSession,
+  getLatestReplayRequestForSession,
   getReplayCreditBalance,
   getReplayRequestByIdempotencyKey,
   insertReplayRequest,
@@ -173,7 +174,7 @@ export async function createReplayRequest(input: {
   const mediaPolicy = resolveMediaContentPolicy("source_video")
 
   const store = getMediaStore()
-  let uploadGrant: { url: string; expiresAt: string }
+  let uploadGrant: { url: string; expiresAt: string; contentType?: string }
 
   try {
     uploadGrant = await store.createUploadGrant({
@@ -403,6 +404,7 @@ export async function getKioskReplayStatus(resourceId: string) {
       playSession: null,
       remainingCredits: null,
       inFlightReplayRequestId: null,
+      latestReplay: null,
     }
   }
 
@@ -414,6 +416,10 @@ export async function getKioskReplayStatus(resourceId: string) {
     ? await getReplayCreditBalance(context, sessionOwner.ownerUserId)
     : null
   const inFlight = await getInFlightReplayRequestForSession(
+    context,
+    snapshot.playSession.id,
+  )
+  const latest = await getLatestReplayRequestForSession(
     context,
     snapshot.playSession.id,
   )
@@ -430,6 +436,13 @@ export async function getKioskReplayStatus(resourceId: string) {
     },
     remainingCredits,
     inFlightReplayRequestId: inFlight?.id ?? null,
+    latestReplay: latest
+      ? {
+          id: latest.id,
+          status: latest.status,
+          failureReason: latest.failureReason,
+        }
+      : null,
   }
 }
 

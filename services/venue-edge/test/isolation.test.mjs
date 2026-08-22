@@ -45,7 +45,7 @@ test("VIGI adapter is blocked in production by default", async () => {
 
   assert.equal(isVigiAdapterBlockedInProduction(), true)
 
-  const adapter = new VigiNvrPlaybackAdapter("VIGI-NVR-TEST")
+  const adapter = new VigiNvrPlaybackAdapter("rtsp://cam/live/1/1/avm")
   assert.equal(await adapter.isAvailable(), false)
 
   await assert.rejects(

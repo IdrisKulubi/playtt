@@ -19,11 +19,11 @@ export async function uploadToPresignedUrl(input: {
   const body = await readFile(input.filePath)
   const checksumSha256 = createHash("sha256").update(body).digest("hex")
 
+  const contentType = input.grant.contentType?.trim() || "video/mp4"
   const response = await fetchImpl(input.grant.url, {
     method: "PUT",
     headers: {
-      "content-type": "video/mp4",
-      "x-amz-checksum-sha256": checksumSha256,
+      "content-type": contentType,
     },
     body,
   })
@@ -34,7 +34,7 @@ export async function uploadToPresignedUrl(input: {
       status: response.status,
       bodyPreview: text.slice(0, 120),
     })
-    throw new Error(`Upload failed with status ${response.status}.`)
+    throw new Error("upload_failed")
   }
 
   return {

@@ -1,9 +1,12 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process"
+import { existsSync } from "node:fs"
+import { join } from "node:path"
 
 export interface FfmpegRunOptions {
   args: string[]
   timeoutMs?: number
   signal?: AbortSignal
+  logLevel?: "error" | "warning" | "info"
 }
 
 export interface FfmpegRunResult {
@@ -14,13 +17,45 @@ export interface FfmpegRunResult {
   cancelled: boolean
 }
 
+export function resolveFfmpegBinary(): string {
+  const configured = process.env.FFMPEG_PATH?.trim()
+  if (configured) {
+    return configured
+  }
+
+  if (process.platform === "win32" && process.env.LOCALAPPDATA) {
+    const wingetLink = join(
+      process.env.LOCALAPPDATA,
+      "Microsoft",
+      "WinGet",
+      "Links",
+      "ffmpeg.exe",
+    )
+
+    if (existsSync(wingetLink)) {
+      return wingetLink
+    }
+  }
+
+  return "ffmpeg"
+}
+
 export async function runFfmpeg(
   options: FfmpegRunOptions,
 ): Promise<FfmpegRunResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn("ffmpeg", ["-hide_banner", "-loglevel", "error", ...options.args], {
-      stdio: ["ignore", "pipe", "pipe"],
-    })
+    const child = spawn(
+      resolveFfmpegBinary(),
+      [
+        "-hide_banner",
+        "-loglevel",
+        options.logLevel ?? "error",
+        ...options.args,
+      ],
+      {
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    )
 
     let stdout = ""
     let stderr = ""
