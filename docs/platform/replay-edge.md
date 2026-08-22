@@ -171,7 +171,7 @@ Measured from authorized request to `replay.ready.v1` emission after R2 verifica
 
 ## VIGI NVR pilot checklist
 
-Before implementing `VigiNvrPlaybackAdapter`, validate on pilot hardware:
+Before implementing `VigiNvrPlaybackAdapter`, validate on pilot hardware. **Step-by-step walkthrough (NVR + cameras + monitor already set up):** [vigi-nvr-pilot-walkthrough.md](../hardware/vigi-nvr-pilot-walkthrough.md). Checklist + automated probe: [vigi-nvr-pilot-checklist.md](../hardware/vigi-nvr-pilot-checklist.md) · `pnpm probe:vigi`
 
 - [ ] Exact VIGI model and firmware version
 - [ ] Live RTSP URL syntax and authentication

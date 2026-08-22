@@ -1,0 +1,47 @@
+{
+  "timestamp": "2026-08-22T20:56:38.169Z",
+  "nvrModel": "VIGI_NVR1004H-4P_UN_1.0",
+  "nvrFirmware": "1.2.1_Build_250903_Rel.38363n",
+  "cameraModel": "VIGI_C440_2.0",
+  "cameraCount": 4,
+  "nvrIp": "192.168.0.82",
+  "rtspPort": 554,
+  "rtspAuthentication": "MD5",
+  "srtpEnabled": false,
+  "timeZone": "Africa/Nairobi",
+  "channel": "1",
+  "stream": "1",
+  "timeSuffix": "z",
+  "captureAt": "2026-08-22T20:54:28.403Z",
+  "windowSeconds": 15,
+  "live": {
+    "label": "live",
+    "ok": true,
+    "codec": "h264",
+    "h264Compatible": true,
+    "width": 2560,
+    "height": 1440,
+    "frameRate": "25/1"
+  },
+  "playback": {
+    "label": "playback",
+    "ok": true,
+    "codec": "h264",
+    "h264Compatible": true,
+    "width": 2560,
+    "height": 1440,
+    "frameRate": "25/1"
+  },
+  "clipExtracted": true,
+  "clipPath": "C:\\Users\\Idris Kulubi\\Desktop\\sidequests\\playtt\\pilot-playback-clip.mp4",
+  "clipError": null,
+  "checklist": {
+    "modelFirmwareRecorded": "manual — see NVR web UI",
+    "liveRtsp": true,
+    "playbackRtsp": true,
+    "h264Compatible": true,
+    "clockSync": "manual — compare NVR UI vs wall clock",
+    "credentialRotation": "manual — rotate RTSP user and re-run",
+    "networkIsolation": "manual — verify NVR not on guest Wi‑Fi"
+  }
+}
