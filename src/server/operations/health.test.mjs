@@ -4,8 +4,10 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import {
+  evaluateCommandDimension,
   evaluateDeviceDimension,
   evaluateEdgeDimension,
+  evaluateInfrastructureProbe,
   evaluateReplayDimension,
   evaluateSessionDimension,
   evaluateWorkerDimension,
@@ -89,6 +91,37 @@ test("worker health evaluation treats dead letters as down", () => {
   )
 })
 
+test("command and infrastructure evaluators escalate failed work and probe outages", () => {
+  assert.equal(evaluateCommandDimension(0).status, "ok")
+  assert.equal(evaluateCommandDimension(1).status, "degraded")
+  assert.equal(evaluateCommandDimension(3).status, "down")
+
+  assert.equal(
+    evaluateInfrastructureProbe({
+      configured: false,
+      ok: false,
+      summary: "REDIS_URL not configured",
+    }).status,
+    "not_configured",
+  )
+  assert.equal(
+    evaluateInfrastructureProbe({
+      configured: true,
+      ok: false,
+      summary: "Redis probe failed",
+    }).status,
+    "down",
+  )
+  assert.equal(
+    evaluateInfrastructureProbe({
+      configured: true,
+      ok: true,
+      summary: "Database reachable (12ms)",
+    }).status,
+    "ok",
+  )
+})
+
 test("health repository scopes reads by tenant and venue", () => {
   const source = readFileSync(
     join(operationsRoot, "health-repository.ts"),
@@ -98,6 +131,9 @@ test("health repository scopes reads by tenant and venue", () => {
   assert.match(source, /eq\(devices\.tenantId, tenantId\)/)
   assert.match(source, /eq\(playSessions\.tenantId, tenantId\)/)
   assert.match(source, /eq\(replayRequests\.tenantId, tenantId\)/)
+  assert.match(source, /eq\(deviceCommands\.status, "failed"\)/)
+  assert.match(source, /accessPoints\.tenantId/)
+  assert.match(source, /accessCredentials\.tenantId/)
   assert.match(source, /inArray\(devices\.locationId, venueIds\)/)
   assert.match(source, /countTenantDeadLetters\(context\)/)
 })
@@ -121,6 +157,9 @@ test("health service authorizes venue.read and exposes admin health routes", () 
   )
 
   assert.match(service, /authorize\(context, "venue\.read"\)/)
+  assert.match(service, /probeInfrastructure/)
+  assert.match(service, /evaluateCommandDimension/)
+  assert.match(service, /evaluateInfrastructureProbe/)
   assert.match(page, /getTenantHealthOverview/)
   assert.match(sidebar, /\/admin\/health/)
   assert.match(venuePage, /getVenueHealthSnapshot/)

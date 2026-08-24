@@ -6,7 +6,11 @@ export type HealthDimensionKey =
   | "sessions"
   | "workers"
   | "replay"
+  | "commands"
   | "access"
+  | "database"
+  | "redis"
+  | "storage"
   | "network"
 
 export interface HealthDimensionEvaluation {
@@ -48,7 +52,11 @@ export const HEALTH_DIMENSION_LABELS: Record<HealthDimensionKey, string> = {
   sessions: "Sessions",
   workers: "Workers",
   replay: "Replay",
+  commands: "Device commands",
   access: "Access / TTLock",
+  database: "Database",
+  redis: "Redis",
+  storage: "R2 storage",
   network: "Internet / WAN",
 }
 
@@ -292,6 +300,134 @@ export function evaluateNotConfiguredDimension(
     status: "not_configured",
     count: 0,
     summary,
+  }
+}
+
+export function evaluateInfrastructureProbe(input: {
+  configured: boolean
+  ok: boolean
+  summary: string
+}): HealthDimensionEvaluation {
+  if (!input.configured) {
+    return {
+      status: "not_configured",
+      count: 0,
+      summary: input.summary,
+    }
+  }
+
+  if (!input.ok) {
+    return {
+      status: "down",
+      count: 1,
+      summary: input.summary,
+    }
+  }
+
+  return {
+    status: "ok",
+    count: 0,
+    summary: input.summary,
+  }
+}
+
+export function evaluateCommandDimension(
+  failedCount: number,
+): HealthDimensionEvaluation {
+  if (failedCount === 0) {
+    return {
+      status: "ok",
+      count: 0,
+      summary: "No failed device commands",
+    }
+  }
+
+  if (failedCount >= 3) {
+    return {
+      status: "down",
+      count: failedCount,
+      summary: `${failedCount} failed device commands`,
+    }
+  }
+
+  return {
+    status: "degraded",
+    count: failedCount,
+    summary: `${failedCount} failed device command${failedCount > 1 ? "s" : ""}`,
+  }
+}
+
+export function evaluateAccessDimension(input: {
+  accessPointCount: number
+  failedCredentialCount: number
+  pendingCredentialCount: number
+}): HealthDimensionEvaluation {
+  if (input.accessPointCount === 0) {
+    return {
+      status: "not_configured",
+      count: 0,
+      summary: "No access points configured for this venue",
+    }
+  }
+
+  if (input.failedCredentialCount > 0) {
+    return {
+      status: "down",
+      count: input.failedCredentialCount,
+      summary: `${input.failedCredentialCount} failed access credential${input.failedCredentialCount > 1 ? "s" : ""}`,
+    }
+  }
+
+  if (input.pendingCredentialCount > 0) {
+    return {
+      status: "degraded",
+      count: input.pendingCredentialCount,
+      summary: `${input.pendingCredentialCount} pending access credential${input.pendingCredentialCount > 1 ? "s" : ""}`,
+    }
+  }
+
+  return {
+    status: "ok",
+    count: input.accessPointCount,
+    summary: `${input.accessPointCount} access point${input.accessPointCount > 1 ? "s" : ""} configured`,
+  }
+}
+
+export function evaluateNetworkDimension(
+  edge:
+    | {
+        health: "online" | "offline" | "unknown"
+      }
+    | null,
+): HealthDimensionEvaluation {
+  if (!edge) {
+    return {
+      status: "not_configured",
+      count: 0,
+      summary: "No venue edge device to infer WAN health",
+    }
+  }
+
+  if (edge.health === "offline") {
+    return {
+      status: "down",
+      count: 1,
+      summary: "Venue edge offline; WAN or local network likely unreachable",
+    }
+  }
+
+  if (edge.health === "unknown") {
+    return {
+      status: "degraded",
+      count: 1,
+      summary: "Venue edge heartbeat unknown",
+    }
+  }
+
+  return {
+    status: "ok",
+    count: 0,
+    summary: "Venue edge reachable",
   }
 }
 
