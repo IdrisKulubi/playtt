@@ -154,24 +154,58 @@ export function AdminBookingsTable({
             filtered.map((booking) => (
               <TableRow key={booking.id}>
                 <TableCell>
-                  <div>
-                    <p className="font-medium">{booking.userName}</p>
-                    <p className="text-xs text-muted-foreground">{booking.userEmail}</p>
-                  </div>
+                  <Link
+                    href={`/admin/bookings/${booking.id}`}
+                    className="block rounded-md transition hover:bg-muted/40"
+                  >
+                    <div>
+                      <p className="font-medium">{booking.userName}</p>
+                      <p className="text-xs text-muted-foreground">{booking.userEmail}</p>
+                    </div>
+                  </Link>
                 </TableCell>
-                <TableCell>{booking.locationName}</TableCell>
-                <TableCell>{booking.resourceName}</TableCell>
+                <TableCell>
+                  <Link
+                    href={`/admin/bookings/${booking.id}`}
+                    className="block rounded-md transition hover:bg-muted/40"
+                  >
+                    {booking.locationName}
+                  </Link>
+                </TableCell>
+                <TableCell>
+                  <Link
+                    href={`/admin/bookings/${booking.id}`}
+                    className="block rounded-md transition hover:bg-muted/40"
+                  >
+                    {booking.resourceName}
+                  </Link>
+                </TableCell>
                 <TableCell className="whitespace-nowrap text-sm">
-                  {new Date(booking.startTime).toLocaleString()}
+                  <Link
+                    href={`/admin/bookings/${booking.id}`}
+                    className="block rounded-md transition hover:bg-muted/40"
+                  >
+                    {new Date(booking.startTime).toLocaleString()}
+                  </Link>
                 </TableCell>
                 <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    <Badge variant="outline">{booking.status}</Badge>
-                    <Badge variant="secondary">{booking.paymentStatus}</Badge>
-                  </div>
+                  <Link
+                    href={`/admin/bookings/${booking.id}`}
+                    className="block rounded-md transition hover:bg-muted/40"
+                  >
+                    <div className="flex flex-wrap gap-1">
+                      <Badge variant="outline">{booking.status}</Badge>
+                      <Badge variant="secondary">{booking.paymentStatus}</Badge>
+                    </div>
+                  </Link>
                 </TableCell>
                 <TableCell>
-                  {booking.currency} {booking.totalAmount}
+                  <Link
+                    href={`/admin/bookings/${booking.id}`}
+                    className="block rounded-md transition hover:bg-muted/40"
+                  >
+                    {booking.currency} {booking.totalAmount}
+                  </Link>
                 </TableCell>
               </TableRow>
             ))
