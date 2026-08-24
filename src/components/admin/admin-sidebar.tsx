@@ -9,6 +9,7 @@ import {
   CpuIcon,
   FlagIcon,
   GaugeIcon,
+  HeartbeatIcon,
   PlugsIcon,
   QueueIcon,
   ShapesIcon,
@@ -35,6 +36,7 @@ const navigationGroups: NavGroup[] = [
     label: "Operations",
     items: [
       { href: "/admin", label: "Overview", icon: GaugeIcon, exact: true },
+      { href: "/admin/health", label: "Health", icon: HeartbeatIcon },
       { href: "/admin/bookings", label: "Bookings", icon: CalendarBlankIcon },
       { href: "/admin/revenue", label: "Revenue", icon: WalletIcon },
     ],
