@@ -33,7 +33,7 @@ Use this document for delivery tracking. Use the supporting documents for deeper
 | Phase 4 — Private R2 media           | Complete    | P4-01–P4-06 implemented; `pnpm test:media`, `pnpm test:r2`, and `pnpm test:media-flow` pass against live R2 |
 | Phase 5 — TTLock/automation          | Not started | Depends on access-point catalog, sessions, and device commands                            |
 | Phase 6 — Replay edge                | In progress | P6-01–P6-06 landed locally; simulator/protocol tests pass; hardware ten-table certification remains |
-| Phase 7 — Operations/scale           | Not started | Depends on TTLock and replay-edge completion                                              |
+| Phase 7 — Operations/scale           | In progress | P7-01 Slice A (health overview) landed locally; alerts, DR, and certification remain |
 
 
 
@@ -943,7 +943,7 @@ Make the complete platform operable, observable, recoverable, secure, and certif
 
 ### P7-01/P7-02 — Control plane, observability, and runbooks
 
-- [ ] Build tenant/venue health overview for internet, edge, devices, resources, sessions, access, automation, media, and workers.
+- [x] Build tenant/venue health overview for internet, edge, devices, resources, sessions, access, automation, media, and workers (Slice A: devices, edge, sessions, workers, replay; access/network marked not configured until Phase 5 / P7-04).
 - [ ] Add correlated payment → booking → session → command/device/access/media timeline.
 - [ ] Add alerts for webhook, worker, session, device, TTLock, gateway, command, replay, DB, Redis, and R2 failures.
 - [ ] Link every alert to owner, severity, escalation, and recovery runbook.

@@ -2,6 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { AdminVenueCatalogForms } from "@/components/admin/admin-catalog-forms"
+import { AdminVenueHealthStrip } from "@/components/admin/admin-health-overview"
 import { AdminShell } from "@/components/admin/admin-shell"
 import { adminShellUser } from "@/components/admin/admin-utils"
 import { OperatorVenueDetail } from "@/components/operator/operator-venue-detail"
@@ -12,6 +13,7 @@ import {
   listDevicesForOperator,
 } from "@/server/devices/devices-service"
 import { getVenueCatalogDetail } from "@/server/operator/service"
+import { getVenueHealthSnapshot } from "@/server/operations/health-service"
 import { listReplayRequestsForOperator } from "@/server/replays/replay-requests-service"
 import { canPerformTenantAction } from "@/server/tenancy/permissions"
 
@@ -31,9 +33,10 @@ export default async function AdminVenueDetailPage({ params }: PageProps) {
   }
 
   const devices = await listDevicesForOperator(access.context, id)
-  const [replayRequests, edgeCapacity] = await Promise.all([
+  const [replayRequests, edgeCapacity, venueHealth] = await Promise.all([
     listReplayRequestsForOperator(access.context, id),
     getVenueEdgeCapacityForLocation(access.context, id),
+    getVenueHealthSnapshot(access.context, id),
   ])
   const canManageVenue = canPerformTenantAction(
     access.context.role,
@@ -53,6 +56,7 @@ export default async function AdminVenueDetailPage({ params }: PageProps) {
       }
     >
       <div className="space-y-6">
+        {venueHealth ? <AdminVenueHealthStrip venue={venueHealth} /> : null}
         <div className="admin-dashboard-card">
           <OperatorVenueDetail
             detail={detail}

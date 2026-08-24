@@ -39,6 +39,7 @@
     "test:tenant-backfill": "node --test db/backfill-tenant-scope.test.mjs scripts/validate-tenant-backfill.test.mjs",
     "test:tenant-rbac": "node --test src/server/bookings/tenant-rbac.test.mjs",
     "test:operator": "node --test src/server/operator/operator-access.test.mjs src/server/operator/operator-rbac.test.mjs src/server/operator/operator-durable-work.test.mjs src/server/admin/admin-access.test.mjs",
+    "test:operations": "node --test src/server/operations/health.test.mjs",
     "test:devices": "node --test src/server/devices/policies.test.mjs src/server/devices/devices.test.mjs",
     "test:media": "node --test src/server/media/media.test.mjs src/server/media/stub-policy.test.mjs",
     "test:scoring": "node --test src/server/scoring/tt-standard-v1.test.mjs src/server/scoring/scoring-ingest.test.mjs",
