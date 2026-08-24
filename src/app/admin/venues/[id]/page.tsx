@@ -7,8 +7,12 @@ import { adminShellUser } from "@/components/admin/admin-utils"
 import { OperatorVenueDetail } from "@/components/operator/operator-venue-detail"
 import { Button } from "@/components/ui/button"
 import { requireAdminPageAccess } from "@/server/admin/gate"
-import { listDevicesForOperator } from "@/server/devices/devices-service"
+import {
+  getVenueEdgeCapacityForLocation,
+  listDevicesForOperator,
+} from "@/server/devices/devices-service"
 import { getVenueCatalogDetail } from "@/server/operator/service"
+import { listReplayRequestsForOperator } from "@/server/replays/replay-requests-service"
 import { canPerformTenantAction } from "@/server/tenancy/permissions"
 
 export const dynamic = "force-dynamic"
@@ -27,7 +31,14 @@ export default async function AdminVenueDetailPage({ params }: PageProps) {
   }
 
   const devices = await listDevicesForOperator(access.context, id)
-  const canManage = canPerformTenantAction(access.context.role, "catalog.manage")
+  const [replayRequests, edgeCapacity] = await Promise.all([
+    listReplayRequestsForOperator(access.context, id),
+    getVenueEdgeCapacityForLocation(access.context, id),
+  ])
+  const canManageVenue = canPerformTenantAction(
+    access.context.role,
+    "venue.manage",
+  )
 
   return (
     <AdminShell
@@ -43,13 +54,28 @@ export default async function AdminVenueDetailPage({ params }: PageProps) {
     >
       <div className="space-y-6">
         <div className="admin-dashboard-card">
-          <OperatorVenueDetail detail={detail} canManage={canManage} />
+          <OperatorVenueDetail
+            detail={detail}
+            canManage={canManageVenue}
+            replayRequests={replayRequests.map((request) => ({
+              id: request.id,
+              resourceId: request.resourceId,
+              resourceName: request.resourceName,
+              status: request.status,
+              failureReason: request.failureReason,
+              attempts: request.attempts,
+              maxAttempts: request.maxAttempts,
+              createdAt: request.createdAt.toISOString(),
+              updatedAt: request.updatedAt.toISOString(),
+            }))}
+            edgeCapacity={edgeCapacity}
+          />
         </div>
         {access.canManageCatalog ? (
           <AdminVenueCatalogForms
             venueId={id}
             zones={detail.zones.map((zone) => ({ id: zone.id, name: zone.name }))}
-            canManage={canManage}
+            canManage={access.canManageCatalog}
           />
         ) : null}
       </div>

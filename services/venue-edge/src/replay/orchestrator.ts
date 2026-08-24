@@ -1,4 +1,5 @@
-import { mkdir } from "node:fs/promises"
+import { createHash } from "node:crypto"
+import { mkdir, readFile } from "node:fs/promises"
 import { join } from "node:path"
 
 import {
@@ -12,7 +13,10 @@ import { safeLog } from "../health/metrics"
 import type { EdgeRepositories } from "../local-storage/repositories"
 import type { LocalStoragePaths } from "../local-storage/paths"
 import { runDeterministicSimulatorCapture } from "../simulator/engine"
-import { uploadToPresignedUrl } from "../upload/direct-upload"
+import {
+  uploadToPresignedUrl,
+  type DirectUploadResult,
+} from "../upload/direct-upload"
 import { renewUploadGrant } from "../upload/grant-client"
 import { LiveRtspClipAdapter } from "../video-adapters/live-rtsp-adapter"
 import { RollingBufferVideoAdapter } from "../video-adapters/rolling-buffer-adapter"
@@ -39,9 +43,22 @@ const PROGRESS_SEQUENCE = [
 
 export class ReplayOrchestrator {
   private readonly limiter
+  private readonly uploadResults = new Map<string, DirectUploadResult>()
 
   constructor(private readonly deps: ReplayOrchestratorDeps) {
     this.limiter = createReplayLimiter(deps.env.maxConcurrentReplays)
+  }
+
+  getCapacityMetrics(): {
+    activeReplayJobs: number
+    replayQueueDepth: number
+    maxConcurrentReplays: number
+  } {
+    return {
+      activeReplayJobs: this.limiter.activeCount,
+      replayQueueDepth: this.limiter.queueDepth,
+      maxConcurrentReplays: this.deps.env.maxConcurrentReplays,
+    }
   }
 
   async resumeJob(replayRequestId: string): Promise<void> {
@@ -212,7 +229,18 @@ export class ReplayOrchestrator {
     status: (typeof PROGRESS_SEQUENCE)[number],
     commandId: string,
   ): Promise<void> {
-    await this.reportProgress(payload.replayRequestId, status)
+    const uploadResult = this.uploadResults.get(payload.replayRequestId)
+
+    await this.reportProgress(payload.replayRequestId, status, {
+      checksumSha256:
+        status === "verifying" || status === "ready"
+          ? uploadResult?.checksumSha256
+          : undefined,
+      sizeBytes:
+        status === "verifying" || status === "ready"
+          ? uploadResult?.bytesUploaded
+          : undefined,
+    })
 
     this.deps.repositories.updateReplayJob(payload.replayRequestId, {
       status: status as never,
@@ -234,10 +262,15 @@ export class ReplayOrchestrator {
   private async reportProgress(
     replayRequestId: string,
     status: (typeof PROGRESS_SEQUENCE)[number],
+    extras?: { checksumSha256?: string; sizeBytes?: number },
   ): Promise<void> {
     try {
       await this.deps.client.reportReplayProgress(replayRequestId, {
         status,
+        ...(extras?.checksumSha256
+          ? { checksumSha256: extras.checksumSha256 }
+          : {}),
+        ...(extras?.sizeBytes ? { sizeBytes: extras.sizeBytes } : {}),
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -369,18 +402,27 @@ export class ReplayOrchestrator {
     })
 
     if (this.deps.env.mode === "simulate") {
+      const body = await readFile(job.localClipPath)
+      const checksumSha256 = createHash("sha256").update(body).digest("hex")
+      this.uploadResults.set(payload.replayRequestId, {
+        checksumSha256,
+        bytesUploaded: body.byteLength,
+        etag: null,
+      })
       safeLog("info", "Simulator upload skipped (mock PUT)", {
         replayRequestId: payload.replayRequestId,
-        bytes: "fixture",
+        bytes: body.byteLength,
       })
       return
     }
 
-    await uploadToPresignedUrl({
+    const uploaded = await uploadToPresignedUrl({
       grant,
       filePath: job.localClipPath,
       fetchImpl: this.deps.fetchImpl,
     })
+
+    this.uploadResults.set(payload.replayRequestId, uploaded)
   }
 }
 

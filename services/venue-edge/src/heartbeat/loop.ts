@@ -10,6 +10,11 @@ export interface HeartbeatLoopDeps {
   processor: CommandProcessor
   rollingBuffer?: RollingBufferSupervisor | null
   getEdgeConfig: () => EdgeConfig | null
+  getCapacityMetrics?: () => {
+    activeReplayJobs: number
+    replayQueueDepth: number
+    maxConcurrentReplays: number
+  }
   startedAt: number
 }
 
@@ -48,11 +53,17 @@ export class HeartbeatLoop {
 
   private async tick(): Promise<void> {
     const edgeConfig = this.deps.getEdgeConfig()
+    const capacity = this.deps.getCapacityMetrics?.() ?? {
+      activeReplayJobs: 0,
+      replayQueueDepth: 0,
+      maxConcurrentReplays: this.deps.env.maxConcurrentReplays,
+    }
     const metrics = createMetricsSnapshot({
       ffmpegRunning: this.deps.rollingBuffer?.isRunning() ?? false,
       bufferAgeSeconds: null,
-      uploadQueueDepth: 0,
-      activeReplayJobs: 0,
+      uploadQueueDepth: capacity.replayQueueDepth,
+      activeReplayJobs: capacity.activeReplayJobs,
+      maxConcurrentReplays: capacity.maxConcurrentReplays,
     })
 
     try {

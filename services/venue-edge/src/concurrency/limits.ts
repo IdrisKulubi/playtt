@@ -8,6 +8,10 @@ export class ConcurrencyLimiter {
     return this.active
   }
 
+  get queueDepth(): number {
+    return this.queue.length
+  }
+
   async run<T>(task: () => Promise<T>): Promise<T> {
     if (this.active >= this.max) {
       await new Promise<void>((resolve) => {

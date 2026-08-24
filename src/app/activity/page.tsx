@@ -147,7 +147,7 @@ function SummaryStat({
 }
 
 function ReplayCard({ replay }: { replay: ReplaySummary }) {
-  return (
+  const card = (
     <article className="rounded-[var(--radius-field)] border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -173,6 +173,19 @@ function ReplayCard({ replay }: { replay: ReplaySummary }) {
       </div>
     </article>
   )
+
+  if (replay.status === "ready") {
+    return (
+      <Link
+        href={`/replays/${replay.id}`}
+        className="block rounded-[var(--radius-field)] transition-colors hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {card}
+      </Link>
+    )
+  }
+
+  return card
 }
 
 function ReplayPreviewEmpty() {
@@ -336,25 +349,38 @@ function HighlightsPanel({ replays }: { replays: ReplaySummary[] }) {
               </p>
             </div>
             <div className="divide-y divide-border">
-              {earlier.map((replay) => (
-                <div
-                  key={replay.id}
-                  className="flex items-center justify-between gap-4 px-4 py-3"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">
-                      {replay.title}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {replay.locationName} /{" "}
-                      {replayDateFormatter.format(new Date(replay.recordedAt))}
-                    </p>
+              {earlier.map((replay) => {
+                const row = (
+                  <div className="flex items-center justify-between gap-4 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        {replay.title}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {replay.locationName} /{" "}
+                        {replayDateFormatter.format(new Date(replay.recordedAt))}
+                      </p>
+                    </div>
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {formatDuration(replay.durationSeconds)}
+                    </span>
                   </div>
-                  <span className="text-xs font-semibold text-muted-foreground">
-                    {formatDuration(replay.durationSeconds)}
-                  </span>
-                </div>
-              ))}
+                )
+
+                if (replay.status === "ready") {
+                  return (
+                    <Link
+                      key={replay.id}
+                      href={`/replays/${replay.id}`}
+                      className="block transition-colors hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                    >
+                      {row}
+                    </Link>
+                  )
+                }
+
+                return <div key={replay.id}>{row}</div>
+              })}
             </div>
           </div>
         ) : null}

@@ -230,7 +230,12 @@ export class EdgeV1Client {
 
   async reportReplayProgress(
     replayRequestId: string,
-    input: { status: ReplayProgressStatus; failureReason?: string },
+    input: {
+      status: ReplayProgressStatus
+      failureReason?: string
+      checksumSha256?: string
+      sizeBytes?: number
+    },
   ): Promise<unknown> {
     return this.request(
       `/api/edge/v1/replay-requests/${replayRequestId}/progress`,

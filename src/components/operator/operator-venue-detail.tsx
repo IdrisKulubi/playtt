@@ -4,14 +4,23 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { OperatorAccessPointPanels } from "@/components/operator/operator-access-points"
+import {
+  OperatorReplayRequestsPanel,
+  type OperatorEdgeCapacitySnapshot,
+  type OperatorReplayRequestRow,
+} from "@/components/operator/operator-replay-requests-panel"
 import type { OperatorVenueCatalogDetail } from "@/server/operator/service"
 
 export function OperatorVenueDetail({
   detail,
   canManage = false,
+  replayRequests = [],
+  edgeCapacity = null,
 }: {
   detail: OperatorVenueCatalogDetail
   canManage?: boolean
+  replayRequests?: OperatorReplayRequestRow[]
+  edgeCapacity?: OperatorEdgeCapacitySnapshot | null
 }) {
   const resourceTypeName = new Map(
     detail.resourceTypes.map((type) => [type.id, type.name]),
@@ -141,6 +150,13 @@ export function OperatorVenueDetail({
           )}
         </CardContent>
       </Card>
+
+      <OperatorReplayRequestsPanel
+        venueId={detail.venue.id}
+        initialRequests={replayRequests}
+        edgeCapacity={edgeCapacity}
+        canManage={canManage}
+      />
 
       <OperatorAccessPointPanels detail={detail} canManage={canManage} />
     </div>
