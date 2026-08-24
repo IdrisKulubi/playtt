@@ -75,6 +75,7 @@ export interface EdgeMetrics {
   ffmpegRunning: boolean
   uploadQueueDepth: number
   activeReplayJobs: number
+  maxConcurrentReplays: number
 }
 
 export function createMetricsSnapshot(input: {
@@ -83,6 +84,7 @@ export function createMetricsSnapshot(input: {
   ffmpegRunning?: boolean
   uploadQueueDepth?: number
   activeReplayJobs?: number
+  maxConcurrentReplays?: number
 }): EdgeMetrics {
   return {
     bufferAgeSeconds: input.bufferAgeSeconds ?? null,
@@ -90,5 +92,6 @@ export function createMetricsSnapshot(input: {
     ffmpegRunning: input.ffmpegRunning ?? false,
     uploadQueueDepth: input.uploadQueueDepth ?? 0,
     activeReplayJobs: input.activeReplayJobs ?? 0,
+    maxConcurrentReplays: input.maxConcurrentReplays ?? 0,
   }
 }

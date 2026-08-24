@@ -16,7 +16,7 @@ import { resolveMediaContentPolicy } from "@/server/media/content-policy"
 import { getMediaStore } from "@/server/media/factory"
 import { isPrivateMediaEnabledForTenant } from "@/server/media/feature-policy"
 import { buildMediaObjectKey } from "@/server/media/object-keys"
-import { insertMediaAsset } from "@/server/media/repository"
+import { insertMediaAsset, getMediaAssetById } from "@/server/media/repository"
 import {
   REPLAY_POST_ROLL_SECONDS,
   REPLAY_PRE_ROLL_SECONDS,
@@ -29,12 +29,19 @@ import {
   getInFlightReplayRequestForSession,
   getLatestReplayRequestForSession,
   getReplayCreditBalance,
+  getReplayRequestById,
   getReplayRequestByIdempotencyKey,
+  bumpReplayRequestAttempts,
   insertReplayRequest,
+  listReplayRequestsForLocation,
   resolveVenueEdgeForResource,
   transitionReplayRequestStatus,
   type ReplayRequestRecord,
 } from "@/server/replays/replay-requests-repository"
+import {
+  OPERATOR_CANCELABLE_REPLAY_REQUEST_STATUSES,
+  OPERATOR_RETRYABLE_REPLAY_REQUEST_STATUSES,
+} from "@/server/replays/constants"
 import { getDisplaySnapshotForResource } from "@/server/realtime/display-query"
 import { authorize } from "@/server/tenancy/authorize-context.mjs"
 import { createServiceTenantContext } from "@/server/tenancy/context-factory"
@@ -544,4 +551,162 @@ export async function updateReplayRequestProgressFromEdge(input: {
     toStatus: input.toStatus,
     failureReason: input.failureReason,
   })
+}
+
+export async function listReplayRequestsForOperator(
+  context: TenantContext,
+  locationId: string,
+) {
+  authorize(context, "venue.read")
+  return listReplayRequestsForLocation(context, locationId)
+}
+
+export async function retryReplayRequestForOperator(
+  context: TenantContext,
+  replayRequestId: string,
+) {
+  authorize(context, "venue.manage")
+
+  const replayRequest = await getReplayRequestById(context, replayRequestId)
+
+  if (!replayRequest) {
+    throw new ReplayServiceError(
+      "REPLAY_REQUEST_NOT_FOUND",
+      "Replay request was not found.",
+      404,
+    )
+  }
+
+  if (
+    !(OPERATOR_RETRYABLE_REPLAY_REQUEST_STATUSES as readonly string[]).includes(
+      replayRequest.status,
+    )
+  ) {
+    throw new ReplayServiceError(
+      "REPLAY_RETRY_NOT_ALLOWED",
+      `Replay request cannot be retried from status ${replayRequest.status}.`,
+      409,
+    )
+  }
+
+  if (replayRequest.attempts >= replayRequest.maxAttempts) {
+    throw new ReplayServiceError(
+      "REPLAY_MAX_ATTEMPTS",
+      "Replay request has reached the maximum retry attempts.",
+      409,
+    )
+  }
+
+  const venueEdge = await resolveVenueEdgeForResource(
+    context,
+    replayRequest.resourceId,
+  )
+
+  if (!venueEdge) {
+    throw new ReplayServiceError(
+      "VENUE_EDGE_UNAVAILABLE",
+      "No venue edge device is assigned to this resource.",
+      503,
+    )
+  }
+
+  const asset = await getMediaAssetById(context, replayRequest.mediaAssetId)
+
+  if (!asset) {
+    throw new ReplayServiceError(
+      "MEDIA_ASSET_NOT_FOUND",
+      "Replay media asset was not found.",
+      404,
+    )
+  }
+
+  const store = getMediaStore()
+  const uploadGrant = await store.createUploadGrant({
+    objectKey: asset.objectKey,
+    contentType: asset.expectedContentType,
+    maxBytes: asset.expectedMaxBytes,
+    expiresInSeconds: MEDIA_UPLOAD_GRANT_TTL_SECONDS,
+  })
+
+  return db.transaction(async (tx) => {
+    await bumpReplayRequestAttempts(context, replayRequestId, tx)
+
+    const correlationId = createCorrelationId()
+    const command = await insertCaptureReplayCommand(
+      {
+        tenantId: context.tenantId,
+        deviceId: venueEdge.deviceId,
+        correlationId,
+        payload: {
+          replayRequestId: replayRequest.id,
+          replayId: replayRequest.replayId,
+          mediaAssetId: replayRequest.mediaAssetId,
+          objectKey: asset.objectKey,
+          captureAt: replayRequest.captureAt.toISOString(),
+          preRollSeconds: replayRequest.preRollSeconds,
+          postRollSeconds: replayRequest.postRollSeconds,
+          sourceType: replayRequest.sourceType,
+          resourceId: replayRequest.resourceId,
+          playSessionId: replayRequest.playSessionId,
+          uploadGrant: {
+            url: uploadGrant.url,
+            expiresAt: uploadGrant.expiresAt,
+            contentType: uploadGrant.contentType,
+          },
+        },
+      },
+      tx,
+    )
+
+    const updated = await transitionReplayRequestStatus(
+      context,
+      {
+        replayRequestId,
+        toStatus: "dispatched",
+        deviceCommandId: command.id,
+        failureReason: null,
+      },
+      tx,
+    )
+
+    return { replayRequest: updated, commandId: command.id }
+  })
+}
+
+export async function cancelReplayRequestForOperator(
+  context: TenantContext,
+  replayRequestId: string,
+  failureReason = "operator_cancelled",
+) {
+  authorize(context, "venue.manage")
+
+  const replayRequest = await getReplayRequestById(context, replayRequestId)
+
+  if (!replayRequest) {
+    throw new ReplayServiceError(
+      "REPLAY_REQUEST_NOT_FOUND",
+      "Replay request was not found.",
+      404,
+    )
+  }
+
+  if (
+    !(OPERATOR_CANCELABLE_REPLAY_REQUEST_STATUSES as readonly string[]).includes(
+      replayRequest.status,
+    )
+  ) {
+    throw new ReplayServiceError(
+      "REPLAY_CANCEL_NOT_ALLOWED",
+      `Replay request cannot be cancelled from status ${replayRequest.status}.`,
+      409,
+    )
+  }
+
+  const updated = await transitionReplayRequestStatus(context, {
+    replayRequestId,
+    toStatus: "failed",
+    failureReason,
+  })
+
+  return { replayRequest: updated }
 }

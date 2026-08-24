@@ -14,6 +14,11 @@ import {
   enqueueDeviceCommand,
   type DeviceCommandKind,
 } from "@/server/devices/commands"
+import { getLatestDeviceHeartbeat } from "@/server/devices/heartbeats"
+import { deriveDeviceHealth } from "@/server/devices/health-policy"
+import db from "@/db/drizzle"
+import { devices } from "@/db/schema"
+import { and, eq, ne } from "drizzle-orm"
 import { authorize } from "@/server/tenancy/authorize-context.mjs"
 import { writeAuditLog } from "@/server/tenancy/audit-log.mjs"
 import type { TenantContext } from "@/server/tenancy/types"
@@ -201,4 +206,43 @@ export async function enqueueDeviceCommandForOperator(
   })
 
   return command
+}
+
+export async function getVenueEdgeCapacityForLocation(
+  context: TenantContext,
+  locationId: string,
+) {
+  authorize(context, "venue.read")
+
+  const [device] = await db
+    .select()
+    .from(devices)
+    .where(
+      and(
+        eq(devices.tenantId, context.tenantId),
+        eq(devices.locationId, locationId),
+        eq(devices.type, "venue_edge"),
+        ne(devices.status, "revoked"),
+      ),
+    )
+    .limit(1)
+
+  if (!device) {
+    return null
+  }
+
+  const heartbeat = await getLatestDeviceHeartbeat(context.tenantId, device.id)
+  const metrics = heartbeat?.metrics ?? {}
+
+  return {
+    deviceId: device.id,
+    lastHeartbeatAt: device.lastHeartbeatAt?.toISOString() ?? null,
+    health: deriveDeviceHealth(device.lastHeartbeatAt),
+    metrics: {
+      activeReplayJobs: Number(metrics.activeReplayJobs ?? 0),
+      replayQueueDepth: Number(metrics.uploadQueueDepth ?? 0),
+      maxConcurrentReplays: Number(metrics.maxConcurrentReplays ?? 0),
+      ffmpegRunning: Boolean(metrics.ffmpegRunning),
+    },
+  }
 }

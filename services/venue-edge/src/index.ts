@@ -118,6 +118,7 @@ export async function startVenueEdge(
     processor,
     rollingBuffer,
     getEdgeConfig: () => edgeConfig,
+    getCapacityMetrics: () => orchestrator.getCapacityMetrics(),
     startedAt,
   })
 

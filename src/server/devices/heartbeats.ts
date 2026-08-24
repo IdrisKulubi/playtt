@@ -247,6 +247,25 @@ export async function listRecentDeviceHeartbeats(
   return rows.map(mapHeartbeat)
 }
 
+export async function getLatestDeviceHeartbeat(
+  tenantId: string,
+  deviceId: string,
+): Promise<DeviceHeartbeatRecord | null> {
+  const [row] = await db
+    .select()
+    .from(deviceHeartbeats)
+    .where(
+      and(
+        eq(deviceHeartbeats.tenantId, tenantId),
+        eq(deviceHeartbeats.deviceId, deviceId),
+      ),
+    )
+    .orderBy(desc(deviceHeartbeats.observedAt))
+    .limit(1)
+
+  return row ? mapHeartbeat(row) : null
+}
+
 export async function pruneDeviceHeartbeatHistory(
   tenantId: string,
   deviceId: string,

@@ -9,6 +9,7 @@ import {
   replayCreditBalances,
   replayRequests,
   resourceCapabilities,
+  resources,
   sessionParticipants,
 } from "@/db/schema"
 import type {
@@ -16,6 +17,10 @@ import type {
   replayRequestStatusEnum,
 } from "@/db/schema"
 import { ReplayServiceError } from "@/server/replays/errors"
+import {
+  OPERATOR_CANCELABLE_REPLAY_REQUEST_STATUSES,
+  OPERATOR_RETRYABLE_REPLAY_REQUEST_STATUSES,
+} from "@/server/replays/constants"
 import type { TenantContext } from "@/server/tenancy/types"
 
 type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0]
@@ -118,9 +123,9 @@ const ALLOWED_REPLAY_REQUEST_TRANSITIONS: Record<
   verifying: ["ready", "upload_failed", "failed"],
   ready: [],
   edge_offline: ["dispatched", "failed", "expired"],
-  buffer_missing: ["capturing", "failed", "expired"],
-  extraction_failed: ["extracting", "failed", "expired"],
-  upload_failed: ["uploading", "failed", "expired"],
+  buffer_missing: ["capturing", "failed", "expired", "dispatched"],
+  extraction_failed: ["extracting", "failed", "expired", "dispatched"],
+  upload_failed: ["uploading", "failed", "expired", "dispatched"],
   expired: [],
   failed: [],
 }
@@ -647,4 +652,68 @@ export async function getReplayCreditBalance(
     .limit(1)
 
   return row?.balance ?? 0
+}
+
+export interface ReplayRequestListItem extends ReplayRequestRecord {
+  resourceName: string
+}
+
+export async function listReplayRequestsForLocation(
+  context: TenantContext,
+  locationId: string,
+  limit = 25,
+) {
+  const rows = await db
+    .select({
+      request: replayRequests,
+      resourceName: resources.name,
+    })
+    .from(replayRequests)
+    .innerJoin(resources, eq(replayRequests.resourceId, resources.id))
+    .where(
+      and(
+        eq(replayRequests.tenantId, context.tenantId),
+        eq(replayRequests.locationId, locationId),
+      ),
+    )
+    .orderBy(desc(replayRequests.createdAt))
+    .limit(limit)
+
+  return rows.map((row) => ({
+    ...mapReplayRequest(row.request),
+    resourceName: row.resourceName,
+  }))
+}
+
+export async function bumpReplayRequestAttempts(
+  context: TenantContext,
+  replayRequestId: string,
+  tx?: DbExecutor,
+) {
+  const executor = tx ?? db
+  const current = await getReplayRequestById(context, replayRequestId, executor)
+
+  if (!current) {
+    throw new ReplayServiceError(
+      "REPLAY_REQUEST_NOT_FOUND",
+      "Replay request was not found.",
+      404,
+    )
+  }
+
+  const [updated] = await executor
+    .update(replayRequests)
+    .set({
+      attempts: current.attempts + 1,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(replayRequests.tenantId, context.tenantId),
+        eq(replayRequests.id, replayRequestId),
+      ),
+    )
+    .returning()
+
+  return mapReplayRequest(updated!)
 }

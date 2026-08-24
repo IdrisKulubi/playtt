@@ -902,7 +902,7 @@ Build guide: compatibility adapter keeps current replay UI shape while storage i
 
 Done means:
 
-- [ ] Ten resources select their configured cameras correctly and only authorized owners can play clips (two-resource isolation tested; ten-table hardware pending).
+- [ ] Ten resources select their configured cameras correctly and only authorized owners can play clips (two-resource isolation tested; **ten-table hardware measurement deferred** — software concurrency limits and heartbeat metrics shipped).
 
 
 
@@ -910,13 +910,14 @@ Done means:
 
 - [x] Recover edge offline queue, process restart, missing buffer, extraction failure, upload failure, callback loss, and R2 outage (simulator/restart tests).
 - [x] Define retention/cleanup for local buffers and failed/pending assets.
-- [ ] Measure concurrent camera/extraction/upload capacity.
+- [x] Operator retry/cancel for stuck replay requests (admin venue panel + APIs).
+- [ ] Measure concurrent camera/extraction/upload capacity on physical ten-table hardware (edge limiter + heartbeat metrics provide software telemetry).
 
 Build guide: all failure states are explicit, retryable or terminal with reason, and visible to operations.
 
 Done means:
 
-- [ ] Edge/R2 failure cannot affect booking/payment/session completion and measured venue capacity meets target (code paths isolated; measured ten-table evidence pending).
+- [ ] Edge/R2 failure cannot affect booking/payment/session completion and measured venue capacity meets target (code paths isolated; **ten-table hardware evidence deferred**).
 
 
 
@@ -925,7 +926,8 @@ Done means:
 - [x] End-to-end request → edge (simulator) → private upload → ready → playback passes locally.
 - [x] Idempotency, isolation, offline recovery tests pass in CI (`pnpm test:replay-edge`, `pnpm test:venue-edge`).
 - [x] Production replay stub remains blocked outside development (`stub-policy`).
-- [ ] Capacity and retention evidence is approved (hardware measurement pending).
+- [x] Software capacity telemetry (concurrency limiter, heartbeat metrics, operator panel).
+- [ ] Physical ten-table capacity certification (deferred; run when multi-table hardware is available).
 
 ---
 

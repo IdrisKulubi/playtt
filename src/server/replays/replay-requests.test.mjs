@@ -267,4 +267,49 @@ test("operator venue detail links replay kiosk and TV URLs", () => {
 
   assert.match(operatorDetail, /\/replay\?resourceId=/)
   assert.match(operatorDetail, /\/pod\/tv\?resourceId=/)
+  assert.match(operatorDetail, /OperatorReplayRequestsPanel/)
+})
+
+test("operator replay request retry and cancel routes exist", () => {
+  const listRoute = readFileSync(
+    join(
+      repoRoot,
+      "src/app/api/operator/venues/[venueId]/replay-requests/route.ts",
+    ),
+    "utf8",
+  )
+  const retryRoute = readFileSync(
+    join(
+      repoRoot,
+      "src/app/api/operator/replay-requests/[id]/retry/route.ts",
+    ),
+    "utf8",
+  )
+  const cancelRoute = readFileSync(
+    join(
+      repoRoot,
+      "src/app/api/operator/replay-requests/[id]/cancel/route.ts",
+    ),
+    "utf8",
+  )
+  const serviceSource = readFileSync(
+    join(replaysRoot, "replay-requests-service.ts"),
+    "utf8",
+  )
+
+  assert.match(listRoute, /listReplayRequestsForOperator/)
+  assert.match(retryRoute, /retryReplayRequestForOperator/)
+  assert.match(cancelRoute, /cancelReplayRequestForOperator/)
+  assert.match(serviceSource, /retryReplayRequestForOperator/)
+  assert.match(serviceSource, /cancelReplayRequestForOperator/)
+  assert.match(serviceSource, /OPERATOR_RETRYABLE_REPLAY_REQUEST_STATUSES/)
+})
+
+test("activity highlights link ready replays to playback page", () => {
+  const activityPage = readFileSync(
+    join(repoRoot, "src/app/activity/page.tsx"),
+    "utf8",
+  )
+
+  assert.match(activityPage, /\/replays\/\$\{replay\.id\}/)
 })
