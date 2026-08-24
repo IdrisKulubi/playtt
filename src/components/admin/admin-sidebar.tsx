@@ -4,12 +4,15 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import type { Icon } from "@phosphor-icons/react"
 import {
+  BellIcon,
   BuildingsIcon,
   CalendarBlankIcon,
   CpuIcon,
   FlagIcon,
   GaugeIcon,
+  GlobeHemisphereWestIcon,
   HeartbeatIcon,
+  MedalIcon,
   PlugsIcon,
   QueueIcon,
   ShapesIcon,
@@ -37,6 +40,9 @@ const navigationGroups: NavGroup[] = [
     items: [
       { href: "/admin", label: "Overview", icon: GaugeIcon, exact: true },
       { href: "/admin/health", label: "Health", icon: HeartbeatIcon },
+      { href: "/admin/alerts", label: "Alerts", icon: BellIcon },
+      { href: "/admin/environment", label: "Environment", icon: GlobeHemisphereWestIcon },
+      { href: "/admin/certification", label: "Certification", icon: MedalIcon },
       { href: "/admin/bookings", label: "Bookings", icon: CalendarBlankIcon },
       { href: "/admin/revenue", label: "Revenue", icon: WalletIcon },
     ],

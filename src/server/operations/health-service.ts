@@ -6,9 +6,12 @@ import {
 } from "@/server/operations/health-repository"
 import {
   buildHealthDimension,
+  evaluateCommandDimension,
   evaluateDeviceDimension,
   evaluateEdgeDimension,
-  evaluateNotConfiguredDimension,
+  evaluateAccessDimension,
+  evaluateInfrastructureProbe,
+  evaluateNetworkDimension,
   evaluateReplayDimension,
   evaluateSessionDimension,
   evaluateWorkerDimension,
@@ -17,6 +20,7 @@ import {
   type TenantHealthOverview,
   type VenueHealthSnapshot,
 } from "@/server/operations/health-status"
+import { probeInfrastructure } from "@/server/operations/infrastructure-probes"
 
 function buildVenueDimensions(
   row: Awaited<ReturnType<typeof fetchVenueHealthRows>>[number],
@@ -46,14 +50,23 @@ function buildVenueDimensions(
       `/admin/venues/${row.venueId}`,
     ),
     buildHealthDimension(
+      "commands",
+      evaluateCommandDimension(row.failedCommandCount),
+      `/admin/devices?venueId=${row.venueId}`,
+    ),
+    buildHealthDimension(
       "access",
-      evaluateNotConfiguredDimension("TTLock automation ships in Phase 5"),
-      null,
+      evaluateAccessDimension({
+        accessPointCount: row.accessPointCount,
+        failedCredentialCount: row.failedAccessCredentialCount,
+        pendingCredentialCount: row.pendingAccessCredentialCount,
+      }),
+      "/admin/bookings",
     ),
     buildHealthDimension(
       "network",
-      evaluateNotConfiguredDimension("Venue WAN checks ship in P7-04"),
-      null,
+      evaluateNetworkDimension(row.edge),
+      `/admin/venues/${row.venueId}`,
     ),
   ]
 }
@@ -75,9 +88,10 @@ async function buildTenantHealthOverview(
   context: TenantContext,
   locationId?: string,
 ): Promise<TenantHealthOverview> {
-  const [venueRows, workerHealth] = await Promise.all([
+  const [venueRows, workerHealth, infrastructure] = await Promise.all([
     fetchVenueHealthRows(context, locationId),
     locationId ? null : fetchTenantWorkerHealth(context),
+    locationId ? null : probeInfrastructure(),
   ])
 
   const venues = venueRows.map(buildVenueSnapshot)
@@ -89,6 +103,26 @@ async function buildTenantHealthOverview(
         "workers",
         evaluateWorkerDimension(workerHealth),
         "/admin/durable-work",
+      ),
+    )
+  }
+
+  if (infrastructure) {
+    tenantDimensions.push(
+      buildHealthDimension(
+        "database",
+        evaluateInfrastructureProbe(infrastructure.database),
+        "/admin/health",
+      ),
+      buildHealthDimension(
+        "redis",
+        evaluateInfrastructureProbe(infrastructure.redis),
+        "/admin/health",
+      ),
+      buildHealthDimension(
+        "storage",
+        evaluateInfrastructureProbe(infrastructure.storage),
+        "/admin/health",
       ),
     )
   }

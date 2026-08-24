@@ -1,7 +1,14 @@
 import { and, eq, inArray, lt, ne, notInArray, sql } from "drizzle-orm"
 
 import db from "@/db/drizzle"
-import { devices, playSessions, replayRequests } from "@/db/schema"
+import {
+  accessCredentials,
+  accessPoints,
+  deviceCommands,
+  devices,
+  playSessions,
+  replayRequests,
+} from "@/db/schema"
 import { deriveDeviceHealth } from "@/server/devices/health-policy"
 import { getLatestDeviceHeartbeat } from "@/server/devices/heartbeats"
 import { countTenantDeadLetters } from "@/server/operator/durable-work-repository"
@@ -39,6 +46,10 @@ export interface RawVenueHealthRow {
   stuckSessionCount: number
   replayFailedCount: number
   replayInFlightCount: number
+  failedCommandCount: number
+  accessPointCount: number
+  failedAccessCredentialCount: number
+  pendingAccessCredentialCount: number
 }
 
 export async function fetchTenantWorkerHealth(
@@ -75,7 +86,8 @@ export async function fetchVenueHealthRows(
   const venueIds = scopedVenues.map((venue) => venue.id)
   const stuckCutoff = new Date(Date.now() - STUCK_SESSION_GRACE_MS)
 
-  const [deviceRows, stuckSessionRows, replayRows] = await Promise.all([
+  const [deviceRows, stuckSessionRows, replayRows, failedCommandRows, accessPointRows, accessCredentialRows] =
+    await Promise.all([
     db
       .select({
         id: devices.id,
@@ -118,6 +130,49 @@ export async function fetchVenueHealthRows(
           inArray(replayRequests.locationId, venueIds),
         ),
       ),
+    db
+      .select({
+        locationId: devices.locationId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(deviceCommands)
+      .innerJoin(devices, eq(deviceCommands.deviceId, devices.id))
+      .where(
+        and(
+          eq(deviceCommands.tenantId, tenantId),
+          eq(devices.tenantId, tenantId),
+          inArray(devices.locationId, venueIds),
+          eq(deviceCommands.status, "failed"),
+        ),
+      )
+      .groupBy(devices.locationId),
+    db
+      .select({
+        locationId: accessPoints.locationId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(accessPoints)
+      .where(
+        and(
+          eq(accessPoints.tenantId, tenantId),
+          inArray(accessPoints.locationId, venueIds),
+        ),
+      )
+      .groupBy(accessPoints.locationId),
+    db
+      .select({
+        locationId: accessCredentials.locationId,
+        status: accessCredentials.status,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(accessCredentials)
+      .where(
+        and(
+          eq(accessCredentials.tenantId, tenantId),
+          inArray(accessCredentials.locationId, venueIds),
+        ),
+      )
+      .groupBy(accessCredentials.locationId, accessCredentials.status),
   ])
 
   const mappedDevices: RawVenueDeviceRow[] = deviceRows.map((row) => ({
@@ -170,6 +225,36 @@ export async function fetchVenueHealthRows(
     replayCountsByVenue.set(row.locationId, current)
   }
 
+  const failedCommandsByVenue = new Map(
+    failedCommandRows.map((row) => [row.locationId, row.count]),
+  )
+
+  const accessPointsByVenue = new Map(
+    accessPointRows.map((row) => [row.locationId, row.count]),
+  )
+
+  const accessCredentialsByVenue = new Map<
+    string,
+    { failed: number; pending: number }
+  >()
+
+  for (const row of accessCredentialRows) {
+    const current = accessCredentialsByVenue.get(row.locationId) ?? {
+      failed: 0,
+      pending: 0,
+    }
+
+    if (row.status === "failed") {
+      current.failed += row.count
+    }
+
+    if (row.status === "pending") {
+      current.pending += row.count
+    }
+
+    accessCredentialsByVenue.set(row.locationId, current)
+  }
+
   return scopedVenues.map((venue) => {
     const venueDevices = mappedDevices.filter(
       (device) => device.locationId === venue.id,
@@ -177,6 +262,10 @@ export async function fetchVenueHealthRows(
     const replayCounts = replayCountsByVenue.get(venue.id) ?? {
       failed: 0,
       inFlight: 0,
+    }
+    const accessCredentials = accessCredentialsByVenue.get(venue.id) ?? {
+      failed: 0,
+      pending: 0,
     }
 
     return {
@@ -187,6 +276,10 @@ export async function fetchVenueHealthRows(
       stuckSessionCount: stuckSessionsByVenue.get(venue.id) ?? 0,
       replayFailedCount: replayCounts.failed,
       replayInFlightCount: replayCounts.inFlight,
+      failedCommandCount: failedCommandsByVenue.get(venue.id) ?? 0,
+      accessPointCount: accessPointsByVenue.get(venue.id) ?? 0,
+      failedAccessCredentialCount: accessCredentials.failed,
+      pendingAccessCredentialCount: accessCredentials.pending,
     }
   })
 }

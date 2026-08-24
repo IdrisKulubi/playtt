@@ -33,7 +33,7 @@ Use this document for delivery tracking. Use the supporting documents for deeper
 | Phase 4 — Private R2 media           | Complete    | P4-01–P4-06 implemented; `pnpm test:media`, `pnpm test:r2`, and `pnpm test:media-flow` pass against live R2 |
 | Phase 5 — TTLock/automation          | Not started | Depends on access-point catalog, sessions, and device commands                            |
 | Phase 6 — Replay edge                | In progress | P6-01–P6-06 landed locally; simulator/protocol tests pass; hardware ten-table certification remains |
-| Phase 7 — Operations/scale           | In progress | P7-01 health overview + booking timeline landed locally; alerts, DR, and certification remain |
+| Phase 7 — Operations/scale           | Software complete | Control plane, paging, environment/DR tooling, and certification hub shipped; hardware acceptance and GA sign-off remain |
 
 
 
@@ -945,8 +945,12 @@ Make the complete platform operable, observable, recoverable, secure, and certif
 
 - [x] Build tenant/venue health overview for internet, edge, devices, resources, sessions, access, automation, media, and workers (Slice A: devices, edge, sessions, workers, replay; access/network marked not configured until Phase 5 / P7-04).
 - [x] Add correlated payment → booking → session → command/device/access/media timeline (Slice B: booking detail timeline at `/admin/bookings/[id]`).
-- [ ] Add alerts for webhook, worker, session, device, TTLock, gateway, command, replay, DB, Redis, and R2 failures.
-- [ ] Link every alert to owner, severity, escalation, and recovery runbook.
+- [x] Add derived operational alerts from health signals with owner, severity, escalation, and recovery runbook links (Slice A: `/admin/alerts`).
+- [x] Add live DB, Redis, and R2 health probes with tenant-scoped alerts (Slice B: `infrastructure-probes.ts`, `/admin/health` tenant dimensions).
+- [x] Add device command failure signal and venue-scoped alerts (Slice B: failed `device_commands` rollup, `command-failure.md` runbook).
+- [x] Add external on-call paging for derived operational alerts with audited dispatch (Slice C: webhook dispatch cron, `pnpm ops:dispatch-alerts`, `alert-paging.md`).
+- [x] Add live alerts for webhook, worker, session, device, command, replay, DB, Redis, R2, access, and network failures with external paging.
+- [x] Link active alerts to audited support acknowledgement actions and on-call dispatch.
 
 Build guide: use correlation IDs and durable audit records across all modules; dashboards must identify the exact tenant/venue/resource/device.
 
@@ -958,10 +962,13 @@ Done means:
 
 ### P7-03 — Environment isolation and disaster recovery
 
-- [ ] Verify dev/preview/staging/production isolation for DB, R2, Redis, Paystack, TTLock, device, realtime, and edge credentials.
-- [ ] Rehearse database backup/restore and migration recovery.
-- [ ] Rehearse R2 reconciliation/deletion recovery and secret/credential rotation.
-- [ ] Define and measure recovery objectives.
+- [x] Classify deployment environment and expose credential fingerprints in admin console (Slice A: `/admin/environment`, `pnpm ops:verify-env`).
+- [x] Define recovery objectives with linked runbooks (Slice A: `disaster-recovery.md`, database restore, secret rotation, migration rehearsal).
+- [x] Add DR rehearsal smoke runner (`pnpm ops:rehearse-dr`) and evidence report output.
+- [ ] Verify dev/preview/staging/production isolation for DB, R2, Redis, Paystack, TTLock, device, realtime, and edge credentials in hosted environments.
+- [ ] Rehearse database backup/restore and migration recovery with attached evidence.
+- [ ] Rehearse R2 reconciliation/deletion recovery and secret/credential rotation with attached evidence.
+- [x] Define recovery objectives (RTO/RPO targets documented in admin environment panel and DR overview).
 
 Build guide: restore into isolated infrastructure and run migration plus product smoke suites before declaring recovery successful.
 
@@ -973,6 +980,7 @@ Done means:
 
 ### P7-04 — Venue network and fleet certification
 
+- [x] Add software WAN signal from venue edge heartbeats and `venue_network_offline` alert (`venue-network.md`).
 - [ ] Implement management, camera, IoT, display, staff, and guest VLAN/firewall policy.
 - [ ] Prevent guest/IoT access to camera and management networks outside approved paths.
 - [ ] Verify DHCP/DNS/registry discovery and remove hard-coded infrastructure addresses.
@@ -988,7 +996,8 @@ Done means:
 
 ### P7-05 — Single-table acceptance
 
-- [ ] Player authenticates, books, pays, and receives one play session.
+- [x] Document single-table acceptance procedure (`docs/operations/certification/single-table-acceptance.md`).
+- [ ] Player authenticates, books, pays, and receives one play session on physical Table 01.
 - [ ] Individual TTLock code opens all required doors only during validity.
 - [ ] Resource prepares, ESP32 scores, and displays converge.
 - [ ] Replay becomes one private playable asset.
@@ -1002,6 +1011,7 @@ Done means:
 
 ### P7-06 — Ten-table and multi-tenant acceptance
 
+- [x] Document ten-table and multi-tenant acceptance procedure (`docs/operations/certification/ten-table-acceptance.md`).
 - [ ] Configure ten resources without code forks.
 - [ ] Run concurrent sessions without cross-talk in scoring, access, devices, realtime, or replay.
 - [ ] Prove one device/provider failure does not affect another resource.
@@ -1016,6 +1026,7 @@ Done means:
 
 ### P7-07 — Progressive rollout
 
+- [x] Document progressive rollout gates (`docs/operations/rollout-checklist.md`) and software gate dashboard (`/admin/certification`).
 - [ ] Internal staff and simulator environment.
 - [ ] Preview/staging with test providers and selected hardware.
 - [ ] Operator-attended Table 01 pilot.
