@@ -24,7 +24,7 @@ const FAQ = [
   {
     question: "How do I get into the pod?",
     answer:
-      "Your entry code will appear on your upcoming booking before the session. Door unlock is coming soon.",
+      "Open your confirmed booking, reveal the entry code, and use that same code at each listed venue door during its validity window.",
   },
   {
     question: "Need help at the venue?",

@@ -31,6 +31,14 @@ test("owner can manage memberships", () => {
   assert.equal(canPerformTenantAction("owner", "membership.manage"), true)
 })
 
+test("access permissions separate player reads from operator recovery", () => {
+  assert.equal(canPerformTenantAction("customer", "access.read"), true)
+  assert.equal(canPerformTenantAction("customer", "access.manage"), false)
+  assert.equal(canPerformTenantAction("support", "access.remote_unlock"), false)
+  assert.equal(canPerformTenantAction("operator", "access.manage"), true)
+  assert.equal(canPerformTenantAction("owner", "access.remote_unlock"), true)
+})
+
 test("unknown tenant action strings are rejected", () => {
   assert.equal(isTenantAction("venue.delete"), false)
 })

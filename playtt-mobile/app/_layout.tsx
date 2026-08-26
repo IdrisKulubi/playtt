@@ -15,6 +15,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler"
 import "react-native-reanimated"
 
 import { SessionBootstrap } from "@/components/session-bootstrap"
+import { NotificationBootstrap } from "@/components/notification-bootstrap"
 import { SplashScreenProvider } from "@/components/splash-screen-provider"
 import { ToastHost } from "@/components/ui/toast-host"
 import {
@@ -55,6 +56,7 @@ export default function RootLayout() {
       <SplashScreenProvider fontsReady={fontsReady}>
         <ThemeProvider value={navigationTheme}>
           <SessionBootstrap />
+          <NotificationBootstrap />
           <Stack
             screenOptions={{
               headerShown: false,

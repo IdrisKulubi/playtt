@@ -16,9 +16,9 @@ export interface CertificationGate {
   runbookPath: string | null
 }
 
-export interface PhaseCertificationReport {
+export type PhaseCertificationReport = {
   generatedAt: string
-  phase: "P7"
+  phase: "P5" | "P7"
   status: "ready" | "in_progress" | "blocked"
   softwarePassCount: number
   softwareTotal: number

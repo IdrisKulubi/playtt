@@ -93,6 +93,9 @@ jobs:
       - name: Test access point boundaries
         run: pnpm test:access-points
 
+      - name: Test TTLock access automation
+        run: pnpm test:access
+
       - name: Test device API contracts
         run: pnpm test:devices
 
@@ -266,6 +269,7 @@ jobs:
         run: |
           pnpm test:sessions
           pnpm test:access-points
+          pnpm test:access
           pnpm test:devices
 
       - name: Build web app

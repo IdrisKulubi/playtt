@@ -1,8 +1,6 @@
-import {
-  enqueueCoachAnalysisForReplay,
-  publishReplayReadyRealtime,
-} from "@/server/replays/edge-completion"
+import { enqueueCoachAnalysisForReplay, publishReplayReadyRealtime } from "@/server/replays/edge-completion"
 import { consumeReplayReadyEmail } from "@/server/replays/replay-ready-email"
+import { queueAndDeliverPushNotification } from "@/server/notifications/push-delivery"
 import {
   EVENT_TYPES,
   EVENT_VERSION,
@@ -51,6 +49,18 @@ export async function consumeReplayReady(row: ReplayReadyOutboxRow) {
   }
 
   await consumeReplayReadyEmail(row)
+
+  if (userId) {
+    await queueAndDeliverPushNotification({
+      tenantId,
+      userId,
+      bookingId: bookingId || null,
+      locationId: venueId || null,
+      templateKey: "replay_ready",
+      deduplicationKey: `replay-ready:${replayId}`,
+      payload: { replayId, bookingId },
+    })
+  }
 }
 
 export function createReplayReadyConsumers() {

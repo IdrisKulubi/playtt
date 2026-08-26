@@ -68,6 +68,10 @@ From `components.json`:
 - `@/lib` — utilities
 - `@/hooks` — hooks
 
+Pure modules imported directly by dependency-free `node --test` files must use
+relative imports for other pure modules; Node does not resolve the `@/` alias
+outside the Next.js/TypeScript toolchain.
+
 ## Subagent routing
 
 | Work type | Agent |

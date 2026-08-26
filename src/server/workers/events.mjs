@@ -11,6 +11,14 @@ export const EVENT_TYPES = {
   SCORE_UPDATED_V1: "score.updated.v1",
   MEDIA_DELETE_V1: "media.delete.v1",
   REPLAY_READY_V1: "replay.ready.v1",
+  ACCESS_PROVISION_REQUESTED_V1: "access.provision.requested.v1",
+  ACCESS_MODIFY_REQUESTED_V1: "access.modify.requested.v1",
+  ACCESS_READY_V1: "access.ready.v1",
+  ACCESS_REVOKE_REQUESTED_V1: "access.revoke.requested.v1",
+  ACCESS_REVOKED_V1: "access.revoked.v1",
+  ACCESS_FAILED_V1: "access.failed.v1",
+  RELAY_ACTION_REQUESTED_V1: "relay.action.requested.v1",
+  ACCESS_NOTIFICATION_REQUESTED_V1: "access.notification.requested.v1",
 }
 
 export const EVENT_VERSION = 1

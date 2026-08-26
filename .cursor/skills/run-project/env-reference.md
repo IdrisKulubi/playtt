@@ -145,6 +145,22 @@ When mobile uses the hosted API, ensure these are set on the server (e.g. Vercel
 
 Phase 1 seed inserts enabled `operator_shell` and `device_registry` rows for the PlayTT tenant. Customer memberships cannot open `/admin`.
 
+### Phase 5 access and automation
+
+| Variable | Used in | Purpose |
+| -------- | ------- | ------- |
+| `PLAYTT_CREDENTIAL_KEYRING` | `src/server/access/*` | JSON keyring for encrypting revealable booking passcodes |
+| `PLAYTT_PASSCODE_FINGERPRINT_KEY` | `src/server/access/*` | HMAC pepper for passcode fingerprints (never logs plaintext) |
+| `PLAYTT_REMOTE_UNLOCK_OTP_PEPPER` | `src/server/access/admin-service` | Pepper for protected remote-unlock OTP verification |
+| `TTLOCK_PROVIDER_MODE` | access provider factory | `simulator` (default) or `real` after Sciener commissioning |
+| `LIVE_ACCESS_ENABLED` | `src/server/operator/feature-policy` | Env override when no `live_access` tenant flag row exists |
+| `TTLOCK_PROVIDER_ENABLED` | feature policy | Env override for `ttlock_provider` |
+| `RELAY_AUTOMATION_ENABLED` | feature policy | Env override for `relay_automation` |
+| `ACCESS_NOTIFICATIONS_ENABLED` | feature policy | Env override for `access_notifications` |
+| `REMOTE_UNLOCK_ENABLED` | feature policy | Env override for `remote_unlock` |
+
+Phase 5 seed rows keep all access flags disabled. After physical commissioning, enable tenant flags with `node --env-file=.env.local scripts/enable-phase5-pilot-flags.mjs --confirm-commissioned`. See `docs/operations/certification/phase5-pilot-rollout.md`.
+
 | Variable | Used in | Purpose |
 | -------- | ------- | ------- |
 | `PLAYTT_ADMIN_EMAIL` | `scripts/run-seed-phase1.mjs` | Optional. Promotes the matching user to PlayTT `owner` membership after seed (Super Admin access). |

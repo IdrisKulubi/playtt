@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm"
 import {
   boolean,
   check,
@@ -13,21 +13,21 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/pg-core"
 
-const PLAYTT_TENANT_ID = "33333333-3333-3333-3333-333333333333";
+const PLAYTT_TENANT_ID = "33333333-3333-3333-3333-333333333333"
 
 export const userSkillLevelEnum = pgEnum("user_skill_level", [
   "beginner",
   "intermediate",
   "pro",
-]);
+])
 
 export const authProviderEnum = pgEnum("auth_provider", [
   "email",
   "google",
   "phone_otp",
-]);
+])
 
 export const resourceTypeEnum = pgEnum("resource_type", [
   "pod",
@@ -35,7 +35,7 @@ export const resourceTypeEnum = pgEnum("resource_type", [
   "room",
   "tablet",
   "display",
-]);
+])
 
 export const bookingStatusEnum = pgEnum("booking_status", [
   "pending",
@@ -44,7 +44,7 @@ export const bookingStatusEnum = pgEnum("booking_status", [
   "expired",
   "completed",
   "failed",
-]);
+])
 
 export const paymentStatusEnum = pgEnum("payment_status", [
   "unpaid",
@@ -54,18 +54,18 @@ export const paymentStatusEnum = pgEnum("payment_status", [
   "cancelled",
   "refunded",
   "partially_refunded",
-]);
+])
 
 export const bookingModificationStatusEnum = pgEnum(
   "booking_modification_status",
-  ["pending_payment", "applied", "cancelled"],
-);
+  ["pending_payment", "applied", "cancelled"]
+)
 
 export const paymentProviderEnum = pgEnum("payment_provider", [
   "paystack",
   "mpesa_direct",
   "manual",
-]);
+])
 
 export const paymentMethodEnum = pgEnum("payment_method", [
   "mpesa",
@@ -73,19 +73,19 @@ export const paymentMethodEnum = pgEnum("payment_method", [
   "bank_transfer",
   "cash",
   "manual_override",
-]);
+])
 
 export const paymentWebhookInboxStatusEnum = pgEnum(
   "payment_webhook_inbox_status",
-  ["received", "processing", "processed", "failed", "dead_letter"],
-);
+  ["received", "processing", "processed", "failed", "dead_letter"]
+)
 
 export const outboxEventStatusEnum = pgEnum("outbox_event_status", [
   "pending",
   "processing",
   "processed",
   "dead_letter",
-]);
+])
 
 export const hardwareProviderTypeEnum = pgEnum("hardware_provider_type", [
   "ttlock",
@@ -93,21 +93,36 @@ export const hardwareProviderTypeEnum = pgEnum("hardware_provider_type", [
   "sonoff",
   "camera_nvr",
   "push",
-]);
+])
 
 export const accessCredentialTypeEnum = pgEnum("access_credential_type", [
   "pin",
   "ekey",
   "bluetooth_unlock",
-]);
+])
 
 export const accessCredentialStatusEnum = pgEnum("access_credential_status", [
   "pending",
+  "provisioning",
   "active",
+  "modifying",
+  "retrying",
+  "revoking",
   "expired",
   "revoked",
   "failed",
-]);
+])
+
+export const accessGrantStatusEnum = pgEnum("access_grant_status", [
+  "configuring",
+  "ready",
+  "temporarily_unavailable",
+  "action_required",
+  "revoking",
+  "revoked",
+  "expired",
+  "failed",
+])
 
 export const sessionEventTypeEnum = pgEnum("session_event_type", [
   "lights_on",
@@ -121,79 +136,97 @@ export const sessionEventTypeEnum = pgEnum("session_event_type", [
   "replay_requested",
   "replay_ready",
   "notification_sent",
-]);
+])
 
 export const sessionEventStatusEnum = pgEnum("session_event_status", [
   "pending",
   "success",
   "failed",
   "skipped",
-]);
+])
 
 export const matchStatusEnum = pgEnum("match_status", [
   "not_started",
   "in_progress",
   "completed",
   "abandoned",
-]);
+])
 
 export const replayStatusEnum = pgEnum("replay_status", [
   "queued",
   "processing",
   "ready",
   "failed",
-]);
+])
 
 export const productTypeEnum = pgEnum("product_type", [
   "replay_pack",
   "coach_subscription",
-]);
+])
 
 export const coachSubscriptionStatusEnum = pgEnum("coach_subscription_status", [
   "active",
   "past_due",
   "cancelled",
   "expired",
-]);
+])
 
 export const replayCreditLedgerReasonEnum = pgEnum(
   "replay_credit_ledger_reason",
-  ["pack_purchase", "replay_capture", "admin_adjust", "refund"],
-);
+  ["pack_purchase", "replay_capture", "admin_adjust", "refund"]
+)
 
 export const notificationChannelEnum = pgEnum("notification_channel", [
   "in_app",
   "sms",
   "email",
   "push",
-]);
+])
 
 export const notificationStatusEnum = pgEnum("notification_status", [
   "pending",
   "sent",
   "failed",
   "cancelled",
-]);
+])
 
-export const tenantStatusEnum = pgEnum("tenant_status", ["active", "suspended"]);
+export const pushDevicePlatformEnum = pgEnum("push_device_platform", [
+  "ios",
+  "android",
+])
+
+export const pushDeviceStatusEnum = pgEnum("push_device_status", [
+  "active",
+  "revoked",
+])
+
+export const relayChannelPurposeEnum = pgEnum("relay_channel_purpose", [
+  "lighting",
+  "hvac",
+  "display",
+  "reset",
+  "other",
+])
+
+export const tenantStatusEnum = pgEnum("tenant_status", ["active", "suspended"])
 
 export const tenantMembershipRoleEnum = pgEnum("tenant_membership_role", [
   "customer",
   "operator",
   "owner",
   "support",
-]);
+])
 
 export const tenantMembershipStatusEnum = pgEnum("tenant_membership_status", [
   "active",
   "disabled",
-]);
+])
 
 export const accessPointKindEnum = pgEnum("access_point_kind", [
   "entrance",
   "hall",
   "resource",
-]);
+])
 
 export const playSessionStatusEnum = pgEnum("play_session_status", [
   "held",
@@ -204,12 +237,12 @@ export const playSessionStatusEnum = pgEnum("play_session_status", [
   "completed",
   "resetting",
   "available",
-]);
+])
 
 export const sessionParticipantRoleEnum = pgEnum("session_participant_role", [
   "owner",
   "guest",
-]);
+])
 
 export const deviceTypeEnum = pgEnum("device_type", [
   "esp32_controller",
@@ -217,19 +250,19 @@ export const deviceTypeEnum = pgEnum("device_type", [
   "ttlock_gateway",
   "venue_edge",
   "camera",
-]);
+])
 
 export const deviceStatusEnum = pgEnum("device_status", [
   "pending",
   "active",
   "revoked",
-]);
+])
 
 export const deviceCredentialStatusEnum = pgEnum("device_credential_status", [
   "active",
   "rotated",
   "revoked",
-]);
+])
 
 export const deviceAssignmentRoleEnum = pgEnum("device_assignment_role", [
   "score_input",
@@ -240,7 +273,8 @@ export const deviceAssignmentRoleEnum = pgEnum("device_assignment_role", [
   "replay_primary",
   "replay_secondary",
   "security_camera",
-]);
+  "relay_controller",
+])
 
 export const deviceCommandStatusEnum = pgEnum("device_command_status", [
   "pending",
@@ -249,14 +283,15 @@ export const deviceCommandStatusEnum = pgEnum("device_command_status", [
   "failed",
   "expired",
   "cancelled",
-]);
+])
 
 export const deviceCommandKindEnum = pgEnum("device_command_kind", [
   "apply_config",
   "reset",
   "reboot",
   "capture_replay",
-]);
+  "set_output",
+])
 
 export const integrationVendorKindEnum = pgEnum("integration_vendor_kind", [
   "ttlock",
@@ -264,31 +299,55 @@ export const integrationVendorKindEnum = pgEnum("integration_vendor_kind", [
   "esp32",
   "paystack",
   "other",
-]);
+])
 
 export const integrationVendorStatusEnum = pgEnum("integration_vendor_status", [
   "active",
   "inactive",
-]);
+])
 
 export const venueIntegrationStatusEnum = pgEnum("venue_integration_status", [
   "active",
   "inactive",
   "pending",
-]);
+])
+
+export const ttlockConnectionStatusEnum = pgEnum("ttlock_connection_status", [
+  "pending",
+  "active",
+  "reauth_required",
+  "disabled",
+])
+
+export const ttlockInventoryStatusEnum = pgEnum("ttlock_inventory_status", [
+  "unknown",
+  "online",
+  "offline",
+  "unsupported",
+  "disabled",
+])
+
+export const ttlockUnlockEventKindEnum = pgEnum("ttlock_unlock_event_kind", [
+  "passcode_unlock",
+  "remote_unlock",
+  "invalid_passcode",
+  "tamper",
+  "gateway",
+  "other",
+])
 
 export const scoreEventKindEnum = pgEnum("score_event_kind", [
   "point",
   "correction",
-]);
+])
 
-export const scoreSideEnum = pgEnum("score_side", ["a", "b"]);
+export const scoreSideEnum = pgEnum("score_side", ["a", "b"])
 
 export const mediaKindEnum = pgEnum("media_kind", [
   "source_video",
   "preview_image",
   "derived_video",
-]);
+])
 
 export const mediaStatusEnum = pgEnum("media_status", [
   "pending_upload",
@@ -297,13 +356,13 @@ export const mediaStatusEnum = pgEnum("media_status", [
   "failed",
   "deletion_pending",
   "deleted",
-]);
+])
 
 export const mediaRetentionClassEnum = pgEnum("media_retention_class", [
   "session_short",
   "replay_standard",
   "replay_owned",
-]);
+])
 
 export const mediaEventInboxStatusEnum = pgEnum("media_event_inbox_status", [
   "received",
@@ -311,7 +370,7 @@ export const mediaEventInboxStatusEnum = pgEnum("media_event_inbox_status", [
   "processed",
   "failed",
   "dead_letter",
-]);
+])
 
 export const replayRequestStatusEnum = pgEnum("replay_request_status", [
   "requested",
@@ -329,12 +388,12 @@ export const replayRequestStatusEnum = pgEnum("replay_request_status", [
   "upload_failed",
   "expired",
   "failed",
-]);
+])
 
 export const replayCaptureSourceEnum = pgEnum("replay_capture_source", [
   "edge_buffer",
   "nvr_playback",
-]);
+])
 
 export const tenants = pgTable(
   "tenants",
@@ -352,8 +411,8 @@ export const tenants = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [uniqueIndex("tenants_slug_unique").on(table.slug)],
-);
+  (table) => [uniqueIndex("tenants_slug_unique").on(table.slug)]
+)
 
 export const brands = pgTable(
   "brands",
@@ -380,8 +439,8 @@ export const brands = pgTable(
       .on(table.tenantId)
       .where(sql`${table.isDefault} = true`),
     index("brands_tenant_id_idx").on(table.tenantId),
-  ],
-);
+  ]
+)
 
 export const user = pgTable(
   "user",
@@ -424,8 +483,8 @@ export const user = pgTable(
   (table) => [
     uniqueIndex("user_phone_unique").on(table.phone),
     index("user_default_location_idx").on(table.defaultLocationId),
-  ],
-);
+  ]
+)
 
 export const tenantMemberships = pgTable(
   "tenant_memberships",
@@ -450,15 +509,15 @@ export const tenantMemberships = pgTable(
   (table) => [
     uniqueIndex("tenant_memberships_tenant_user_unique").on(
       table.tenantId,
-      table.userId,
+      table.userId
     ),
     index("tenant_memberships_user_id_idx").on(table.userId),
     index("tenant_memberships_tenant_status_idx").on(
       table.tenantId,
-      table.status,
+      table.status
     ),
-  ],
-);
+  ]
+)
 
 export const session = pgTable(
   "session",
@@ -479,8 +538,8 @@ export const session = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
   },
-  (table) => [index("session_user_id_idx").on(table.userId)],
-);
+  (table) => [index("session_user_id_idx").on(table.userId)]
+)
 
 export const account = pgTable(
   "account",
@@ -514,10 +573,10 @@ export const account = pgTable(
     index("account_user_id_idx").on(table.userId),
     uniqueIndex("account_provider_account_unique").on(
       table.providerId,
-      table.accountId,
+      table.accountId
     ),
-  ],
-);
+  ]
+)
 
 export const verification = pgTable(
   "verification",
@@ -538,10 +597,10 @@ export const verification = pgTable(
     index("verification_identifier_idx").on(table.identifier),
     uniqueIndex("verification_identifier_value_unique").on(
       table.identifier,
-      table.value,
+      table.value
     ),
-  ],
-);
+  ]
+)
 
 export const twoFactor = pgTable(
   "two_factor",
@@ -556,8 +615,8 @@ export const twoFactor = pgTable(
   (table) => [
     index("two_factor_secret_idx").on(table.secret),
     index("two_factor_user_id_idx").on(table.userId),
-  ],
-);
+  ]
+)
 
 export const locations = pgTable(
   "locations",
@@ -567,8 +626,8 @@ export const locations = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     brandId: uuid("brand_id").references(() => brands.id, {
       onDelete: "restrict",
     }),
@@ -599,8 +658,8 @@ export const locations = pgTable(
       foreignColumns: [brands.tenantId, brands.id],
       name: "locations_tenant_brand_fk",
     }).onDelete("restrict"),
-  ],
-);
+  ]
+)
 
 export const zones = pgTable(
   "zones",
@@ -628,7 +687,7 @@ export const zones = pgTable(
     uniqueIndex("zones_tenant_location_slug_unique").on(
       table.tenantId,
       table.locationId,
-      table.slug,
+      table.slug
     ),
     uniqueIndex("zones_tenant_id_unique").on(table.tenantId, table.id),
     index("zones_location_id_idx").on(table.locationId),
@@ -638,8 +697,8 @@ export const zones = pgTable(
       foreignColumns: [locations.tenantId, locations.id],
       name: "zones_tenant_location_fk",
     }).onDelete("restrict"),
-  ],
-);
+  ]
+)
 
 export const resourceTypes = pgTable(
   "resource_types",
@@ -660,11 +719,14 @@ export const resourceTypes = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex("resource_types_tenant_code_unique").on(table.tenantId, table.code),
+    uniqueIndex("resource_types_tenant_code_unique").on(
+      table.tenantId,
+      table.code
+    ),
     uniqueIndex("resource_types_tenant_id_unique").on(table.tenantId, table.id),
     index("resource_types_tenant_id_idx").on(table.tenantId),
-  ],
-);
+  ]
+)
 
 export const resources = pgTable(
   "resources",
@@ -674,17 +736,20 @@ export const resources = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     locationId: uuid("location_id")
       .notNull()
       .references(() => locations.id, { onDelete: "restrict" }),
     zoneId: uuid("zone_id").references(() => zones.id, {
       onDelete: "restrict",
     }),
-    resourceTypeId: uuid("resource_type_id").references(() => resourceTypes.id, {
-      onDelete: "restrict",
-    }),
+    resourceTypeId: uuid("resource_type_id").references(
+      () => resourceTypes.id,
+      {
+        onDelete: "restrict",
+      }
+    ),
     name: text("name").notNull(),
     slug: text("slug").notNull(),
     code: text("code"),
@@ -704,7 +769,10 @@ export const resources = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex("resources_location_slug_unique").on(table.locationId, table.slug),
+    uniqueIndex("resources_location_slug_unique").on(
+      table.locationId,
+      table.slug
+    ),
     index("resources_location_active_idx").on(table.locationId, table.isActive),
     index("resources_tenant_id_idx").on(table.tenantId),
     uniqueIndex("resources_tenant_location_code_unique")
@@ -727,8 +795,8 @@ export const resources = pgTable(
       name: "resources_tenant_resource_type_fk",
     }).onDelete("restrict"),
     check("resources_capacity_positive", sql`${table.capacity} > 0`),
-  ],
-);
+  ]
+)
 
 export const resourceCapabilities = pgTable(
   "resource_capabilities",
@@ -753,7 +821,7 @@ export const resourceCapabilities = pgTable(
   (table) => [
     uniqueIndex("resource_capabilities_resource_code_unique").on(
       table.resourceId,
-      table.code,
+      table.code
     ),
     index("resource_capabilities_tenant_id_idx").on(table.tenantId),
     index("resource_capabilities_resource_id_idx").on(table.resourceId),
@@ -762,8 +830,8 @@ export const resourceCapabilities = pgTable(
       foreignColumns: [resources.tenantId, resources.id],
       name: "resource_capabilities_tenant_resource_fk",
     }).onDelete("restrict"),
-  ],
-);
+  ]
+)
 
 export const accessPoints = pgTable(
   "access_points",
@@ -795,14 +863,14 @@ export const accessPoints = pgTable(
     uniqueIndex("access_points_tenant_location_code_unique").on(
       table.tenantId,
       table.locationId,
-      table.code,
+      table.code
     ),
     uniqueIndex("access_points_tenant_id_unique").on(table.tenantId, table.id),
     index("access_points_tenant_id_idx").on(table.tenantId),
     index("access_points_location_id_idx").on(table.locationId),
     index("access_points_zone_id_idx").on(table.zoneId),
-  ],
-);
+  ]
+)
 
 export const accessPointResources = pgTable(
   "access_point_resources",
@@ -829,17 +897,17 @@ export const accessPointResources = pgTable(
   (table) => [
     uniqueIndex("access_point_resources_point_resource_unique").on(
       table.accessPointId,
-      table.resourceId,
+      table.resourceId
     ),
     uniqueIndex("access_point_resources_tenant_id_unique").on(
       table.tenantId,
-      table.id,
+      table.id
     ),
     index("access_point_resources_tenant_id_idx").on(table.tenantId),
     index("access_point_resources_access_point_id_idx").on(table.accessPointId),
     index("access_point_resources_resource_id_idx").on(table.resourceId),
-  ],
-);
+  ]
+)
 
 export const featureFlags = pgTable(
   "feature_flags",
@@ -860,10 +928,13 @@ export const featureFlags = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex("feature_flags_tenant_key_unique").on(table.tenantId, table.key),
+    uniqueIndex("feature_flags_tenant_key_unique").on(
+      table.tenantId,
+      table.key
+    ),
     index("feature_flags_tenant_id_idx").on(table.tenantId),
-  ],
-);
+  ]
+)
 
 export const integrationVendors = pgTable(
   "integration_vendors",
@@ -887,15 +958,15 @@ export const integrationVendors = pgTable(
   (table) => [
     uniqueIndex("integration_vendors_tenant_id_unique").on(
       table.tenantId,
-      table.id,
+      table.id
     ),
     index("integration_vendors_tenant_id_idx").on(table.tenantId),
     index("integration_vendors_tenant_status_idx").on(
       table.tenantId,
-      table.status,
+      table.status
     ),
-  ],
-);
+  ]
+)
 
 export const venueIntegrations = pgTable(
   "venue_integrations",
@@ -925,17 +996,20 @@ export const venueIntegrations = pgTable(
   (table) => [
     uniqueIndex("venue_integrations_tenant_id_unique").on(
       table.tenantId,
-      table.id,
+      table.id
     ),
     uniqueIndex("venue_integrations_tenant_location_vendor_unique").on(
       table.tenantId,
       table.locationId,
-      table.vendorId,
+      table.vendorId
     ),
     index("venue_integrations_tenant_id_idx").on(table.tenantId),
     index("venue_integrations_location_id_idx").on(table.locationId),
     index("venue_integrations_vendor_id_idx").on(table.vendorId),
-    index("venue_integrations_tenant_status_idx").on(table.tenantId, table.status),
+    index("venue_integrations_tenant_status_idx").on(
+      table.tenantId,
+      table.status
+    ),
     foreignKey({
       columns: [table.tenantId, table.locationId],
       foreignColumns: [locations.tenantId, locations.id],
@@ -946,8 +1020,8 @@ export const venueIntegrations = pgTable(
       foreignColumns: [integrationVendors.tenantId, integrationVendors.id],
       name: "venue_integrations_tenant_vendor_fk",
     }).onDelete("restrict"),
-  ],
-);
+  ]
+)
 
 export const auditLogs = pgTable(
   "audit_logs",
@@ -970,8 +1044,8 @@ export const auditLogs = pgTable(
   (table) => [
     index("audit_logs_tenant_created_idx").on(table.tenantId, table.createdAt),
     index("audit_logs_tenant_id_idx").on(table.tenantId),
-  ],
-);
+  ]
+)
 
 export const bookings = pgTable(
   "bookings",
@@ -981,8 +1055,8 @@ export const bookings = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     locationId: uuid("location_id")
       .notNull()
       .references(() => locations.id, { onDelete: "restrict" }),
@@ -1001,8 +1075,10 @@ export const bookings = pgTable(
     durationMinutes: integer("duration_minutes").notNull(),
     groupSize: integer("group_size").notNull(),
     currency: text("currency").default("KES").notNull(),
-    subtotalAmount: numeric("subtotal_amount", { precision: 12, scale: 2 })
-      .notNull(),
+    subtotalAmount: numeric("subtotal_amount", {
+      precision: 12,
+      scale: 2,
+    }).notNull(),
     discountAmount: numeric("discount_amount", { precision: 12, scale: 2 })
       .default("0")
       .notNull(),
@@ -1029,29 +1105,26 @@ export const bookings = pgTable(
     index("bookings_resource_time_idx").on(
       table.resourceId,
       table.startTime,
-      table.endTime,
+      table.endTime
     ),
     index("bookings_user_created_idx").on(table.userId, table.createdAt),
     index("bookings_status_idx").on(table.status, table.paymentStatus),
-    check("bookings_end_after_start", sql`${table.endTime} > ${table.startTime}`),
+    check(
+      "bookings_end_after_start",
+      sql`${table.endTime} > ${table.startTime}`
+    ),
     check(
       "bookings_duration_allowed",
-      sql`${table.durationMinutes} in (30, 60)`,
+      sql`${table.durationMinutes} in (30, 60)`
     ),
-    check(
-      "bookings_discount_not_negative",
-      sql`${table.discountAmount} >= 0`,
-    ),
-    check(
-      "bookings_total_not_negative",
-      sql`${table.totalAmount} >= 0`,
-    ),
+    check("bookings_discount_not_negative", sql`${table.discountAmount} >= 0`),
+    check("bookings_total_not_negative", sql`${table.totalAmount} >= 0`),
     check(
       "bookings_group_size_range",
-      sql`${table.groupSize} >= 2 and ${table.groupSize} <= 8`,
+      sql`${table.groupSize} >= 2 and ${table.groupSize} <= 8`
     ),
-  ],
-);
+  ]
+)
 
 export const bookingModifications = pgTable(
   "booking_modifications",
@@ -1061,8 +1134,8 @@ export const bookingModifications = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => bookings.id, { onDelete: "cascade" }),
@@ -1099,8 +1172,8 @@ export const bookingModifications = pgTable(
     index("booking_modifications_tenant_id_idx").on(table.tenantId),
     index("booking_modifications_booking_idx").on(table.bookingId),
     index("booking_modifications_status_idx").on(table.status),
-  ],
-);
+  ]
+)
 
 export const bookingCreditBalances = pgTable(
   "booking_credit_balances",
@@ -1112,8 +1185,8 @@ export const bookingCreditBalances = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     balanceAmount: numeric("balance_amount", { precision: 12, scale: 2 })
       .default("0")
       .notNull(),
@@ -1123,8 +1196,8 @@ export const bookingCreditBalances = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index("booking_credit_balances_tenant_id_idx").on(table.tenantId)],
-);
+  (table) => [index("booking_credit_balances_tenant_id_idx").on(table.tenantId)]
+)
 
 export const bookingCreditLedger = pgTable(
   "booking_credit_ledger",
@@ -1134,8 +1207,8 @@ export const bookingCreditLedger = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -1144,7 +1217,7 @@ export const bookingCreditLedger = pgTable(
     }),
     bookingModificationId: uuid("booking_modification_id").references(
       () => bookingModifications.id,
-      { onDelete: "set null" },
+      { onDelete: "set null" }
     ),
     deltaAmount: numeric("delta_amount", { precision: 12, scale: 2 }).notNull(),
     currency: text("currency").default("KES").notNull(),
@@ -1157,14 +1230,14 @@ export const bookingCreditLedger = pgTable(
     index("booking_credit_ledger_tenant_id_idx").on(table.tenantId),
     index("booking_credit_ledger_user_created_idx").on(
       table.userId,
-      table.createdAt,
+      table.createdAt
     ),
     index("booking_credit_ledger_booking_idx").on(table.bookingId),
     uniqueIndex("booking_credit_ledger_modification_reason_unique")
       .on(table.bookingModificationId, table.reason)
       .where(sql`${table.bookingModificationId} is not null`),
-  ],
-);
+  ]
+)
 
 export const payments = pgTable(
   "payments",
@@ -1174,8 +1247,8 @@ export const payments = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => bookings.id, { onDelete: "cascade" }),
@@ -1191,7 +1264,9 @@ export const payments = pgTable(
     amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
     currency: text("currency").default("KES").notNull(),
     status: paymentStatusEnum("status").default("pending").notNull(),
-    paymentMethod: paymentMethodEnum("payment_method").default("mpesa").notNull(),
+    paymentMethod: paymentMethodEnum("payment_method")
+      .default("mpesa")
+      .notNull(),
     paidAt: timestamp("paid_at", { withTimezone: true }),
     rawPayload: jsonb("raw_payload").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -1206,14 +1281,17 @@ export const payments = pgTable(
     index("payments_tenant_id_idx").on(table.tenantId),
     uniqueIndex("payments_provider_reference_unique").on(
       table.provider,
-      table.providerReference,
+      table.providerReference
     ),
-    index("payments_provider_event_idx").on(table.provider, table.providerEventId),
+    index("payments_provider_event_idx").on(
+      table.provider,
+      table.providerEventId
+    ),
     index("payments_booking_status_idx").on(table.bookingId, table.status),
     index("payments_user_created_idx").on(table.userId, table.createdAt),
     check("payments_amount_positive", sql`${table.amount} > 0`),
-  ],
-);
+  ]
+)
 
 export const paymentWebhookInbox = pgTable(
   "payment_webhook_inbox",
@@ -1228,7 +1306,9 @@ export const paymentWebhookInbox = pgTable(
     signature: text("signature").notNull(),
     eventType: text("event_type").notNull(),
     rawPayload: text("raw_payload").notNull(),
-    status: paymentWebhookInboxStatusEnum("status").default("received").notNull(),
+    status: paymentWebhookInboxStatusEnum("status")
+      .default("received")
+      .notNull(),
     attempts: integer("attempts").default(0).notNull(),
     lastError: text("last_error"),
     availableAt: timestamp("available_at", { withTimezone: true })
@@ -1251,25 +1331,25 @@ export const paymentWebhookInbox = pgTable(
   (table) => [
     uniqueIndex("payment_webhook_inbox_provider_payload_hash_unique").on(
       table.provider,
-      table.payloadHash,
+      table.payloadHash
     ),
     uniqueIndex("payment_webhook_inbox_provider_event_unique")
       .on(table.provider, table.providerEventId)
       .where(sql`${table.providerEventId} is not null`),
     index("payment_webhook_inbox_status_received_idx").on(
       table.status,
-      table.receivedAt,
+      table.receivedAt
     ),
     index("payment_webhook_inbox_claim_idx").on(
       table.status,
-      table.availableAt,
+      table.availableAt
     ),
     index("payment_webhook_inbox_provider_event_idx").on(
       table.provider,
-      table.providerEventId,
+      table.providerEventId
     ),
-  ],
-);
+  ]
+)
 
 export const outboxEvents = pgTable(
   "outbox_events",
@@ -1314,7 +1394,10 @@ export const outboxEvents = pgTable(
     uniqueIndex("outbox_events_idempotency_unique").on(table.idempotencyKey),
     index("outbox_events_claim_idx").on(table.status, table.availableAt),
     index("outbox_events_tenant_id_idx").on(table.tenantId),
-    index("outbox_events_event_type_idx").on(table.eventType, table.eventVersion),
+    index("outbox_events_event_type_idx").on(
+      table.eventType,
+      table.eventVersion
+    ),
     foreignKey({
       columns: [table.tenantId, table.venueId],
       foreignColumns: [locations.tenantId, locations.id],
@@ -1325,8 +1408,8 @@ export const outboxEvents = pgTable(
       foreignColumns: [resources.tenantId, resources.id],
       name: "outbox_events_tenant_resource_fk",
     }).onDelete("restrict"),
-  ],
-);
+  ]
+)
 
 export const playSessions = pgTable(
   "play_sessions",
@@ -1349,10 +1432,12 @@ export const playSessions = pgTable(
       .references(() => resources.id, { onDelete: "restrict" }),
     status: playSessionStatusEnum("status").default("confirmed").notNull(),
     correlationId: text("correlation_id").notNull(),
-    scheduledStartAt: timestamp("scheduled_start_at", { withTimezone: true })
-      .notNull(),
-    scheduledEndAt: timestamp("scheduled_end_at", { withTimezone: true })
-      .notNull(),
+    scheduledStartAt: timestamp("scheduled_start_at", {
+      withTimezone: true,
+    }).notNull(),
+    scheduledEndAt: timestamp("scheduled_end_at", {
+      withTimezone: true,
+    }).notNull(),
     preparedAt: timestamp("prepared_at", { withTimezone: true }),
     startedAt: timestamp("started_at", { withTimezone: true }),
     endedAt: timestamp("ended_at", { withTimezone: true }),
@@ -1375,16 +1460,16 @@ export const playSessions = pgTable(
     uniqueIndex("play_sessions_tenant_id_unique").on(table.tenantId, table.id),
     uniqueIndex("play_sessions_tenant_booking_unique").on(
       table.tenantId,
-      table.bookingId,
+      table.bookingId
     ),
     index("play_sessions_tenant_id_idx").on(table.tenantId),
     index("play_sessions_status_idx").on(table.status, table.scheduledStartAt),
     check(
       "play_sessions_scheduled_window",
-      sql`${table.scheduledEndAt} > ${table.scheduledStartAt}`,
+      sql`${table.scheduledEndAt} > ${table.scheduledStartAt}`
     ),
-  ],
-);
+  ]
+)
 
 export const sessionParticipants = pgTable(
   "session_participants",
@@ -1410,16 +1495,16 @@ export const sessionParticipants = pgTable(
   (table) => [
     uniqueIndex("session_participants_session_user_unique").on(
       table.playSessionId,
-      table.userId,
+      table.userId
     ),
     uniqueIndex("session_participants_tenant_id_unique").on(
       table.tenantId,
-      table.id,
+      table.id
     ),
     index("session_participants_tenant_id_idx").on(table.tenantId),
     index("session_participants_play_session_id_idx").on(table.playSessionId),
-  ],
-);
+  ]
+)
 
 export const devices = pgTable(
   "devices",
@@ -1454,13 +1539,13 @@ export const devices = pgTable(
     uniqueIndex("devices_tenant_id_unique").on(table.tenantId, table.id),
     uniqueIndex("devices_tenant_hardware_uid_unique").on(
       table.tenantId,
-      table.hardwareUid,
+      table.hardwareUid
     ),
     index("devices_tenant_id_idx").on(table.tenantId),
     index("devices_location_id_idx").on(table.locationId),
     index("devices_status_idx").on(table.status),
-  ],
-);
+  ]
+)
 
 export const deviceEnrollments = pgTable(
   "device_enrollments",
@@ -1488,13 +1573,13 @@ export const deviceEnrollments = pgTable(
   (table) => [
     uniqueIndex("device_enrollments_tenant_code_hash_unique").on(
       table.tenantId,
-      table.codeHash,
+      table.codeHash
     ),
     index("device_enrollments_tenant_id_idx").on(table.tenantId),
     index("device_enrollments_location_id_idx").on(table.locationId),
     index("device_enrollments_expires_at_idx").on(table.expiresAt),
-  ],
-);
+  ]
+)
 
 export const deviceCredentials = pgTable(
   "device_credentials",
@@ -1523,19 +1608,19 @@ export const deviceCredentials = pgTable(
   (table) => [
     uniqueIndex("device_credentials_device_version_unique").on(
       table.deviceId,
-      table.version,
+      table.version
     ),
     uniqueIndex("device_credentials_active_unique")
       .on(table.deviceId)
       .where(sql`${table.status} = 'active'`),
     uniqueIndex("device_credentials_tenant_id_unique").on(
       table.tenantId,
-      table.id,
+      table.id
     ),
     index("device_credentials_tenant_id_idx").on(table.tenantId),
     index("device_credentials_device_id_idx").on(table.deviceId),
-  ],
-);
+  ]
+)
 
 export const deviceAssignments = pgTable(
   "device_assignments",
@@ -1555,8 +1640,9 @@ export const deviceAssignments = pgTable(
       onDelete: "restrict",
     }),
     role: deviceAssignmentRoleEnum("role").notNull(),
-    effectiveFrom: timestamp("effective_from", { withTimezone: true })
-      .notNull(),
+    effectiveFrom: timestamp("effective_from", {
+      withTimezone: true,
+    }).notNull(),
     effectiveTo: timestamp("effective_to", { withTimezone: true }),
     config: jsonb("config")
       .$type<Record<string, unknown>>()
@@ -1579,11 +1665,11 @@ export const deviceAssignments = pgTable(
     uniqueIndex("device_assignments_scoring_resource_role_open_unique")
       .on(table.tenantId, table.resourceId, table.role)
       .where(
-        sql`${table.role} = 'score_input' and ${table.resourceId} is not null and ${table.effectiveTo} is null`,
+        sql`${table.role} = 'score_input' and ${table.resourceId} is not null and ${table.effectiveTo} is null`
       ),
     uniqueIndex("device_assignments_tenant_id_unique").on(
       table.tenantId,
-      table.id,
+      table.id
     ),
     index("device_assignments_tenant_id_idx").on(table.tenantId),
     index("device_assignments_device_id_idx").on(table.deviceId),
@@ -1591,14 +1677,14 @@ export const deviceAssignments = pgTable(
     index("device_assignments_effective_window_idx").on(
       table.deviceId,
       table.effectiveFrom,
-      table.effectiveTo,
+      table.effectiveTo
     ),
     check(
       "device_assignments_effective_window",
-      sql`${table.effectiveTo} is null or ${table.effectiveTo} > ${table.effectiveFrom}`,
+      sql`${table.effectiveTo} is null or ${table.effectiveTo} > ${table.effectiveFrom}`
     ),
-  ],
-);
+  ]
+)
 
 // PostgreSQL exclusion constraints for both assignment timelines are maintained
 // as required custom SQL in migration 0017; Drizzle cannot express them here.
@@ -1632,15 +1718,15 @@ export const deviceHeartbeats = pgTable(
   (table) => [
     uniqueIndex("device_heartbeats_tenant_id_unique").on(
       table.tenantId,
-      table.id,
+      table.id
     ),
     index("device_heartbeats_tenant_id_idx").on(table.tenantId),
     index("device_heartbeats_device_observed_idx").on(
       table.deviceId,
-      table.observedAt,
+      table.observedAt
     ),
-  ],
-);
+  ]
+)
 
 export const deviceCommands = pgTable(
   "device_commands",
@@ -1681,17 +1767,17 @@ export const deviceCommands = pgTable(
   (table) => [
     uniqueIndex("device_commands_tenant_id_unique").on(
       table.tenantId,
-      table.id,
+      table.id
     ),
     index("device_commands_tenant_id_idx").on(table.tenantId),
     index("device_commands_device_status_idx").on(
       table.deviceId,
       table.status,
-      table.expiresAt,
+      table.expiresAt
     ),
     index("device_commands_expires_at_idx").on(table.expiresAt),
-  ],
-);
+  ]
+)
 
 export const deviceCommandAcks = pgTable(
   "device_command_acks",
@@ -1720,16 +1806,16 @@ export const deviceCommandAcks = pgTable(
   (table) => [
     uniqueIndex("device_command_acks_command_idempotency_unique").on(
       table.commandId,
-      table.idempotencyKey,
+      table.idempotencyKey
     ),
     uniqueIndex("device_command_acks_tenant_id_unique").on(
       table.tenantId,
-      table.id,
+      table.id
     ),
     index("device_command_acks_tenant_id_idx").on(table.tenantId),
     index("device_command_acks_command_id_idx").on(table.commandId),
-  ],
-);
+  ]
+)
 
 export const scoreEvents = pgTable(
   "score_events",
@@ -1769,14 +1855,14 @@ export const scoreEvents = pgTable(
     uniqueIndex("score_events_device_boot_sequence_unique").on(
       table.deviceId,
       table.bootId,
-      table.sequence,
+      table.sequence
     ),
     uniqueIndex("score_events_tenant_id_unique").on(table.tenantId, table.id),
     index("score_events_tenant_id_idx").on(table.tenantId),
     index("score_events_play_session_id_idx").on(table.playSessionId),
     index("score_events_device_id_idx").on(table.deviceId),
-  ],
-);
+  ]
+)
 
 export const scoreSnapshots = pgTable(
   "score_snapshots",
@@ -1814,12 +1900,12 @@ export const scoreSnapshots = pgTable(
     uniqueIndex("score_snapshots_play_session_unique").on(table.playSessionId),
     uniqueIndex("score_snapshots_tenant_id_unique").on(
       table.tenantId,
-      table.id,
+      table.id
     ),
     index("score_snapshots_tenant_id_idx").on(table.tenantId),
     index("score_snapshots_resource_id_idx").on(table.resourceId),
-  ],
-);
+  ]
+)
 
 export const mediaAssets = pgTable(
   "media_assets",
@@ -1873,8 +1959,8 @@ export const mediaAssets = pgTable(
     index("media_assets_play_session_id_idx").on(table.playSessionId),
     index("media_assets_owner_user_id_idx").on(table.ownerUserId),
     index("media_assets_status_idx").on(table.status),
-  ],
-);
+  ]
+)
 
 export const mediaEventInbox = pgTable(
   "media_event_inbox",
@@ -1913,16 +1999,16 @@ export const mediaEventInbox = pgTable(
     uniqueIndex("media_event_inbox_media_event_payload_unique").on(
       table.mediaId,
       table.eventType,
-      table.payloadHash,
+      table.payloadHash
     ),
     index("media_event_inbox_status_received_idx").on(
       table.status,
-      table.receivedAt,
+      table.receivedAt
     ),
     index("media_event_inbox_claim_idx").on(table.status, table.availableAt),
     index("media_event_inbox_media_id_idx").on(table.mediaId),
-  ],
-);
+  ]
+)
 
 export const replayRequests = pgTable(
   "replay_requests",
@@ -1953,9 +2039,12 @@ export const replayRequests = pgTable(
     mediaAssetId: uuid("media_asset_id")
       .notNull()
       .references(() => mediaAssets.id, { onDelete: "restrict" }),
-    venueEdgeDeviceId: uuid("venue_edge_device_id").references(() => devices.id, {
-      onDelete: "set null",
-    }),
+    venueEdgeDeviceId: uuid("venue_edge_device_id").references(
+      () => devices.id,
+      {
+        onDelete: "set null",
+      }
+    ),
     cameraDeviceId: uuid("camera_device_id").references(() => devices.id, {
       onDelete: "set null",
     }),
@@ -1971,12 +2060,17 @@ export const replayRequests = pgTable(
     maxAttempts: integer("max_attempts").default(3).notNull(),
     correlationId: text("correlation_id").notNull(),
     clientIdempotencyKey: text("client_idempotency_key").notNull(),
-    deviceCommandId: uuid("device_command_id").references(() => deviceCommands.id, {
-      onDelete: "set null",
-    }),
+    deviceCommandId: uuid("device_command_id").references(
+      () => deviceCommands.id,
+      {
+        onDelete: "set null",
+      }
+    ),
     failureReason: text("failure_reason"),
     dispatchedAt: timestamp("dispatched_at", { withTimezone: true }),
-    edgeAcknowledgedAt: timestamp("edge_acknowledged_at", { withTimezone: true }),
+    edgeAcknowledgedAt: timestamp("edge_acknowledged_at", {
+      withTimezone: true,
+    }),
     capturingAt: timestamp("capturing_at", { withTimezone: true }),
     extractingAt: timestamp("extracting_at", { withTimezone: true }),
     uploadingAt: timestamp("uploading_at", { withTimezone: true }),
@@ -1993,19 +2087,22 @@ export const replayRequests = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex("replay_requests_tenant_id_unique").on(table.tenantId, table.id),
+    uniqueIndex("replay_requests_tenant_id_unique").on(
+      table.tenantId,
+      table.id
+    ),
     uniqueIndex("replay_requests_requester_session_idempotency_unique").on(
       table.tenantId,
       table.requesterUserId,
       table.playSessionId,
-      table.clientIdempotencyKey,
+      table.clientIdempotencyKey
     ),
     index("replay_requests_tenant_id_idx").on(table.tenantId),
     index("replay_requests_play_session_id_idx").on(table.playSessionId),
     index("replay_requests_replay_id_idx").on(table.replayId),
     index("replay_requests_status_idx").on(table.status),
-  ],
-);
+  ]
+)
 
 export const bookingStatusHistory = pgTable(
   "booking_status_history",
@@ -2015,8 +2112,8 @@ export const bookingStatusHistory = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => bookings.id, { onDelete: "cascade" }),
@@ -2034,10 +2131,10 @@ export const bookingStatusHistory = pgTable(
     uniqueIndex("booking_status_history_logical_unique")
       .on(table.bookingId, table.toStatus, table.reason)
       .where(
-        sql`${table.reason} in ('payment_confirmed', 'payment_window_expired', 'user_cancelled')`,
+        sql`${table.reason} in ('payment_confirmed', 'payment_window_expired', 'user_cancelled')`
       ),
-  ],
-);
+  ]
+)
 
 export const hardwareConfigs = pgTable(
   "hardware_configs",
@@ -2047,8 +2144,8 @@ export const hardwareConfigs = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     locationId: uuid("location_id")
       .notNull()
       .references(() => locations.id, { onDelete: "cascade" }),
@@ -2070,11 +2167,342 @@ export const hardwareConfigs = pgTable(
     uniqueIndex("hardware_configs_location_provider_key_unique").on(
       table.locationId,
       table.providerType,
-      table.configKey,
+      table.configKey
     ),
-    index("hardware_configs_location_active_idx").on(table.locationId, table.isActive),
-  ],
-);
+    index("hardware_configs_location_active_idx").on(
+      table.locationId,
+      table.isActive
+    ),
+  ]
+)
+
+export const ttlockConnections = pgTable(
+  "ttlock_connections",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    apiBaseUrl: text("api_base_url").notNull(),
+    clientId: text("client_id").notNull(),
+    encryptedClientSecret: text("encrypted_client_secret").notNull(),
+    clientSecretKeyVersion: text("client_secret_key_version").notNull(),
+    encryptedAccessToken: text("encrypted_access_token"),
+    accessTokenKeyVersion: text("access_token_key_version"),
+    encryptedRefreshToken: text("encrypted_refresh_token"),
+    refreshTokenKeyVersion: text("refresh_token_key_version"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", {
+      withTimezone: true,
+    }),
+    status: ttlockConnectionStatusEnum("status").default("pending").notNull(),
+    refreshLeaseOwner: text("refresh_lease_owner"),
+    refreshLeasedUntil: timestamp("refresh_leased_until", {
+      withTimezone: true,
+    }),
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+    lastErrorCode: text("last_error_code"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("ttlock_connections_tenant_id_unique").on(
+      table.tenantId,
+      table.id
+    ),
+    uniqueIndex("ttlock_connections_tenant_name_unique").on(
+      table.tenantId,
+      table.name
+    ),
+    index("ttlock_connections_tenant_status_idx").on(
+      table.tenantId,
+      table.status
+    ),
+    check(
+      "ttlock_connections_access_token_key_pair",
+      sql`(${table.encryptedAccessToken} is null) = (${table.accessTokenKeyVersion} is null)`
+    ),
+    check(
+      "ttlock_connections_refresh_token_key_pair",
+      sql`(${table.encryptedRefreshToken} is null) = (${table.refreshTokenKeyVersion} is null)`
+    ),
+  ]
+)
+
+export const ttlockVenueConnections = pgTable(
+  "ttlock_venue_connections",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id").notNull(),
+    locationId: uuid("location_id").notNull(),
+    connectionId: uuid("connection_id").notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("ttlock_venue_connections_location_connection_unique").on(
+      table.tenantId,
+      table.locationId,
+      table.connectionId
+    ),
+    index("ttlock_venue_connections_tenant_idx").on(table.tenantId),
+    foreignKey({
+      columns: [table.tenantId, table.locationId],
+      foreignColumns: [locations.tenantId, locations.id],
+      name: "ttlock_venue_connections_tenant_location_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.tenantId, table.connectionId],
+      foreignColumns: [ttlockConnections.tenantId, ttlockConnections.id],
+      name: "ttlock_venue_connections_tenant_connection_fk",
+    }).onDelete("cascade"),
+  ]
+)
+
+export const ttlockGateways = pgTable(
+  "ttlock_gateways",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id").notNull(),
+    connectionId: uuid("connection_id").notNull(),
+    deviceId: uuid("device_id"),
+    externalGatewayId: text("external_gateway_id").notNull(),
+    name: text("name"),
+    status: ttlockInventoryStatusEnum("status").default("unknown").notNull(),
+    firmwareVersion: text("firmware_version"),
+    lockCount: integer("lock_count"),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }).notNull(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default({})
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("ttlock_gateways_tenant_id_unique").on(
+      table.tenantId,
+      table.id
+    ),
+    uniqueIndex("ttlock_gateways_connection_external_unique").on(
+      table.connectionId,
+      table.externalGatewayId
+    ),
+    uniqueIndex("ttlock_gateways_tenant_device_unique").on(
+      table.tenantId,
+      table.deviceId
+    ),
+    index("ttlock_gateways_tenant_status_idx").on(table.tenantId, table.status),
+    foreignKey({
+      columns: [table.tenantId, table.connectionId],
+      foreignColumns: [ttlockConnections.tenantId, ttlockConnections.id],
+      name: "ttlock_gateways_tenant_connection_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.tenantId, table.deviceId],
+      foreignColumns: [devices.tenantId, devices.id],
+      name: "ttlock_gateways_tenant_device_fk",
+    }).onDelete("set null"),
+  ]
+)
+
+export const ttlockLocks = pgTable(
+  "ttlock_locks",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id").notNull(),
+    connectionId: uuid("connection_id").notNull(),
+    gatewayId: uuid("gateway_id"),
+    deviceId: uuid("device_id"),
+    externalLockId: text("external_lock_id").notNull(),
+    name: text("name"),
+    status: ttlockInventoryStatusEnum("status").default("unknown").notNull(),
+    passcodeVersion: integer("passcode_version"),
+    supportsCustomPasscodes: boolean("supports_custom_passcodes")
+      .default(false)
+      .notNull(),
+    gatewayOnline: boolean("gateway_online").default(false).notNull(),
+    batteryPercent: integer("battery_percent"),
+    clockOffsetMs: integer("clock_offset_ms"),
+    firmwareVersion: text("firmware_version"),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }).notNull(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default({})
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("ttlock_locks_tenant_id_unique").on(table.tenantId, table.id),
+    uniqueIndex("ttlock_locks_connection_external_unique").on(
+      table.connectionId,
+      table.externalLockId
+    ),
+    uniqueIndex("ttlock_locks_tenant_device_unique").on(
+      table.tenantId,
+      table.deviceId
+    ),
+    index("ttlock_locks_tenant_status_idx").on(table.tenantId, table.status),
+    index("ttlock_locks_gateway_idx").on(table.gatewayId),
+    check(
+      "ttlock_locks_battery_range",
+      sql`${table.batteryPercent} is null or (${table.batteryPercent} >= 0 and ${table.batteryPercent} <= 100)`
+    ),
+    foreignKey({
+      columns: [table.tenantId, table.connectionId],
+      foreignColumns: [ttlockConnections.tenantId, ttlockConnections.id],
+      name: "ttlock_locks_tenant_connection_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.tenantId, table.gatewayId],
+      foreignColumns: [ttlockGateways.tenantId, ttlockGateways.id],
+      name: "ttlock_locks_tenant_gateway_fk",
+    }).onDelete("set null"),
+    foreignKey({
+      columns: [table.tenantId, table.deviceId],
+      foreignColumns: [devices.tenantId, devices.id],
+      name: "ttlock_locks_tenant_device_fk",
+    }).onDelete("set null"),
+  ]
+)
+
+export const ttlockAccessPointLocks = pgTable(
+  "ttlock_access_point_locks",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id").notNull(),
+    accessPointId: uuid("access_point_id").notNull(),
+    lockId: uuid("lock_id").notNull(),
+    connectionId: uuid("connection_id").notNull(),
+    commissionedAt: timestamp("commissioned_at", { withTimezone: true }),
+    isActive: boolean("is_active").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("ttlock_access_point_locks_active_point_unique")
+      .on(table.tenantId, table.accessPointId)
+      .where(sql`${table.isActive}`),
+    uniqueIndex("ttlock_access_point_locks_active_lock_unique")
+      .on(table.tenantId, table.lockId)
+      .where(sql`${table.isActive}`),
+    index("ttlock_access_point_locks_connection_idx").on(table.connectionId),
+    foreignKey({
+      columns: [table.tenantId, table.accessPointId],
+      foreignColumns: [accessPoints.tenantId, accessPoints.id],
+      name: "ttlock_access_point_locks_tenant_point_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.tenantId, table.lockId],
+      foreignColumns: [ttlockLocks.tenantId, ttlockLocks.id],
+      name: "ttlock_access_point_locks_tenant_lock_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.tenantId, table.connectionId],
+      foreignColumns: [ttlockConnections.tenantId, ttlockConnections.id],
+      name: "ttlock_access_point_locks_tenant_connection_fk",
+    }).onDelete("restrict"),
+  ]
+)
+
+export const accessGrants = pgTable(
+  "access_grants",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    bookingId: uuid("booking_id").notNull(),
+    playSessionId: uuid("play_session_id"),
+    ownerUserId: text("owner_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    locationId: uuid("location_id").notNull(),
+    resourceId: uuid("resource_id").notNull(),
+    encryptedCode: text("encrypted_code").notNull(),
+    encryptionKeyVersion: text("encryption_key_version").notNull(),
+    codeFingerprint: text("code_fingerprint").notNull(),
+    validFrom: timestamp("valid_from", { withTimezone: true }).notNull(),
+    validUntil: timestamp("valid_until", { withTimezone: true }).notNull(),
+    status: accessGrantStatusEnum("status").default("configuring").notNull(),
+    correlationId: text("correlation_id").notNull(),
+    revealReadyAt: timestamp("reveal_ready_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    expiredAt: timestamp("expired_at", { withTimezone: true }),
+    failedAt: timestamp("failed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("access_grants_tenant_id_unique").on(table.tenantId, table.id),
+    uniqueIndex("access_grants_active_booking_unique")
+      .on(table.tenantId, table.bookingId)
+      .where(sql`${table.status} not in ('revoked', 'expired', 'failed')`),
+    index("access_grants_tenant_status_idx").on(table.tenantId, table.status),
+    index("access_grants_booking_idx").on(table.bookingId),
+    index("access_grants_session_idx").on(table.playSessionId),
+    index("access_grants_valid_until_idx").on(table.validUntil),
+    check(
+      "access_grants_valid_window",
+      sql`${table.validUntil} > ${table.validFrom}`
+    ),
+    foreignKey({
+      columns: [table.tenantId, table.bookingId],
+      foreignColumns: [bookings.tenantId, bookings.id],
+      name: "access_grants_tenant_booking_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.tenantId, table.playSessionId],
+      foreignColumns: [playSessions.tenantId, playSessions.id],
+      name: "access_grants_tenant_session_fk",
+    }).onDelete("set null"),
+    foreignKey({
+      columns: [table.tenantId, table.locationId],
+      foreignColumns: [locations.tenantId, locations.id],
+      name: "access_grants_tenant_location_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.tenantId, table.resourceId],
+      foreignColumns: [resources.tenantId, resources.id],
+      name: "access_grants_tenant_resource_fk",
+    }).onDelete("restrict"),
+  ]
+)
 
 export const accessCredentials = pgTable(
   "access_credentials",
@@ -2084,28 +2512,47 @@ export const accessCredentials = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => bookings.id, { onDelete: "cascade" }),
+    grantId: uuid("grant_id")
+      .notNull()
+      .references(() => accessGrants.id, { onDelete: "cascade" }),
+    accessPointId: uuid("access_point_id")
+      .notNull()
+      .references(() => accessPoints.id, { onDelete: "restrict" }),
+    lockDeviceId: uuid("lock_device_id")
+      .notNull()
+      .references(() => devices.id, { onDelete: "restrict" }),
+    connectionId: uuid("connection_id"),
     playSessionId: uuid("play_session_id").references(() => playSessions.id, {
       onDelete: "set null",
     }),
     locationId: uuid("location_id")
       .notNull()
       .references(() => locations.id, { onDelete: "restrict" }),
-    provider: hardwareProviderTypeEnum("provider")
-      .default("ttlock")
-      .notNull(),
+    provider: hardwareProviderTypeEnum("provider").default("ttlock").notNull(),
     credentialType: accessCredentialTypeEnum("credential_type")
       .default("pin")
       .notNull(),
-    accessCode: text("access_code"),
+    stableName: text("stable_name").notNull(),
     externalReference: text("external_reference"),
     validFrom: timestamp("valid_from", { withTimezone: true }).notNull(),
     validUntil: timestamp("valid_until", { withTimezone: true }).notNull(),
     status: accessCredentialStatusEnum("status").default("pending").notNull(),
+    attemptCount: integer("attempt_count").default(0).notNull(),
+    maxAttempts: integer("max_attempts").default(8).notNull(),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
+    leaseOwner: text("lease_owner"),
+    leasedUntil: timestamp("leased_until", { withTimezone: true }),
+    providerErrorCategory: text("provider_error_category"),
+    providerErrorCode: text("provider_error_code"),
+    provisionedAt: timestamp("provisioned_at", { withTimezone: true }),
+    revokeRequestedAt: timestamp("revoke_requested_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    reconciledAt: timestamp("reconciled_at", { withTimezone: true }),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -2116,19 +2563,128 @@ export const accessCredentials = pgTable(
       .notNull(),
   },
   (table) => [
+    uniqueIndex("access_credentials_tenant_id_unique").on(
+      table.tenantId,
+      table.id
+    ),
+    uniqueIndex("access_credentials_grant_point_unique").on(
+      table.tenantId,
+      table.grantId,
+      table.accessPointId
+    ),
+    uniqueIndex("access_credentials_connection_stable_name_unique").on(
+      table.tenantId,
+      table.connectionId,
+      table.stableName
+    ),
+    uniqueIndex("access_credentials_connection_external_reference_unique")
+      .on(table.tenantId, table.connectionId, table.externalReference)
+      .where(sql`${table.externalReference} is not null`),
     index("access_credentials_tenant_id_idx").on(table.tenantId),
     index("access_credentials_booking_idx").on(table.bookingId),
     index("access_credentials_play_session_id_idx").on(table.playSessionId),
-    index("access_credentials_external_reference_idx").on(
-      table.provider,
-      table.externalReference,
-    ),
+    index("access_credentials_grant_id_idx").on(table.grantId),
+    index("access_credentials_access_point_id_idx").on(table.accessPointId),
+    index("access_credentials_lock_device_id_idx").on(table.lockDeviceId),
+    index("access_credentials_retry_idx").on(table.status, table.nextAttemptAt),
     check(
       "access_credentials_valid_window",
-      sql`${table.validUntil} > ${table.validFrom}`,
+      sql`${table.validUntil} > ${table.validFrom}`
     ),
-  ],
-);
+    check(
+      "access_credentials_attempts_valid",
+      sql`${table.attemptCount} >= 0 and ${table.maxAttempts} > 0 and ${table.attemptCount} <= ${table.maxAttempts}`
+    ),
+    foreignKey({
+      columns: [table.tenantId, table.bookingId],
+      foreignColumns: [bookings.tenantId, bookings.id],
+      name: "access_credentials_tenant_booking_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.tenantId, table.grantId],
+      foreignColumns: [accessGrants.tenantId, accessGrants.id],
+      name: "access_credentials_tenant_grant_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.tenantId, table.accessPointId],
+      foreignColumns: [accessPoints.tenantId, accessPoints.id],
+      name: "access_credentials_tenant_access_point_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.tenantId, table.lockDeviceId],
+      foreignColumns: [devices.tenantId, devices.id],
+      name: "access_credentials_tenant_lock_device_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.tenantId, table.playSessionId],
+      foreignColumns: [playSessions.tenantId, playSessions.id],
+      name: "access_credentials_tenant_session_fk",
+    }).onDelete("set null"),
+    foreignKey({
+      columns: [table.tenantId, table.locationId],
+      foreignColumns: [locations.tenantId, locations.id],
+      name: "access_credentials_tenant_location_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.tenantId, table.connectionId],
+      foreignColumns: [ttlockConnections.tenantId, ttlockConnections.id],
+      name: "access_credentials_tenant_connection_fk",
+    }).onDelete("restrict"),
+  ]
+)
+
+export const ttlockUnlockRecords = pgTable(
+  "ttlock_unlock_records",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id").notNull(),
+    connectionId: uuid("connection_id").notNull(),
+    lockId: uuid("lock_id").notNull(),
+    accessCredentialId: uuid("access_credential_id"),
+    externalRecordId: text("external_record_id").notNull(),
+    kind: ttlockUnlockEventKindEnum("kind").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    redactedMetadata: jsonb("redacted_metadata")
+      .$type<Record<string, unknown>>()
+      .default({})
+      .notNull(),
+    ingestedAt: timestamp("ingested_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("ttlock_unlock_records_connection_external_unique").on(
+      table.connectionId,
+      table.externalRecordId
+    ),
+    index("ttlock_unlock_records_tenant_occurred_idx").on(
+      table.tenantId,
+      table.occurredAt
+    ),
+    index("ttlock_unlock_records_lock_occurred_idx").on(
+      table.lockId,
+      table.occurredAt
+    ),
+    foreignKey({
+      columns: [table.tenantId, table.connectionId],
+      foreignColumns: [ttlockConnections.tenantId, ttlockConnections.id],
+      name: "ttlock_unlock_records_tenant_connection_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.tenantId, table.lockId],
+      foreignColumns: [ttlockLocks.tenantId, ttlockLocks.id],
+      name: "ttlock_unlock_records_tenant_lock_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.tenantId, table.accessCredentialId],
+      foreignColumns: [accessCredentials.tenantId, accessCredentials.id],
+      name: "ttlock_unlock_records_tenant_credential_fk",
+    }).onDelete("set null"),
+  ]
+)
 
 export const sessionEvents = pgTable(
   "session_events",
@@ -2138,8 +2694,8 @@ export const sessionEvents = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => bookings.id, { onDelete: "cascade" }),
@@ -2161,9 +2717,12 @@ export const sessionEvents = pgTable(
     index("session_events_tenant_id_idx").on(table.tenantId),
     index("session_events_booking_idx").on(table.bookingId, table.eventType),
     index("session_events_play_session_id_idx").on(table.playSessionId),
-    index("session_events_location_created_idx").on(table.locationId, table.createdAt),
-  ],
-);
+    index("session_events_location_created_idx").on(
+      table.locationId,
+      table.createdAt
+    ),
+  ]
+)
 
 export const matches = pgTable(
   "matches",
@@ -2173,8 +2732,8 @@ export const matches = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => bookings.id, { onDelete: "cascade" }),
@@ -2205,10 +2764,10 @@ export const matches = pgTable(
     index("matches_location_status_idx").on(table.locationId, table.status),
     check(
       "matches_scores_not_negative",
-      sql`${table.scorePlayerA} >= 0 and ${table.scorePlayerB} >= 0`,
+      sql`${table.scorePlayerA} >= 0 and ${table.scorePlayerB} >= 0`
     ),
-  ],
-);
+  ]
+)
 
 export const replays = pgTable(
   "replays",
@@ -2218,8 +2777,8 @@ export const replays = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => bookings.id, { onDelete: "cascade" }),
@@ -2230,7 +2789,9 @@ export const replays = pgTable(
       .notNull()
       .references(() => locations.id, { onDelete: "restrict" }),
     userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
-    matchId: uuid("match_id").references(() => matches.id, { onDelete: "set null" }),
+    matchId: uuid("match_id").references(() => matches.id, {
+      onDelete: "set null",
+    }),
     mediaAssetId: uuid("media_asset_id").references(() => mediaAssets.id, {
       onDelete: "set null",
     }),
@@ -2251,8 +2812,8 @@ export const replays = pgTable(
     index("replays_play_session_id_idx").on(table.playSessionId),
     index("replays_user_requested_idx").on(table.userId, table.requestedAt),
     index("replays_media_asset_id_idx").on(table.mediaAssetId),
-  ],
-);
+  ]
+)
 
 export const replayCreditBalances = pgTable(
   "replay_credit_balances",
@@ -2264,16 +2825,16 @@ export const replayCreditBalances = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     balance: integer("balance").default(0).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index("replay_credit_balances_tenant_id_idx").on(table.tenantId)],
-);
+  (table) => [index("replay_credit_balances_tenant_id_idx").on(table.tenantId)]
+)
 
 export const productPayments = pgTable(
   "product_payments",
@@ -2283,8 +2844,8 @@ export const productPayments = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "restrict" }),
@@ -2309,12 +2870,15 @@ export const productPayments = pgTable(
     index("product_payments_tenant_id_idx").on(table.tenantId),
     uniqueIndex("product_payments_provider_reference_unique").on(
       table.provider,
-      table.providerReference,
+      table.providerReference
     ),
-    index("product_payments_user_created_idx").on(table.userId, table.createdAt),
+    index("product_payments_user_created_idx").on(
+      table.userId,
+      table.createdAt
+    ),
     check("product_payments_amount_positive", sql`${table.amount} > 0`),
-  ],
-);
+  ]
+)
 
 export const replayCreditLedger = pgTable(
   "replay_credit_ledger",
@@ -2324,8 +2888,8 @@ export const replayCreditLedger = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -2339,7 +2903,7 @@ export const replayCreditLedger = pgTable(
     }),
     productPaymentId: uuid("product_payment_id").references(
       () => productPayments.id,
-      { onDelete: "set null" },
+      { onDelete: "set null" }
     ),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -2349,13 +2913,13 @@ export const replayCreditLedger = pgTable(
     index("replay_credit_ledger_tenant_id_idx").on(table.tenantId),
     index("replay_credit_ledger_user_created_idx").on(
       table.userId,
-      table.createdAt,
+      table.createdAt
     ),
     uniqueIndex("replay_credit_ledger_product_payment_reason_unique")
       .on(table.productPaymentId, table.reason)
       .where(sql`${table.productPaymentId} is not null`),
-  ],
-);
+  ]
+)
 
 export const coachSubscriptions = pgTable(
   "coach_subscriptions",
@@ -2365,8 +2929,8 @@ export const coachSubscriptions = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -2389,8 +2953,8 @@ export const coachSubscriptions = pgTable(
     index("coach_subscriptions_tenant_id_idx").on(table.tenantId),
     uniqueIndex("coach_subscriptions_user_unique").on(table.userId),
     index("coach_subscriptions_status_idx").on(table.status),
-  ],
-);
+  ]
+)
 
 export const coachInsights = pgTable(
   "coach_insights",
@@ -2400,8 +2964,8 @@ export const coachInsights = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -2421,8 +2985,8 @@ export const coachInsights = pgTable(
     index("coach_insights_tenant_id_idx").on(table.tenantId),
     index("coach_insights_user_created_idx").on(table.userId, table.createdAt),
     uniqueIndex("coach_insights_replay_unique").on(table.replayId),
-  ],
-);
+  ]
+)
 
 export const coachTrainingItems = pgTable(
   "coach_training_items",
@@ -2432,8 +2996,8 @@ export const coachTrainingItems = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -2451,9 +3015,170 @@ export const coachTrainingItems = pgTable(
   },
   (table) => [
     index("coach_training_items_tenant_id_idx").on(table.tenantId),
-    index("coach_training_items_user_sort_idx").on(table.userId, table.sortOrder),
-  ],
-);
+    index("coach_training_items_user_sort_idx").on(
+      table.userId,
+      table.sortOrder
+    ),
+  ]
+)
+
+export const notificationPreferences = pgTable(
+  "notification_preferences",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    channel: notificationChannelEnum("channel").notNull(),
+    templateKey: text("template_key").notNull(),
+    enabled: boolean("enabled").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("notification_preferences_user_channel_template_unique").on(
+      table.tenantId,
+      table.userId,
+      table.channel,
+      table.templateKey
+    ),
+    index("notification_preferences_tenant_user_idx").on(
+      table.tenantId,
+      table.userId
+    ),
+  ]
+)
+
+export const pushDeviceTokens = pgTable(
+  "push_device_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    installationId: text("installation_id").notNull(),
+    platform: pushDevicePlatformEnum("platform").notNull(),
+    encryptedToken: text("encrypted_token").notNull(),
+    encryptionKeyVersion: text("encryption_key_version").notNull(),
+    tokenFingerprint: text("token_fingerprint").notNull(),
+    status: pushDeviceStatusEnum("status").default("active").notNull(),
+    failureCount: integer("failure_count").default(0).notNull(),
+    lastRegisteredAt: timestamp("last_registered_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lastDeliveredAt: timestamp("last_delivered_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("push_device_tokens_tenant_id_unique").on(
+      table.tenantId,
+      table.id
+    ),
+    uniqueIndex("push_device_tokens_installation_unique").on(
+      table.tenantId,
+      table.userId,
+      table.installationId
+    ),
+    uniqueIndex("push_device_tokens_fingerprint_unique").on(
+      table.tenantId,
+      table.tokenFingerprint
+    ),
+    index("push_device_tokens_tenant_user_status_idx").on(
+      table.tenantId,
+      table.userId,
+      table.status
+    ),
+    check(
+      "push_device_tokens_failure_count_nonnegative",
+      sql`${table.failureCount} >= 0`
+    ),
+  ]
+)
+
+export const relayChannels = pgTable(
+  "relay_channels",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    locationId: uuid("location_id").notNull(),
+    resourceId: uuid("resource_id").notNull(),
+    deviceId: uuid("device_id").notNull(),
+    assignmentId: uuid("assignment_id"),
+    channelKey: text("channel_key").notNull(),
+    outputNumber: integer("output_number").notNull(),
+    purpose: relayChannelPurposeEnum("purpose").notNull(),
+    activeState: boolean("active_state").default(true).notNull(),
+    safeState: boolean("safe_state").default(false).notNull(),
+    warningPattern: jsonb("warning_pattern").$type<Record<string, unknown>>(),
+    isActive: boolean("is_active").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("relay_channels_tenant_id_unique").on(table.tenantId, table.id),
+    uniqueIndex("relay_channels_device_output_unique").on(
+      table.tenantId,
+      table.deviceId,
+      table.outputNumber
+    ),
+    uniqueIndex("relay_channels_resource_key_unique").on(
+      table.tenantId,
+      table.resourceId,
+      table.channelKey
+    ),
+    index("relay_channels_location_active_idx").on(
+      table.tenantId,
+      table.locationId,
+      table.isActive
+    ),
+    check("relay_channels_output_nonnegative", sql`${table.outputNumber} >= 0`),
+    foreignKey({
+      columns: [table.tenantId, table.locationId],
+      foreignColumns: [locations.tenantId, locations.id],
+      name: "relay_channels_tenant_location_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.tenantId, table.resourceId],
+      foreignColumns: [resources.tenantId, resources.id],
+      name: "relay_channels_tenant_resource_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.tenantId, table.deviceId],
+      foreignColumns: [devices.tenantId, devices.id],
+      name: "relay_channels_tenant_device_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.tenantId, table.assignmentId],
+      foreignColumns: [deviceAssignments.tenantId, deviceAssignments.id],
+      name: "relay_channels_tenant_assignment_fk",
+    }).onDelete("set null"),
+  ]
+)
 
 export const notifications = pgTable(
   "notifications",
@@ -2463,8 +3188,8 @@ export const notifications = pgTable(
       .notNull()
       .default(PLAYTT_TENANT_ID)
       .references(() => tenants.id, {
-      onDelete: "restrict",
-    }),
+        onDelete: "restrict",
+      }),
     bookingId: uuid("booking_id").references(() => bookings.id, {
       onDelete: "cascade",
     }),
@@ -2475,24 +3200,51 @@ export const notifications = pgTable(
     channel: notificationChannelEnum("channel").notNull(),
     status: notificationStatusEnum("status").default("pending").notNull(),
     templateKey: text("template_key").notNull(),
+    deduplicationKey: text("deduplication_key"),
     recipient: text("recipient"),
     payload: jsonb("payload").$type<Record<string, unknown>>(),
     sentAt: timestamp("sent_at", { withTimezone: true }),
+    attemptCount: integer("attempt_count").default(0).notNull(),
+    maxAttempts: integer("max_attempts").default(5).notNull(),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
+    leaseOwner: text("lease_owner"),
+    leasedUntil: timestamp("leased_until", { withTimezone: true }),
+    lastErrorCode: text("last_error_code"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
   (table) => [
     index("notifications_tenant_id_idx").on(table.tenantId),
-    index("notifications_booking_channel_idx").on(table.bookingId, table.channel),
+    index("notifications_booking_channel_idx").on(
+      table.bookingId,
+      table.channel
+    ),
     index("notifications_user_created_idx").on(table.userId, table.createdAt),
     uniqueIndex("notifications_booking_email_template_unique")
       .on(table.bookingId, table.channel, table.templateKey)
       .where(
-        sql`${table.channel} = 'email' and ${table.templateKey} = 'booking_confirmed'`,
+        sql`${table.channel} = 'email' and ${table.templateKey} = 'booking_confirmed'`
       ),
-  ],
-);
+    uniqueIndex("notifications_tenant_deduplication_unique")
+      .on(
+        table.tenantId,
+        table.userId,
+        table.channel,
+        table.templateKey,
+        table.deduplicationKey
+      )
+      .where(sql`${table.deduplicationKey} is not null`),
+    index("notifications_delivery_retry_idx").on(
+      table.status,
+      table.nextAttemptAt
+    ),
+    check(
+      "notifications_attempts_valid",
+      sql`${table.attemptCount} >= 0 and ${table.maxAttempts} > 0 and ${table.attemptCount} <= ${table.maxAttempts}`
+    ),
+  ]
+)
 
 export const userRelations = relations(user, ({ many, one }) => ({
   sessions: many(session),
@@ -2513,7 +3265,7 @@ export const userRelations = relations(user, ({ many, one }) => ({
   replays: many(replays),
   notifications: many(notifications),
   replayRequests: many(replayRequests),
-}));
+}))
 
 export const tenantRelations = relations(tenants, ({ many }) => ({
   brands: many(brands),
@@ -2533,7 +3285,7 @@ export const tenantRelations = relations(tenants, ({ many }) => ({
   payments: many(payments),
   notifications: many(notifications),
   replayRequests: many(replayRequests),
-}));
+}))
 
 export const brandRelations = relations(brands, ({ one, many }) => ({
   tenant: one(tenants, {
@@ -2541,7 +3293,7 @@ export const brandRelations = relations(brands, ({ one, many }) => ({
     references: [tenants.id],
   }),
   locations: many(locations),
-}));
+}))
 
 export const tenantMembershipRelations = relations(
   tenantMemberships,
@@ -2554,29 +3306,29 @@ export const tenantMembershipRelations = relations(
       fields: [tenantMemberships.userId],
       references: [user.id],
     }),
-  }),
-);
+  })
+)
 
 export const sessionRelations = relations(session, ({ one }) => ({
   user: one(user, {
     fields: [session.userId],
     references: [user.id],
   }),
-}));
+}))
 
 export const accountRelations = relations(account, ({ one }) => ({
   user: one(user, {
     fields: [account.userId],
     references: [user.id],
   }),
-}));
+}))
 
 export const twoFactorRelations = relations(twoFactor, ({ one }) => ({
   user: one(user, {
     fields: [twoFactor.userId],
     references: [user.id],
   }),
-}));
+}))
 
 export const locationRelations = relations(locations, ({ one, many }) => ({
   tenant: one(tenants, {
@@ -2603,7 +3355,7 @@ export const locationRelations = relations(locations, ({ one, many }) => ({
   deviceEnrollments: many(deviceEnrollments),
   deviceAssignments: many(deviceAssignments),
   venueIntegrations: many(venueIntegrations),
-}));
+}))
 
 export const zoneRelations = relations(zones, ({ one, many }) => ({
   tenant: one(tenants, {
@@ -2616,15 +3368,18 @@ export const zoneRelations = relations(zones, ({ one, many }) => ({
   }),
   resources: many(resources),
   accessPoints: many(accessPoints),
-}));
+}))
 
-export const resourceTypeRelations = relations(resourceTypes, ({ one, many }) => ({
-  tenant: one(tenants, {
-    fields: [resourceTypes.tenantId],
-    references: [tenants.id],
-  }),
-  resources: many(resources),
-}));
+export const resourceTypeRelations = relations(
+  resourceTypes,
+  ({ one, many }) => ({
+    tenant: one(tenants, {
+      fields: [resourceTypes.tenantId],
+      references: [tenants.id],
+    }),
+    resources: many(resources),
+  })
+)
 
 export const resourceRelations = relations(resources, ({ one, many }) => ({
   tenant: one(tenants, {
@@ -2647,7 +3402,7 @@ export const resourceRelations = relations(resources, ({ one, many }) => ({
   accessPointResources: many(accessPointResources),
   bookings: many(bookings),
   replayRequests: many(replayRequests),
-}));
+}))
 
 export const resourceCapabilityRelations = relations(
   resourceCapabilities,
@@ -2660,24 +3415,27 @@ export const resourceCapabilityRelations = relations(
       fields: [resourceCapabilities.resourceId],
       references: [resources.id],
     }),
-  }),
-);
+  })
+)
 
-export const accessPointRelations = relations(accessPoints, ({ one, many }) => ({
-  tenant: one(tenants, {
-    fields: [accessPoints.tenantId],
-    references: [tenants.id],
-  }),
-  location: one(locations, {
-    fields: [accessPoints.locationId],
-    references: [locations.id],
-  }),
-  zone: one(zones, {
-    fields: [accessPoints.zoneId],
-    references: [zones.id],
-  }),
-  resourceMappings: many(accessPointResources),
-}));
+export const accessPointRelations = relations(
+  accessPoints,
+  ({ one, many }) => ({
+    tenant: one(tenants, {
+      fields: [accessPoints.tenantId],
+      references: [tenants.id],
+    }),
+    location: one(locations, {
+      fields: [accessPoints.locationId],
+      references: [locations.id],
+    }),
+    zone: one(zones, {
+      fields: [accessPoints.zoneId],
+      references: [zones.id],
+    }),
+    resourceMappings: many(accessPointResources),
+  })
+)
 
 export const accessPointResourceRelations = relations(
   accessPointResources,
@@ -2694,15 +3452,15 @@ export const accessPointResourceRelations = relations(
       fields: [accessPointResources.resourceId],
       references: [resources.id],
     }),
-  }),
-);
+  })
+)
 
 export const featureFlagRelations = relations(featureFlags, ({ one }) => ({
   tenant: one(tenants, {
     fields: [featureFlags.tenantId],
     references: [tenants.id],
   }),
-}));
+}))
 
 export const integrationVendorRelations = relations(
   integrationVendors,
@@ -2712,8 +3470,8 @@ export const integrationVendorRelations = relations(
       references: [tenants.id],
     }),
     venueIntegrations: many(venueIntegrations),
-  }),
-);
+  })
+)
 
 export const venueIntegrationRelations = relations(
   venueIntegrations,
@@ -2730,15 +3488,15 @@ export const venueIntegrationRelations = relations(
       fields: [venueIntegrations.vendorId],
       references: [integrationVendors.id],
     }),
-  }),
-);
+  })
+)
 
 export const auditLogRelations = relations(auditLogs, ({ one }) => ({
   tenant: one(tenants, {
     fields: [auditLogs.tenantId],
     references: [tenants.id],
   }),
-}));
+}))
 
 export const bookingRelations = relations(bookings, ({ one, many }) => ({
   tenant: one(tenants, {
@@ -2771,33 +3529,36 @@ export const bookingRelations = relations(bookings, ({ one, many }) => ({
     references: [playSessions.bookingId],
   }),
   replayRequests: many(replayRequests),
-}));
+}))
 
-export const playSessionRelations = relations(playSessions, ({ one, many }) => ({
-  tenant: one(tenants, {
-    fields: [playSessions.tenantId],
-    references: [tenants.id],
-  }),
-  booking: one(bookings, {
-    fields: [playSessions.bookingId],
-    references: [bookings.id],
-  }),
-  location: one(locations, {
-    fields: [playSessions.locationId],
-    references: [locations.id],
-  }),
-  resource: one(resources, {
-    fields: [playSessions.resourceId],
-    references: [resources.id],
-  }),
-  participants: many(sessionParticipants),
-  scoreEvents: many(scoreEvents),
-  scoreSnapshot: one(scoreSnapshots, {
-    fields: [playSessions.id],
-    references: [scoreSnapshots.playSessionId],
-  }),
-  replayRequests: many(replayRequests),
-}));
+export const playSessionRelations = relations(
+  playSessions,
+  ({ one, many }) => ({
+    tenant: one(tenants, {
+      fields: [playSessions.tenantId],
+      references: [tenants.id],
+    }),
+    booking: one(bookings, {
+      fields: [playSessions.bookingId],
+      references: [bookings.id],
+    }),
+    location: one(locations, {
+      fields: [playSessions.locationId],
+      references: [locations.id],
+    }),
+    resource: one(resources, {
+      fields: [playSessions.resourceId],
+      references: [resources.id],
+    }),
+    participants: many(sessionParticipants),
+    scoreEvents: many(scoreEvents),
+    scoreSnapshot: one(scoreSnapshots, {
+      fields: [playSessions.id],
+      references: [scoreSnapshots.playSessionId],
+    }),
+    replayRequests: many(replayRequests),
+  })
+)
 
 export const sessionParticipantRelations = relations(
   sessionParticipants,
@@ -2814,8 +3575,8 @@ export const sessionParticipantRelations = relations(
       fields: [sessionParticipants.userId],
       references: [user.id],
     }),
-  }),
-);
+  })
+)
 
 export const deviceRelations = relations(devices, ({ one, many }) => ({
   tenant: one(tenants, {
@@ -2841,7 +3602,7 @@ export const deviceRelations = relations(devices, ({ one, many }) => ({
   cameraReplayRequests: many(replayRequests, {
     relationName: "cameraDevice",
   }),
-}));
+}))
 
 export const deviceEnrollmentRelations = relations(
   deviceEnrollments,
@@ -2859,8 +3620,8 @@ export const deviceEnrollmentRelations = relations(
       references: [devices.id],
       relationName: "consumedDevice",
     }),
-  }),
-);
+  })
+)
 
 export const deviceCredentialRelations = relations(
   deviceCredentials,
@@ -2873,8 +3634,8 @@ export const deviceCredentialRelations = relations(
       fields: [deviceCredentials.deviceId],
       references: [devices.id],
     }),
-  }),
-);
+  })
+)
 
 export const deviceAssignmentRelations = relations(
   deviceAssignments,
@@ -2896,8 +3657,8 @@ export const deviceAssignmentRelations = relations(
       references: [resources.id],
     }),
     replayRequests: many(replayRequests),
-  }),
-);
+  })
+)
 
 export const deviceHeartbeatRelations = relations(
   deviceHeartbeats,
@@ -2910,8 +3671,8 @@ export const deviceHeartbeatRelations = relations(
       fields: [deviceHeartbeats.deviceId],
       references: [devices.id],
     }),
-  }),
-);
+  })
+)
 
 export const deviceCommandRelations = relations(
   deviceCommands,
@@ -2926,8 +3687,8 @@ export const deviceCommandRelations = relations(
     }),
     acknowledgements: many(deviceCommandAcks),
     replayRequests: many(replayRequests),
-  }),
-);
+  })
+)
 
 export const deviceCommandAckRelations = relations(
   deviceCommandAcks,
@@ -2944,8 +3705,8 @@ export const deviceCommandAckRelations = relations(
       fields: [deviceCommandAcks.deviceId],
       references: [devices.id],
     }),
-  }),
-);
+  })
+)
 
 export const scoreEventRelations = relations(scoreEvents, ({ one }) => ({
   tenant: one(tenants, {
@@ -2972,7 +3733,7 @@ export const scoreEventRelations = relations(scoreEvents, ({ one }) => ({
     fields: [scoreEvents.locationId],
     references: [locations.id],
   }),
-}));
+}))
 
 export const scoreSnapshotRelations = relations(scoreSnapshots, ({ one }) => ({
   tenant: one(tenants, {
@@ -2995,7 +3756,7 @@ export const scoreSnapshotRelations = relations(scoreSnapshots, ({ one }) => ({
     fields: [scoreSnapshots.lastEventId],
     references: [scoreEvents.id],
   }),
-}));
+}))
 
 export const bookingModificationRelations = relations(
   bookingModifications,
@@ -3013,8 +3774,8 @@ export const bookingModificationRelations = relations(
       references: [payments.id],
     }),
     creditLedger: many(bookingCreditLedger),
-  }),
-);
+  })
+)
 
 export const bookingCreditBalanceRelations = relations(
   bookingCreditBalances,
@@ -3023,8 +3784,8 @@ export const bookingCreditBalanceRelations = relations(
       fields: [bookingCreditBalances.userId],
       references: [user.id],
     }),
-  }),
-);
+  })
+)
 
 export const bookingCreditLedgerRelations = relations(
   bookingCreditLedger,
@@ -3041,8 +3802,8 @@ export const bookingCreditLedgerRelations = relations(
       fields: [bookingCreditLedger.bookingModificationId],
       references: [bookingModifications.id],
     }),
-  }),
-);
+  })
+)
 
 export const paymentRelations = relations(payments, ({ one }) => ({
   booking: one(bookings, {
@@ -3057,7 +3818,7 @@ export const paymentRelations = relations(payments, ({ one }) => ({
     fields: [payments.userId],
     references: [user.id],
   }),
-}));
+}))
 
 export const bookingStatusHistoryRelations = relations(
   bookingStatusHistory,
@@ -3066,8 +3827,8 @@ export const bookingStatusHistoryRelations = relations(
       fields: [bookingStatusHistory.bookingId],
       references: [bookings.id],
     }),
-  }),
-);
+  })
+)
 
 export const hardwareConfigRelations = relations(
   hardwareConfigs,
@@ -3076,8 +3837,8 @@ export const hardwareConfigRelations = relations(
       fields: [hardwareConfigs.locationId],
       references: [locations.id],
     }),
-  }),
-);
+  })
+)
 
 export const accessCredentialRelations = relations(
   accessCredentials,
@@ -3094,8 +3855,8 @@ export const accessCredentialRelations = relations(
       fields: [accessCredentials.locationId],
       references: [locations.id],
     }),
-  }),
-);
+  })
+)
 
 export const sessionEventRelations = relations(sessionEvents, ({ one }) => ({
   booking: one(bookings, {
@@ -3110,7 +3871,7 @@ export const sessionEventRelations = relations(sessionEvents, ({ one }) => ({
     fields: [sessionEvents.locationId],
     references: [locations.id],
   }),
-}));
+}))
 
 export const matchRelations = relations(matches, ({ one, many }) => ({
   booking: one(bookings, {
@@ -3126,7 +3887,7 @@ export const matchRelations = relations(matches, ({ one, many }) => ({
     references: [locations.id],
   }),
   replays: many(replays),
-}));
+}))
 
 export const replayRelations = relations(replays, ({ one, many }) => ({
   booking: one(bookings, {
@@ -3158,7 +3919,7 @@ export const replayRelations = relations(replays, ({ one, many }) => ({
     fields: [replays.id],
     references: [replayRequests.replayId],
   }),
-}));
+}))
 
 export const mediaAssetRelations = relations(mediaAssets, ({ one, many }) => ({
   tenant: one(tenants, {
@@ -3184,18 +3945,21 @@ export const mediaAssetRelations = relations(mediaAssets, ({ one, many }) => ({
   replays: many(replays),
   inboxEvents: many(mediaEventInbox),
   replayRequests: many(replayRequests),
-}));
+}))
 
-export const mediaEventInboxRelations = relations(mediaEventInbox, ({ one }) => ({
-  tenant: one(tenants, {
-    fields: [mediaEventInbox.tenantId],
-    references: [tenants.id],
-  }),
-  mediaAsset: one(mediaAssets, {
-    fields: [mediaEventInbox.mediaId],
-    references: [mediaAssets.id],
-  }),
-}));
+export const mediaEventInboxRelations = relations(
+  mediaEventInbox,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [mediaEventInbox.tenantId],
+      references: [tenants.id],
+    }),
+    mediaAsset: one(mediaAssets, {
+      fields: [mediaEventInbox.mediaId],
+      references: [mediaAssets.id],
+    }),
+  })
+)
 
 export const replayRequestRelations = relations(replayRequests, ({ one }) => ({
   tenant: one(tenants, {
@@ -3248,7 +4012,7 @@ export const replayRequestRelations = relations(replayRequests, ({ one }) => ({
     fields: [replayRequests.deviceCommandId],
     references: [deviceCommands.id],
   }),
-}));
+}))
 
 export const replayCreditBalanceRelations = relations(
   replayCreditBalances,
@@ -3257,8 +4021,8 @@ export const replayCreditBalanceRelations = relations(
       fields: [replayCreditBalances.userId],
       references: [user.id],
     }),
-  }),
-);
+  })
+)
 
 export const coachSubscriptionRelations = relations(
   coachSubscriptions,
@@ -3267,24 +4031,27 @@ export const coachSubscriptionRelations = relations(
       fields: [coachSubscriptions.userId],
       references: [user.id],
     }),
-  }),
-);
+  })
+)
 
-export const coachInsightRelations = relations(coachInsights, ({ one, many }) => ({
-  user: one(user, {
-    fields: [coachInsights.userId],
-    references: [user.id],
-  }),
-  replay: one(replays, {
-    fields: [coachInsights.replayId],
-    references: [replays.id],
-  }),
-  booking: one(bookings, {
-    fields: [coachInsights.bookingId],
-    references: [bookings.id],
-  }),
-  trainingItems: many(coachTrainingItems),
-}));
+export const coachInsightRelations = relations(
+  coachInsights,
+  ({ one, many }) => ({
+    user: one(user, {
+      fields: [coachInsights.userId],
+      references: [user.id],
+    }),
+    replay: one(replays, {
+      fields: [coachInsights.replayId],
+      references: [replays.id],
+    }),
+    booking: one(bookings, {
+      fields: [coachInsights.bookingId],
+      references: [bookings.id],
+    }),
+    trainingItems: many(coachTrainingItems),
+  })
+)
 
 export const coachTrainingItemRelations = relations(
   coachTrainingItems,
@@ -3297,8 +4064,8 @@ export const coachTrainingItemRelations = relations(
       fields: [coachTrainingItems.insightId],
       references: [coachInsights.id],
     }),
-  }),
-);
+  })
+)
 
 export const notificationRelations = relations(notifications, ({ one }) => ({
   booking: one(bookings, {
@@ -3313,7 +4080,7 @@ export const notificationRelations = relations(notifications, ({ one }) => ({
     fields: [notifications.userId],
     references: [user.id],
   }),
-}));
+}))
 
 // Phase 1 note:
 // Drizzle does not model the PostgreSQL exclusion constraint we want for overlapping

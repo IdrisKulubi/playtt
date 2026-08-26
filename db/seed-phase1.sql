@@ -296,14 +296,19 @@ insert into feature_flags (
 select
   '33333333-3333-3333-3333-333333333333',
   flags.key,
-  true
+  flags.enabled
 from (
   values
-    ('operator_shell'),
-    ('device_registry'),
-    ('private_media'),
-    ('replay_edge')
-) as flags(key)
+    ('operator_shell', true),
+    ('device_registry', true),
+    ('private_media', true),
+    ('replay_edge', true),
+    ('live_access', false),
+    ('ttlock_provider', false),
+    ('relay_automation', false),
+    ('access_notifications', false),
+    ('remote_unlock', false)
+) as flags(key, enabled)
 where not exists (
   select 1
   from feature_flags ff

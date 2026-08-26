@@ -10,9 +10,7 @@ End-user **players** only. Admin and ops surfaces live on the web app.
 
 ## Completion bar (pre-hardware)
 
-> A player can manage their full PlayTT life in-app — book, pay, review history, see activity, preview entry, and adjust preferences — without hardware integrations.
-
-Hardware (TTLock, lights, real replays) ships after this shell is complete.
+> A player can manage their full PlayTT life in-app — book, pay, review history, reveal authorized venue access, and adjust server-backed notification preferences.
 
 ---
 
@@ -25,7 +23,7 @@ Hardware (TTLock, lights, real replays) ships after this shell is complete.
 | Manage upcoming sessions | View, edit, cancel unpaid hold, pay |
 | Review past play | Past bookings list, session detail, receipt |
 | Understand my activity | Stats dashboard (preview data until API) |
-| Know how to enter the pod | Access card on upcoming confirmed booking (preview PIN) |
+| Know how to enter the pod | Live access status, required doors, validity window, and explicit code reveal |
 | Relive sessions | Replay library (sample clips until camera pipeline) |
 | Capture highlights | Buy clip packs; trigger replays at venue (credits gate) |
 | Improve with Coach | Home → Coach: interactive chat demo (preview), plus insights and training |
@@ -60,7 +58,7 @@ Stack screens (pushed from tabs):
 | Activity stats | `(app)/activity/stats` | mock |
 | Activity replays | `(app)/activity/replays` | mock |
 | Edit profile | `(app)/account/edit-profile` | live |
-| Notifications | `(app)/account/notifications` | stub (local) |
+| Notifications | `(app)/account/notifications` | live preferences and Expo push registration |
 | Help | `(app)/account/help` | static |
 | Legal | `(app)/account/legal` | static |
 | Buy clip pack | `(app)/coach/buy-replays` | live / preview |
@@ -77,6 +75,8 @@ Stack screens (pushed from tabs):
 | Upcoming bookings | `GET /api/bookings/mine?filter=upcoming` |
 | Past bookings | `GET /api/bookings/mine?filter=past` |
 | Booking detail | `GET /api/bookings/[id]` |
+| Booking access status | `GET /api/bookings/[id]/access` |
+| Reveal booking access | `POST /api/bookings/[id]/access/reveal` |
 | Cancel hold | `POST /api/bookings/[id]/cancel` (pending + unpaid only) |
 | Edit booking | modifications API |
 | Pay hold | payments API |
@@ -87,6 +87,8 @@ Stack screens (pushed from tabs):
 | Coach status | `GET /api/coach/status` |
 | Coach subscribe | `POST /api/coach/subscribe` |
 | Coach insights | `GET /api/coach/insights` |
+| Notification preferences | `GET/PATCH /api/user/notification-preferences` |
+| Expo push device | `POST/DELETE /api/user/push-tokens` |
 
 ### Preview / mock data (P1)
 
@@ -94,18 +96,16 @@ Stack screens (pushed from tabs):
 |---------|--------|-------------|
 | Player stats | `lib/mock/mock-player-stats.ts` | "Preview" |
 | Replay library | `lib/mock/mock-replays.ts` | "Sample" |
-| Entry code | `lib/mock/mock-access.ts` | "Preview entry code" |
 | Home stats teaser | mock-player-stats | "Preview" |
 | Community players / requests | `lib/mock/mock-community.ts` | "Preview" |
 | Clip balance | `lib/mock/mock-replay-credits.ts` | "Preview" |
 | Coach insights / training | `lib/mock/mock-coach.ts` | "Preview" |
 | Coach chat | `lib/mock/mock-coach-chat.ts` | "Preview" |
 
-### Stub (P2)
+### Local/static support
 
 | Surface | Storage |
 |---------|---------|
-| Notification preferences | `lib/notification-prefs.ts` (SecureStore) |
 | Help / FAQ | static copy |
 | Legal | placeholder links |
 
@@ -116,8 +116,7 @@ Stack screens (pushed from tabs):
 1. All mock surfaces show a visible **Preview** or **Sample** badge — never hidden.
 2. Mock modules live under `playtt-mobile/lib/mock/`.
 3. `USE_MOCK_PLAYER_DATA` in `mock-config.ts` gates mock stats/replays (default `true`).
-4. Preview entry codes are **not** real credentials. Copy: *"Your real code will appear here before your session."*
-5. When live APIs ship, swap data layer only; keep UI components.
+4. Entry codes are never mock data, cached persistently, logged, or placed in notification payloads.
 
 ---
 
@@ -130,12 +129,11 @@ Stack screens (pushed from tabs):
 
 ---
 
-## Out of scope (until hardware phase)
+## Out of scope
 
-- Real TTLock / Bluetooth unlock
+- Bluetooth/mobile-key unlock (players use the keypad code)
 - Lighting automation
 - NVR replay upload (capture API + worker stub in place; full camera pipeline TBD)
-- Push notification delivery (prefs UI only)
 - Admin analytics
 - Phone OTP login
 
@@ -151,7 +149,8 @@ Stack screens (pushed from tabs):
 - [x] Activity tab visible with stats + replays
 - [x] Mock stats labeled Preview
 - [x] Mock replay library labeled Sample
-- [x] Access card on confirmed upcoming bookings (preview)
+- [x] Access status and explicit code reveal on booking detail
+- [x] Expo push token registration and server-backed preferences
 - [x] Account: Notifications, Help, Legal screens
 - [x] Cross-links from PRODUCT.md and ux-blueprint.md
 

@@ -18,7 +18,6 @@ import { ProductThemes } from "@/constants/product-theme"
 import { useProductTheme, useSkeletonSurface } from "@/hooks/use-product-theme"
 import type { UserBookingSummary } from "@/lib/booking-types"
 import {
-  canShowAccessCard,
   formatBookingStatus,
   formatKes,
   formatTimeRange,
@@ -79,9 +78,7 @@ export function BookingDetailContent({
 
       <BookingReceiptSection booking={booking} />
 
-      {canShowAccessCard(booking) ? (
-        <BookingAccessCard booking={booking} />
-      ) : null}
+      <BookingAccessCard booking={booking} />
 
       {isPastBooking(booking) ? <BookingPastSessionCard /> : null}
 

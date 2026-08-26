@@ -7,8 +7,11 @@ import {
   bookingModifications,
   bookingStatusHistory,
   bookings,
+  locations,
   resources,
 } from "@/db/schema"
+import { applyAccessModificationForBooking } from "@/server/access/orchestration"
+import { isAccessFeatureEnabled } from "@/server/access/feature-policy"
 import type { EditableBookingRow } from "@/server/bookings/modifications/eligibility"
 import type { ModificationSnapshot } from "@/server/bookings/modifications/types"
 import type { TenantContext } from "@/server/tenancy/types"
@@ -321,6 +324,39 @@ export async function applyModificationWithinTransaction(
       currency: modification.currency,
       reason: "booking_reduction",
     })
+  }
+
+  if (await isAccessFeatureEnabled(context, "liveAccess")) {
+    const [venue] = await tx
+      .select({ settings: locations.settings })
+      .from(locations)
+      .innerJoin(
+        bookings,
+        and(
+          eq(bookings.tenantId, locations.tenantId),
+          eq(bookings.locationId, locations.id),
+        ),
+      )
+      .where(
+        and(
+          eq(bookings.tenantId, context.tenantId),
+          eq(bookings.id, modification.bookingId),
+        ),
+      )
+      .limit(1)
+
+    await applyAccessModificationForBooking(
+      context,
+      {
+        bookingId: modification.bookingId,
+        modificationId: input.modificationId,
+        resourceId: after.resourceId,
+        startTime: new Date(after.startTime),
+        endTime: new Date(after.endTime),
+        venueSettings: (venue?.settings as Record<string, unknown> | null) ?? null,
+      },
+      tx,
+    )
   }
 
   return "applied"

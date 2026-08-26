@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { StyleSheet, Text, View } from "react-native"
 
 import { SessionTicketShell } from "@/components/booking/session-ticket-shell"
-import { PreviewBadge } from "@/components/ui/preview-badge"
 import {
   PlayTTColors,
   PlayTTFontFamilies,
@@ -10,7 +9,6 @@ import {
 import { useProductTheme } from "@/hooks/use-product-theme"
 import type { UserBookingSummary } from "@/lib/booking-types"
 import {
-  canShowEntryCodeTeaser,
   formatBookingStatus,
   formatKes,
   formatPaymentCountdown,
@@ -18,11 +16,9 @@ import {
   formatTicketStatusLine,
   formatTicketTimeLine,
   formatTimeRange,
-  isEntryCodeTeaserDay,
   isSessionWithinCountdownWindow,
   needsBookingPayment,
 } from "@/lib/booking-utils"
-import { mockEntryCode } from "@/lib/mock/mock-access"
 import { getVenueImage, locationFromBooking } from "@/lib/venue-assets"
 
 type BookingSessionCardProps = {
@@ -51,9 +47,6 @@ export function BookingSessionCard({
     ? formatTicketTimeLine(booking.startTime, booking.endTime, nowMs)
     : formatTimeRange(booking.startTime, booking.endTime)
   const showPaymentNudge = needsBookingPayment(booking)
-  const showEntryCode = canShowEntryCodeTeaser(booking, nowMs)
-  const entryCodeReady = isEntryCodeTeaserDay(booking.startTime, nowMs)
-  const entryCode = mockEntryCode(booking.id)
   const paymentCountdown = formatPaymentCountdown(booking.expiresAt, nowMs)
 
   useEffect(() => {
@@ -106,12 +99,6 @@ export function BookingSessionCard({
           fontFamily: PlayTTFontFamilies.semiBold,
           color: PlayTTColors.primary,
         },
-        footerCode: {
-          fontSize: 15,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: theme.foreground,
-          letterSpacing: 1,
-        },
         footerMuted: {
           fontSize: 13,
           fontFamily: PlayTTFontFamilies.regular,
@@ -153,15 +140,10 @@ export function BookingSessionCard({
         ) : null}
       </View>
     )
-  } else if (showEntryCode) {
+  } else if (booking.status === "confirmed" && booking.paymentStatus === "paid") {
     footer = (
       <View style={styles.footerRow}>
-        {entryCodeReady ? (
-          <Text style={styles.footerCode}>Code {entryCode}</Text>
-        ) : (
-          <Text style={styles.footerMuted}>Code available before your session</Text>
-        )}
-        <PreviewBadge label="Preview" />
+        <Text style={styles.footerMuted}>Open booking for entry details</Text>
       </View>
     )
   }
