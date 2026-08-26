@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
       bootId: body.bootId,
       errorCode: body.errorCode,
       errorDetails: body.errorDetails,
+      auditContext: auth.context,
     })
 
     return deviceJson(application)

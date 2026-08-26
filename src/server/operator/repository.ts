@@ -288,32 +288,85 @@ export async function listFeatureFlags(
   })
 }
 
-export async function setFeatureFlagEnabled(
+function normalizeFeatureFlagScope(
+  scope?: Record<string, unknown> | null,
+): Record<string, unknown> | null | undefined {
+  if (scope === undefined) {
+    return undefined
+  }
+
+  if (scope === null) {
+    return null
+  }
+
+  const normalized = {
+    ...(Array.isArray(scope.locationIds)
+      ? {
+          locationIds: scope.locationIds.filter(
+            (entry): entry is string => typeof entry === "string",
+          ),
+        }
+      : {}),
+    ...(Array.isArray(scope.resourceIds)
+      ? {
+          resourceIds: scope.resourceIds.filter(
+            (entry): entry is string => typeof entry === "string",
+          ),
+        }
+      : {}),
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : null
+}
+
+type FeatureFlagExecutor = typeof db | Parameters<
+  Parameters<typeof db.transaction>[0]
+>[0]
+
+export async function upsertFeatureFlagRow(
+  executor: FeatureFlagExecutor,
   context: TenantContext,
   key: string,
   enabled: boolean,
-): Promise<OperatorFeatureFlag> {
+  scope?: Record<string, unknown> | null,
+): Promise<typeof featureFlags.$inferSelect> {
   if (!KNOWN_FEATURE_FLAG_KEYS.includes(key as typeof KNOWN_FEATURE_FLAG_KEYS[number])) {
     throw new Error(`Unknown feature flag key: ${key}`)
   }
 
-  const [row] = await db
+  const normalizedScope = normalizeFeatureFlagScope(scope)
+  const insertValues = {
+    tenantId: context.tenantId,
+    key,
+    enabled,
+    ...(normalizedScope !== undefined ? { scope: normalizedScope } : {}),
+  }
+  const updateValues = {
+    enabled,
+    updatedAt: new Date(),
+    ...(normalizedScope !== undefined ? { scope: normalizedScope } : {}),
+  }
+
+  const [row] = await executor
     .insert(featureFlags)
-    .values({
-      tenantId: context.tenantId,
-      key,
-      enabled,
-    })
+    .values(insertValues)
     .onConflictDoUpdate({
       target: [featureFlags.tenantId, featureFlags.key],
-      set: {
-        enabled,
-        updatedAt: new Date(),
-      },
+      set: updateValues,
     })
     .returning()
 
-  return mapFeatureFlag(row!)
+  return row!
+}
+
+export async function setFeatureFlagEnabled(
+  context: TenantContext,
+  key: string,
+  enabled: boolean,
+  scope?: Record<string, unknown> | null,
+): Promise<OperatorFeatureFlag> {
+  const row = await upsertFeatureFlagRow(db, context, key, enabled, scope)
+  return mapFeatureFlag(row)
 }
 
 export async function getCatalogOverview(

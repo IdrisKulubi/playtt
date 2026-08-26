@@ -20,6 +20,10 @@ import {
   type EdgeConfigV2,
 } from "@/server/replays/edge-config-v2"
 import { VENUE_EDGE_V2_MINIMUM_AGENT_VERSION } from "@/server/replays/edge-config-v2-repository"
+import { assertVenueEdgeConfigV2Enabled } from "@/server/replays/venue-edge-config-v2-gate"
+import { VENUE_EDGE_AUDIT_ACTIONS } from "@/server/replays/venue-edge-audit-actions"
+import { writeAuditLogInTransaction } from "@/server/tenancy/audit-log-write"
+import type { TenantContext } from "@/server/tenancy/types"
 
 export type EdgeConfigV2TopologySnapshot = Pick<
   EdgeConfigV2,
@@ -59,10 +63,21 @@ export async function publishEdgeConfigV2Revision(input: {
   locationId: string
   snapshot: unknown
   createdByActorId?: string | null
+  correlationId?: string
   now?: Date
 }): Promise<PublishedEdgeConfigV2Revision> {
+  await assertVenueEdgeConfigV2Enabled(input.tenantId, input.locationId)
+
   const publishedAt = input.now ?? new Date()
   const revisionId = randomUUID()
+  const auditContext: TenantContext = {
+    tenantId: input.tenantId,
+    actor: input.createdByActorId
+      ? { type: "user", id: input.createdByActorId }
+      : { type: "service", id: "venue-edge-config" },
+    correlationId:
+      input.correlationId ?? `venue-edge-config-publish-${revisionId}`,
+  }
 
   return db.transaction(async (tx) => {
     // The venue row is the per-tenant/location serialization point. This also
@@ -187,6 +202,17 @@ export async function publishEdgeConfigV2Revision(input: {
       snapshot: canonicalTopology,
       createdByActorId: input.createdByActorId ?? null,
       publishedAt,
+    })
+
+    await writeAuditLogInTransaction(tx, auditContext, {
+      action: VENUE_EDGE_AUDIT_ACTIONS.configPublished,
+      targetType: "venue_edge_config_revision",
+      targetId: revisionId,
+      metadata: {
+        locationId: input.locationId,
+        version,
+        checksum: `sha256:${checksumSha256}`,
+      },
     })
 
     return {

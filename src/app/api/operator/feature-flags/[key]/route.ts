@@ -15,6 +15,13 @@ import { resolveTenantContextForSessionUser } from "@/server/tenancy/session-con
 
 const bodySchema = z.object({
   enabled: z.boolean(),
+  scope: z
+    .object({
+      locationIds: z.array(z.string().uuid()).optional(),
+      resourceIds: z.array(z.string().uuid()).optional(),
+    })
+    .nullable()
+    .optional(),
 })
 
 type RouteContext = {
@@ -68,6 +75,7 @@ export async function PATCH(req: NextRequest, routeContext: RouteContext) {
       context,
       decodeURIComponent(key),
       body.enabled,
+      body.scope,
     )
 
     return operatorJson(featureFlag)

@@ -67,9 +67,12 @@ async function buildExistingReplayRequestResult(
   }
 }
 
-async function assertReplayEdgePrerequisites(context: TenantContext) {
+async function assertReplayEdgePrerequisites(
+  context: TenantContext,
+  scope?: { locationId?: string; resourceId?: string },
+) {
   const [replayEdgeEnabled, privateMediaEnabled] = await Promise.all([
-    isReplayEdgeEnabledForTenant(context),
+    isReplayEdgeEnabledForTenant(context, scope ?? {}),
     isPrivateMediaEnabledForTenant(context),
   ])
 
@@ -125,7 +128,6 @@ export async function createReplayRequest(input: {
   requestSource?: string
 }) {
   authorize(input.context, "booking.read")
-  await assertReplayEdgePrerequisites(input.context)
 
   const session = await getActivePlaySessionForReplayRequest(input.context, {
     playSessionId: input.playSessionId,
@@ -139,6 +141,11 @@ export async function createReplayRequest(input: {
       409,
     )
   }
+
+  await assertReplayEdgePrerequisites(input.context, {
+    locationId: session.locationId,
+    resourceId: session.resourceId,
+  })
 
   const existing = await getReplayRequestByIdempotencyKey(input.context, {
     requesterUserId: input.userId,
