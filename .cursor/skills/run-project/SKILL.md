@@ -38,18 +38,23 @@ If `pnpm` is not on PATH but Node Corepack is available, prefix commands with
 
 ### Database commands (repo root)
 
-| Script                       | Command                    |
-| ---------------------------- | -------------------------- |
-| Generate migration           | `pnpm db:generate`         |
-| Apply migrations             | `pnpm db:migrate`          |
-| Drizzle Studio               | `pnpm db:studio`           |
-| Seed phase 1                 | `pnpm db:seed`             |
-| Validate migration files     | `pnpm db:validate`         |
-| Require zero migration drift | `pnpm db:validate:strict`  |
-| Offline DB safety tests      | `pnpm test:db`             |
-| PostgreSQL concurrency tests | `pnpm test:db:integration` |
+| Script                                     | Command                             |
+| ------------------------------------------ | ----------------------------------- |
+| Generate migration                         | `pnpm db:generate`                  |
+| Apply migrations                           | `pnpm db:migrate`                   |
+| Drizzle Studio                             | `pnpm db:studio`                    |
+| Seed phase 1                               | `pnpm db:seed`                      |
+| Validate migration files                   | `pnpm db:validate`                  |
+| Require zero migration drift               | `pnpm db:validate:strict`           |
+| Preview VenueEdge v1 topology backfill     | `pnpm db:backfill-venue-edge`       |
+| Apply reviewed VenueEdge topology backfill | `pnpm db:backfill-venue-edge:apply` |
+| Offline DB safety tests                    | `pnpm test:db`                      |
+| PostgreSQL concurrency tests               | `pnpm test:db:integration`          |
 
 Database commands require `POSTGRES_URL` in `.env.local`.
+The VenueEdge topology backfill is read-only by default. Review its credential-free
+report before using the explicitly confirmed apply command; neither mode deletes
+v1 assignments or publishes Config v2.
 The validation and validator-test commands are repository-only and do not use
 `POSTGRES_URL`. If the bundled `pnpm` wrapper attempts a dependency reinstall,
 run their direct Node equivalents documented in

@@ -176,6 +176,13 @@
       "when": 1787694204313,
       "tag": "0024_phase5_notifications_relays",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1787763233214,
+      "tag": "0025_phase1_venue_edge_sources",
+      "breakpoints": true
     }
   ]
 }

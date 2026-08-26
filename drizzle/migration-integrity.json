@@ -72,10 +72,13 @@
       "sha256": "dfd8dc9da4fc583c7282d0fafc0df1f384de900a4d8574df70cd3c40e7806d32"
     },
     "0023_phase5_ttlock_inventory": {
-      "sha256": "0a4ccef373372355fe5c2118f894e12ae26ee5735188054bd043266bde66681f"
+      "sha256": "d593e014da010596a3a42c5b6a025c0436812b5aa1075b43d25cfee62b01cc14"
     },
     "0024_phase5_notifications_relays": {
-      "sha256": "7d1b60012ba0b040667ee16aeb22f4bfd3b907f9ce02ade801365370cc3a15e2"
+      "sha256": "f22d458739713f23c6ca965d403ae139d54c5959e4c6513b866ab88ac1fcf369"
+    },
+    "0025_phase1_venue_edge_sources": {
+      "sha256": "7ff4b9c42151b8aab6e169afbc596bc15b882fb80010c5fcadda5a8e5bac52f4"
     }
   },
   "acknowledgedMetadataDrift": [],

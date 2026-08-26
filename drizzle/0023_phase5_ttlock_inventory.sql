@@ -11,8 +11,7 @@ CREATE TABLE "ttlock_access_point_locks" (
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
+);--> statement-breakpoint
 CREATE TABLE "ttlock_connections" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"tenant_id" uuid NOT NULL,
@@ -35,8 +34,7 @@ CREATE TABLE "ttlock_connections" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "ttlock_connections_access_token_key_pair" CHECK (("ttlock_connections"."encrypted_access_token" is null) = ("ttlock_connections"."access_token_key_version" is null)),
 	CONSTRAINT "ttlock_connections_refresh_token_key_pair" CHECK (("ttlock_connections"."encrypted_refresh_token" is null) = ("ttlock_connections"."refresh_token_key_version" is null))
-);
---> statement-breakpoint
+);--> statement-breakpoint
 CREATE TABLE "ttlock_gateways" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"tenant_id" uuid NOT NULL,
@@ -52,8 +50,7 @@ CREATE TABLE "ttlock_gateways" (
 	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
+);--> statement-breakpoint
 CREATE TABLE "ttlock_locks" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"tenant_id" uuid NOT NULL,
@@ -75,8 +72,7 @@ CREATE TABLE "ttlock_locks" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "ttlock_locks_battery_range" CHECK ("ttlock_locks"."battery_percent" is null or ("ttlock_locks"."battery_percent" >= 0 and "ttlock_locks"."battery_percent" <= 100))
-);
---> statement-breakpoint
+);--> statement-breakpoint
 CREATE TABLE "ttlock_unlock_records" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"tenant_id" uuid NOT NULL,
@@ -89,8 +85,7 @@ CREATE TABLE "ttlock_unlock_records" (
 	"redacted_metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"ingested_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
+);--> statement-breakpoint
 CREATE TABLE "ttlock_venue_connections" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"tenant_id" uuid NOT NULL,
@@ -99,22 +94,7 @@ CREATE TABLE "ttlock_venue_connections" (
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-ALTER TABLE "ttlock_access_point_locks" ADD CONSTRAINT "ttlock_access_point_locks_tenant_point_fk" FOREIGN KEY ("tenant_id","access_point_id") REFERENCES "public"."access_points"("tenant_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ttlock_access_point_locks" ADD CONSTRAINT "ttlock_access_point_locks_tenant_lock_fk" FOREIGN KEY ("tenant_id","lock_id") REFERENCES "public"."ttlock_locks"("tenant_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ttlock_access_point_locks" ADD CONSTRAINT "ttlock_access_point_locks_tenant_connection_fk" FOREIGN KEY ("tenant_id","connection_id") REFERENCES "public"."ttlock_connections"("tenant_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ttlock_connections" ADD CONSTRAINT "ttlock_connections_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ttlock_gateways" ADD CONSTRAINT "ttlock_gateways_tenant_connection_fk" FOREIGN KEY ("tenant_id","connection_id") REFERENCES "public"."ttlock_connections"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ttlock_gateways" ADD CONSTRAINT "ttlock_gateways_tenant_device_fk" FOREIGN KEY ("tenant_id","device_id") REFERENCES "public"."devices"("tenant_id","id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ttlock_locks" ADD CONSTRAINT "ttlock_locks_tenant_connection_fk" FOREIGN KEY ("tenant_id","connection_id") REFERENCES "public"."ttlock_connections"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ttlock_locks" ADD CONSTRAINT "ttlock_locks_tenant_gateway_fk" FOREIGN KEY ("tenant_id","gateway_id") REFERENCES "public"."ttlock_gateways"("tenant_id","id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ttlock_locks" ADD CONSTRAINT "ttlock_locks_tenant_device_fk" FOREIGN KEY ("tenant_id","device_id") REFERENCES "public"."devices"("tenant_id","id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ttlock_unlock_records" ADD CONSTRAINT "ttlock_unlock_records_tenant_connection_fk" FOREIGN KEY ("tenant_id","connection_id") REFERENCES "public"."ttlock_connections"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ttlock_unlock_records" ADD CONSTRAINT "ttlock_unlock_records_tenant_lock_fk" FOREIGN KEY ("tenant_id","lock_id") REFERENCES "public"."ttlock_locks"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ttlock_unlock_records" ADD CONSTRAINT "ttlock_unlock_records_tenant_credential_fk" FOREIGN KEY ("tenant_id","access_credential_id") REFERENCES "public"."access_credentials"("tenant_id","id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ttlock_venue_connections" ADD CONSTRAINT "ttlock_venue_connections_tenant_location_fk" FOREIGN KEY ("tenant_id","location_id") REFERENCES "public"."locations"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ttlock_venue_connections" ADD CONSTRAINT "ttlock_venue_connections_tenant_connection_fk" FOREIGN KEY ("tenant_id","connection_id") REFERENCES "public"."ttlock_connections"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+);--> statement-breakpoint
 CREATE UNIQUE INDEX "ttlock_access_point_locks_active_point_unique" ON "ttlock_access_point_locks" USING btree ("tenant_id","access_point_id") WHERE "ttlock_access_point_locks"."is_active";--> statement-breakpoint
 CREATE UNIQUE INDEX "ttlock_access_point_locks_active_lock_unique" ON "ttlock_access_point_locks" USING btree ("tenant_id","lock_id") WHERE "ttlock_access_point_locks"."is_active";--> statement-breakpoint
 CREATE INDEX "ttlock_access_point_locks_connection_idx" ON "ttlock_access_point_locks" USING btree ("connection_id");--> statement-breakpoint
@@ -135,4 +115,18 @@ CREATE INDEX "ttlock_unlock_records_tenant_occurred_idx" ON "ttlock_unlock_recor
 CREATE INDEX "ttlock_unlock_records_lock_occurred_idx" ON "ttlock_unlock_records" USING btree ("lock_id","occurred_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "ttlock_venue_connections_location_connection_unique" ON "ttlock_venue_connections" USING btree ("tenant_id","location_id","connection_id");--> statement-breakpoint
 CREATE INDEX "ttlock_venue_connections_tenant_idx" ON "ttlock_venue_connections" USING btree ("tenant_id");--> statement-breakpoint
+ALTER TABLE "ttlock_access_point_locks" ADD CONSTRAINT "ttlock_access_point_locks_tenant_point_fk" FOREIGN KEY ("tenant_id","access_point_id") REFERENCES "public"."access_points"("tenant_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ttlock_access_point_locks" ADD CONSTRAINT "ttlock_access_point_locks_tenant_lock_fk" FOREIGN KEY ("tenant_id","lock_id") REFERENCES "public"."ttlock_locks"("tenant_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ttlock_access_point_locks" ADD CONSTRAINT "ttlock_access_point_locks_tenant_connection_fk" FOREIGN KEY ("tenant_id","connection_id") REFERENCES "public"."ttlock_connections"("tenant_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ttlock_connections" ADD CONSTRAINT "ttlock_connections_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ttlock_gateways" ADD CONSTRAINT "ttlock_gateways_tenant_connection_fk" FOREIGN KEY ("tenant_id","connection_id") REFERENCES "public"."ttlock_connections"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ttlock_gateways" ADD CONSTRAINT "ttlock_gateways_tenant_device_fk" FOREIGN KEY ("tenant_id","device_id") REFERENCES "public"."devices"("tenant_id","id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ttlock_locks" ADD CONSTRAINT "ttlock_locks_tenant_connection_fk" FOREIGN KEY ("tenant_id","connection_id") REFERENCES "public"."ttlock_connections"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ttlock_locks" ADD CONSTRAINT "ttlock_locks_tenant_gateway_fk" FOREIGN KEY ("tenant_id","gateway_id") REFERENCES "public"."ttlock_gateways"("tenant_id","id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ttlock_locks" ADD CONSTRAINT "ttlock_locks_tenant_device_fk" FOREIGN KEY ("tenant_id","device_id") REFERENCES "public"."devices"("tenant_id","id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ttlock_unlock_records" ADD CONSTRAINT "ttlock_unlock_records_tenant_connection_fk" FOREIGN KEY ("tenant_id","connection_id") REFERENCES "public"."ttlock_connections"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ttlock_unlock_records" ADD CONSTRAINT "ttlock_unlock_records_tenant_lock_fk" FOREIGN KEY ("tenant_id","lock_id") REFERENCES "public"."ttlock_locks"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ttlock_unlock_records" ADD CONSTRAINT "ttlock_unlock_records_tenant_credential_fk" FOREIGN KEY ("tenant_id","access_credential_id") REFERENCES "public"."access_credentials"("tenant_id","id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ttlock_venue_connections" ADD CONSTRAINT "ttlock_venue_connections_tenant_location_fk" FOREIGN KEY ("tenant_id","location_id") REFERENCES "public"."locations"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ttlock_venue_connections" ADD CONSTRAINT "ttlock_venue_connections_tenant_connection_fk" FOREIGN KEY ("tenant_id","connection_id") REFERENCES "public"."ttlock_connections"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "access_credentials" ADD CONSTRAINT "access_credentials_tenant_connection_fk" FOREIGN KEY ("tenant_id","connection_id") REFERENCES "public"."ttlock_connections"("tenant_id","id") ON DELETE restrict ON UPDATE no action;
