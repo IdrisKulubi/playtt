@@ -3,6 +3,7 @@ import { and, desc, eq } from "drizzle-orm"
 import db from "@/db/drizzle"
 import { venueEdgeConfigRevisions, venueEdgeInstallations } from "@/db/schema"
 import { DeviceError } from "@/server/devices/errors"
+import { assertVenueEdgeConfigV2Enabled } from "@/server/replays/venue-edge-config-v2-gate"
 import {
   assertEdgeConfigV2,
   EDGE_CONFIG_V2_PROTOCOL_VERSION,
@@ -47,6 +48,8 @@ export async function getPublishedEdgeConfigV2ForDevice(input: {
       403
     )
   }
+
+  await assertVenueEdgeConfigV2Enabled(input.tenantId, input.locationId)
 
   const [installation] = await db
     .select({

@@ -303,6 +303,7 @@ from (
     ('device_registry', true),
     ('private_media', true),
     ('replay_edge', true),
+    ('venue_edge_config_v2', false),
     ('live_access', false),
     ('ttlock_provider', false),
     ('relay_automation', false),

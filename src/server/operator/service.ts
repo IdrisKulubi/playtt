@@ -6,7 +6,7 @@ import {
   getCatalogOverview as getCatalogOverviewFromRepository,
   listCapabilities as listCapabilitiesFromRepository,
   listFeatureFlags as listFeatureFlagsFromRepository,
-  setFeatureFlagEnabled as setFeatureFlagEnabledInRepository,
+  upsertFeatureFlagRow,
   listMemberships as listMembershipsFromRepository,
   listResourceTypes as listResourceTypesFromRepository,
   listResources as listResourcesFromRepository,
@@ -25,7 +25,39 @@ import type {
   OperatorZone,
 } from "@/server/operator/types"
 import { authorize } from "@/server/tenancy/authorize-context.mjs"
+import db from "@/db/drizzle"
+import {
+  REPLAY_EDGE_FLAG_KEY,
+  VENUE_EDGE_CONFIG_V2_FLAG_KEY,
+} from "@/server/replays/feature-policy"
+import { VENUE_EDGE_AUDIT_ACTIONS } from "@/server/replays/venue-edge-audit-actions"
+import { writeAuditLogInTransaction } from "@/server/tenancy/audit-log-write"
 import type { TenantContext } from "@/server/tenancy/types"
+
+const VENUE_EDGE_ROLLOUT_FLAG_KEYS = new Set([
+  REPLAY_EDGE_FLAG_KEY,
+  VENUE_EDGE_CONFIG_V2_FLAG_KEY,
+])
+
+function mapFeatureFlagRow(row: {
+  id: string
+  tenantId: string
+  key: string
+  enabled: boolean
+  scope: Record<string, unknown> | null
+  createdAt: Date
+  updatedAt: Date
+}): OperatorFeatureFlag {
+  return {
+    id: row.id,
+    tenantId: row.tenantId,
+    key: row.key,
+    enabled: row.enabled,
+    scope: row.scope ?? null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  }
+}
 
 export async function getCatalogOverview(
   context: TenantContext,
@@ -52,9 +84,27 @@ export async function setFeatureFlagEnabled(
   context: TenantContext,
   key: string,
   enabled: boolean,
+  scope?: Record<string, unknown> | null,
 ): Promise<OperatorFeatureFlag> {
   authorize(context, "catalog.manage")
-  return setFeatureFlagEnabledInRepository(context, key, enabled)
+
+  return db.transaction(async (tx) => {
+    const row = await upsertFeatureFlagRow(tx, context, key, enabled, scope)
+
+    if (VENUE_EDGE_ROLLOUT_FLAG_KEYS.has(key)) {
+      await writeAuditLogInTransaction(tx, context, {
+        action: VENUE_EDGE_AUDIT_ACTIONS.rolloutUpdated,
+        targetType: "feature_flag",
+        targetId: key,
+        metadata: {
+          enabled,
+          scope: row.scope ?? null,
+        },
+      })
+    }
+
+    return mapFeatureFlagRow(row)
+  })
 }
 
 export async function listVenues(context: TenantContext): Promise<OperatorVenue[]> {

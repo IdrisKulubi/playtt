@@ -8,6 +8,10 @@ import {
 } from "@/db/schema"
 import { DeviceError } from "@/server/devices/errors"
 import { assertSafeEdgeConfigV2ErrorDetails } from "@/server/replays/edge-config-v2-diagnostics"
+import { assertVenueEdgeConfigV2Enabled } from "@/server/replays/venue-edge-config-v2-gate"
+import { VENUE_EDGE_AUDIT_ACTIONS } from "@/server/replays/venue-edge-audit-actions"
+import { writeAuditLogInTransaction } from "@/server/tenancy/audit-log-write"
+import type { TenantContext } from "@/server/tenancy/types"
 
 export type EdgeConfigV2ApplicationStatus = "applied" | "rejected"
 
@@ -32,6 +36,7 @@ export async function acknowledgeEdgeConfigV2Application(input: {
   bootId?: string | null
   errorCode?: string | null
   errorDetails?: Record<string, unknown> | null
+  auditContext?: TenantContext
   now?: Date
 }): Promise<EdgeConfigV2ApplicationResult> {
   if (input.deviceType !== "venue_edge") {
@@ -70,6 +75,13 @@ export async function acknowledgeEdgeConfigV2Application(input: {
   }
 
   const attemptedAt = input.now ?? new Date()
+  await assertVenueEdgeConfigV2Enabled(input.tenantId, input.locationId)
+
+  const auditContext: TenantContext = input.auditContext ?? {
+    tenantId: input.tenantId,
+    actor: { type: "device", id: input.deviceId },
+    correlationId: `venue-edge-config-ack-${input.configRevisionId}`,
+  }
 
   return db.transaction(async (tx) => {
     const [installation] = await tx
@@ -246,6 +258,22 @@ export async function acknowledgeEdgeConfigV2Application(input: {
           )
         )
     }
+
+    await writeAuditLogInTransaction(tx, auditContext, {
+      action:
+        application.status === "applied"
+          ? VENUE_EDGE_AUDIT_ACTIONS.configApplied
+          : VENUE_EDGE_AUDIT_ACTIONS.configRejected,
+      targetType: "venue_edge_config_application",
+      targetId: application.id,
+      metadata: {
+        locationId: input.locationId,
+        configRevisionId: input.configRevisionId,
+        installationId: input.installationId,
+        status: application.status,
+        errorCode: input.errorCode ?? null,
+      },
+    })
 
     return {
       id: application.id,

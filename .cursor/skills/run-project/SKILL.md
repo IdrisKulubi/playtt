@@ -49,6 +49,7 @@ If `pnpm` is not on PATH but Node Corepack is available, prefix commands with
 | Preview VenueEdge v1 topology backfill     | `pnpm db:backfill-venue-edge`       |
 | Apply reviewed VenueEdge topology backfill | `pnpm db:backfill-venue-edge:apply` |
 | Offline DB safety tests                    | `pnpm test:db`                      |
+| VenueEdge Phase 1 disposable rehearsal     | `pnpm test:db:venue-edge-rehearsal` |
 | PostgreSQL concurrency tests               | `pnpm test:db:integration`          |
 
 Database commands require `POSTGRES_URL` in `.env.local`.

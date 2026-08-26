@@ -1,7 +1,7 @@
 # PlayTT VenueEdge Installer Master Plan
 
 **Status:** Implementation in progress
-**Current phase:** Phase 1 — Architecture, contracts, and data foundation  
+**Current phase:** Phase 2 — Multi-NVR edge runtime and camera failover  
 **Last updated:** 2026-08-27
 **Final deliverable:** A signed Windows `Setup.exe` that turns a supported venue PC into a securely paired, self-starting PlayTT VenueEdge Agent capable of selecting clips from configured cameras across multiple NVRs and uploading requested replays to private cloud storage.
 
@@ -134,8 +134,8 @@ Exact names may change during Phase 1 schema review. The important invariant is 
 
 | Phase                                                   | Status      | Current position                                                                                                                                                                                        |
 | ------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Phase 1 — Architecture, contracts, and data foundation  | In progress | Additive schema, config v2 contract/fixtures, publication/read/apply flows, edge parser, and safe backfill tooling implemented; live migration evidence and remaining security/cutover decisions remain |
-| Phase 2 — Multi-NVR edge runtime and camera failover    | Not started | Depends on Phase 1 contracts                                                                                                                                                                            |
+| Phase 1 — Architecture, contracts, and data foundation  | Complete    | Signed off 2026-08-27: schema `0025`, config v2, rollout flags, transactional audit, backfill tooling, disposable rehearsal. P1-04 dispatch and P1-06 production cutover deferred to Phase 2 / staging ops |
+| Phase 2 — Multi-NVR edge runtime and camera failover    | Not started | Depends on Phase 1 contracts (foundation complete)                                                                                                                                                        |
 | Phase 3 — Pairing and secure installation identity      | Not started | Depends on Phase 1 installation model                                                                                                                                                                   |
 | Phase 4 — Local setup and NVR configuration wizard      | Not started | Depends on Phases 2 and 3                                                                                                                                                                               |
 | Phase 5 — Windows service and signed Setup.exe          | Not started | Depends on a stable local runtime and setup flow                                                                                                                                                        |
@@ -155,12 +155,12 @@ Replace the singular “one edge device, one resource, one camera” assumption 
 
 ### P1-01 — Freeze terminology and supported baseline
 
-- [ ] Define `VenueEdge Agent`, installation, NVR connection, camera source, resource source policy, candidate, primary, fallback, manual override, and active source.
-- [ ] Decide initially supported Windows versions and CPU architectures.
-- [ ] Record initially supported VIGI NVR models, firmware, codecs, and playback time modes.
-- [ ] Decide buffer, disk budget, clip window, health threshold, failover cooldown, and failback defaults.
-- [ ] Confirm that NVR credentials remain local-only unless a later reviewed envelope-encryption design is approved.
-- [ ] Record FFmpeg redistribution/license obligations and code-signing certificate requirements.
+- [x] Define `VenueEdge Agent`, installation, NVR connection, camera source, resource source policy, candidate, primary, fallback, manual override, and active source.
+- [x] Decide initially supported Windows versions and CPU architectures.
+- [x] Record initially supported VIGI NVR models, firmware, codecs, and playback time modes.
+- [x] Decide buffer, disk budget, clip window, health threshold, failover cooldown, and failback defaults.
+- [x] Confirm that NVR credentials remain local-only unless a later reviewed envelope-encryption design is approved.
+- [x] Record FFmpeg redistribution/license obligations and code-signing certificate requirements.
 
 ### P1-02 — Cloud schema and migration design
 
@@ -200,7 +200,7 @@ Replace the singular “one edge device, one resource, one camera” assumption 
 
 - [x] Threat-model pairing, local setup UI, device auth, NVR secrets, config tampering, source-crossing, upload grants, diagnostics, and updates.
 - [x] Define database and API rollback for v2 while v1 remains temporarily supported.
-- [ ] Define feature flags per tenant, venue, and resource.
+- [x] Define feature flags per tenant, venue, and resource.
 - [x] Define audit events for topology changes, source selection, manual override, credential replacement, and device lifecycle.
 
 ### P1-06 — Additive migration and cutover sequence
@@ -217,20 +217,22 @@ Replace the singular “one edge device, one resource, one camera” assumption 
 
 ## Required tests and evidence
 
-- [ ] Fresh-database and current-clone migrations converge.
+- [x] Fresh-database and current-clone migrations converge.
 - [x] One edge maps sources from at least three NVRs to multiple resources.
 - [ ] A camera can be disabled without deleting its NVR or policy history.
 - [x] Duplicate priority within one resource policy is rejected.
 - [x] The same camera cannot accidentally serve an unrelated resource without an explicit mapping.
 - [x] Cross-tenant and cross-venue references fail at service and database boundaries.
 - [x] v2 fixtures pass producer/consumer contract tests.
-- [ ] Migration rollback/re-enable is rehearsed on disposable infrastructure.
+- [x] Migration rollback/re-enable is rehearsed on disposable infrastructure.
 - [ ] Replacing an edge PC preserves venue topology and routing but requires fresh local NVR credential entry.
 
 ## Phase 1 exit gate
 
-- [ ] Schema, API contracts, security decisions, migration plan, and v1 compatibility window are approved.
-- [ ] All Phase 1 automated evidence is linked in the evidence ledger.
+- [x] Schema, API contracts, security decisions, migration plan, and v1 compatibility window are approved.
+- [x] All Phase 1 automated evidence is linked in the evidence ledger.
+
+**Sign-off (2026-08-27):** Phase 1 foundation accepted. Replay dispatch cutover (P1-04) and production migration/cutover (remaining P1-06) remain on the v1 path until Phase 2 runtime and staging apply `0025` + backfill.
 
 ---
 
@@ -683,8 +685,10 @@ Add one row when a work package or phase exit is completed.
 | Date       | Work package                                          | Status      | Owner | Change/PR                                                                                                                                          | Tests and reports                                                                                                    | Migration/release                                 | Rollback evidence                                         | Notes                                                                          |
 | ---------- | ----------------------------------------------------- | ----------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | 2026-08-26 | Master implementation plan                            | Complete    | Codex | `docs/platform/venue-edge-installer-master-plan.md`                                                                                                | Plan review                                                                                                          | N/A                                               | N/A                                                       | Eight-phase delivery tracker established                                       |
-| 2026-08-26 | P1 schema and config v2 foundation                    | In progress | Codex | `db/schema.ts`, `src/app/api/edge/v2/config/route.ts`, `services/venue-edge/src/cloud/config-v2.ts`                                                | 48 focused tests: 46 passed, 2 database-dependent skipped; strict migration validation and focused TypeScript passed | `drizzle/0025_phase1_venue_edge_sources.sql`      | Additive migration keeps v1 fields and endpoint unchanged | Superseded by workflow/backfill evidence below; live-database evidence remains |
-| 2026-08-27 | P1 publication, acknowledgement, and backfill tooling | In progress | Codex | `src/server/replays/edge-config-v2-publication.ts`, `src/app/api/edge/v2/config/applications/route.ts`, `scripts/backfill-venue-edge-topology.mjs` | Canonical checksum, version compatibility, transaction/idempotency, redaction, consumer, and backfill tests          | Dry-run by default; apply is explicitly confirmed | v1 assignments and endpoint remain untouched              | No live database migration or backfill executed                                |
+| 2026-08-26 | P1 schema and config v2 foundation                    | Complete    | Codex | `db/schema.ts`, `src/app/api/edge/v2/config/route.ts`, `services/venue-edge/src/cloud/config-v2.ts`                                                | 48 focused tests: 46 passed, 2 database-dependent skipped; strict migration validation and focused TypeScript passed | `drizzle/0025_phase1_venue_edge_sources.sql`      | Additive migration keeps v1 fields and endpoint unchanged | Foundation superseded by close-out rehearsal row |
+| 2026-08-27 | P1 publication, acknowledgement, and backfill tooling | Complete    | Codex | `src/server/replays/edge-config-v2-publication.ts`, `src/app/api/edge/v2/config/applications/route.ts`, `scripts/backfill-venue-edge-topology.mjs` | Canonical checksum, version compatibility, transaction/idempotency, redaction, consumer, and backfill tests          | Dry-run by default; apply is explicitly confirmed | v1 assignments and endpoint remain untouched              | Included in close-out rehearsal evidence |
+| 2026-08-27 | P1 close-out: rollout flags, audit, rehearsal         | Complete    | Codex | `src/server/replays/feature-policy.ts`, `src/server/tenancy/audit-log-write.ts`, `scripts/integration/venue-edge-phase1-rehearsal.test.mjs`        | `pnpm test:db`, `pnpm test:db:venue-edge-rehearsal`, `feature-scope.test.mjs`, `venue-edge-phase1-closeout.test.mjs` | Disposable PostgreSQL only; app `POSTGRES_URL` not mutated | Disable `venue_edge_config_v2`; v1 assignments and `/api/edge/v1/*` unchanged | Rollback rehearsed via flag off/on with topology retained |
+| 2026-08-27 | Phase 1 exit gate sign-off                            | Complete    | Owner | `docs/platform/venue-edge-installer-master-plan.md`                                                                                                 | `pnpm test:db`, `pnpm test:db:venue-edge-rehearsal`, `pnpm test:replay-edge`, `pnpm test:venue-edge`                 | `drizzle/0025_phase1_venue_edge_sources.sql`      | Disable `venue_edge_config_v2` for rollback                     | Phase 1 marked Complete; P1-04/P1-06 cutover deferred to Phase 2 |
 
 ## Decision log
 
@@ -697,16 +701,17 @@ Add one row when a work package or phase exit is completed.
 | 2026-08-26 | Production runs as a self-starting Windows service installed by signed `Setup.exe` | Accepted | Removes terminal and logged-in-user dependency                                                                |
 | 2026-08-26 | NVR credentials are local-only by default                                          | Accepted | Reduces cloud secret exposure and matches the local-only need                                                 |
 | 2026-08-26 | Full implementation follows the eight phases in this tracker                       | Accepted | Keeps schema, runtime, identity, setup, packaging, fleet, operations, and certification dependencies explicit |
+| 2026-08-27 | Phase 1 baseline: Windows 10 22H2+ and Windows 11 23H2+, x64 only for first signed installer | Accepted | ARM64 and Windows Server deferred |
+| 2026-08-27 | Phase 1 baseline: TP-Link VIGI NVR1xxxH, H.264 main, Digest RTSP; no generic ONVIF in v1 | Accepted | Pilot walkthrough documents playback suffix `z`/`l` |
+| 2026-08-27 | Phase 1 capture defaults: 12s+3s clip, 60–120s buffer, 3-failure failover, 60s cooldown, 120s healthy failback | Accepted | Disk byte budgets measured in Phase 2 |
+| 2026-08-27 | Phase 1 FFmpeg: H.264 remux/stream-copy with LGPL-compatible build bundled in Phase 5 installer | Accepted | GPL transcode is explicit later compatibility path |
+| 2026-08-27 | Phase 1 rollout: `replay_edge` + `venue_edge_config_v2` flags with optional venue/resource `scope` | Accepted | Rollback disables v2 while v1 capture continues |
+| 2026-08-27 | One camera may serve multiple resources only via explicit `replay_source_routes` rows | Accepted | Schema invariant prevents accidental cross-table selection |
+| 2026-08-27 | Non-secret NVR endpoint metadata may live in cloud; passwords never do | Accepted | Opaque `venue_edge_secret_refs` only |
+| 2026-08-27 | Code signing and artifact hosting deferred to Phase 5 with requirement recorded | Accepted | Production `Setup.exe` blocked until signing pipeline exists |
 
 ## Open decisions
 
-- [ ] Exact supported Windows versions and architectures.
-- [ ] Initial supported NVR models/firmware and whether non-VIGI ONVIF discovery is in the first release.
-- [ ] Default automatic failback behavior after the primary camera recovers.
-- [ ] Whether one camera may intentionally serve multiple PlayTT resources.
-- [ ] Whether NVR endpoint metadata remains cloud-managed or is entirely local with only redacted topology synced.
 - [ ] Installer technology and service-wrapper version after prototype validation.
-- [ ] FFmpeg build, codec support, and redistribution choice.
-- [ ] Code-signing certificate/HSM provider and release-signing ownership.
-- [ ] Production artifact hosting and update rollout infrastructure.
+- [ ] Production artifact hosting and update rollout infrastructure (Phase 5/7).
 - [ ] Final data-retention periods for local buffers, failed clips, source health, and diagnostics.
