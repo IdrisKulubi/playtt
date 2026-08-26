@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto"
 
+import { parseEdgeConfigV2, type EdgeConfigV2 } from "./config-v2"
+
 export class EdgeProtocolError extends Error {
   constructor(
     public readonly code: string,
     message: string,
     public readonly status = 400,
-    public readonly body: unknown = null,
+    public readonly body: unknown = null
   ) {
     super(message)
     this.name = "EdgeProtocolError"
@@ -68,11 +70,22 @@ export interface EdgeConfig {
   config: Record<string, unknown>
 }
 
+export interface EdgeConfigV2Application {
+  id: string
+  installationId: string
+  configRevisionId: string
+  status: "applied" | "rejected"
+  attemptedAt: string
+  appliedAt: string | null
+  idempotent: boolean
+}
+
 export interface EdgeClientOptions {
   baseUrl: string
   deviceId?: string
   secret?: string
   correlationId?: string
+  agentVersion?: string
   fetchImpl?: typeof fetch
 }
 
@@ -100,12 +113,14 @@ export class EdgeV1Client {
   deviceId: string | null
   secret: string | null
   correlationId: string
+  agentVersion: string | null
 
   constructor(options: EdgeClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "")
     this.deviceId = options.deviceId ?? null
     this.secret = options.secret ?? null
     this.correlationId = options.correlationId ?? randomUUID()
+    this.agentVersion = options.agentVersion ?? null
     this.fetchImpl = options.fetchImpl ?? fetch
   }
 
@@ -119,20 +134,23 @@ export class EdgeV1Client {
       throw new EdgeProtocolError(
         "DEVICE_UNAUTHENTICATED",
         "Device credentials are not configured.",
-        401,
+        401
       )
     }
 
     return {
       Authorization: `Device ${this.deviceId} ${this.secret}`,
       "x-correlation-id": this.correlationId,
+      ...(this.agentVersion
+        ? { "x-playtt-edge-agent-version": this.agentVersion }
+        : {}),
       "content-type": "application/json",
     }
   }
 
   async request(
     path: string,
-    options: { method?: string; body?: unknown; auth?: boolean } = {},
+    options: { method?: string; body?: unknown; auth?: boolean } = {}
   ): Promise<unknown> {
     const headers: Record<string, string> = {
       "content-type": "application/json",
@@ -152,7 +170,7 @@ export class EdgeV1Client {
       throw new EdgeProtocolError(
         "NETWORK_ERROR",
         error instanceof Error ? error.message : "Network request failed.",
-        0,
+        0
       )
     }
 
@@ -164,7 +182,7 @@ export class EdgeV1Client {
         errorBody?.code ?? "DEVICE_ERROR",
         errorBody?.message ?? `Request failed with status ${response.status}.`,
         response.status,
-        body,
+        body
       )
     }
 
@@ -175,6 +193,42 @@ export class EdgeV1Client {
     const body = (await this.request("/api/edge/v1/config")) as {
       data: EdgeConfig
     }
+    return body.data
+  }
+
+  async getConfigV2(): Promise<EdgeConfigV2> {
+    if (!this.agentVersion) {
+      throw new EdgeProtocolError(
+        "AGENT_VERSION_REQUIRED",
+        "VenueEdge Agent version is required for Config v2.",
+        426
+      )
+    }
+    const body = (await this.request("/api/edge/v2/config")) as {
+      data: unknown
+    }
+    return parseEdgeConfigV2(body.data)
+  }
+
+  async acknowledgeConfigV2Application(input: {
+    installationId: string
+    configRevisionId: string
+    status: "applied" | "rejected"
+    bootId?: string
+    errorCode?: string
+    errorDetails?: Record<string, unknown>
+  }): Promise<EdgeConfigV2Application> {
+    if (!this.agentVersion) {
+      throw new EdgeProtocolError(
+        "AGENT_VERSION_REQUIRED",
+        "VenueEdge Agent version is required for Config v2.",
+        426
+      )
+    }
+    const body = (await this.request("/api/edge/v2/config/applications", {
+      method: "POST",
+      body: input,
+    })) as { data: EdgeConfigV2Application }
     return body.data
   }
 
@@ -220,7 +274,7 @@ export class EdgeV1Client {
       idempotencyKey: string
       success: boolean
       result?: Record<string, unknown>
-    },
+    }
   ): Promise<unknown> {
     return this.request(`/api/edge/v1/commands/${commandId}/ack`, {
       method: "POST",
@@ -235,21 +289,21 @@ export class EdgeV1Client {
       failureReason?: string
       checksumSha256?: string
       sizeBytes?: number
-    },
+    }
   ): Promise<unknown> {
     return this.request(
       `/api/edge/v1/replay-requests/${replayRequestId}/progress`,
       {
         method: "POST",
         body: input,
-      },
+      }
     )
   }
 
   async renewUploadGrant(mediaAssetId: string): Promise<UploadGrant> {
     const body = (await this.request(
       `/api/edge/v1/media/${mediaAssetId}/upload-url`,
-      { method: "POST", body: {} },
+      { method: "POST", body: {} }
     )) as { data: { uploadGrant: UploadGrant } }
 
     return body.data.uploadGrant

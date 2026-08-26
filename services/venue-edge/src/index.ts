@@ -20,11 +20,10 @@ export interface VenueEdgeRuntime {
 }
 
 export async function startVenueEdge(
-  modeOverride?: "start" | "simulate",
+  modeOverride?: "start" | "simulate"
 ): Promise<VenueEdgeRuntime> {
   const env = loadEnv({
-    mode:
-      modeOverride === "simulate" ? "simulate" : undefined,
+    mode: modeOverride === "simulate" ? "simulate" : undefined,
   })
 
   if (modeOverride === "simulate") {
@@ -50,6 +49,7 @@ export async function startVenueEdge(
     baseUrl: env.cloudBaseUrl,
     deviceId: credentials?.deviceId,
     secret: credentials?.secret,
+    agentVersion: env.firmwareVersion,
   })
 
   let edgeConfig: EdgeConfig | null = null
@@ -80,7 +80,7 @@ export async function startVenueEdge(
     client,
     repositories,
     orchestrator,
-    () => edgeConfig,
+    () => edgeConfig
   )
 
   const camera = resolveCameraSource(env, edgeConfig)
@@ -147,7 +147,7 @@ async function main(): Promise<void> {
   }
 
   const runtime = await startVenueEdge(
-    command === "simulate" ? "simulate" : "start",
+    command === "simulate" ? "simulate" : "start"
   )
 
   const shutdown = async () => {
@@ -164,9 +164,7 @@ async function main(): Promise<void> {
   })
 }
 
-const entrypoint = process.argv[1]
-  ? pathToFileURL(process.argv[1]).href
-  : null
+const entrypoint = process.argv[1] ? pathToFileURL(process.argv[1]).href : null
 
 if (entrypoint && import.meta.url === entrypoint) {
   main().catch((error) => {

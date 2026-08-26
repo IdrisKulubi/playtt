@@ -47,14 +47,14 @@ flowchart LR
 
 These never change across retries:
 
-| Identity | Purpose |
-| --- | --- |
-| `replayRequestId` | Durable request lifecycle row |
-| `replayId` | Player-facing replay projection |
-| `mediaAssetId` | Phase 4 media metadata |
-| `objectKey` | R2 object path |
-| `correlationId` | Cross-service tracing |
-| `clientIdempotencyKey` | Duplicate API deduplication |
+| Identity               | Purpose                         |
+| ---------------------- | ------------------------------- |
+| `replayRequestId`      | Durable request lifecycle row   |
+| `replayId`             | Player-facing replay projection |
+| `mediaAssetId`         | Phase 4 media metadata          |
+| `objectKey`            | R2 object path                  |
+| `correlationId`        | Cross-service tracing           |
+| `clientIdempotencyKey` | Duplicate API deduplication     |
 
 Duplicate button/API requests return the same logical replay and debit one credit.
 
@@ -66,14 +66,14 @@ Duplicate button/API requests return the same logical replay and debit one credi
 
 ### Terminal / retryable failures
 
-| Status | Retryable | Meaning |
-| --- | --- | --- |
-| `edge_offline` | Yes | VenueEdge not reachable; command queued for redelivery |
-| `buffer_missing` | Yes | Rolling buffer did not cover capture window |
-| `extraction_failed` | Yes | FFmpeg extraction/remux failed |
-| `upload_failed` | Yes | R2 PUT or grant renewal failed |
-| `expired` | No | Command or grant TTL exceeded |
-| `failed` | No | Unrecoverable terminal failure |
+| Status              | Retryable | Meaning                                                |
+| ------------------- | --------- | ------------------------------------------------------ |
+| `edge_offline`      | Yes       | VenueEdge not reachable; command queued for redelivery |
+| `buffer_missing`    | Yes       | Rolling buffer did not cover capture window            |
+| `extraction_failed` | Yes       | FFmpeg extraction/remux failed                         |
+| `upload_failed`     | Yes       | R2 PUT or grant renewal failed                         |
+| `expired`           | No        | Command or grant TTL exceeded                          |
+| `failed`            | No        | Unrecoverable terminal failure                         |
 
 State transitions are explicit in code; no implicit status mutation.
 
@@ -83,14 +83,14 @@ Reuses Phase 3 device enrollment, hashed credentials, heartbeat, expiring comman
 
 ### Edge endpoints (device-authenticated)
 
-| Endpoint | Purpose |
-| --- | --- |
-| `GET /api/edge/v1/config` | Authorized venue/resource/camera configuration |
-| `POST /api/edge/v1/heartbeat` | Health + command poll |
-| `GET /api/edge/v1/commands` | Expiring command delivery |
-| `POST /api/edge/v1/commands/:id/ack` | ACK/progress/failure |
-| `POST /api/edge/v1/media/:mediaId/upload-url` | Exact PUT grant renewal |
-| `POST /api/edge/v1/replay-requests/:id/progress` | Structured progress updates |
+| Endpoint                                         | Purpose                                        |
+| ------------------------------------------------ | ---------------------------------------------- |
+| `GET /api/edge/v1/config`                        | Authorized venue/resource/camera configuration |
+| `POST /api/edge/v1/heartbeat`                    | Health + command poll                          |
+| `GET /api/edge/v1/commands`                      | Expiring command delivery                      |
+| `POST /api/edge/v1/commands/:id/ack`             | ACK/progress/failure                           |
+| `POST /api/edge/v1/media/:mediaId/upload-url`    | Exact PUT grant renewal                        |
+| `POST /api/edge/v1/replay-requests/:id/progress` | Structured progress updates                    |
 
 ### `capture_replay` command payload
 
@@ -110,7 +110,10 @@ Reuses Phase 3 device enrollment, hashed credentials, heartbeat, expiring comman
 }
 ```
 
-Camera/NVR credentials are delivered only to authenticated assigned VenueEdge via encrypted config; never in public API JSON, fixtures, or logs.
+Camera/NVR credentials remain on the venue PC in OS-protected storage. Cloud
+config contains only an opaque local lookup key; credentials and authenticated
+RTSP URLs never appear in cloud payloads, fixtures, ordinary logs, or backfill
+reports.
 
 ## VenueEdge local storage
 
@@ -138,26 +141,26 @@ Camera/NVR credentials are delivered only to authenticated assigned VenueEdge vi
 
 ## Security boundaries
 
-| Actor | R2 credentials | Camera/NVR credentials | Replay trigger |
-| --- | --- | --- | --- |
-| Cloud API | Issues short-lived grants | Stored encrypted server-only | Authorizes requests |
-| VenueEdge | Uses exact PUT grants only | OS-protected local store | Executes capture |
-| Web/mobile | Playback GET grants only | None | App-authenticated request |
-| ESP32/button | None | None | Device-authenticated after binding |
-| Display | Playback GET grants only | None | Read-only playback |
+| Actor        | R2 credentials             | Camera/NVR credentials                    | Replay trigger                     |
+| ------------ | -------------------------- | ----------------------------------------- | ---------------------------------- |
+| Cloud API    | Issues short-lived grants  | None; stores only opaque local references | Authorizes requests                |
+| VenueEdge    | Uses exact PUT grants only | OS-protected local store                  | Executes capture                   |
+| Web/mobile   | Playback GET grants only   | None                                      | App-authenticated request          |
+| ESP32/button | None                       | None                                      | Device-authenticated after binding |
+| Display      | Playback GET grants only   | None                                      | Read-only playback                 |
 
 ## Feature flags
 
-| Flag | Scope | Default |
-| --- | --- | --- |
-| `private_media` | Tenant | Required for R2 grants (Phase 4) |
-| `replay_edge` | Tenant/venue/resource | Off until gate passes |
+| Flag            | Scope                 | Default                          |
+| --------------- | --------------------- | -------------------------------- |
+| `private_media` | Tenant                | Required for R2 grants (Phase 4) |
+| `replay_edge`   | Tenant/venue/resource | Off until gate passes            |
 
 ## Target SLOs (initial measured targets)
 
-| Metric | Target |
-| --- | --- |
-| Replay-ready p50 | < 7 seconds |
+| Metric           | Target       |
+| ---------------- | ------------ |
+| Replay-ready p50 | < 7 seconds  |
 | Replay-ready p95 | < 15 seconds |
 
 Measured from authorized request to `replay.ready.v1` emission after R2 verification.
@@ -185,18 +188,19 @@ Before implementing `VigiNvrPlaybackAdapter`, validate on pilot hardware. **Step
 - Disable `replay_edge` per tenant/venue/resource.
 - Preserve pending requests for retry or explicit cancellation.
 - Development NVR stub remains development-only (`NVR_STUB_AUTO`, `playtt.local` URLs blocked in production).
+- Follow the [VenueEdge v2 rollback procedure](../security/venue-edge-threat-model.md#v2-rollback-procedure); never copy local NVR credentials back into v1 cloud JSON.
 
 ## Staged acceptance gates
 
-| Stage | Gate |
-| --- | --- |
-| 0 | Architecture review; no unresolved state/secret/retry assumptions |
-| 1 | Duplicate request debits once; migration tests pass |
-| 2 | Protocol fixtures frozen; simulator passes without secrets in API |
-| 3 | One-table 15s clip, direct R2 upload, restart recovery |
-| 4 | Scoreboard/library/email playback with authorization |
-| 5 | Two-resource isolation; NVR fallback validated |
-| 6 | Ten-resource capacity measured; recovery tools operational |
+| Stage | Gate                                                              |
+| ----- | ----------------------------------------------------------------- |
+| 0     | Architecture review; no unresolved state/secret/retry assumptions |
+| 1     | Duplicate request debits once; migration tests pass               |
+| 2     | Protocol fixtures frozen; simulator passes without secrets in API |
+| 3     | One-table 15s clip, direct R2 upload, restart recovery            |
+| 4     | Scoreboard/library/email playback with authorization              |
+| 5     | Two-resource isolation; NVR fallback validated                    |
+| 6     | Ten-resource capacity measured; recovery tools operational        |
 
 ## Related documents
 
