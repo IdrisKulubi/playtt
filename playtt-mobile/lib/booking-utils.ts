@@ -291,29 +291,6 @@ export function needsBookingPayment(booking: UserBookingSummary) {
   return booking.status === "pending" && booking.paymentStatus === "unpaid"
 }
 
-export function canShowEntryCodeTeaser(
-  booking: UserBookingSummary,
-  nowMs = Date.now(),
-) {
-  return (
-    canShowAccessCard(booking, nowMs) &&
-    isSessionWithinCountdownWindow(booking.startTime, nowMs)
-  )
-}
-
-export function isEntryCodeTeaserDay(startIso: string, nowMs = Date.now()) {
-  const start = new Date(startIso)
-  const now = new Date(nowMs)
-
-  const startDay = new Date(start)
-  startDay.setHours(0, 0, 0, 0)
-
-  const today = new Date(now)
-  today.setHours(0, 0, 0, 0)
-
-  return startDay.getTime() === today.getTime()
-}
-
 export function formatLastSessionLabel(booking: UserBookingSummary) {
   const playedOn = new Date(booking.endTime).toLocaleDateString("en-KE", {
     weekday: "short",
@@ -349,14 +326,6 @@ export function isUpcomingBooking(
 
 export function canCancelBooking(booking: UserBookingSummary) {
   return booking.status === "pending" && booking.paymentStatus === "unpaid"
-}
-
-export function canShowAccessCard(booking: UserBookingSummary, nowMs = Date.now()) {
-  return (
-    booking.status === "confirmed" &&
-    booking.paymentStatus === "paid" &&
-    isUpcomingBooking(booking, nowMs)
-  )
 }
 
 export function formatPaymentStatus(paymentStatus: string) {

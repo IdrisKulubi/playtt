@@ -1,4 +1,6 @@
 import db from "@/db/drizzle"
+import { bookings } from "@/db/schema"
+import { and, eq } from "drizzle-orm"
 import { PlaySessionError } from "@/server/sessions/errors"
 import {
   isPlaySessionAtOrPastStatus,
@@ -12,6 +14,8 @@ import {
   type PlaySessionStatus,
 } from "@/server/sessions/play-sessions"
 import { writeAuditLog } from "@/server/tenancy/audit-log.mjs"
+import { scheduleRelayActionsForSessionTransition } from "@/server/access/relay-worker"
+import { scheduleSessionNotification } from "@/server/notifications/worker"
 import { createServiceTenantContext } from "@/server/tenancy/context-factory"
 import type { TenantContext } from "@/server/tenancy/types"
 import {
@@ -169,6 +173,44 @@ export async function consumeSessionLifecycleEvent(row: {
       })
     } catch (error) {
       console.error("[SESSION LIFECYCLE] Failed to audit transition:", error)
+    }
+
+    try {
+      await scheduleRelayActionsForSessionTransition({
+        tenantId,
+        bookingId: String(row.payload.bookingId ?? result.session.bookingId),
+        playSessionId: sessionId,
+        locationId: result.session.locationId,
+        resourceId: result.session.resourceId,
+        correlationId: row.correlationId,
+        toStatus,
+      })
+    } catch (error) {
+      console.error("[SESSION LIFECYCLE] Failed to schedule relay actions:", error)
+    }
+
+    try {
+      const [booking] = await db
+        .select({ userId: bookings.userId })
+        .from(bookings)
+        .where(
+          and(eq(bookings.tenantId, tenantId), eq(bookings.id, result.session.bookingId)),
+        )
+        .limit(1)
+      if (booking?.userId) {
+        await scheduleSessionNotification({
+          tenantId,
+          bookingId: result.session.bookingId,
+          playSessionId: sessionId,
+          locationId: result.session.locationId,
+          resourceId: result.session.resourceId,
+          userId: booking.userId,
+          correlationId: row.correlationId,
+          toStatus,
+        })
+      }
+    } catch (error) {
+      console.error("[SESSION LIFECYCLE] Failed to schedule session notification:", error)
     }
   }
 }

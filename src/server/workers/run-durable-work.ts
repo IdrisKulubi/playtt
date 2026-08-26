@@ -19,6 +19,12 @@ import { createScoreUpdatedConsumers } from "@/server/realtime/score-updated-con
 import { createReplayReadyConsumers } from "@/server/replays/replay-ready-consumer"
 import { createMediaDeleteConsumers } from "@/server/media/delete-consumer"
 import { reconcileMediaStorage } from "@/server/media/reconcile"
+import {
+  createAccessConsumers,
+  reconcileAccessLifecycle,
+} from "@/server/access/worker"
+import { createRelayConsumers } from "@/server/access/relay-worker"
+import { createNotificationConsumers } from "@/server/notifications/worker"
 import { getRegisteredOutboxConsumers } from "@/server/workers/consumers.mjs"
 import {
   claimOutboxWork,
@@ -38,15 +44,19 @@ export async function runDurableWorkCycle() {
       ...createScoreUpdatedConsumers(),
       ...createReplayReadyConsumers(),
       ...createMediaDeleteConsumers(),
+      ...createAccessConsumers(),
+      ...createRelayConsumers(),
+      ...createNotificationConsumers(),
     },
     reconcile: async () => {
-      const [sessions, expiredCommands, failedCommands, prunedHeartbeats, media] =
+      const [sessions, expiredCommands, failedCommands, prunedHeartbeats, media, access] =
         await Promise.all([
           reconcilePlaySessionLifecycle(),
           expireStaleDeviceCommands(),
           failExhaustedDeviceCommands(),
           pruneAllDeviceHeartbeatHistory(),
           reconcileMediaStorage(),
+          reconcileAccessLifecycle(),
         ])
 
       return {
@@ -57,6 +67,7 @@ export async function runDurableWorkCycle() {
           prunedHeartbeats,
         },
         media,
+        access,
       }
     },
     outboxRounds: 6,

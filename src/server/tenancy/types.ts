@@ -16,6 +16,9 @@ export type TenantAction =
   | "membership.manage"
   | "catalog.read"
   | "catalog.manage"
+  | "access.read"
+  | "access.manage"
+  | "access.remote_unlock"
   | "analytics.read"
 
 export type TenantActorType = "user" | "device" | "service"

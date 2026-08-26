@@ -11,6 +11,9 @@ export const TENANT_ACTIONS = [
   "membership.manage",
   "catalog.read",
   "catalog.manage",
+  "access.read",
+  "access.manage",
+  "access.remote_unlock",
   "analytics.read",
 ]
 
@@ -22,6 +25,7 @@ const CUSTOMER_ACTIONS = [
   "account.read",
   "account.update",
   "venue.read",
+  "access.read",
 ]
 
 const SUPPORT_ACTIONS = [
@@ -30,6 +34,7 @@ const SUPPORT_ACTIONS = [
   "venue.read",
   "membership.read",
   "catalog.read",
+  "access.read",
 ]
 
 const OPERATOR_ACTIONS = [
@@ -38,6 +43,8 @@ const OPERATOR_ACTIONS = [
   "catalog.read",
   "catalog.manage",
   "venue.manage",
+  "access.manage",
+  "access.remote_unlock",
   "analytics.read",
 ]
 

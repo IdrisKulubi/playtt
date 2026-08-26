@@ -232,6 +232,8 @@ Provision booking-specific TTLock keypad codes across the correct doors at each 
 | P5-07 | RelayProvider | Simulator plus first relay adapter performs configured prepare/warn/end/reset actions independently of TTLock success. |
 | P5-08 | Notifications | Push permission, token registration, access-ready/session reminders, warning/end events, and polling fallback are implemented. |
 
+**Local evidence (software):** `pnpm test:access`, `pnpm certify:phase5`, `/admin/certification` Phase 5 gates. **Hardware exit:** `docs/operations/certification/ttlock-keypad-acceptance.md` and `phase5-two-venue-acceptance.md`.
+
 ### Exit gate
 
 - Every paid booking receives one individual code only after all required venue/resource doors have accepted it.

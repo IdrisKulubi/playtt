@@ -2,22 +2,31 @@ import { AdminCertificationPanel } from "@/components/admin/admin-certification-
 import { AdminShell } from "@/components/admin/admin-shell"
 import { adminShellUser } from "@/components/admin/admin-utils"
 import { requireAdminPageAccess } from "@/server/admin/gate"
-import { getPhase7CertificationReport } from "@/server/operations/certification-service"
+import {
+  getPhase5CertificationReport,
+  getPhase7CertificationReport,
+} from "@/server/operations/certification-service"
 
 export const dynamic = "force-dynamic"
 
 export default async function AdminCertificationPage() {
   const access = await requireAdminPageAccess()
-  const report = await getPhase7CertificationReport(access.context)
+  const [phase5Report, phase7Report] = await Promise.all([
+    getPhase5CertificationReport(access.context),
+    getPhase7CertificationReport(access.context),
+  ])
 
   return (
     <AdminShell
       title="Certification"
-      subtitle="Phase 7 software gates, hardware acceptance, and rollout readiness."
+      subtitle="Phase 5 access rollout and Phase 7 operations readiness."
       backHref="/admin"
       user={adminShellUser(access)}
     >
-      <AdminCertificationPanel report={report} />
+      <div className="space-y-10">
+        <AdminCertificationPanel report={phase5Report} />
+        <AdminCertificationPanel report={phase7Report} />
+      </div>
     </AdminShell>
   )
 }

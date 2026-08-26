@@ -15,6 +15,7 @@ import {
 } from "@phosphor-icons/react"
 
 import { BookingPaymentButton } from "@/components/bookings/booking-payment-button"
+import { BookingAccessCard } from "@/components/bookings/booking-access-card"
 import { BookingCancelHoldButton } from "@/components/bookings/booking-cancel-hold-button"
 import { BookingEditReviewSheet } from "@/components/bookings/booking-edit-review-sheet"
 import {
@@ -57,11 +58,13 @@ type ModificationApplyResult = {
 type BookingDetailViewProps = {
   booking: UserBookingSummary
   openEditOnMount?: boolean
+  liveAccessEnabled?: boolean
 }
 
 export function BookingDetailView({
   booking: initialBooking,
   openEditOnMount = false,
+  liveAccessEnabled = false,
 }: BookingDetailViewProps) {
   const booking = initialBooking
   const router = useRouter()
@@ -248,7 +251,7 @@ export function BookingDetailView({
                 {formatEditWindowLabel(booking)}
               </p>
             </div>
-            {showAccess ? (
+            {showAccess && !liveAccessEnabled ? (
               <div className="rounded-[var(--radius-field)] border border-border bg-card px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                   Access
@@ -298,6 +301,10 @@ export function BookingDetailView({
             ) : null}
           </div>
         </section>
+
+        {!showPayment && liveAccessEnabled ? (
+          <BookingAccessCard bookingId={booking.id} />
+        ) : null}
       </div>
 
       <GroupSizeSheet

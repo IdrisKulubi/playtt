@@ -9,6 +9,10 @@ import { Button } from "@/components/ui/button"
 import { auth } from "../../../../auth"
 import { getBookingForUser } from "@/server/bookings/service"
 import { resolveTenantContextForUserId } from "@/server/tenancy/session-context"
+import {
+  ACCESS_FEATURE_KEYS,
+  isAccessFeatureEnabled,
+} from "@/server/access/feature-policy"
 
 export const dynamic = "force-dynamic"
 
@@ -66,6 +70,10 @@ export default async function BookingDetailPage({
     userId: session.user.id,
     bookingId: id,
   })
+  const liveAccessEnabled = await isAccessFeatureEnabled(
+    context,
+    ACCESS_FEATURE_KEYS.liveAccess,
+  )
 
   if (!booking) {
     notFound()
@@ -80,6 +88,7 @@ export default async function BookingDetailPage({
       <BookingDetailView
         booking={booking}
         openEditOnMount={edit === "players"}
+        liveAccessEnabled={liveAccessEnabled}
       />
     </PlayerShell>
   )

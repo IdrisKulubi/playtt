@@ -14,6 +14,7 @@ import {
   HeartbeatIcon,
   MedalIcon,
   PlugsIcon,
+  DoorOpenIcon,
   QueueIcon,
   ShapesIcon,
   UsersThreeIcon,
@@ -52,6 +53,7 @@ const navigationGroups: NavGroup[] = [
     items: [
       { href: "/admin/venues", label: "Venues", icon: BuildingsIcon },
       { href: "/admin/devices", label: "Devices", icon: CpuIcon },
+      { href: "/admin/access", label: "Venue access", icon: DoorOpenIcon },
       { href: "/admin/vendors", label: "Vendors", icon: PlugsIcon },
     ],
   },

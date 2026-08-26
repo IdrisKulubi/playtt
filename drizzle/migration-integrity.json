@@ -67,6 +67,15 @@
     },
     "0021_replay_requests": {
       "sha256": "cc020d15ecd6526dce46a61e9070af2f5356d7781da0c07948646e40739b69c5"
+    },
+    "0022_phase5_access_grants": {
+      "sha256": "dfd8dc9da4fc583c7282d0fafc0df1f384de900a4d8574df70cd3c40e7806d32"
+    },
+    "0023_phase5_ttlock_inventory": {
+      "sha256": "0a4ccef373372355fe5c2118f894e12ae26ee5735188054bd043266bde66681f"
+    },
+    "0024_phase5_notifications_relays": {
+      "sha256": "7d1b60012ba0b040667ee16aeb22f4bfd3b907f9ce02ade801365370cc3a15e2"
     }
   },
   "acknowledgedMetadataDrift": [],

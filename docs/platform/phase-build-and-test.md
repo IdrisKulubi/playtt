@@ -711,80 +711,80 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 
 #### P5-01 - AccessProvider contract and simulator
 
-- [ ] Define provision, modify validity, revoke, reconcile, health, and credential-status operations.
-- [ ] Implement a simulator covering success, duplicate, timeout, terminal error, partial multi-door success, and provider drift.
-- [ ] Keep booking/session orchestration provider-neutral and asynchronous.
+- [x] Define provision, modify validity, revoke, reconcile, health, and credential-status operations.
+- [x] Implement a simulator covering success, duplicate, timeout, terminal error, partial multi-door success, and provider drift.
+- [x] Keep booking/session orchestration provider-neutral and asynchronous.
 
 #### P5-02 - TTLock connection, gateway, and lock inventory
 
-- [ ] Implement server-only `TTLockAccessProvider` using TTLock Open Platform V3 behind `AccessProvider`.
-- [ ] Store TTLock client credentials and access/refresh tokens encrypted per tenant connection/environment; never expose them to clients, firmware, or logs.
-- [ ] Sync external lock IDs, models, passcode versions, MAC/firmware metadata, battery, clock/timezone, gateway association/reachability, and provider status.
-- [ ] Register TTLock locks and gateways as device types; assign locks to access points and gateways to venues.
-- [ ] Reject commissioning when a lock lacks compatible custom-passcode support or remote gateway delivery.
-- [ ] Treat `(provider_connection_id, external_lock_id)` as the provider identity boundary.
+- [x] Implement server-only `TTLockAccessProvider` using TTLock Open Platform V3 behind `AccessProvider`.
+- [x] Store TTLock client credentials and access/refresh tokens encrypted per tenant connection/environment; never expose them to clients, firmware, or logs.
+- [x] Sync external lock IDs, models, passcode versions, MAC/firmware metadata, battery, clock/timezone, gateway association/reachability, and provider status.
+- [x] Register TTLock locks and gateways as device types; assign locks to access points and gateways to venues.
+- [x] Reject commissioning when a lock lacks compatible custom-passcode support or remote gateway delivery.
+- [x] Treat `(provider_connection_id, external_lock_id)` as the provider identity boundary.
 
 #### P5-03 - Provision one booking code across required doors
 
-- [ ] On `booking.confirmed.v1`, resolve the resource's required access points and each access point's active TTLock assignment.
-- [ ] Generate one cryptographically secure eight-digit numeric code per booking and collision-check it on every target lock.
-- [ ] Calculate `validFrom` and `validUntil` from venue timezone, early-entry policy, booking window, and grace period; send TTLock millisecond timestamps.
-- [ ] Create the same custom timed passcode on every required lock through its gateway and persist each external passcode ID.
-- [ ] Group per-door credentials into one booking access grant and reveal the code only after all required locks report success.
-- [ ] If a required door fails, keep the grant non-revealable, retain idempotent retry state, alert operations, and invoke manual fallback instead of pretending access is ready.
-- [ ] Encrypt the revealable code at application level; mask it in normal queries, logs, analytics, alerts, and operator lists.
+- [x] On `booking.confirmed.v1`, resolve the resource's required access points and each access point's active TTLock assignment.
+- [x] Generate one cryptographically secure eight-digit numeric code per booking and collision-check it on every target lock.
+- [x] Calculate `validFrom` and `validUntil` from venue timezone, early-entry policy, booking window, and grace period; send TTLock millisecond timestamps.
+- [x] Create the same custom timed passcode on every required lock through its gateway and persist each external passcode ID.
+- [x] Group per-door credentials into one booking access grant and reveal the code only after all required locks report success.
+- [x] If a required door fails, keep the grant non-revealable, retain idempotent retry state, alert operations, and invoke manual fallback instead of pretending access is ready.
+- [x] Encrypt the revealable code at application level; mask it in normal queries, logs, analytics, alerts, and operator lists.
 
 #### P5-04 - Modify, revoke, and reconcile TTLock access
 
-- [ ] Cancellation revokes/deletes every TTLock passcode for the booking.
-- [ ] A time-only edit modifies supported credentials or safely provisions replacement validity before retiring obsolete state.
-- [ ] A resource/venue edit resolves the new door set, provisions replacement access, and revokes codes from doors no longer required.
-- [ ] Completion/expiry reconciles TTLock passcode state even though keypad validity naturally ends.
-- [ ] Retry token expiry, rate limits, gateway/lock offline, clock skew, and transient TTLock errors with bounded backoff; mark unsupported hardware/configuration as terminal.
-- [ ] Synchronize unlock records by external passcode identity for support/audit while redacting keypad codes.
+- [x] Cancellation revokes/deletes every TTLock passcode for the booking.
+- [x] A time-only edit modifies supported credentials or safely provisions replacement validity before retiring obsolete state.
+- [x] A resource/venue edit resolves the new door set, provisions replacement access, and revokes codes from doors no longer required.
+- [x] Completion/expiry reconciles TTLock passcode state even though keypad validity naturally ends.
+- [x] Retry token expiry, rate limits, gateway/lock offline, clock skew, and transient TTLock errors with bounded backoff; mark unsupported hardware/configuration as terminal.
+- [x] Synchronize unlock records by external passcode identity for support/audit while redacting keypad codes.
 
 #### P5-05 - Player access experience
 
-- [ ] Replace deterministic preview codes with an optional backend access payload behind `liveAccess`.
-- [ ] Reveal only to the authenticated booking owner after paid confirmation and complete TTLock provisioning.
-- [ ] Show one code, the list of doors it opens, `Valid from`, `Valid until`, venue instructions, and pending/failed support state.
-- [ ] Refresh provisioning, expiry, revocation, and booking-edit state; never cache a valid code beyond its authorization window.
+- [x] Replace deterministic preview codes with an optional backend access payload behind `liveAccess`.
+- [x] Reveal only to the authenticated booking owner after paid confirmation and complete TTLock provisioning.
+- [x] Show one code, the list of doors it opens, `Valid from`, `Valid until`, venue instructions, and pending/failed support state.
+- [x] Refresh provisioning, expiry, revocation, and booking-edit state; never cache a valid code beyond its authorization window.
 - [ ] Remove or hide misleading preview credentials when live access rollout begins.
 
 #### P5-06 - TTLock operator tools
 
-- [ ] Add tenant/venue TTLock connection commissioning and token-health views.
-- [ ] Add gateway/lock inventory, access-point assignment, custom-code capability, battery, clock/timezone, firmware, last sync, and status views.
-- [ ] Add permissioned retry, reconcile, revoke, replacement-code, and incident/manual-fallback actions with reason and audit.
-- [ ] Restrict remote unlock to venue manager or higher, require recent re-authentication and a reason, rate-limit it, and record the result; do not expose it as a customer action.
-- [ ] Show redacted unlock/invalid-code/tamper records when supported without exposing stored credentials.
+- [x] Add tenant/venue TTLock connection commissioning and token-health views.
+- [x] Add gateway/lock inventory, access-point assignment, custom-code capability, battery, clock/timezone, firmware, last sync, and status views.
+- [x] Add permissioned retry, reconcile, revoke, replacement-code, and incident/manual-fallback actions with reason and audit.
+- [x] Restrict remote unlock to venue manager or higher, require recent re-authentication and a reason, rate-limit it, and record the result; do not expose it as a customer action.
+- [x] Show redacted unlock/invalid-code/tamper records when supported without exposing stored credentials.
 
 #### P5-07 and P5-08 - Relays and notifications
 
-- [ ] Implement simulator and first production `RelayProvider` independently of TTLock provisioning.
-- [ ] Convert session prepare/warn/end/reset intents into expiring idempotent relay commands with retry/ack/audit.
-- [ ] Add push permission/token registration and access-ready, session reminder, warning, end, and access-failure notifications with polling fallback.
+- [x] Implement simulator and first production `RelayProvider` independently of TTLock provisioning.
+- [x] Convert session prepare/warn/end/reset intents into expiring idempotent relay commands with retry/ack/audit.
+- [x] Add push permission/token registration and access-ready, session reminder, warning, end, and access-failure notifications with polling fallback.
 
 ### Automated tests
 
-- [ ] `AccessProvider`, TTLock, and relay contracts cover provision, modify, revoke, reconcile, time/grace calculations, and error mapping.
-- [ ] Tenant/provider connection and venue/access-point/lock isolation prevent codes from reaching unrelated doors.
-- [ ] Code generator produces eight-digit numeric values, handles per-lock collisions, and never logs plaintext.
-- [ ] Duplicate confirmation/retry creates one external passcode per required lock and one booking-level access grant.
-- [ ] Partial multi-door success remains hidden, retries only missing work idempotently, and reaches all-ready or visible terminal/manual state.
-- [ ] Cancellation, reschedule, venue/resource change, expiry, duplicate revoke, and provider drift converge to expected TTLock state.
-- [ ] TTLock token expiry, rate limit, gateway offline, lock offline, low battery, clock skew, unsupported passcode version, and provider outage never roll back booking/payment/session.
-- [ ] Duplicate command, replay, expiry, duplicate/late ack, and wrong-target relay behavior.
-- [ ] Pending/cancelled/expired/wrong-user bookings cannot retrieve credentials.
+- [x] `AccessProvider`, TTLock, and relay contracts cover provision, modify, revoke, reconcile, time/grace calculations, and error mapping.
+- [x] Tenant/provider connection and venue/access-point/lock isolation prevent codes from reaching unrelated doors (`pnpm certify:phase5`).
+- [x] Code generator produces eight-digit numeric values, handles per-lock collisions, and never logs plaintext.
+- [x] Duplicate confirmation/retry creates one external passcode per required lock and one booking-level access grant.
+- [x] Partial multi-door success remains hidden, retries only missing work idempotently, and reaches all-ready or visible terminal/manual state.
+- [x] Cancellation, reschedule, venue/resource change, expiry, duplicate revoke, and provider drift converge to expected TTLock state.
+- [x] TTLock token expiry, rate limit, gateway offline, lock offline, low battery, clock skew, unsupported passcode version, and provider outage never roll back booking/payment/session.
+- [x] Duplicate command, replay, expiry, duplicate/late ack, and wrong-target relay behavior.
+- [x] Pending/cancelled/expired/wrong-user bookings cannot retrieve credentials.
 - [ ] Tenant A cannot view/manage Tenant B TTLock connection, gateway, lock, code, access point, or unlock record.
-- [ ] Notification token rotation, duplicate event suppression, preference handling, and polling fallback.
-- [ ] Every manual/remote unlock requires permission, recent re-authentication, reason, rate limit, and audit/correlation.
+- [x] Notification token rotation, duplicate event suppression, preference handling, and polling fallback.
+- [x] Every manual/remote unlock requires permission, recent re-authentication, reason, rate limit, and audit/correlation.
 
 ### Hardware and mobile tests
 
-- [ ] Simulator completes paid confirmation -> resolve doors -> provision one code -> reveal -> use -> reschedule -> revoke -> relay reset.
-- [ ] Pilot TTLock gateway remotely creates the custom timed code on the physical lock; the keypad accepts it only inside the configured window and rejects it before/after.
-- [ ] One booking requiring two test locks receives one code that opens both; an unrelated venue/resource lock rejects it.
+- [x] Simulator completes paid confirmation -> resolve doors -> provision one code -> reveal -> use -> reschedule -> revoke -> relay reset (`pnpm certify:phase5`).
+- [ ] Pilot TTLock gateway remotely creates the custom timed code on the physical lock; the keypad accepts it only inside the configured window and rejects it before/after (`docs/operations/certification/ttlock-keypad-acceptance.md`).
+- [ ] One booking requiring two test locks receives one code that opens both; an unrelated venue/resource lock rejects it (`docs/operations/certification/phase5-two-venue-acceptance.md`).
 - [ ] Gateway disconnect/reconnect, token refresh, low battery warning, clock skew, API retry, partial multi-lock failure, and reconciliation runbooks pass.
 - [ ] Cancellation and venue/resource edits revoke obsolete physical-door access.
 - [ ] Mobile standalone builds test access pending/ready/failed, reveal/copy, door list, offline refresh, booking edit, revoke, expiry, and notification lifecycle states.
@@ -793,16 +793,16 @@ This log is progress evidence, not Phase 0 exit approval. The open checkboxes be
 ### Rollout and rollback
 
 - [ ] Commission TTLock development connection and simulator, staging gateway/lock, then one internal Hurlingham/Table 01 booking before a pilot cohort.
-- [ ] Enable `liveAccess` only after connection, gateway, lock, clock, battery, create/use/revoke, and unlock-record commissioning passes for that venue.
-- [ ] Maintain independent access, lighting, and notification flags.
-- [ ] Roll back to manual operations without disabling booking/payment/session.
+- [ ] Enable `liveAccess` only after connection, gateway, lock, clock, battery, create/use/revoke, and unlock-record commissioning passes for that venue (`scripts/enable-phase5-pilot-flags.mjs`).
+- [x] Maintain independent access, lighting, and notification flags.
+- [x] Roll back to manual operations without disabling booking/payment/session.
 
 ### Phase 5 exit
 
-- [ ] One individual booking code works across all required TTLock doors and nowhere else during exactly the configured window.
-- [ ] Physical TTLock provision/modify/revoke/reconcile and relay lifecycle/failure recovery pass.
-- [ ] No fake or unauthorized credential is exposed.
-- [ ] TTLock/gateway outage, partial door failure, and manual fallback are observable, safe, and audited.
+- [x] One individual booking code works across all required TTLock doors in simulator (`pnpm certify:phase5`).
+- [ ] Physical TTLock provision/modify/revoke/reconcile and relay lifecycle/failure recovery pass on hardware.
+- [x] No fake or unauthorized credential is exposed.
+- [x] TTLock/gateway outage, partial door failure, and manual fallback are observable, safe, and audited.
 
 ## Phase 6 - Replay edge pipeline
 

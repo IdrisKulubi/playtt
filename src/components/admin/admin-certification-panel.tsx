@@ -61,12 +61,15 @@ export function AdminCertificationPanel({
   report: PhaseCertificationReport
 }) {
   const softwareGates = report.gates.filter((gate) => gate.kind === "software")
-  const hardwareGates = report.gates.filter((gate) => gate.kind === "hardware")
+  const hardwareGates = report.gates.filter(
+    (gate) => gate.kind === "hardware" || gate.kind === "process",
+  )
+  const phaseLabel = report.phase === "P5" ? "Phase 5" : "Phase 7"
 
   return (
     <div className="space-y-6">
       <section className="admin-dashboard-card space-y-2">
-        <p className="text-sm text-muted-foreground">Phase 7 certification</p>
+        <p className="text-sm text-muted-foreground">{phaseLabel} certification</p>
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-2xl font-semibold tracking-[-0.03em] capitalize">
             {report.status.replace("_", " ")}
