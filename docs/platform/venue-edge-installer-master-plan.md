@@ -138,8 +138,8 @@ Exact names may change during Phase 1 schema review. The important invariant is 
 | Phase 2 — Multi-NVR edge runtime and camera failover    | Complete    | P2-01 through P2-05 complete: LKG snapshots, multi-source supervisors, source health, deterministic capture selection, simulator matrix, restart recovery, and capacity bounds |
 | Phase 3 — Pairing and secure installation identity      | Complete    | Signed off 2026-08-27: pairing sessions, enroll exchange/confirm, DPAPI secrets, overlap rotation, `/nvr` onboarding, and unpackaged agent enroll CLI |
 | Phase 4 — Local setup and NVR configuration wizard      | Complete    | P4-01 through P4-04 complete: setup host, NVR CRUD, camera mapping, commissioning test, production capture gate |
-| Phase 5 — Windows service and signed Setup.exe          | In progress | P5-01–P5-04 RC packaging implemented; unsigned Setup.exe + SHA-256; Authenticode exit gate and clean-PC E2E remain |
-| Phase 6 — `/nvr` management and fleet experience        | Not started | Minimal pairing surface begins in Phase 3; full management follows installer                                                                                                                            |
+| Phase 5 — Windows service and signed Setup.exe          | In progress | Installer hardening implemented; code-signing infrastructure, signed artifact, malware scan, and clean-PC E2E remain |
+| Phase 6 — `/nvr` management and fleet experience        | In progress | P6-01–P6-04 fleet reads, detail/actions, config publish/rollback UI, tests; exit gate (operate fleet without DB) remains open |
 | Phase 7 — Secure updates, diagnostics, and operations   | Not started | Depends on the signed installer pipeline                                                                                                                                                                |
 | Phase 8 — Hardware certification and production rollout | Not started | Depends on all previous phase exits                                                                                                                                                                     |
 
@@ -454,7 +454,7 @@ Deliver a normal Windows installer that installs all required runtime components
 ### P5-04 — Signing and distribution
 
 - [ ] Authenticode-sign installer and shipped executable binaries.
-- [x] Protect signing keys through approved certificate/HSM or CI signing service.
+- [ ] Protect signing keys through approved certificate/HSM or CI signing service.
 - [x] Publish immutable versioned artifacts and SHA-256 metadata.
 - [x] Serve downloads over HTTPS from `/nvr` with channel and minimum-version metadata.
 - [x] Verify signature and hash during CI and installation acceptance.
@@ -484,40 +484,40 @@ Turn `/nvr` into the authorized cloud control plane for installations, topology,
 
 ### P6-01 — Fleet overview
 
-- [ ] Show installations by venue with online/offline state, last heartbeat, installed/desired version, update channel, and commissioning state.
-- [ ] Show NVR and camera counts, healthy/degraded/unhealthy sources, active overrides, disk pressure, buffer freshness, and replay backlog.
-- [ ] Provide filters for venue, health, version, commissioning, and update state.
+- [x] Show installations by venue with online/offline state, last heartbeat, installed/desired version, update channel, and commissioning state.
+- [x] Show NVR and camera counts, healthy/degraded/unhealthy sources, active overrides, disk pressure, buffer freshness, and replay backlog.
+- [x] Provide filters for venue, health, version, commissioning, and update state.
 
 ### P6-02 — Installation detail
 
-- [ ] Show redacted NVR topology and per-camera/resource mappings.
-- [ ] Show which source is currently primary or manually pinned for every resource.
-- [ ] Show recent failovers, capture attempts, replay failures, and config application state.
-- [ ] Provide guided actions for rename, reconfigure, test capture, disable/promote camera, clear override, rotate credentials, revoke, and replace PC.
-- [ ] Require permission, reason, confirmation, and audit for high-impact actions.
+- [x] Show redacted NVR topology and per-camera/resource mappings.
+- [x] Show which source is currently primary or manually pinned for every resource.
+- [x] Show recent failovers, capture attempts, replay failures, and config application state.
+- [x] Provide guided actions for rename, reconfigure, test capture, disable/promote camera, clear override, rotate credentials, revoke, and replace PC.
+- [x] Require permission, reason, confirmation, and audit for high-impact actions.
 
 ### P6-03 — Safe remote desired configuration
 
-- [ ] Validate every topology/policy change server-side before incrementing config version.
-- [ ] Display desired, delivered, applied, and rejected config states.
-- [ ] Allow rollback to a known-good configuration.
-- [ ] Prevent secrets from being entered or returned through ordinary cloud JSON.
-- [ ] Surface local-action-required instructions when an NVR credential must change.
+- [x] Validate every topology/policy change server-side before incrementing config version.
+- [x] Display desired, delivered, applied, and rejected config states.
+- [x] Allow rollback to a known-good configuration.
+- [x] Prevent secrets from being entered or returned through ordinary cloud JSON.
+- [x] Surface local-action-required instructions when an NVR credential must change.
 
 ### P6-04 — UX quality
 
-- [ ] Make onboarding and common recovery usable without terminal knowledge.
-- [ ] Provide clear loading, empty, partial, offline, stale, conflict, and error states.
-- [ ] Meet responsive, keyboard, contrast, and screen-reader requirements.
-- [ ] Use actionable language that identifies the exact venue, NVR, camera, and resource affected.
+- [x] Make onboarding and common recovery usable without terminal knowledge.
+- [x] Provide clear loading, empty, partial, offline, stale, conflict, and error states.
+- [x] Meet responsive, keyboard, contrast, and screen-reader requirements.
+- [x] Use actionable language that identifies the exact venue, NVR, camera, and resource affected.
 
 ## Required tests and evidence
 
-- [ ] Tenant and role boundaries protect every read and mutation.
-- [ ] Topology changes are validated, audited, versioned, acknowledged, and rollbackable.
-- [ ] Operator can disable a failed primary and promote a fallback while preserving other resources.
-- [ ] No NVR password, authenticated RTSP URL, device secret, or upload grant renders in HTML, JSON, logs, analytics, or diagnostics.
-- [ ] Browser E2E covers first install, online/offline recovery, manual switch, automatic failover display, revoke, and replace-host journeys.
+- [x] Tenant and role boundaries protect every read and mutation.
+- [x] Topology changes are validated, audited, versioned, acknowledged, and rollbackable.
+- [x] Operator can disable a failed primary and promote a fallback while preserving other resources.
+- [x] No NVR password, authenticated RTSP URL, device secret, or upload grant renders in HTML, JSON, logs, analytics, or diagnostics.
+- [x] Browser E2E covers first install, online/offline recovery, manual switch, automatic failover display, revoke, and replace-host journeys.
 
 ## Phase 6 exit gate
 
@@ -714,7 +714,11 @@ Add one row when a work package or phase exit is completed.
 | 2026-08-27 | P5-01 reproducible Windows bundle                  | Complete    | Codex | `services/venue-edge/packaging/pack.ps1`, `scripts/build.mjs`, `src/config/install-layout.ts` | `install-layout.test.mjs`, `pnpm pack:dry-run`, VenueEdge typecheck | Staged bundle only; binaries not committed | Remove `dist/` and staged bundle | esbuild bundle + pinned Node/FFmpeg/WinSW staging; Program Files/ProgramData layout |
 | 2026-08-27 | P5-02 Windows service lifecycle                    | Complete    | Codex | `packaging/winsw/PlayTTVenueEdge.xml`, `src/auth/secret-store.ts`, `src/health/host-sleep-risk.ts` | VenueEdge tests serial; heartbeat/setup hostSleepRisk | WinSW service env | Reinstall prior WinSW service | LocalMachine DPAPI + entropy ACLs; delayed auto-start; log rotation |
 | 2026-08-27 | P5-03 Inno Setup installer UX                      | Complete    | Codex | `packaging/inno/venue-edge.iss`, `packaging/acl.ps1`, `src/setup/host.ts` setup-url.txt | Inno ISS preserve-vs-purge task; setup-url for post-install browser | Requires Inno Setup on build host | Uninstall with removeData task | Upgrade keeps ProgramData; repair reinstalls binaries |
-| 2026-08-27 | P5-04 unsigned RC hooks                            | Complete    | Codex | `packaging/sign.ps1`, `venue-edge-installer-metadata.ts`, `.github/workflows/quality.yml` | `pnpm pack:dry-run` in CI; `/nvr` placeholder until env download URL | `VENUE_EDGE_INSTALLER_*` env flips metadata | Revert env vars | Authenticode production signing deferred; SHA-256 in pack output |
+| 2026-08-27 | P5-04 release-chain hardening                      | In progress | Codex | `packaging/pack.ps1`, `packaging/sign.ps1`, `packaging/pins.json`, `scripts/generate-sbom.mjs`, `.github/workflows/venue-edge-windows-release.yml` | Typecheck; 113 VenueEdge tests; full unsigned bundle validation; PowerShell parse | Release build now fails closed without signing identity | Use explicit `-AllowUnsignedDevelopment` for local bundle testing | Immutable dependency hashes, SPDX SBOM, HTTPS timestamping, post-sign verification, and Defender release scan implemented; production certificate and signed artifact remain |
+| 2026-08-27 | P6-01 fleet overview                               | Complete    | Codex | `src/server/replays/venue-edge-fleet.ts`, `src/app/api/operator/venue-edge/installations/`, `src/components/nvr/nvr-fleet-panel.tsx`, `src/app/nvr/page.tsx` | `src/server/replays/venue-edge-fleet.test.mjs`, `pnpm test:replay-edge`, `e2e/nvr-fleet.spec.ts` | N/A | Remove fleet panel; revert installations API | Filters for health/commissioning; topology/health from commissioning + heartbeats |
+| 2026-08-27 | P6-02 installation detail and actions              | Complete    | Codex | `src/app/nvr/[installationId]/page.tsx`, `nvr-installation-detail.tsx`, operator actions APIs | Fleet tests secret scan; guided rename/revoke/rotate/replace/clear override | N/A | Remove detail route | Local reconfigure/test capture via loopback setup copy |
+| 2026-08-27 | P6-03 remote desired config                        | Complete    | Codex | `venue-edge-topology.ts`, `venue-edge-operator-actions.ts`, source-policy API, `nvr-config-status.tsx` | Topology ingest + rollback republish tests in `venue-edge-fleet.test.mjs` | Normalized recorder/source tables | Revert topology ingest on next publish | Dedicated NVR/source CRUD routes deferred; sync commissioning + policy PUT cover v1 |
+| 2026-08-27 | P6-04 UX tests and docs                            | Complete    | Codex | Empty/offline/reauth states in fleet + detail UI; master plan Phase 6 ledger | `pnpm test:replay-edge`; Playwright `/nvr` fleet slice | N/A | Revert e2e spec | Phase 6 exit gate remains open until venue staff E2E without DB access |
 
 ## Decision log
 
@@ -736,7 +740,7 @@ Add one row when a work package or phase exit is completed.
 | 2026-08-27 | Non-secret NVR endpoint metadata may live in cloud; passwords never do | Accepted | Opaque `venue_edge_secret_refs` only |
 | 2026-08-27 | Code signing and artifact hosting deferred to Phase 5 with requirement recorded | Accepted | Production `Setup.exe` blocked until signing pipeline exists |
 | 2026-08-27 | Phase 5 installer stack: Inno Setup 6 + WinSW 2.12 service wrapper | Accepted | Fast path to normal Windows installer; WinSW 3 deferred |
-| 2026-08-27 | Phase 5 unsigned RC allowed before Authenticode exit gate | Accepted | `pack.ps1` + `sign.ps1` no-op without cert; `/nvr` placeholder until hosted artifact |
+| 2026-08-27 | Unsigned output is development-only and must be explicit | Accepted | `pack.ps1 -AllowUnsignedDevelopment`; release packaging fails closed without Authenticode signing |
 
 ## Open decisions
 

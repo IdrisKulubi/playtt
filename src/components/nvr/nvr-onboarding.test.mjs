@@ -11,6 +11,10 @@ test("nvr onboarding page and installer metadata exist", () => {
     join(repoRoot, "src/components/nvr/nvr-onboarding-panel.tsx"),
     "utf8",
   )
+  const fleetPanel = readFileSync(
+    join(repoRoot, "src/components/nvr/nvr-fleet-panel.tsx"),
+    "utf8",
+  )
   const metadata = readFileSync(
     join(repoRoot, "src/server/replays/venue-edge-installer-metadata.ts"),
     "utf8",
@@ -21,10 +25,14 @@ test("nvr onboarding page and installer metadata exist", () => {
   )
 
   assert.match(page, /NvrOnboardingPanel/)
-  assert.match(page, /listVenueEdgePairingSessions/)
+  assert.match(page, /NvrFleetPanel/)
+  assert.match(page, /listVenueEdgeInstallations/)
+  assert.match(page, /VenueEdge management/)
   assert.match(panel, /pairing-sessions/)
   assert.match(panel, /setInterval/)
   assert.match(panel, /pairingCode/)
+  assert.match(fleetPanel, /installations/)
+  assert.match(fleetPanel, /Refresh/)
   assert.doesNotMatch(panel, /deviceId|credentialVersion/)
   assert.match(metadata, /placeholder: true/)
   assert.match(sidebar, /\/nvr/)

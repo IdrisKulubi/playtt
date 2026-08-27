@@ -55,6 +55,7 @@ Name: "{#MyDataRoot}\commissioning"; Permissions: admins-full system-full
 Name: "{#MyDataRoot}\nvrs"; Permissions: admins-full system-full
 
 [Run]
+Filename: "{#MyInstallRoot}\PlayTTVenueEdge.exe"; Parameters: "uninstall"; StatusMsg: "Preparing the VenueEdge service upgrade..."; Flags: runhidden waituntilterminated; Check: ServiceExists
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{#MyInstallRoot}\install-acl.ps1"" -ProgramFilesRoot ""{#MyInstallRoot}"" -ProgramDataRoot ""{#MyDataRoot}"""; StatusMsg: "Applying security permissions..."; Flags: runhidden waituntilterminated
 Filename: "{#MyInstallRoot}\PlayTTVenueEdge.exe"; Parameters: "install"; StatusMsg: "Installing VenueEdge service..."; Flags: runhidden waituntilterminated
 Filename: "{#MyInstallRoot}\PlayTTVenueEdge.exe"; Parameters: "start"; StatusMsg: "Starting VenueEdge service..."; Flags: runhidden waituntilterminated
@@ -68,7 +69,34 @@ Filename: "{#MyInstallRoot}\PlayTTVenueEdge.exe"; Parameters: "uninstall"; Flags
 Type: filesandordirs; Name: "{#MyDataRoot}"; Tasks: removeData
 
 [Code]
+function ServiceExists(): Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := Exec(ExpandConstant('{sys}\sc.exe'), 'query PlayTTVenueEdge', '', SW_HIDE,
+    ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  Result := '';
+  if ServiceExists() then begin
+    if not Exec(ExpandConstant('{#MyInstallRoot}\PlayTTVenueEdge.exe'), 'stop', '', SW_HIDE,
+      ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
+      Result := 'The existing VenueEdge service could not be stopped. Close any management tools and retry.';
+  end;
+end;
+
 function InitializeUninstall(): Boolean;
 begin
-  Result := True;
+  Result := MsgBox(
+    'Uninstall PlayTT VenueEdge Agent?' + #13#10 + #13#10 +
+    'Venue data and pairing are preserved unless the destructive remove-data option was selected during installation.',
+    mbConfirmation, MB_YESNO) = IDYES;
+  if Result and WizardIsTaskSelected('removeData') then
+    Result := MsgBox(
+      'WARNING: Local VenueEdge configuration, pairing secrets, buffered clips, and logs will be permanently deleted. Continue?',
+      mbError, MB_YESNO) = IDYES;
 end;

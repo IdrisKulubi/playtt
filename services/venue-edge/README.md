@@ -83,7 +83,7 @@ On a Windows build host with Inno Setup 6:
 .\packaging\pack.ps1
 ```
 
-This stages Node + FFmpeg + WinSW, writes `SHA256SUMS`, and compiles `PlayTTVenueEdge-Setup-<version>.exe` when `ISCC.exe` is available. Authenticode signing runs only when `VENUE_EDGE_SIGNING_CERT` is set (`packaging/sign.ps1` no-ops otherwise).
+This stages SHA-256-pinned Node, FFmpeg, and WinSW binaries, generates an SPDX SBOM and `SHA256SUMS`, signs and verifies every shipped executable, and compiles `PlayTTVenueEdge-Setup-<version>.exe`. Release packaging fails unless `VENUE_EDGE_SIGNING_CERT` identifies an installed code-signing certificate and `signtool.exe` is available. For local bundle testing only, use `-AllowUnsignedDevelopment -SkipSetupExe`; unsigned output is explicitly marked as development output.
 
 **Uninstall:** Program Files are removed by default. Local pairing, NVR passwords, and topology in ProgramData are **preserved** unless the uninstaller “Remove local data” task is selected.
 

@@ -7,17 +7,17 @@
   <workingdirectory>%BASE%</workingdirectory>
   <startmode>Automatic</startmode>
   <delayedAutoStart>true</delayedAutoStart>
+  <serviceaccount>
+    <domain>NT AUTHORITY</domain>
+    <user>LocalService</user>
+    <allowservicelogon>false</allowservicelogon>
+  </serviceaccount>
   <onfailure action="restart" delay="10 sec"/>
   <onfailure action="restart" delay="20 sec"/>
   <onfailure action="restart" delay="30 sec"/>
   <resetfailure>1 hour</resetfailure>
   <log mode="roll-by-size">
     <pattern>%ProgramData%\PlayTT\VenueEdge\logs\venue-edge.log</pattern>
-    <sizeThreshold>10485760</sizeThreshold>
-    <keepFiles>8</keepFiles>
-  </log>
-  <log mode="roll-by-size">
-    <pattern>%ProgramData%\PlayTT\VenueEdge\logs\venue-edge-error.log</pattern>
     <sizeThreshold>10485760</sizeThreshold>
     <keepFiles>8</keepFiles>
   </log>

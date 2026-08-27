@@ -1,0 +1,103 @@
+name: VenueEdge Windows release candidate
+
+"on":
+  workflow_dispatch:
+    inputs:
+      source_date_epoch:
+        description: Reproducible build timestamp as Unix seconds
+        required: true
+        default: "0"
+
+permissions:
+  contents: read
+
+jobs:
+  signed-installer:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      SOURCE_DATE_EPOCH: ${{ inputs.source_date_epoch }}
+      VENUE_EDGE_SIGNING_PFX_BASE64: ${{ secrets.VENUE_EDGE_SIGNING_PFX_BASE64 }}
+      VENUE_EDGE_SIGNING_PFX_PASSWORD: ${{ secrets.VENUE_EDGE_SIGNING_PFX_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.17.1
+          run_install: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22.18.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Require signing secrets
+        shell: pwsh
+        run: |
+          if (-not $env:VENUE_EDGE_SIGNING_PFX_BASE64 -or -not $env:VENUE_EDGE_SIGNING_PFX_PASSWORD) {
+            throw "VenueEdge code-signing secrets are not configured"
+          }
+
+      - name: Install dependencies and Inno Setup
+        shell: pwsh
+        run: |
+          pnpm install --frozen-lockfile
+          choco install innosetup --no-progress --yes
+
+      - name: Import ephemeral signing certificate
+        shell: pwsh
+        run: |
+          $pfxPath = Join-Path $env:RUNNER_TEMP "venue-edge-signing.pfx"
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:VENUE_EDGE_SIGNING_PFX_BASE64))
+          $password = ConvertTo-SecureString $env:VENUE_EDGE_SIGNING_PFX_PASSWORD -AsPlainText -Force
+          $certificate = Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          $signTool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+            Where-Object FullName -Match '\\x64\\' | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signTool) { throw "signtool.exe was not found in the Windows SDK" }
+          "VENUE_EDGE_SIGNING_CERT=$($certificate.Thumbprint)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "SIGNTOOL_PATH=$($signTool.FullName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          Remove-Item -LiteralPath $pfxPath -Force
+
+      - name: Build signed installer
+        shell: pwsh
+        working-directory: services/venue-edge
+        run: ./packaging/pack.ps1
+
+      - name: Verify hashes and Authenticode signatures
+        shell: pwsh
+        working-directory: services/venue-edge
+        run: |
+          $bundle = Resolve-Path dist/windows-bundle/staging/PlayTTVenueEdge
+          Get-Content (Join-Path $bundle "SHA256SUMS") | ForEach-Object {
+            $parts = $_ -split '\s+', 2
+            $path = Join-Path $bundle ($parts[1].Replace('/', '\'))
+            if ((Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLowerInvariant() -ne $parts[0]) {
+              throw "Hash verification failed for $path"
+            }
+          }
+          Get-ChildItem $bundle -Recurse -Filter *.exe | ForEach-Object {
+            if ((Get-AuthenticodeSignature $_.FullName).Status -ne 'Valid') { throw "Invalid signature: $($_.FullName)" }
+          }
+          $setups = @(Get-ChildItem dist/windows-bundle/artifacts -Filter *-Setup-*.exe -File)
+          if ($setups.Count -ne 1) { throw "Expected exactly one Setup.exe, found $($setups.Count)" }
+          $setup = $setups[0]
+          if ((Get-AuthenticodeSignature $setup.FullName).Status -ne 'Valid') { throw "Invalid installer signature" }
+
+      - name: Scan installer bundle with Microsoft Defender
+        shell: pwsh
+        working-directory: services/venue-edge
+        run: |
+          $defender = Join-Path $env:ProgramFiles 'Windows Defender\MpCmdRun.exe'
+          if (-not (Test-Path $defender)) { throw "Microsoft Defender command-line scanner is unavailable" }
+          & $defender -Scan -ScanType 3 -File (Resolve-Path dist/windows-bundle)
+          if ($LASTEXITCODE -ne 0) { throw "Microsoft Defender scan failed with exit code $LASTEXITCODE" }
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: venue-edge-signed-windows-rc
+          path: services/venue-edge/dist/windows-bundle/artifacts/
+          if-no-files-found: error
+          retention-days: 14
