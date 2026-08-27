@@ -79,6 +79,15 @@
     },
     "0025_phase1_venue_edge_sources": {
       "sha256": "7ff4b9c42151b8aab6e169afbc596bc15b882fb80010c5fcadda5a8e5bac52f4"
+    },
+    "0026_venue_edge_pairing_sessions": {
+      "sha256": "c7045de67d0bfe02beaa6b6bfc9b38da14aed4064b0a783e8e6df860197347a7"
+    },
+    "0027_venue_edge_pairing_consumed_device": {
+      "sha256": "f9c4b2fdfbadfcbcfe2766b6bd6081a693fcda29d3623f8ad0a8da735e554dbe"
+    },
+    "0028_device_credential_retiring": {
+      "sha256": "c8f6836cb0462b650c9207765f601bfe54e6074b5a836c13de735c9a590d09b9"
     }
   },
   "acknowledgedMetadataDrift": [],

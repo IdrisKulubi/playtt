@@ -11,11 +11,13 @@ export interface VenueEdgeEnv {
   heartbeatIntervalMs: number
   commandPollIntervalMs: number
   credentialsPath: string
+  installationPath: string
+  secretBlobPath: string
+  secretStoreMode: string
   sqlitePath: string
   bootId: string
   firmwareVersion: string
   maxConcurrentReplays: number
-  encryptCredentials: boolean
   maxBufferProcesses: number
   perSourceBufferDiskBytes: number
   reservedFreeDiskBytes: number
@@ -90,6 +92,18 @@ export function loadEnv(overrides: Partial<VenueEdgeEnv> = {}): VenueEdgeEnv {
       overrides.credentialsPath ??
       process.env.VENUE_EDGE_CREDENTIALS_PATH ??
       `${dataDir}/credentials.json`,
+    installationPath:
+      overrides.installationPath ??
+      process.env.VENUE_EDGE_INSTALLATION_PATH ??
+      `${dataDir}/installation.json`,
+    secretBlobPath:
+      overrides.secretBlobPath ??
+      process.env.VENUE_EDGE_SECRET_BLOB_PATH ??
+      `${dataDir}/credentials.dpapi`,
+    secretStoreMode:
+      overrides.secretStoreMode ??
+      process.env.VENUE_EDGE_SECRET_STORE ??
+      "",
     sqlitePath:
       overrides.sqlitePath ??
       process.env.VENUE_EDGE_SQLITE_PATH ??
@@ -104,9 +118,6 @@ export function loadEnv(overrides: Partial<VenueEdgeEnv> = {}): VenueEdgeEnv {
         process.env.VENUE_EDGE_MAX_CONCURRENT ??
         3
     ),
-    encryptCredentials:
-      overrides.encryptCredentials ??
-      process.env.VENUE_EDGE_ENCRYPT_CREDENTIALS === "true",
     maxBufferProcesses: Number(
       overrides.maxBufferProcesses ??
         process.env.VENUE_EDGE_MAX_BUFFER_PROCESSES ??

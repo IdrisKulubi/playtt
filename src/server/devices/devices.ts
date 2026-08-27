@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 
-import { and, asc, desc, eq, gt, isNull, lt, lte, or } from "drizzle-orm"
+import { and, asc, desc, eq, gt, inArray, isNull, lt, lte, or } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import {
@@ -387,18 +387,21 @@ export async function authenticateDeviceCredential(input: {
     throw new DeviceError("DEVICE_REVOKED", "Device has been revoked.", 403)
   }
 
-  const [credential] = await db
+  const credentials = await db
     .select()
     .from(deviceCredentials)
     .where(
       and(
         eq(deviceCredentials.deviceId, input.deviceId),
-        eq(deviceCredentials.status, "active")
+        inArray(deviceCredentials.status, ["active", "retiring"])
       )
     )
-    .limit(1)
 
-  if (!credential || !verifyDeviceSecret(input.secret, credential.secretHash)) {
+  const credential = credentials.find((row) =>
+    verifyDeviceSecret(input.secret, row.secretHash)
+  )
+
+  if (!credential) {
     throw new DeviceError(
       "DEVICE_UNAUTHENTICATED",
       "Device credentials are invalid.",
@@ -415,7 +418,11 @@ export async function authenticateDeviceCredential(input: {
 export async function rotateDeviceCredential(input: {
   deviceId: string
   tenantId: string
-}): Promise<{ secret: string; credentialVersion: number }> {
+}): Promise<{
+  secret: string
+  credentialVersion: number
+  previousVersion: number
+}> {
   const secret = generateDeviceSecret()
   const secretHash = hashDeviceSecret(secret)
 
@@ -446,8 +453,7 @@ export async function rotateDeviceCredential(input: {
     await tx
       .update(deviceCredentials)
       .set({
-        status: "rotated",
-        rotatedAt: now,
+        status: "retiring",
         updatedAt: now,
       })
       .where(eq(deviceCredentials.id, active.id))
@@ -460,10 +466,154 @@ export async function rotateDeviceCredential(input: {
       status: "active",
     })
 
-    return nextVersion
+    return {
+      nextVersion,
+      previousVersion: active.version,
+    }
   })
 
-  return { secret, credentialVersion: rotated }
+  return {
+    secret,
+    credentialVersion: rotated.nextVersion,
+    previousVersion: rotated.previousVersion,
+  }
+}
+
+export async function acknowledgeDeviceCredentialRotation(input: {
+  deviceId: string
+  tenantId: string
+  credentialVersion: number
+}): Promise<{ credentialVersion: number; previousVersion: number | null }> {
+  const now = new Date()
+
+  return await db.transaction(async (tx) => {
+    const [active] = await tx
+      .select()
+      .from(deviceCredentials)
+      .where(
+        and(
+          eq(deviceCredentials.deviceId, input.deviceId),
+          eq(deviceCredentials.tenantId, input.tenantId),
+          eq(deviceCredentials.status, "active"),
+          eq(deviceCredentials.version, input.credentialVersion)
+        )
+      )
+      .limit(1)
+
+    if (!active) {
+      throw new DeviceError(
+        "DEVICE_NOT_FOUND",
+        "Active rotated credential was not found.",
+        404
+      )
+    }
+
+    const [retiring] = await tx
+      .select()
+      .from(deviceCredentials)
+      .where(
+        and(
+          eq(deviceCredentials.deviceId, input.deviceId),
+          eq(deviceCredentials.tenantId, input.tenantId),
+          eq(deviceCredentials.status, "retiring")
+        )
+      )
+      .limit(1)
+
+    if (!retiring) {
+      return {
+        credentialVersion: active.version,
+        previousVersion: null,
+      }
+    }
+
+    await tx
+      .update(deviceCredentials)
+      .set({
+        status: "rotated",
+        rotatedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(deviceCredentials.id, retiring.id))
+
+    return {
+      credentialVersion: active.version,
+      previousVersion: retiring.version,
+    }
+  })
+}
+
+export async function rollbackDeviceCredentialRotation(input: {
+  deviceId: string
+  tenantId: string
+  credentialVersion: number
+}): Promise<{ credentialVersion: number; rolledBackVersion: number }> {
+  const now = new Date()
+
+  return await db.transaction(async (tx) => {
+    const [retiring] = await tx
+      .select()
+      .from(deviceCredentials)
+      .where(
+        and(
+          eq(deviceCredentials.deviceId, input.deviceId),
+          eq(deviceCredentials.tenantId, input.tenantId),
+          eq(deviceCredentials.status, "retiring"),
+          eq(deviceCredentials.version, input.credentialVersion)
+        )
+      )
+      .limit(1)
+
+    if (!retiring) {
+      throw new DeviceError(
+        "DEVICE_NOT_FOUND",
+        "Retiring credential was not found for rollback.",
+        404
+      )
+    }
+
+    const [active] = await tx
+      .select()
+      .from(deviceCredentials)
+      .where(
+        and(
+          eq(deviceCredentials.deviceId, input.deviceId),
+          eq(deviceCredentials.tenantId, input.tenantId),
+          eq(deviceCredentials.status, "active")
+        )
+      )
+      .limit(1)
+
+    if (!active) {
+      throw new DeviceError(
+        "DEVICE_NOT_FOUND",
+        "Active credential was not found for rollback.",
+        404
+      )
+    }
+
+    await tx
+      .update(deviceCredentials)
+      .set({
+        status: "revoked",
+        revokedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(deviceCredentials.id, active.id))
+
+    await tx
+      .update(deviceCredentials)
+      .set({
+        status: "active",
+        updatedAt: now,
+      })
+      .where(eq(deviceCredentials.id, retiring.id))
+
+    return {
+      credentialVersion: retiring.version,
+      rolledBackVersion: active.version,
+    }
+  })
 }
 
 export async function revokeDevice(

@@ -1,7 +1,8 @@
 import { mkdir } from "node:fs/promises"
 import { pathToFileURL } from "node:url"
 
-import { loadCredentials } from "./auth/credentials"
+import { CredentialManager } from "./auth/credential-manager"
+import { isDeviceRevokedCloudError } from "./auth/cloud-errors"
 import { SourceSupervisorRegistry } from "./buffers/registry"
 import { listBufferingSourceIds } from "./cameras/registry"
 import { CommandProcessor } from "./commands/processor"
@@ -73,9 +74,28 @@ export async function startVenueEdge(
   const database = initDatabase(env.sqlitePath)
   const repositories = new EdgeRepositories(database.db)
 
-  const credentials = await loadCredentials(env.credentialsPath, {
-    encrypt: env.encryptCredentials,
+  const credentialManager = CredentialManager.fromEnv({
+    dataDir: env.dataDir,
+    mode: env.mode,
+    secretStoreMode: env.secretStoreMode,
+    installationPath: env.installationPath,
+    secretBlobPath: env.secretBlobPath,
   })
+
+  await credentialManager.deleteLegacyPlaintextFile(env.credentialsPath)
+
+  let credentials = null
+  try {
+    credentials = await credentialManager.loadCredentials()
+  } catch (error) {
+    if (env.mode === "production") {
+      throw error
+    }
+
+    safeLog("warn", "Protected credential store unavailable", {
+      message: error instanceof Error ? error.message : String(error),
+    })
+  }
 
   const client = new EdgeV1Client({
     baseUrl: env.cloudBaseUrl,
@@ -136,41 +156,62 @@ export async function startVenueEdge(
   )
 
   const refreshConfig = async (): Promise<void> => {
-    const v2Result = await configManager.refreshFromCloud({
-      activate: async (config, sourcePlan) => {
-        if (!shouldRunRollingBuffer(env.mode)) {
-          return
-        }
+    try {
+      const v2Result = await configManager.refreshFromCloud({
+        activate: async (config, sourcePlan) => {
+          if (!shouldRunRollingBuffer(env.mode)) {
+            return
+          }
 
-        if (!config) {
-          await bufferRegistry.stopAll()
-          return
-        }
+          if (!config) {
+            await bufferRegistry.stopAll()
+            return
+          }
 
+          await bufferRegistry.reconcile({
+            edgeConfig,
+            edgeConfigV2: config,
+            sourcePlan,
+          })
+        },
+      })
+
+      if (!getEdgeConfigV2()) {
+        try {
+          edgeConfig = await client.getConfig()
+        } catch (error) {
+          if (isDeviceRevokedCloudError(error)) {
+            await handleDeviceRevoked()
+            return
+          }
+
+          safeLog("warn", "Failed to load edge v1 config fallback", {
+            message: error instanceof Error ? error.message : String(error),
+          })
+        }
+      }
+
+      if (shouldRunRollingBuffer(env.mode) && !v2Result.applied) {
         await bufferRegistry.reconcile({
           edgeConfig,
-          edgeConfigV2: config,
-          sourcePlan,
-        })
-      },
-    })
-
-    if (!getEdgeConfigV2()) {
-      try {
-        edgeConfig = await client.getConfig()
-      } catch (error) {
-        safeLog("warn", "Failed to load edge v1 config fallback", {
-          message: error instanceof Error ? error.message : String(error),
+          edgeConfigV2: getEdgeConfigV2(),
+          sourcePlan: v2Result.sourcePlan,
         })
       }
+    } catch (error) {
+      if (isDeviceRevokedCloudError(error)) {
+        await handleDeviceRevoked()
+      }
     }
+  }
 
-    if (shouldRunRollingBuffer(env.mode) && !v2Result.applied) {
-      await bufferRegistry.reconcile({
-        edgeConfig,
-        edgeConfigV2: getEdgeConfigV2(),
-        sourcePlan: v2Result.sourcePlan,
-      })
+  let heartbeat: HeartbeatLoop | null = null
+
+  const handleDeviceRevoked = async (): Promise<void> => {
+    safeLog("warn", "Wiping local credentials after cloud revocation")
+    await credentialManager.wipeAfterRevoke()
+    if (heartbeat) {
+      heartbeat.stop()
     }
   }
 
@@ -223,7 +264,7 @@ export async function startVenueEdge(
   })
 
   const startedAt = Date.now()
-  const heartbeat = new HeartbeatLoop({
+  const heartbeatLoop = new HeartbeatLoop({
     env,
     client,
     processor,
@@ -236,9 +277,16 @@ export async function startVenueEdge(
       ),
     getCapacityMetrics: () => orchestrator.getCapacityMetrics(),
     startedAt,
+    onDeviceRevoked: handleDeviceRevoked,
   })
 
-  heartbeat.start()
+  heartbeat = heartbeatLoop
+
+  if (credentials?.deviceId && credentials.secret) {
+    heartbeatLoop.start()
+  } else {
+    safeLog("warn", "VenueEdge started without enrolled device credentials")
+  }
 
   const configRefreshTimer = setInterval(() => {
     void refreshConfig()
@@ -246,7 +294,7 @@ export async function startVenueEdge(
 
   return {
     async stop() {
-      heartbeat.stop()
+      heartbeatLoop.stop()
       clearInterval(configRefreshTimer)
       await bufferRegistry.stopAll()
       database.close()
