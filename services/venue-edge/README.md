@@ -24,7 +24,13 @@ pnpm simulate
 # Production-style start (requires credentials + cloud)
 VENUE_EDGE_CLOUD_BASE_URL=http://localhost:3000 \
 VENUE_EDGE_DATA_DIR=.venue-edge-data \
+VENUE_EDGE_SECRET_STORE=memory \
 pnpm start
+
+# Pair from a /nvr pairing code (stores secret in DPAPI, or memory in tests)
+VENUE_EDGE_CLOUD_BASE_URL=http://localhost:3000 \
+VENUE_EDGE_SECRET_STORE=memory \
+pnpm enroll -- ABCD-EFGHJK
 ```
 
 ## Environment
@@ -40,6 +46,7 @@ pnpm start
 | `VENUE_EDGE_INSTALLATION_PATH` | `{dataDir}/installation.json` | Non-secret installation metadata |
 | `VENUE_EDGE_SECRET_BLOB_PATH` | `{dataDir}/credentials.dpapi` | DPAPI-protected device secret blob |
 | `VENUE_EDGE_SECRET_STORE` | unset | `memory` for explicit test runs; production uses DPAPI |
+| `VENUE_EDGE_PAIRING_CODE` | — | One-time `/nvr` pairing code for first-boot enrollment |
 | `VENUE_EDGE_MAX_CONCURRENT` | `3` | Bounded replay concurrency (Stage 6) |
 | `VENUE_EDGE_MAX_BUFFER_PROCESSES` | `8` | Maximum concurrent FFmpeg rolling buffers |
 | `VENUE_EDGE_MAX_CPU_PERCENT` | `85` | Windows system CPU admission ceiling for new buffers |

@@ -136,7 +136,7 @@ Exact names may change during Phase 1 schema review. The important invariant is 
 | ------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Phase 1 — Architecture, contracts, and data foundation  | Complete    | Signed off 2026-08-27: schema `0025`, config v2, rollout flags, transactional audit, backfill tooling, disposable rehearsal. P1-04 dispatch and P1-06 production cutover deferred to Phase 2 / staging ops |
 | Phase 2 — Multi-NVR edge runtime and camera failover    | Complete    | P2-01 through P2-05 complete: LKG snapshots, multi-source supervisors, source health, deterministic capture selection, simulator matrix, restart recovery, and capacity bounds |
-| Phase 3 — Pairing and secure installation identity      | In progress | P3-01–P3-04 complete: pairing exchange, DPAPI secrets, overlap rotation, and `/nvr` onboarding UI; exit gate pending full agent E2E |
+| Phase 3 — Pairing and secure installation identity      | Complete    | Signed off 2026-08-27: pairing sessions, enroll exchange/confirm, DPAPI secrets, overlap rotation, `/nvr` onboarding, and unpackaged agent enroll CLI |
 | Phase 4 — Local setup and NVR configuration wizard      | Not started | Depends on Phases 2 and 3                                                                                                                                                                               |
 | Phase 5 — Windows service and signed Setup.exe          | Not started | Depends on a stable local runtime and setup flow                                                                                                                                                        |
 | Phase 6 — `/nvr` management and fleet experience        | Not started | Minimal pairing surface begins in Phase 3; full management follows installer                                                                                                                            |
@@ -359,7 +359,7 @@ Allow a generic VenueEdge installation to bind securely to one authorized PlayTT
 
 ## Phase 3 exit gate
 
-- [ ] A fresh unpackaged agent pairs with a venue through `/nvr`, stores credentials securely, and appears online without manual credential files.
+- [x] A fresh unpackaged agent pairs with a venue through `/nvr`, stores credentials securely, and appears online without manual credential files.
 
 ---
 
@@ -705,6 +705,7 @@ Add one row when a work package or phase exit is completed.
 | 2026-08-27 | P3-02 installer enrollment exchange                | Complete    | Codex | `db/schema.ts`, `drizzle/0027_venue_edge_pairing_consumed_device.sql`, `src/server/replays/venue-edge-enrollment.ts`, `src/app/api/edge/v1/enroll/exchange/`, `src/app/api/edge/v1/enroll/confirm/` | `src/server/replays/venue-edge-pairing-sessions.test.mjs`, `pnpm test:db`, `pnpm test:replay-edge` | `drizzle/0027_venue_edge_pairing_consumed_device.sql` | Revoke enrolled devices; drop `consumed_device_id` column if rolling back migration | DPAPI, `/nvr` UI, and agent credential client deferred to P3-03/P3-04 |
 | 2026-08-27 | P3-03 local device-secret protection               | Complete    | Codex | `services/venue-edge/src/auth/secret-store.ts`, `credential-manager.ts`, `credential-rotation.ts`, `drizzle/0028_device_credential_retiring.sql`, `src/app/api/device/v1/credentials/acknowledge/`, `rollback/` | `services/venue-edge/test/secret-store.test.mjs`, `src/server/devices/devices.test.mjs`, `pnpm test`, `pnpm test:db`, `pnpm test:replay-edge` | `drizzle/0028_device_credential_retiring.sql` | Revert overlap rotation routes; restore single-active credential semantics | `/nvr` UI and Phase 3 exit gate deferred to P3-04 |
 | 2026-08-27 | P3-04 minimal /nvr onboarding surface              | Complete    | Codex | `src/app/nvr/page.tsx`, `src/components/nvr/nvr-onboarding-panel.tsx`, `src/server/replays/venue-edge-installer-metadata.ts` | `src/components/nvr/nvr-onboarding.test.mjs`, `pnpm test:replay-edge` | N/A | Remove `/nvr` route and sidebar link | Phase 3 exit gate deferred until full agent E2E through `/nvr` |
+| 2026-08-27 | Phase 3 exit gate: unpackaged agent enroll         | Complete    | Codex | `services/venue-edge/src/enrollment/enroll.ts`, `services/venue-edge/src/index.ts`, `src/app/nvr/page.tsx` | `services/venue-edge/test/enrollment.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge` | N/A | Delete enrolled `installation.json` / DPAPI blob; reissue pairing code | Agent enrolls via `/nvr` code, DPAPI persist, heartbeat, confirm; no plaintext credential files |
 
 ## Decision log
 

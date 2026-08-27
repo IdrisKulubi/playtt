@@ -72,7 +72,14 @@ export class CredentialManager {
       secret: stored.secret,
       credentialVersion:
         stored.credentialVersion ?? metadata.credentialVersion ?? undefined,
+      ...(metadata.installationUid
+        ? { installationUid: metadata.installationUid }
+        : {}),
     }
+  }
+
+  async loadInstallationMetadata(): Promise<InstallationMetadata | null> {
+    return this.readInstallationMetadata()
   }
 
   async persistCredentials(credentials: DeviceCredentials): Promise<void> {
@@ -82,9 +89,14 @@ export class CredentialManager {
       )
     }
 
+    const current = await this.readInstallationMetadata()
+
     await this.writeInstallationMetadata({
       deviceId: credentials.deviceId,
       credentialVersion: credentials.credentialVersion,
+      installationUid:
+        credentials.installationUid ?? current?.installationUid,
+      revokedAt: undefined,
     })
 
     await this.secretStore.set({

@@ -19,6 +19,7 @@ export interface HeartbeatLoopDeps {
     maxConcurrentReplays: number
   }
   onDeviceRevoked?: () => Promise<void>
+  onHeartbeatOk?: () => Promise<void>
   startedAt: number
 }
 
@@ -97,6 +98,10 @@ export class HeartbeatLoop {
         health: response.health,
         pendingCommandCount: response.pendingCommandCount,
       })
+
+      if (this.deps.onHeartbeatOk) {
+        await this.deps.onHeartbeatOk()
+      }
 
       if (response.pendingCommandCount > 0) {
         await this.deps.processor.pollAndProcess()
