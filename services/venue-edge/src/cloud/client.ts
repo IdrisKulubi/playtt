@@ -30,6 +30,7 @@ export interface CaptureReplayPayload {
   postRollSeconds: number
   sourceType: "edge_buffer" | "nvr_playback"
   resourceId: string
+  configRevisionId: string
   playSessionId: string
   uploadGrant: UploadGrant
 }

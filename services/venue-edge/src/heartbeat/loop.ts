@@ -1,15 +1,17 @@
-import type { EdgeV1Client, EdgeConfig } from "../cloud/client"
+import type { EdgeV1Client } from "../cloud/client"
 import type { VenueEdgeEnv } from "../config/env"
 import { createMetricsSnapshot, safeLog } from "../health/metrics"
 import type { CommandProcessor } from "../commands/processor"
-import type { RollingBufferSupervisor } from "../buffers/rolling-buffer"
+import type { SourceSupervisorRegistry } from "../buffers/registry"
+import type { SourceHealthEngine } from "../health/engine"
 
 export interface HeartbeatLoopDeps {
   env: VenueEdgeEnv
   client: EdgeV1Client
   processor: CommandProcessor
-  rollingBuffer?: RollingBufferSupervisor | null
-  getEdgeConfig: () => EdgeConfig | null
+  bufferRegistry?: SourceSupervisorRegistry | null
+  healthEngine?: SourceHealthEngine | null
+  getAppliedConfigVersion?: () => number | undefined
   getCapacityMetrics?: () => {
     activeReplayJobs: number
     replayQueueDepth: number
@@ -52,14 +54,20 @@ export class HeartbeatLoop {
   }
 
   private async tick(): Promise<void> {
-    const edgeConfig = this.deps.getEdgeConfig()
+    if (this.deps.healthEngine) {
+      await this.deps.healthEngine.tick()
+    }
+
     const capacity = this.deps.getCapacityMetrics?.() ?? {
       activeReplayJobs: 0,
       replayQueueDepth: 0,
       maxConcurrentReplays: this.deps.env.maxConcurrentReplays,
     }
+    const registry = this.deps.bufferRegistry
     const metrics = createMetricsSnapshot({
-      ffmpegRunning: this.deps.rollingBuffer?.isRunning() ?? false,
+      ffmpegRunning: registry?.isAnyRunning() ?? false,
+      bufferingSourceCount: registry?.getBufferingSourceCount() ?? 0,
+      ffmpegProcessCount: registry?.getRunningCount() ?? 0,
       bufferAgeSeconds: null,
       uploadQueueDepth: capacity.replayQueueDepth,
       activeReplayJobs: capacity.activeReplayJobs,
@@ -71,8 +79,12 @@ export class HeartbeatLoop {
         bootId: this.deps.env.bootId,
         firmwareVersion: this.deps.env.firmwareVersion,
         uptimeMs: Date.now() - this.deps.startedAt,
-        appliedConfigVersion: edgeConfig?.configVersion,
-        metrics: metrics as unknown as Record<string, unknown>,
+        appliedConfigVersion: this.deps.getAppliedConfigVersion?.(),
+        metrics: {
+          ...(metrics as unknown as Record<string, unknown>),
+          sourceHealth:
+            this.deps.healthEngine?.getHeartbeatHealthSnapshot() ?? [],
+        },
       })
 
       safeLog("info", "Heartbeat ok", {

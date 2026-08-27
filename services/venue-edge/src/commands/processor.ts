@@ -1,5 +1,6 @@
 import type { EdgeCommand, EdgeConfig, EdgeV1Client } from "../cloud/client"
-import { commandMatchesEdgeAssignment } from "../cameras/source"
+import type { EdgeConfigV2 } from "../cloud/config-v2"
+import { commandMatchesActiveConfig } from "../cameras/source"
 import { safeLog } from "../health/metrics"
 import type { EdgeRepositories } from "../local-storage/repositories"
 import type { ReplayOrchestrator } from "../replay/orchestrator"
@@ -10,6 +11,7 @@ export class CommandProcessor {
     private readonly repositories: EdgeRepositories,
     private readonly orchestrator: ReplayOrchestrator,
     private readonly getEdgeConfig: () => EdgeConfig | null,
+    private readonly getEdgeConfigV2: () => EdgeConfigV2 | null
   ) {}
 
   async pollAndProcess(): Promise<number> {
@@ -54,9 +56,12 @@ export class CommandProcessor {
     }
 
     const edgeConfig = this.getEdgeConfig()
-    const validation = commandMatchesEdgeAssignment(
+    const edgeConfigV2 = this.getEdgeConfigV2()
+    const validation = commandMatchesActiveConfig(
       edgeConfig,
+      edgeConfigV2,
       command.payload.resourceId,
+      command.payload.configRevisionId
     )
 
     if (!validation.accepted) {

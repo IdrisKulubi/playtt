@@ -135,7 +135,7 @@ Exact names may change during Phase 1 schema review. The important invariant is 
 | Phase                                                   | Status      | Current position                                                                                                                                                                                        |
 | ------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Phase 1 — Architecture, contracts, and data foundation  | Complete    | Signed off 2026-08-27: schema `0025`, config v2, rollout flags, transactional audit, backfill tooling, disposable rehearsal. P1-04 dispatch and P1-06 production cutover deferred to Phase 2 / staging ops |
-| Phase 2 — Multi-NVR edge runtime and camera failover    | Not started | Depends on Phase 1 contracts (foundation complete)                                                                                                                                                        |
+| Phase 2 — Multi-NVR edge runtime and camera failover    | Complete    | P2-01 through P2-05 complete: LKG snapshots, multi-source supervisors, source health, deterministic capture selection, simulator matrix, restart recovery, and capacity bounds |
 | Phase 3 — Pairing and secure installation identity      | Not started | Depends on Phase 1 installation model                                                                                                                                                                   |
 | Phase 4 — Local setup and NVR configuration wizard      | Not started | Depends on Phases 2 and 3                                                                                                                                                                               |
 | Phase 5 — Windows service and signed Setup.exe          | Not started | Depends on a stable local runtime and setup flow                                                                                                                                                        |
@@ -246,61 +246,67 @@ Teach the VenueEdge service to apply a venue-wide config, manage multiple NVRs a
 
 ### P2-01 — Versioned local configuration
 
-- [ ] Persist the last-known-good v2 config and applied version in local SQLite.
-- [ ] Validate a new snapshot completely before activation.
-- [ ] Apply config atomically and retain the prior snapshot for rollback.
-- [ ] Hot-add, update, disable, and remove sources without restarting unrelated buffers.
-- [ ] Continue safe operation from the last-known-good config during cloud outages.
+- [x] Persist the last-known-good v2 config and applied version in local SQLite.
+- [x] Validate a new snapshot completely before activation.
+- [x] Apply config atomically and retain the prior snapshot for rollback.
+- [x] Hot-add, update, disable, and remove sources without restarting unrelated buffers.
+- [x] Continue safe operation from the last-known-good config during cloud outages.
 
 ### P2-02 — Multi-source runtime
 
-- [ ] Replace the singular camera resolver with a registry keyed by camera source ID and resource ID.
-- [ ] Run one bounded rolling-buffer supervisor per enabled source selected for buffering.
-- [ ] Add CPU, memory, disk, network, and FFmpeg concurrency budgets.
-- [ ] Isolate buffer paths, jobs, logs, and health by source ID.
-- [ ] Restart only the failed or reconfigured source supervisor.
+- [x] Replace the singular camera resolver with a registry keyed by camera source ID and resource ID.
+- [x] Run one bounded rolling-buffer supervisor per enabled source selected for buffering.
+- [x] Add CPU, memory, disk, network, and FFmpeg concurrency budgets.
+- [x] Isolate buffer paths, jobs, logs, and health by source ID.
+- [x] Restart only the failed or reconfigured source supervisor.
 
 ### P2-03 — Source health engine
 
-- [ ] Track NVR reachability and authentication separately from channel/stream health.
-- [ ] Track codec compatibility, buffer freshness, clock skew, recent probe, extraction, and upload results.
-- [ ] Define `healthy`, `degraded`, `unhealthy`, `disabled`, and `unknown` states with reason codes.
-- [ ] Add failure thresholds, cooldown, recovery threshold, and optional failback policy.
-- [ ] Ensure one NVR outage marks its cameras appropriately without affecting cameras on other NVRs.
+- [x] Track NVR reachability and authentication separately from channel/stream health.
+- [x] Track codec compatibility, buffer freshness, clock skew, recent probe, extraction, and upload results.
+- [x] Define `healthy`, `degraded`, `unhealthy`, `disabled`, and `unknown` states with reason codes.
+- [x] Add failure thresholds, cooldown, recovery threshold, and optional failback policy.
+- [x] Ensure one NVR outage marks its cameras appropriately without affecting cameras on other NVRs.
 
 ### P2-04 — Deterministic source selection and failover
 
-- [ ] Implement manual pinned-source behavior.
-- [ ] Implement automatic highest-priority healthy-source selection.
-- [ ] Reject sources that are disabled, unhealthy beyond policy, not mapped to the resource, or from a stale config.
-- [ ] Attempt rolling buffer before NVR playback according to the configured policy.
-- [ ] Fail over across NVRs only through explicitly ordered candidates.
-- [ ] Persist every source attempt and final selection locally and report it to the cloud.
-- [ ] Prevent automatic failback from interrupting an in-progress replay.
+- [x] Implement manual pinned-source behavior.
+- [x] Implement automatic highest-priority healthy-source selection.
+- [x] Reject sources that are disabled, unhealthy beyond policy, not mapped to the resource, or from a stale config.
+- [x] Attempt rolling buffer before NVR playback according to the configured policy.
+- [x] Fail over across NVRs only through explicitly ordered candidates.
+- [x] Persist every source attempt and final selection locally and report it to the cloud.
+- [x] Prevent automatic failback from interrupting an in-progress replay.
 
 ### P2-05 — Simulator and recovery
 
-- [ ] Extend fixtures to simulate multiple NVRs, channels, codecs, clock offsets, and independent failure modes.
-- [ ] Recover active buffers and unfinished replay jobs after process restart.
-- [ ] Bound queues and disk use under repeated source failure.
-- [ ] Preserve command idempotency and immutable replay/media/object identities through failover.
+- [x] Extend fixtures to simulate multiple NVRs, channels, codecs, clock offsets, and independent failure modes.
+- [x] Recover active buffers and unfinished replay jobs after process restart.
+- [x] Bound queues and disk use under repeated source failure.
+- [x] Preserve command idempotency and immutable replay/media/object identities through failover.
 
 ## Required tests and evidence
 
-- [ ] Primary source succeeds and no fallback is attempted.
-- [ ] Failed primary uses the configured secondary on the same NVR.
-- [ ] Failed NVR uses an approved camera on another NVR.
-- [ ] Disabled camera is never selected.
-- [ ] Manual pin prevents automatic switching until cleared or expired.
-- [ ] No healthy approved camera yields `no_healthy_source` with the attempt trail.
-- [ ] One table's camera failure does not affect another table.
-- [ ] Restart, config rollback, disk pressure, and cloud outage recovery pass.
-- [ ] Ten-resource capacity and isolation tests produce no source or media cross-talk.
+- [x] Primary source succeeds and no fallback is attempted.
+- [x] Failed primary uses the configured secondary on the same NVR.
+- [x] Failed NVR uses an approved camera on another NVR.
+- [x] Disabled camera is never selected.
+- [x] Manual pin prevents automatic switching until cleared or expired.
+- [x] No healthy approved camera yields `no_healthy_source` with the attempt trail.
+- [x] One table's camera failure does not affect another table.
+- [x] Restart, config rollback, disk pressure, and cloud outage recovery pass.
+- [x] Ten-resource capacity and isolation tests produce no source or media cross-talk.
 
 ## Phase 2 exit gate
 
-- [ ] Multi-NVR selection and failover pass in the deterministic simulator.
-- [ ] Local recovery and capacity behavior are measured and documented.
+- [x] Multi-NVR selection and failover pass in the deterministic simulator.
+- [x] Local recovery and capacity behavior are measured and documented.
+- [x] Production multi-source RTSP resolution uses a distinct local mapping per source and fails closed when missing.
+- [x] Replay commands bind to the device-applied config revision and stale commands/config downgrades are rejected.
+- [x] Runtime activation failure rolls back before the cloud receives an applied acknowledgement.
+- [x] Replay outcomes update the actually selected source, including fallback sources.
+- [x] In-progress replay recovery retains its immutable config snapshot across later config changes.
+- [x] Recorder connection edits restart only affected sources; CPU and network admission budgets are enforced.
 
 ---
 
@@ -689,6 +695,12 @@ Add one row when a work package or phase exit is completed.
 | 2026-08-27 | P1 publication, acknowledgement, and backfill tooling | Complete    | Codex | `src/server/replays/edge-config-v2-publication.ts`, `src/app/api/edge/v2/config/applications/route.ts`, `scripts/backfill-venue-edge-topology.mjs` | Canonical checksum, version compatibility, transaction/idempotency, redaction, consumer, and backfill tests          | Dry-run by default; apply is explicitly confirmed | v1 assignments and endpoint remain untouched              | Included in close-out rehearsal evidence |
 | 2026-08-27 | P1 close-out: rollout flags, audit, rehearsal         | Complete    | Codex | `src/server/replays/feature-policy.ts`, `src/server/tenancy/audit-log-write.ts`, `scripts/integration/venue-edge-phase1-rehearsal.test.mjs`        | `pnpm test:db`, `pnpm test:db:venue-edge-rehearsal`, `feature-scope.test.mjs`, `venue-edge-phase1-closeout.test.mjs` | Disposable PostgreSQL only; app `POSTGRES_URL` not mutated | Disable `venue_edge_config_v2`; v1 assignments and `/api/edge/v1/*` unchanged | Rollback rehearsed via flag off/on with topology retained |
 | 2026-08-27 | Phase 1 exit gate sign-off                            | Complete    | Owner | `docs/platform/venue-edge-installer-master-plan.md`                                                                                                 | `pnpm test:db`, `pnpm test:db:venue-edge-rehearsal`, `pnpm test:replay-edge`, `pnpm test:venue-edge`                 | `drizzle/0025_phase1_venue_edge_sources.sql`      | Disable `venue_edge_config_v2` for rollback                     | Phase 1 marked Complete; P1-04/P1-06 cutover deferred to Phase 2 |
+| 2026-08-27 | P2-01 versioned local configuration                   | Complete    | Codex | `services/venue-edge/src/config/apply-v2.ts`, `source-plan.ts`, `reconcile-buffer.ts`, `state/sqlite.ts`, `local-storage/repositories.ts`         | `services/venue-edge/test/config-apply-v2.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`       | Local SQLite only; no cloud migration             | Roll back to `previous` slot via `rollbackToPrevious()`       | Single-buffer reconcile defers multi-source starts until P2-02 |
+| 2026-08-27 | P2-02 multi-source runtime                          | Complete    | Codex | `services/venue-edge/src/cameras/registry.ts`, `buffers/registry.ts`, `config/budgets.ts`, `buffers/rolling-buffer.ts`                            | `services/venue-edge/test/multi-source-runtime.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`  | Local runtime only                                | Stop supervisors via registry; reduce `maxBufferProcesses`    | Health-aware selection deferred to P2-03/P2-04 |
+| 2026-08-27 | P2-03 source health engine                          | Complete    | Codex | `services/venue-edge/src/health/engine.ts`, `state-machine.ts`, `types.ts`, `state/sqlite.ts`, `local-storage/repositories.ts`, `heartbeat/loop.ts` | `services/venue-edge/test/source-health.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`         | Local SQLite + heartbeat metrics only             | Clear `edge_source_health` table; disable health tick         | Failover selection and cloud `replay_source_health` upserts deferred to P2-04 |
+| 2026-08-27 | P2-04 deterministic source selection              | Complete    | Codex | `services/venue-edge/src/selection/select-source.ts`, `replay/orchestrator.ts`, `state/sqlite.ts`, `local-storage/repositories.ts`, `cameras/registry.ts` | `services/venue-edge/test/source-selection.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`      | Local SQLite + command ack extras only            | Clear `edge_capture_attempts`; unlock jobs by clearing lock columns | Postgres `replay_capture_attempts` ingest deferred to P1-04 |
+| 2026-08-27 | P2-05 simulator and recovery                      | Complete    | Codex | `services/venue-edge/src/simulator/scenario.ts`, `recovery/reindex-buffers.ts`, `local-storage/prune.ts`, `health/engine.ts`, `replay/orchestrator.ts`, `fixtures/edge-v2-simulator-matrix.json`, `fixtures/edge-v2-ten-resource.json` | `services/venue-edge/test/simulator-recovery.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`    | Local SQLite + simulate fixtures only             | Roll back config slot; prune pending workspaces; reindex buffers from disk | Postgres `replay_capture_attempts` ingest deferred to P1-04 |
+| 2026-08-27 | Phase 2 production-path remediation audit          | Complete    | Codex | `services/venue-edge/src/cameras/registry.ts`, `config/apply-v2.ts`, `config/budgets.ts`, `health/engine.ts`, `replay/orchestrator.ts`, `src/server/replays/capture-replay-command.ts` | VenueEdge suite, typecheck, and `test:replay-edge`; production RTSP, stale revision, activation rollback, selected-source health, config-change recovery, recorder restart, and network budget regressions | Local SQLite replay snapshot columns only | Revert remediation files; edge rejects revision-bound commands until cloud and edge are rolled back together | Phase 2 re-audited after initial simulator-only gaps were found and corrected |
 
 ## Decision log
 

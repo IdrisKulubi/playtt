@@ -106,9 +106,14 @@ Reuses Phase 3 device enrollment, hashed credentials, heartbeat, expiring comman
   "sourceType": "edge_buffer",
   "resourceId": "uuid",
   "playSessionId": "uuid",
+  "configRevisionId": "uuid",
   "uploadGrant": { "url": "...", "expiresAt": "..." }
 }
 ```
+
+`configRevisionId` is copied from the replay request's immutable published and
+device-applied VenueEdge configuration revision. Retries preserve the same value; the edge
+rejects a command when it does not match an available authorized revision.
 
 Camera/NVR credentials remain on the venue PC in OS-protected storage. Cloud
 config contains only an opaque local lookup key; credentials and authenticated

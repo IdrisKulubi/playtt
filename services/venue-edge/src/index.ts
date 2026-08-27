@@ -2,21 +2,53 @@ import { mkdir } from "node:fs/promises"
 import { pathToFileURL } from "node:url"
 
 import { loadCredentials } from "./auth/credentials"
-import { resolveCameraSource } from "./cameras/source"
-import { RollingBufferSupervisor } from "./buffers/rolling-buffer"
+import { SourceSupervisorRegistry } from "./buffers/registry"
+import { listBufferingSourceIds } from "./cameras/registry"
 import { CommandProcessor } from "./commands/processor"
 import { EdgeV1Client, type EdgeConfig } from "./cloud/client"
-import { loadEnv } from "./config/env"
+import { EdgeConfigV2Manager } from "./config/apply-v2"
+import { loadEnv, type VenueEdgeMode } from "./config/env"
+import { SourceHealthEngine } from "./health/engine"
 import { HeartbeatLoop } from "./heartbeat/loop"
 import { createLocalStoragePaths } from "./local-storage/paths"
 import { EdgeRepositories } from "./local-storage/repositories"
 import { ReplayOrchestrator } from "./replay/orchestrator"
+import { reindexBufferSegmentsFromDisk } from "./recovery/reindex-buffers"
 import { resumeUnfinishedJobs } from "./recovery/resume"
+import {
+  clockOffsetSecondsForSource,
+  type SimulatorScenario,
+} from "./simulator/scenario"
+import { loadSimulatorScenario } from "./simulator/load-scenario"
 import { initDatabase } from "./state/sqlite"
 import { safeLog } from "./health/metrics"
 
 export interface VenueEdgeRuntime {
   stop(): Promise<void>
+}
+
+function resolveStartupResourceId(
+  edgeConfigV2: import("./cloud/config-v2").EdgeConfigV2 | null,
+  edgeConfig: EdgeConfig | null
+): string | null {
+  if (edgeConfigV2) {
+    return (
+      edgeConfigV2.resources.find((entry) => entry.enabled)?.resourceId ?? null
+    )
+  }
+
+  return edgeConfig?.resourceId ?? null
+}
+
+function resolveAppliedConfigVersion(
+  appliedV2Version: number | undefined,
+  edgeConfig: EdgeConfig | null
+): number | undefined {
+  return appliedV2Version ?? edgeConfig?.configVersion
+}
+
+function shouldRunRollingBuffer(mode: VenueEdgeMode): boolean {
+  return mode === "buffer" || mode === "simulate"
 }
 
 export async function startVenueEdge(
@@ -53,20 +85,103 @@ export async function startVenueEdge(
   })
 
   let edgeConfig: EdgeConfig | null = null
+  const configManager = new EdgeConfigV2Manager(
+    repositories,
+    client,
+    env.bootId
+  )
 
-  const refreshConfig = async (): Promise<EdgeConfig | null> => {
-    try {
-      edgeConfig = await client.getConfig()
-      return edgeConfig
-    } catch (error) {
-      safeLog("warn", "Failed to load edge config", {
-        message: error instanceof Error ? error.message : String(error),
+  const getEdgeConfigV2 = () => configManager.getState().edgeConfigV2
+
+  configManager.loadLastKnownGoodFromDisk()
+
+  let simulatorScenario: SimulatorScenario | null = null
+
+  if (env.mode === "simulate") {
+    simulatorScenario = await loadSimulatorScenario(env.dataDir)
+  }
+
+  const getSimulatorScenario = () => simulatorScenario
+
+  const healthEngine = new SourceHealthEngine(
+    repositories,
+    getEdgeConfigV2,
+    undefined,
+    getSimulatorScenario
+  )
+  healthEngine.syncDisabledFromConfig()
+
+  const edgeConfigV2OnBoot = getEdgeConfigV2()
+
+  if (edgeConfigV2OnBoot && shouldRunRollingBuffer(env.mode)) {
+    await reindexBufferSegmentsFromDisk({
+      repositories,
+      paths,
+      sourceIds: listBufferingSourceIds(edgeConfigV2OnBoot),
+    })
+  }
+
+  const bufferRegistry = new SourceSupervisorRegistry(
+    env,
+    paths,
+    repositories,
+    (sourceId) => {
+      healthEngine.recordSourceObservation(sourceId, {
+        kind: "soft_failure",
+        reasonCode: "ffmpeg_exited",
+        observedAt: new Date().toISOString(),
       })
-      return edgeConfig
+    },
+    (sourceId) => clockOffsetSecondsForSource(simulatorScenario, sourceId)
+  )
+
+  const refreshConfig = async (): Promise<void> => {
+    const v2Result = await configManager.refreshFromCloud({
+      activate: async (config, sourcePlan) => {
+        if (!shouldRunRollingBuffer(env.mode)) {
+          return
+        }
+
+        if (!config) {
+          await bufferRegistry.stopAll()
+          return
+        }
+
+        await bufferRegistry.reconcile({
+          edgeConfig,
+          edgeConfigV2: config,
+          sourcePlan,
+        })
+      },
+    })
+
+    if (!getEdgeConfigV2()) {
+      try {
+        edgeConfig = await client.getConfig()
+      } catch (error) {
+        safeLog("warn", "Failed to load edge v1 config fallback", {
+          message: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+
+    if (shouldRunRollingBuffer(env.mode) && !v2Result.applied) {
+      await bufferRegistry.reconcile({
+        edgeConfig,
+        edgeConfigV2: getEdgeConfigV2(),
+        sourcePlan: v2Result.sourcePlan,
+      })
     }
   }
 
   await refreshConfig()
+
+  if (
+    shouldRunRollingBuffer(env.mode) &&
+    bufferRegistry.getBufferingSourceCount() === 0
+  ) {
+    await bufferRegistry.ensureAllBuffering(edgeConfig, getEdgeConfigV2())
+  }
 
   const orchestrator = new ReplayOrchestrator({
     env,
@@ -74,41 +189,37 @@ export async function startVenueEdge(
     repositories,
     paths,
     getEdgeConfig: () => edgeConfig,
+    getEdgeConfigV2,
+    healthEngine,
+    getSimulatorScenario,
   })
 
   const processor = new CommandProcessor(
     client,
     repositories,
     orchestrator,
-    () => edgeConfig
+    () => edgeConfig,
+    getEdgeConfigV2
   )
-
-  const camera = resolveCameraSource(env, edgeConfig)
-  const rollingBuffer =
-    env.mode === "buffer"
-      ? new RollingBufferSupervisor(camera, paths, repositories, {
-          simulate: false,
-        })
-      : env.mode === "simulate"
-        ? new RollingBufferSupervisor(camera, paths, repositories, {
-            simulate: true,
-          })
-        : null
-
-  if (rollingBuffer) {
-    await rollingBuffer.start()
-  }
 
   const resumed = await resumeUnfinishedJobs({
     repositories,
     orchestrator,
   })
 
+  const edgeConfigV2State = getEdgeConfigV2()
+  const resourceId = resolveStartupResourceId(edgeConfigV2State, edgeConfig)
+
   safeLog("info", "VenueEdge started", {
     mode: env.mode,
     bootId: env.bootId,
     resumedJobs: resumed,
-    resourceId: (edgeConfig as EdgeConfig | null)?.resourceId ?? null,
+    resourceId,
+    bufferingSourceCount: bufferRegistry.getBufferingSourceCount(),
+    configVersion: resolveAppliedConfigVersion(
+      configManager.getState().appliedConfigVersion,
+      edgeConfig
+    ),
   })
 
   const startedAt = Date.now()
@@ -116,8 +227,13 @@ export async function startVenueEdge(
     env,
     client,
     processor,
-    rollingBuffer,
-    getEdgeConfig: () => edgeConfig,
+    bufferRegistry,
+    healthEngine,
+    getAppliedConfigVersion: () =>
+      resolveAppliedConfigVersion(
+        configManager.getState().appliedConfigVersion,
+        edgeConfig
+      ),
     getCapacityMetrics: () => orchestrator.getCapacityMetrics(),
     startedAt,
   })
@@ -132,7 +248,7 @@ export async function startVenueEdge(
     async stop() {
       heartbeat.stop()
       clearInterval(configRefreshTimer)
-      await rollingBuffer?.stop()
+      await bufferRegistry.stopAll()
       database.close()
     },
   }

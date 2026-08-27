@@ -23,6 +23,7 @@ import {
 } from "@/server/replays/constants"
 import { ReplayServiceError } from "@/server/replays/errors"
 import { isReplayEdgeEnabledForTenant } from "@/server/replays/feature-policy"
+import { buildCaptureReplayCommandPayload } from "@/server/replays/capture-replay-command"
 import {
   getActivePlaySessionForReplayRequest,
   getActivePlaySessionOwnerForResource,
@@ -31,6 +32,7 @@ import {
   getReplayCreditBalance,
   getReplayRequestById,
   getReplayRequestByIdempotencyKey,
+  getAppliedConfigRevisionIdForDevice,
   bumpReplayRequestAttempts,
   insertReplayRequest,
   listReplayRequestsForLocation,
@@ -53,7 +55,7 @@ type DbExecutor = Parameters<Parameters<typeof db.transaction>[0]>[0]
 async function buildExistingReplayRequestResult(
   context: TenantContext,
   userId: string,
-  existing: ReplayRequestRecord,
+  existing: ReplayRequestRecord
 ) {
   const remainingCredits = await getReplayCreditBalance(context, userId)
 
@@ -69,7 +71,7 @@ async function buildExistingReplayRequestResult(
 
 async function assertReplayEdgePrerequisites(
   context: TenantContext,
-  scope?: { locationId?: string; resourceId?: string },
+  scope?: { locationId?: string; resourceId?: string }
 ) {
   const [replayEdgeEnabled, privateMediaEnabled] = await Promise.all([
     isReplayEdgeEnabledForTenant(context, scope ?? {}),
@@ -80,7 +82,7 @@ async function assertReplayEdgePrerequisites(
     throw new ReplayServiceError(
       "REPLAY_EDGE_DISABLED",
       "Venue-edge replay capture is not enabled for this tenant.",
-      503,
+      503
     )
   }
 
@@ -88,7 +90,7 @@ async function assertReplayEdgePrerequisites(
     throw new ReplayServiceError(
       "PRIVATE_MEDIA_DISABLED",
       "Private media is required for venue-edge replay capture.",
-      503,
+      503
     )
   }
 }
@@ -100,7 +102,7 @@ async function insertCaptureReplayCommand(
     correlationId: string
     payload: Record<string, unknown>
   },
-  tx: DbExecutor,
+  tx: DbExecutor
 ) {
   const expiresAt = new Date(Date.now() + DEFAULT_COMMAND_TTL_SECONDS * 1000)
 
@@ -138,7 +140,7 @@ export async function createReplayRequest(input: {
     throw new ReplayServiceError(
       "SESSION_NOT_ACTIVE",
       "Replay capture is only available during an active owned session with replay capability.",
-      409,
+      409
     )
   }
 
@@ -157,20 +159,20 @@ export async function createReplayRequest(input: {
     return buildExistingReplayRequestResult(
       input.context,
       input.userId,
-      existing,
+      existing
     )
   }
 
   const venueEdge = await resolveVenueEdgeForResource(
     input.context,
-    session.resourceId,
+    session.resourceId
   )
 
   if (!venueEdge) {
     throw new ReplayServiceError(
       "VENUE_EDGE_UNAVAILABLE",
       "No venue edge device is assigned to this resource.",
-      503,
+      503
     )
   }
 
@@ -201,7 +203,7 @@ export async function createReplayRequest(input: {
     throw new ReplayServiceError(
       "MEDIA_STORE_UNAVAILABLE",
       "Media storage is temporarily unavailable.",
-      503,
+      503
     )
   }
 
@@ -213,14 +215,14 @@ export async function createReplayRequest(input: {
         playSessionId: input.playSessionId,
         clientIdempotencyKey: input.clientIdempotencyKey,
       },
-      tx,
+      tx
     )
 
     if (duplicate) {
       return buildExistingReplayRequestResult(
         input.context,
         input.userId,
-        duplicate,
+        duplicate
       )
     }
 
@@ -230,8 +232,8 @@ export async function createReplayRequest(input: {
       .where(
         and(
           eq(devices.tenantId, input.context.tenantId),
-          eq(devices.id, venueEdge.deviceId),
-        ),
+          eq(devices.id, venueEdge.deviceId)
+        )
       )
       .limit(1)
 
@@ -239,7 +241,22 @@ export async function createReplayRequest(input: {
       throw new ReplayServiceError(
         "VENUE_EDGE_UNAVAILABLE",
         "Venue edge device is not available.",
-        503,
+        503
+      )
+    }
+
+    const configRevisionId = await getAppliedConfigRevisionIdForDevice(
+      input.context,
+      session.locationId,
+      venueEdge.deviceId,
+      tx
+    )
+
+    if (!configRevisionId) {
+      throw new ReplayServiceError(
+        "EDGE_CONFIG_NOT_READY",
+        "VenueEdge configuration has not been published for this venue.",
+        503
       )
     }
 
@@ -258,8 +275,8 @@ export async function createReplayRequest(input: {
       .where(
         and(
           eq(replayCreditBalances.tenantId, input.context.tenantId),
-          eq(replayCreditBalances.userId, input.userId),
-        ),
+          eq(replayCreditBalances.userId, input.userId)
+        )
       )
       .for("update")
       .limit(1)
@@ -270,7 +287,7 @@ export async function createReplayRequest(input: {
       throw new ReplayServiceError(
         "NO_CREDITS",
         "You need clip credits to capture a highlight. Buy a clip pack in the app.",
-        402,
+        402
       )
     }
 
@@ -288,7 +305,7 @@ export async function createReplayRequest(input: {
         expectedMaxBytes: mediaPolicy.expectedMaxBytes,
         retentionClass: "replay_standard",
       },
-      tx,
+      tx
     )
 
     const [replay] = await tx
@@ -323,8 +340,8 @@ export async function createReplayRequest(input: {
       .where(
         and(
           eq(replayCreditBalances.tenantId, input.context.tenantId),
-          eq(replayCreditBalances.userId, input.userId),
-        ),
+          eq(replayCreditBalances.userId, input.userId)
+        )
       )
 
     const replayRequest = await insertReplayRequest(
@@ -340,6 +357,7 @@ export async function createReplayRequest(input: {
         venueEdgeDeviceId: venueEdge.deviceId,
         cameraDeviceId: venueEdge.cameraDeviceId,
         assignmentId: venueEdge.assignmentId,
+        configRevisionId,
         sourceType: "edge_buffer",
         captureAt,
         preRollSeconds: REPLAY_PRE_ROLL_SECONDS,
@@ -348,7 +366,7 @@ export async function createReplayRequest(input: {
         correlationId,
         clientIdempotencyKey: input.clientIdempotencyKey,
       },
-      tx,
+      tx
     )
 
     const command = await insertCaptureReplayCommand(
@@ -356,7 +374,7 @@ export async function createReplayRequest(input: {
         tenantId: session.tenantId,
         deviceId: venueEdge.deviceId,
         correlationId,
-        payload: {
+        payload: buildCaptureReplayCommandPayload({
           replayRequestId: replayRequest.id,
           replayId: replay.id,
           mediaAssetId: mediaId,
@@ -367,10 +385,11 @@ export async function createReplayRequest(input: {
           sourceType: "edge_buffer",
           resourceId: session.resourceId,
           playSessionId: session.id,
+          configRevisionId,
           uploadGrant,
-        },
+        }),
       },
-      tx,
+      tx
     )
 
     const dispatched = await transitionReplayRequestStatus(
@@ -380,7 +399,7 @@ export async function createReplayRequest(input: {
         toStatus: "dispatched",
         deviceCommandId: command.id,
       },
-      tx,
+      tx
     )
 
     return {
@@ -424,18 +443,18 @@ export async function getKioskReplayStatus(resourceId: string) {
 
   const sessionOwner = await getActivePlaySessionOwnerForResource(
     context,
-    resourceId,
+    resourceId
   )
   const remainingCredits = sessionOwner
     ? await getReplayCreditBalance(context, sessionOwner.ownerUserId)
     : null
   const inFlight = await getInFlightReplayRequestForSession(
     context,
-    snapshot.playSession.id,
+    snapshot.playSession.id
   )
   const latest = await getLatestReplayRequestForSession(
     context,
-    snapshot.playSession.id,
+    snapshot.playSession.id
   )
 
   return {
@@ -470,7 +489,7 @@ export async function createKioskReplayRequest(input: {
     throw new ReplayServiceError(
       "RESOURCE_NOT_FOUND",
       "We could not find that resource.",
-      404,
+      404
     )
   }
 
@@ -482,27 +501,27 @@ export async function createKioskReplayRequest(input: {
 
   const sessionOwner = await getActivePlaySessionOwnerForResource(
     context,
-    input.resourceId,
+    input.resourceId
   )
 
   if (!sessionOwner) {
     throw new ReplayServiceError(
       "SESSION_NOT_ACTIVE",
       "Replay capture is only available during an active booking with replay capability.",
-      409,
+      409
     )
   }
 
   const inFlight = await getInFlightReplayRequestForSession(
     context,
-    sessionOwner.playSessionId,
+    sessionOwner.playSessionId
   )
 
   if (inFlight) {
     throw new ReplayServiceError(
       "REPLAY_IN_FLIGHT",
       "A replay capture is already in progress for this table.",
-      429,
+      429
     )
   }
 
@@ -528,20 +547,19 @@ export async function updateReplayRequestProgressFromEdge(input: {
     correlationId: createCorrelationId(),
   }
 
-  const { getReplayRequestById } = await import(
-    "@/server/replays/replay-requests-repository"
-  )
+  const { getReplayRequestById } =
+    await import("@/server/replays/replay-requests-repository")
 
   const replayRequest = await getReplayRequestById(
     context,
-    input.replayRequestId,
+    input.replayRequestId
   )
 
   if (!replayRequest) {
     throw new ReplayServiceError(
       "REPLAY_REQUEST_NOT_FOUND",
       "Replay request was not found.",
-      404,
+      404
     )
   }
 
@@ -549,7 +567,7 @@ export async function updateReplayRequestProgressFromEdge(input: {
     throw new ReplayServiceError(
       "REPLAY_REQUEST_FORBIDDEN",
       "This replay request is not assigned to the authenticated device.",
-      403,
+      403
     )
   }
 
@@ -562,7 +580,7 @@ export async function updateReplayRequestProgressFromEdge(input: {
 
 export async function listReplayRequestsForOperator(
   context: TenantContext,
-  locationId: string,
+  locationId: string
 ) {
   authorize(context, "venue.read")
   return listReplayRequestsForLocation(context, locationId)
@@ -570,7 +588,7 @@ export async function listReplayRequestsForOperator(
 
 export async function retryReplayRequestForOperator(
   context: TenantContext,
-  replayRequestId: string,
+  replayRequestId: string
 ) {
   authorize(context, "venue.manage")
 
@@ -580,19 +598,19 @@ export async function retryReplayRequestForOperator(
     throw new ReplayServiceError(
       "REPLAY_REQUEST_NOT_FOUND",
       "Replay request was not found.",
-      404,
+      404
     )
   }
 
   if (
     !(OPERATOR_RETRYABLE_REPLAY_REQUEST_STATUSES as readonly string[]).includes(
-      replayRequest.status,
+      replayRequest.status
     )
   ) {
     throw new ReplayServiceError(
       "REPLAY_RETRY_NOT_ALLOWED",
       `Replay request cannot be retried from status ${replayRequest.status}.`,
-      409,
+      409
     )
   }
 
@@ -600,20 +618,20 @@ export async function retryReplayRequestForOperator(
     throw new ReplayServiceError(
       "REPLAY_MAX_ATTEMPTS",
       "Replay request has reached the maximum retry attempts.",
-      409,
+      409
     )
   }
 
   const venueEdge = await resolveVenueEdgeForResource(
     context,
-    replayRequest.resourceId,
+    replayRequest.resourceId
   )
 
   if (!venueEdge) {
     throw new ReplayServiceError(
       "VENUE_EDGE_UNAVAILABLE",
       "No venue edge device is assigned to this resource.",
-      503,
+      503
     )
   }
 
@@ -623,7 +641,17 @@ export async function retryReplayRequestForOperator(
     throw new ReplayServiceError(
       "MEDIA_ASSET_NOT_FOUND",
       "Replay media asset was not found.",
-      404,
+      404
+    )
+  }
+
+  const configRevisionId = replayRequest.configRevisionId
+
+  if (!configRevisionId) {
+    throw new ReplayServiceError(
+      "EDGE_CONFIG_REVISION_MISSING",
+      "Replay request is not bound to an immutable VenueEdge configuration revision.",
+      409
     )
   }
 
@@ -644,7 +672,7 @@ export async function retryReplayRequestForOperator(
         tenantId: context.tenantId,
         deviceId: venueEdge.deviceId,
         correlationId,
-        payload: {
+        payload: buildCaptureReplayCommandPayload({
           replayRequestId: replayRequest.id,
           replayId: replayRequest.replayId,
           mediaAssetId: replayRequest.mediaAssetId,
@@ -655,14 +683,15 @@ export async function retryReplayRequestForOperator(
           sourceType: replayRequest.sourceType,
           resourceId: replayRequest.resourceId,
           playSessionId: replayRequest.playSessionId,
+          configRevisionId,
           uploadGrant: {
             url: uploadGrant.url,
             expiresAt: uploadGrant.expiresAt,
             contentType: uploadGrant.contentType,
           },
-        },
+        }),
       },
-      tx,
+      tx
     )
 
     const updated = await transitionReplayRequestStatus(
@@ -673,7 +702,7 @@ export async function retryReplayRequestForOperator(
         deviceCommandId: command.id,
         failureReason: null,
       },
-      tx,
+      tx
     )
 
     return { replayRequest: updated, commandId: command.id }
@@ -683,7 +712,7 @@ export async function retryReplayRequestForOperator(
 export async function cancelReplayRequestForOperator(
   context: TenantContext,
   replayRequestId: string,
-  failureReason = "operator_cancelled",
+  failureReason = "operator_cancelled"
 ) {
   authorize(context, "venue.manage")
 
@@ -693,19 +722,19 @@ export async function cancelReplayRequestForOperator(
     throw new ReplayServiceError(
       "REPLAY_REQUEST_NOT_FOUND",
       "Replay request was not found.",
-      404,
+      404
     )
   }
 
   if (
-    !(OPERATOR_CANCELABLE_REPLAY_REQUEST_STATUSES as readonly string[]).includes(
-      replayRequest.status,
-    )
+    !(
+      OPERATOR_CANCELABLE_REPLAY_REQUEST_STATUSES as readonly string[]
+    ).includes(replayRequest.status)
   ) {
     throw new ReplayServiceError(
       "REPLAY_CANCEL_NOT_ALLOWED",
       `Replay request cannot be cancelled from status ${replayRequest.status}.`,
-      409,
+      409
     )
   }
 

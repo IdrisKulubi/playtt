@@ -15,7 +15,7 @@ const replaysRoot = import.meta.dirname
 const schemaSource = readFileSync(join(repoRoot, "db", "schema.ts"), "utf8")
 const migrationSource = readFileSync(
   join(repoRoot, "drizzle", "0021_replay_requests.sql"),
-  "utf8",
+  "utf8"
 )
 const seedSource = readFileSync(join(repoRoot, "db", "seed-phase1.sql"), "utf8")
 
@@ -34,7 +34,7 @@ test("migration adds replay_requests table and enum extensions", () => {
   assert.match(migrationSource, /replay_capture_source/)
   assert.match(
     migrationSource,
-    /replay_requests_requester_session_idempotency_unique/,
+    /replay_requests_requester_session_idempotency_unique/
   )
   assert.match(migrationSource, /capture_replay/)
   assert.match(migrationSource, /venue_edge/)
@@ -43,7 +43,7 @@ test("migration adds replay_requests table and enum extensions", () => {
 test("seed includes replay_edge feature flag", () => {
   const featurePolicySource = readFileSync(
     join(replaysRoot, "feature-policy.ts"),
-    "utf8",
+    "utf8"
   )
 
   assert.match(seedSource, /'replay_edge'/)
@@ -56,14 +56,14 @@ test("replay timing constants use 12s pre-roll and 3s post-roll", () => {
   assert.equal(REPLAY_CLIP_DURATION_SECONDS, 15)
   assert.equal(
     REPLAY_PRE_ROLL_SECONDS + REPLAY_POST_ROLL_SECONDS,
-    REPLAY_CLIP_DURATION_SECONDS,
+    REPLAY_CLIP_DURATION_SECONDS
   )
 })
 
 test("repository enforces explicit replay request transitions", () => {
   const source = readFileSync(
     join(replaysRoot, "replay-requests-repository.ts"),
-    "utf8",
+    "utf8"
   )
 
   assert.match(source, /ALLOWED_REPLAY_REQUEST_TRANSITIONS/)
@@ -79,7 +79,7 @@ test("repository enforces explicit replay request transitions", () => {
 test("createReplayRequest orchestrates credit debit, media, command, and dispatch", () => {
   const source = readFileSync(
     join(replaysRoot, "replay-requests-service.ts"),
-    "utf8",
+    "utf8"
   )
 
   assert.match(source, /db\.transaction/)
@@ -90,6 +90,63 @@ test("createReplayRequest orchestrates credit debit, media, command, and dispatc
   assert.match(source, /getReplayRequestByIdempotencyKey/)
   assert.match(source, /isReplayEdgeEnabledForTenant/)
   assert.match(source, /isPrivateMediaEnabledForTenant/)
+  assert.match(source, /getAppliedConfigRevisionIdForDevice/)
+  assert.match(source, /configRevisionId/)
+  assert.match(source, /buildCaptureReplayCommandPayload/)
+
+  const repositorySource = readFileSync(
+    join(replaysRoot, "replay-requests-repository.ts"),
+    "utf8"
+  )
+  assert.match(repositorySource, /venueEdgeConfigApplications\.edgeDeviceId/)
+  assert.match(
+    repositorySource,
+    /venueEdgeConfigApplications\.status, "applied"/
+  )
+  assert.match(repositorySource, /configRevisionId: input\.configRevisionId/)
+})
+
+test("capture replay commands require and preserve an immutable config revision", async () => {
+  const { buildCaptureReplayCommandPayload } =
+    await import("./capture-replay-command.ts")
+  const configRevisionId = "018f0f71-4f34-7cc0-8e32-f7fb48c0d752"
+  const payload = buildCaptureReplayCommandPayload({
+    replayRequestId: "018f0f71-4f34-7cc0-8e32-f7fb48c0d753",
+    replayId: "018f0f71-4f34-7cc0-8e32-f7fb48c0d754",
+    mediaAssetId: "018f0f71-4f34-7cc0-8e32-f7fb48c0d755",
+    objectKey: "tenant/location/replay.mp4",
+    captureAt: "2026-08-27T12:00:00.000Z",
+    preRollSeconds: 12,
+    postRollSeconds: 3,
+    sourceType: "edge_buffer",
+    resourceId: "018f0f71-4f34-7cc0-8e32-f7fb48c0d756",
+    playSessionId: "018f0f71-4f34-7cc0-8e32-f7fb48c0d757",
+    configRevisionId,
+    uploadGrant: {
+      url: "https://upload.invalid/exact-object",
+      expiresAt: "2026-08-27T12:05:00.000Z",
+    },
+  })
+
+  assert.equal(payload.configRevisionId, configRevisionId)
+  assert.throws(
+    () =>
+      buildCaptureReplayCommandPayload({
+        ...payload,
+        configRevisionId: "not-a-revision",
+      }),
+    /valid configRevisionId/
+  )
+
+  const serviceSource = readFileSync(
+    join(replaysRoot, "replay-requests-service.ts"),
+    "utf8"
+  )
+  assert.match(
+    serviceSource,
+    /const configRevisionId = replayRequest\.configRevisionId/
+  )
+  assert.match(serviceSource, /EDGE_CONFIG_REVISION_MISSING/)
 })
 
 test("legacy requestReplayCapture delegates to createReplayRequest when replay_edge enabled", () => {
@@ -104,13 +161,13 @@ test("canonical and compatibility replay request routes exist", () => {
   const canonicalRoute = readFileSync(
     join(
       repoRoot,
-      "src/app/api/v1/sessions/[sessionId]/replay-requests/route.ts",
+      "src/app/api/v1/sessions/[sessionId]/replay-requests/route.ts"
     ),
-    "utf8",
+    "utf8"
   )
   const legacyRoute = readFileSync(
     join(repoRoot, "src/app/api/replays/request/route.ts"),
-    "utf8",
+    "utf8"
   )
 
   assert.match(canonicalRoute, /clientIdempotencyKey/)
@@ -121,14 +178,14 @@ test("canonical and compatibility replay request routes exist", () => {
 test("edge v1 routes reuse device auth and filter config secrets", () => {
   const configRoute = readFileSync(
     join(repoRoot, "src/app/api/edge/v1/config/route.ts"),
-    "utf8",
+    "utf8"
   )
   const progressRoute = readFileSync(
     join(
       repoRoot,
-      "src/app/api/edge/v1/replay-requests/[id]/progress/route.ts",
+      "src/app/api/edge/v1/replay-requests/[id]/progress/route.ts"
     ),
-    "utf8",
+    "utf8"
   )
   const edgeConfig = readFileSync(join(replaysRoot, "edge-config.ts"), "utf8")
 
@@ -150,7 +207,7 @@ test("edge config redacts secrets for non-venue-edge devices", async () => {
         label: "table-1",
       },
     },
-    "camera",
+    "camera"
   )
 
   assert.equal(filtered["camera"].password, "[redacted]")
@@ -165,12 +222,12 @@ test("idempotency duplicate returns same replay and media identities", async (t)
 
   const repositorySource = readFileSync(
     join(replaysRoot, "replay-requests-repository.ts"),
-    "utf8",
+    "utf8"
   )
 
   assert.match(
     repositorySource,
-    /replay_requests_requester_session_idempotency_unique/,
+    /replay_requests_requester_session_idempotency_unique/
   )
   assert.match(repositorySource, /clientIdempotencyKey/)
 })
@@ -183,7 +240,7 @@ test("concurrency structure debits one credit per idempotency key", async (t) =>
 
   const serviceSource = readFileSync(
     join(replaysRoot, "replay-requests-service.ts"),
-    "utf8",
+    "utf8"
   )
 
   assert.match(serviceSource, /for\("update"\)/)
@@ -194,15 +251,21 @@ test("concurrency structure debits one credit per idempotency key", async (t) =>
 test("cross-tenant denial patterns scope replay requests by tenant", () => {
   const repositorySource = readFileSync(
     join(replaysRoot, "replay-requests-repository.ts"),
-    "utf8",
+    "utf8"
   )
   const serviceSource = readFileSync(
     join(replaysRoot, "replay-requests-service.ts"),
-    "utf8",
+    "utf8"
   )
 
-  assert.match(repositorySource, /eq\(replayRequests\.tenantId, context\.tenantId\)/)
-  assert.match(repositorySource, /eq\(playSessions\.tenantId, context\.tenantId\)/)
+  assert.match(
+    repositorySource,
+    /eq\(replayRequests\.tenantId, context\.tenantId\)/
+  )
+  assert.match(
+    repositorySource,
+    /eq\(playSessions\.tenantId, context\.tenantId\)/
+  )
   assert.match(serviceSource, /REPLAY_REQUEST_FORBIDDEN/)
   assert.match(serviceSource, /venueEdgeDeviceId !== input\.deviceId/)
 })
@@ -210,7 +273,7 @@ test("cross-tenant denial patterns scope replay requests by tenant", () => {
 test("kiosk replay repository resolves owner by resource and debounces in-flight requests", () => {
   const repositorySource = readFileSync(
     join(replaysRoot, "replay-requests-repository.ts"),
-    "utf8",
+    "utf8"
   )
 
   assert.match(repositorySource, /getActivePlaySessionOwnerForResource/)
@@ -222,7 +285,7 @@ test("kiosk replay repository resolves owner by resource and debounces in-flight
 test("kiosk replay service charges session owner via createReplayRequest", () => {
   const serviceSource = readFileSync(
     join(replaysRoot, "replay-requests-service.ts"),
-    "utf8",
+    "utf8"
   )
 
   assert.match(serviceSource, /createKioskReplayRequest/)
@@ -237,17 +300,17 @@ test("display kiosk replay route exposes GET status and POST capture", () => {
   const kioskRoute = readFileSync(
     join(
       repoRoot,
-      "src/app/api/display/v1/resources/[resourceId]/replay-requests/route.ts",
+      "src/app/api/display/v1/resources/[resourceId]/replay-requests/route.ts"
     ),
-    "utf8",
+    "utf8"
   )
   const kioskPage = readFileSync(
     join(repoRoot, "src/app/replay/page.tsx"),
-    "utf8",
+    "utf8"
   )
   const kioskComponent = readFileSync(
     join(repoRoot, "src/components/replay/table-replay-kiosk.tsx"),
-    "utf8",
+    "utf8"
   )
 
   assert.match(kioskRoute, /createKioskReplayRequest/)
@@ -262,7 +325,7 @@ test("display kiosk replay route exposes GET status and POST capture", () => {
 test("operator venue detail links replay kiosk and TV URLs", () => {
   const operatorDetail = readFileSync(
     join(repoRoot, "src/components/operator/operator-venue-detail.tsx"),
-    "utf8",
+    "utf8"
   )
 
   assert.match(operatorDetail, /\/replay\?resourceId=/)
@@ -274,27 +337,21 @@ test("operator replay request retry and cancel routes exist", () => {
   const listRoute = readFileSync(
     join(
       repoRoot,
-      "src/app/api/operator/venues/[venueId]/replay-requests/route.ts",
+      "src/app/api/operator/venues/[venueId]/replay-requests/route.ts"
     ),
-    "utf8",
+    "utf8"
   )
   const retryRoute = readFileSync(
-    join(
-      repoRoot,
-      "src/app/api/operator/replay-requests/[id]/retry/route.ts",
-    ),
-    "utf8",
+    join(repoRoot, "src/app/api/operator/replay-requests/[id]/retry/route.ts"),
+    "utf8"
   )
   const cancelRoute = readFileSync(
-    join(
-      repoRoot,
-      "src/app/api/operator/replay-requests/[id]/cancel/route.ts",
-    ),
-    "utf8",
+    join(repoRoot, "src/app/api/operator/replay-requests/[id]/cancel/route.ts"),
+    "utf8"
   )
   const serviceSource = readFileSync(
     join(replaysRoot, "replay-requests-service.ts"),
-    "utf8",
+    "utf8"
   )
 
   assert.match(listRoute, /listReplayRequestsForOperator/)
@@ -308,7 +365,7 @@ test("operator replay request retry and cancel routes exist", () => {
 test("activity highlights link ready replays to playback page", () => {
   const activityPage = readFileSync(
     join(repoRoot, "src/app/activity/page.tsx"),
-    "utf8",
+    "utf8"
   )
 
   assert.match(activityPage, /\/replays\/\$\{replay\.id\}/)

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { mkdir, readdir, stat } from "node:fs/promises"
+import { mkdir, readdir, stat, unlink } from "node:fs/promises"
 import { join } from "node:path"
 
 import type { CameraSourceConfig } from "../cameras/source"
@@ -12,21 +12,33 @@ export interface RollingBufferOptions {
   segmentSeconds?: number
   retentionSeconds?: number
   simulate?: boolean
+  maxDiskBytes?: number
+  clockOffsetSeconds?: number
+  onFfmpegExited?: (sourceId: string) => void
 }
 
 export class RollingBufferSupervisor {
   private running = false
   private segmentTimer: NodeJS.Timeout | null = null
+  private ffmpegAbortController: AbortController | null = null
 
   constructor(
     private readonly camera: CameraSourceConfig,
     private readonly paths: LocalStoragePaths,
     private readonly repositories: EdgeRepositories,
-    private readonly options: RollingBufferOptions = {},
+    private readonly options: RollingBufferOptions = {}
   ) {}
 
   isRunning(): boolean {
     return this.running
+  }
+
+  getCameraId(): string {
+    return this.camera.cameraId
+  }
+
+  getSourceId(): string {
+    return this.camera.cameraId
   }
 
   async start(): Promise<void> {
@@ -34,9 +46,20 @@ export class RollingBufferSupervisor {
       return
     }
 
-    this.running = true
+    const logContext = {
+      sourceId: this.camera.cameraId,
+      resourceId: this.camera.resourceId ?? null,
+    }
 
-    if (this.options.simulate || !this.camera.rtspUrl) {
+    if (!this.options.simulate && !this.camera.rtspUrl) {
+      throw new Error(`SOURCE_RTSP_URL_MISSING:${this.camera.cameraId}`)
+    }
+
+    this.running = true
+    this.ffmpegAbortController = new AbortController()
+
+    if (this.options.simulate) {
+      safeLog("info", "Starting simulated rolling buffer", logContext)
       this.startSimulatedSegments()
       return
     }
@@ -48,7 +71,7 @@ export class RollingBufferSupervisor {
     const pattern = join(outputDir, "segment-%09d.ts")
 
     safeLog("info", "Starting FFmpeg rolling buffer", {
-      cameraId: this.camera.cameraId,
+      ...logContext,
       segmentSeconds,
     })
 
@@ -69,24 +92,40 @@ export class RollingBufferSupervisor {
         pattern,
       ],
       logLevel: "warning",
-    }).then((result) => {
-      safeLog("error", "FFmpeg rolling buffer exited", {
-        exitCode: result.exitCode,
-        stderr: result.stderr.slice(-800),
-      })
-      this.running = false
-    }).catch((error) => {
-      safeLog("error", "FFmpeg rolling buffer exited", {
-        message: error instanceof Error ? error.message : String(error),
-      })
-      this.running = false
+      signal: this.ffmpegAbortController.signal,
     })
+      .then((result) => {
+        if (result.cancelled) {
+          safeLog("info", "FFmpeg rolling buffer cancelled", logContext)
+        } else {
+          safeLog("error", "FFmpeg rolling buffer exited", {
+            ...logContext,
+            exitCode: result.exitCode,
+            stderr: result.stderr.slice(-800),
+          })
+          this.options.onFfmpegExited?.(this.camera.cameraId)
+        }
+        this.running = false
+      })
+      .catch((error) => {
+        safeLog("error", "FFmpeg rolling buffer exited", {
+          ...logContext,
+          message: error instanceof Error ? error.message : String(error),
+        })
+        this.options.onFfmpegExited?.(this.camera.cameraId)
+        this.running = false
+      })
 
     this.startLiveSegmentIndexer(outputDir, segmentSeconds)
   }
 
   async stop(): Promise<void> {
     this.running = false
+
+    if (this.ffmpegAbortController) {
+      this.ffmpegAbortController.abort()
+      this.ffmpegAbortController = null
+    }
 
     if (this.segmentTimer) {
       clearInterval(this.segmentTimer)
@@ -96,7 +135,7 @@ export class RollingBufferSupervisor {
 
   private startLiveSegmentIndexer(
     outputDir: string,
-    segmentSeconds: number,
+    segmentSeconds: number
   ): void {
     const retentionSeconds = this.options.retentionSeconds ?? 120
     const indexed = new Set<string>()
@@ -110,7 +149,7 @@ export class RollingBufferSupervisor {
         outputDir,
         segmentSeconds,
         retentionSeconds,
-        indexed,
+        indexed
       )
     }, 2_000)
   }
@@ -119,7 +158,7 @@ export class RollingBufferSupervisor {
     outputDir: string,
     segmentSeconds: number,
     retentionSeconds: number,
-    indexed: Set<string>,
+    indexed: Set<string>
   ): Promise<void> {
     let files: string[] = []
 
@@ -159,18 +198,65 @@ export class RollingBufferSupervisor {
       }
     }
 
+    await this.enforceDiskBudget(outputDir)
+
     const cutoff = new Date(Date.now() - retentionSeconds * 1000)
     const segments = this.repositories.listBufferSegmentsForWindow(
       this.camera.cameraId,
       cutoff.toISOString(),
-      new Date().toISOString(),
+      new Date().toISOString()
     )
 
     if (segments.length > 0) {
       safeLog("info", "Live buffer segments indexed", {
-        cameraId: this.camera.cameraId,
+        sourceId: this.camera.cameraId,
+        resourceId: this.camera.resourceId ?? null,
         segmentCount: segments.length,
       })
+    }
+  }
+
+  private async enforceDiskBudget(outputDir: string): Promise<void> {
+    const maxDiskBytes = this.options.maxDiskBytes
+    if (!maxDiskBytes || maxDiskBytes <= 0) {
+      return
+    }
+
+    let files: string[] = []
+
+    try {
+      files = await readdir(outputDir)
+    } catch {
+      return
+    }
+
+    const segmentFiles = files.filter((file) => file.endsWith(".ts"))
+    const sized = await Promise.all(
+      segmentFiles.map(async (file) => {
+        const path = join(outputDir, file)
+        const fileStat = await stat(path)
+        return { file, path, size: fileStat.size, mtimeMs: fileStat.mtimeMs }
+      })
+    )
+
+    let totalBytes = sized.reduce((sum, entry) => sum + entry.size, 0)
+    if (totalBytes <= maxDiskBytes) {
+      return
+    }
+
+    sized.sort((left, right) => left.mtimeMs - right.mtimeMs)
+
+    for (const entry of sized) {
+      if (totalBytes <= maxDiskBytes) {
+        break
+      }
+
+      try {
+        await unlink(entry.path)
+        totalBytes -= entry.size
+      } catch {
+        // Segment may still be open.
+      }
     }
   }
 
@@ -184,14 +270,13 @@ export class RollingBufferSupervisor {
         return
       }
 
-      const endedAt = new Date()
-      const startedAt = new Date(
-        endedAt.getTime() - segmentSeconds * 1000,
-      )
+      const offsetMs = (this.options.clockOffsetSeconds ?? 0) * 1000
+      const endedAt = new Date(Date.now() + offsetMs)
+      const startedAt = new Date(endedAt.getTime() - segmentSeconds * 1000)
       const id = randomUUID()
       const path = join(
         this.paths.bufferForCamera(this.camera.cameraId),
-        `segment-${String(sequence).padStart(9, "0")}.mp4`,
+        `segment-${String(sequence).padStart(9, "0")}.mp4`
       )
 
       this.repositories.recordBufferSegment({
@@ -209,11 +294,12 @@ export class RollingBufferSupervisor {
       const segments = this.repositories.listBufferSegmentsForWindow(
         this.camera.cameraId,
         cutoff.toISOString(),
-        endedAt.toISOString(),
+        endedAt.toISOString()
       )
 
       safeLog("info", "Simulated buffer segment recorded", {
-        cameraId: this.camera.cameraId,
+        sourceId: this.camera.cameraId,
+        resourceId: this.camera.resourceId ?? null,
         segmentCount: segments.length,
       })
     }, segmentSeconds * 1000)
