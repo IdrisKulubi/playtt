@@ -9,6 +9,8 @@
     "simulate": "tsx src/index.ts simulate",
     "enroll": "tsx src/index.ts enroll",
     "setup": "tsx src/index.ts setup",
+    "build": "node scripts/build.mjs",
+    "pack:dry-run": "node scripts/pack-dry-run.mjs",
     "test": "node --import tsx --test test/*.test.mjs",
     "typecheck": "tsc --noEmit"
   },
@@ -17,6 +19,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
+    "esbuild": "^0.25.9",
     "tsx": "^4.20.5",
     "typescript": "^5.9.3"
   },

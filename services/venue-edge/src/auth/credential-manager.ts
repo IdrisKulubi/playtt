@@ -24,6 +24,7 @@ export class CredentialManager {
     private readonly secretBlobPath: string,
     secretStoreMode: string,
     venueMode: string,
+    dataDir?: string,
   ) {
     const mode = resolveSecretStoreMode(
       venueMode,
@@ -32,6 +33,8 @@ export class CredentialManager {
     this.secretStore = createProtectedSecretStore({
       mode,
       blobPath: secretBlobPath,
+      venueMode,
+      dataDir,
     })
   }
 
@@ -47,6 +50,7 @@ export class CredentialManager {
       env.secretBlobPath,
       env.secretStoreMode,
       env.mode,
+      env.dataDir,
     )
   }
 

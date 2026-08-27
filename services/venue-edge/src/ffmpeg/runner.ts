@@ -2,6 +2,11 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process"
 import { existsSync } from "node:fs"
 import { join } from "node:path"
 
+import {
+  resolveBundledFfmpegPath,
+  resolveInstallRoot,
+} from "../config/install-layout"
+
 export interface FfmpegRunOptions {
   args: string[]
   timeoutMs?: number
@@ -21,6 +26,14 @@ export function resolveFfmpegBinary(): string {
   const configured = process.env.FFMPEG_PATH?.trim()
   if (configured) {
     return configured
+  }
+
+  const installRoot = resolveInstallRoot()
+  if (installRoot) {
+    const bundled = resolveBundledFfmpegPath(installRoot)
+    if (existsSync(bundled)) {
+      return bundled
+    }
   }
 
   if (process.platform === "win32" && process.env.LOCALAPPDATA) {

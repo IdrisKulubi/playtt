@@ -69,6 +69,9 @@ jobs:
       - name: Test venue edge service
         run: pnpm test:venue-edge
 
+      - name: VenueEdge pack dry-run
+        run: cd services/venue-edge && pnpm install --frozen-lockfile && pnpm pack:dry-run
+
       - name: Test compatibility fallbacks
         run: pnpm test:compatibility
 

@@ -1,0 +1,33 @@
+<service>
+  <id>PlayTTVenueEdge</id>
+  <name>PlayTT VenueEdge Agent</name>
+  <description>PlayTT venue-local replay capture and upload service.</description>
+  <executable>%BASE%\node\node.exe</executable>
+  <arguments>%BASE%\app\index.js start</arguments>
+  <workingdirectory>%BASE%</workingdirectory>
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <onfailure action="restart" delay="10 sec"/>
+  <onfailure action="restart" delay="20 sec"/>
+  <onfailure action="restart" delay="30 sec"/>
+  <resetfailure>1 hour</resetfailure>
+  <log mode="roll-by-size">
+    <pattern>%ProgramData%\PlayTT\VenueEdge\logs\venue-edge.log</pattern>
+    <sizeThreshold>10485760</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+  <log mode="roll-by-size">
+    <pattern>%ProgramData%\PlayTT\VenueEdge\logs\venue-edge-error.log</pattern>
+    <sizeThreshold>10485760</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+  <env name="VENUE_EDGE_MODE" value="production"/>
+  <env name="VENUE_EDGE_INSTALL_LAYOUT" value="installed"/>
+  <env name="VENUE_EDGE_INSTALL_ROOT" value="%BASE%"/>
+  <env name="VENUE_EDGE_SETUP_ON_START" value="true"/>
+  <env name="FFMPEG_PATH" value="%BASE%\ffmpeg\ffmpeg.exe"/>
+  <env name="VENUE_EDGE_CLOUD_BASE_URL" value="https://playtt.app"/>
+  <eventlog>
+    <source name="PlayTT VenueEdge"/>
+  </eventlog>
+</service>

@@ -1,6 +1,7 @@
 import type { EdgeV1Client } from "../cloud/client"
 import { isDeviceRevokedCloudError } from "../auth/cloud-errors"
 import type { VenueEdgeEnv } from "../config/env"
+import { detectHostSleepRisk } from "../health/host-sleep-risk"
 import { createMetricsSnapshot, safeLog } from "../health/metrics"
 import type { CommandProcessor } from "../commands/processor"
 import type { SourceSupervisorRegistry } from "../buffers/registry"
@@ -70,6 +71,7 @@ export class HeartbeatLoop {
       replayQueueDepth: 0,
       maxConcurrentReplays: this.deps.env.maxConcurrentReplays,
     }
+    const hostSleepRisk = await detectHostSleepRisk()
     const registry = this.deps.bufferRegistry
     const metrics = createMetricsSnapshot({
       ffmpegRunning: registry?.isAnyRunning() ?? false,
@@ -91,6 +93,8 @@ export class HeartbeatLoop {
           ...(metrics as unknown as Record<string, unknown>),
           sourceHealth:
             this.deps.healthEngine?.getHeartbeatHealthSnapshot() ?? [],
+          hostSleepRisk: hostSleepRisk.hostSleepRisk,
+          hostSleepRiskReason: hostSleepRisk.hostSleepRiskReason,
         },
       })
 

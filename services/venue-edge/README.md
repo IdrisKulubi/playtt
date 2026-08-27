@@ -59,6 +59,35 @@ pnpm enroll -- ABCD-EFGHJK
 | `VENUE_EDGE_MAX_CPU_PERCENT` | `85` | Windows system CPU admission ceiling for new buffers |
 | `VENUE_EDGE_MAX_NETWORK_MBPS` | `100` | Estimated aggregate ingress admission ceiling |
 | `VENUE_EDGE_ESTIMATED_SOURCE_NETWORK_MBPS` | `8` | Estimated ingress bandwidth reserved per source |
+| `VENUE_EDGE_INSTALL_LAYOUT` | unset | `installed` when running from the Windows service installer |
+| `VENUE_EDGE_INSTALL_ROOT` | unset | Program Files install root; defaults when layout is installed |
+| `FFMPEG_PATH` | unset | Overrides bundled `ffmpeg/ffmpeg.exe` under the install root |
+
+## Windows installer (Phase 5)
+
+Unsigned release-candidate packaging lives under `packaging/`. Production installs use:
+
+- **Binaries:** `C:\Program Files\PlayTT\VenueEdge\` (Node 22, FFmpeg LGPL, bundled app, WinSW service)
+- **State:** `C:\ProgramData\PlayTT\VenueEdge\` (SQLite, buffers, DPAPI secrets, logs)
+
+Build the application bundle:
+
+```bash
+pnpm build          # dist/index.js via esbuild
+pnpm pack:dry-run   # CI-friendly compile + layout checks (no Windows downloads)
+```
+
+On a Windows build host with Inno Setup 6:
+
+```powershell
+.\packaging\pack.ps1
+```
+
+This stages Node + FFmpeg + WinSW, writes `SHA256SUMS`, and compiles `PlayTTVenueEdge-Setup-<version>.exe` when `ISCC.exe` is available. Authenticode signing runs only when `VENUE_EDGE_SIGNING_CERT` is set (`packaging/sign.ps1` no-ops otherwise).
+
+**Uninstall:** Program Files are removed by default. Local pairing, NVR passwords, and topology in ProgramData are **preserved** unless the uninstaller “Remove local data” task is selected.
+
+**Upgrade / repair:** Reinstalls binaries and the service without wiping ProgramData identity or secrets.
 
 ## Layout
 

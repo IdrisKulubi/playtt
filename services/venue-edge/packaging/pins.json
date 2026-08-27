@@ -1,0 +1,18 @@
+{
+  "packageVersion": "0.1.0-rc1",
+  "node": {
+    "version": "22.18.0",
+    "url": "https://nodejs.org/dist/v22.18.0/node-v22.18.0-win-x64.zip",
+    "sha256": ""
+  },
+  "ffmpeg": {
+    "version": "n8.1-lgpl-8.1",
+    "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-win64-lgpl-8.1.zip",
+    "sha256": ""
+  },
+  "winsw": {
+    "version": "2.12.0",
+    "url": "https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW-x64.exe",
+    "sha256": ""
+  }
+}

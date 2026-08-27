@@ -3,6 +3,12 @@ import { mkdir, readFile, unlink, writeFile } from "node:fs/promises"
 import { dirname } from "node:path"
 import { promisify } from "node:util"
 
+import {
+  type DpapiScope,
+  resolveDpapiEntropyPath,
+  resolveDpapiScope,
+} from "../config/install-layout"
+
 const execFileAsync = promisify(execFile)
 
 export interface StoredDeviceSecret {
@@ -39,15 +45,58 @@ export class MemorySecretStore implements ProtectedSecretStore {
   }
 }
 
-async function protectWithDpapi(plaintext: string): Promise<string> {
+function scopeToPowerShell(scope: DpapiScope): string {
+  return scope === "localMachine"
+    ? "LocalMachine"
+    : "CurrentUser"
+}
+
+async function readEntropyBase64(entropyPath: string | null): Promise<string | null> {
+  if (!entropyPath) {
+    return null
+  }
+
+  try {
+    const entropy = await readFile(entropyPath)
+    if (entropy.length === 0) {
+      throw new SecretStoreUnavailableError(
+        "DPAPI entropy file is empty.",
+      )
+    }
+
+    return entropy.toString("base64")
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new SecretStoreUnavailableError(
+        "DPAPI entropy file is missing for LocalMachine protected storage.",
+      )
+    }
+
+    throw error
+  }
+}
+
+async function protectWithDpapi(
+  plaintext: string,
+  scope: DpapiScope,
+  entropyPath: string | null,
+): Promise<string> {
   const inputBase64 = Buffer.from(plaintext, "utf8").toString("base64")
+  const entropyBase64 =
+    scope === "localMachine" ? await readEntropyBase64(entropyPath) : null
+
+  const entropyArg = entropyBase64
+    ? `$entropy = [Convert]::FromBase64String('${entropyBase64}')`
+    : "$entropy = $null"
+
   const script = `
 Add-Type -AssemblyName System.Security
 $bytes = [Convert]::FromBase64String('${inputBase64}')
+${entropyArg}
 $protected = [System.Security.Cryptography.ProtectedData]::Protect(
   $bytes,
-  $null,
-  [System.Security.Cryptography.DataProtectionScope]::CurrentUser
+  $entropy,
+  [System.Security.Cryptography.DataProtectionScope]::${scopeToPowerShell(scope)}
 )
 [Convert]::ToBase64String($protected)
 `
@@ -61,14 +110,26 @@ $protected = [System.Security.Cryptography.ProtectedData]::Protect(
   return stdout.trim()
 }
 
-async function unprotectWithDpapi(base64: string): Promise<string> {
+async function unprotectWithDpapi(
+  base64: string,
+  scope: DpapiScope,
+  entropyPath: string | null,
+): Promise<string> {
+  const entropyBase64 =
+    scope === "localMachine" ? await readEntropyBase64(entropyPath) : null
+
+  const entropyArg = entropyBase64
+    ? `$entropy = [Convert]::FromBase64String('${entropyBase64}')`
+    : "$entropy = $null"
+
   const script = `
 Add-Type -AssemblyName System.Security
 $bytes = [Convert]::FromBase64String('${base64.replace(/'/g, "''")}')
+${entropyArg}
 $unprotected = [System.Security.Cryptography.ProtectedData]::Unprotect(
   $bytes,
-  $null,
-  [System.Security.Cryptography.DataProtectionScope]::CurrentUser
+  $entropy,
+  [System.Security.Cryptography.DataProtectionScope]::${scopeToPowerShell(scope)}
 )
 [Convert]::ToBase64String($unprotected)
 `
@@ -84,12 +145,20 @@ $unprotected = [System.Security.Cryptography.ProtectedData]::Unprotect(
 }
 
 export class DpapiSecretStore implements ProtectedSecretStore {
-  constructor(private readonly blobPath: string) {}
+  constructor(
+    private readonly blobPath: string,
+    private readonly scope: DpapiScope,
+    private readonly entropyPath: string | null,
+  ) {}
 
   async get(): Promise<StoredDeviceSecret | null> {
     try {
       const encoded = await readFile(this.blobPath, "utf8")
-      const json = await unprotectWithDpapi(encoded.trim())
+      const json = await unprotectWithDpapi(
+        encoded.trim(),
+        this.scope,
+        this.entropyPath,
+      )
       const parsed = JSON.parse(json) as StoredDeviceSecret
 
       if (!parsed.secret) {
@@ -121,7 +190,11 @@ export class DpapiSecretStore implements ProtectedSecretStore {
 
     try {
       await mkdir(dirname(this.blobPath), { recursive: true })
-      const encoded = await protectWithDpapi(JSON.stringify(value))
+      const encoded = await protectWithDpapi(
+        JSON.stringify(value),
+        this.scope,
+        this.entropyPath,
+      )
       await writeFile(this.blobPath, `${encoded}\n`, { mode: 0o600 })
     } catch (error) {
       throw new SecretStoreUnavailableError(
@@ -169,6 +242,10 @@ export function resolveSecretStoreMode(
 export function createProtectedSecretStore(input: {
   mode: SecretStoreMode
   blobPath: string
+  venueMode?: string
+  dataDir?: string
+  dpapiScope?: DpapiScope
+  entropyPath?: string | null
 }): ProtectedSecretStore {
   if (input.mode === "memory") {
     return new MemorySecretStore()
@@ -180,5 +257,13 @@ export function createProtectedSecretStore(input: {
     )
   }
 
-  return new DpapiSecretStore(input.blobPath)
+  const venueMode = input.venueMode ?? "production"
+  const scope = input.dpapiScope ?? resolveDpapiScope(venueMode)
+  const entropyPath =
+    input.entropyPath ??
+    (scope === "localMachine" && input.dataDir
+      ? resolveDpapiEntropyPath(input.dataDir)
+      : null)
+
+  return new DpapiSecretStore(input.blobPath, scope, entropyPath)
 }

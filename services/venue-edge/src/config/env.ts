@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto"
 
+import {
+  resolveDefaultDataDir,
+  resolvePackagedFirmwareVersion,
+} from "./install-layout"
+
 export type VenueEdgeMode = "simulate" | "buffer" | "production"
 
 export interface VenueEdgeEnv {
@@ -69,7 +74,15 @@ function parseMode(value: string | undefined): VenueEdgeMode {
 
 export function loadEnv(overrides: Partial<VenueEdgeEnv> = {}): VenueEdgeEnv {
   const dataDir =
-    overrides.dataDir ?? process.env.VENUE_EDGE_DATA_DIR ?? ".venue-edge-data"
+    overrides.dataDir ??
+    process.env.VENUE_EDGE_DATA_DIR ??
+    resolveDefaultDataDir()
+
+  const firmwareVersion =
+    overrides.firmwareVersion ??
+    process.env.VENUE_EDGE_FIRMWARE_VERSION?.trim() ??
+    resolvePackagedFirmwareVersion(undefined) ??
+    "0.1.0"
 
   return {
     mode: overrides.mode ?? parseMode(process.env.VENUE_EDGE_MODE),
@@ -130,10 +143,7 @@ export function loadEnv(overrides: Partial<VenueEdgeEnv> = {}): VenueEdgeEnv {
       process.env.VENUE_EDGE_SQLITE_PATH ??
       `${dataDir}/venue-edge.sqlite`,
     bootId: overrides.bootId ?? process.env.VENUE_EDGE_BOOT_ID ?? randomUUID(),
-    firmwareVersion:
-      overrides.firmwareVersion ??
-      process.env.VENUE_EDGE_FIRMWARE_VERSION ??
-      "0.1.0",
+    firmwareVersion,
     maxConcurrentReplays: Number(
       overrides.maxConcurrentReplays ??
         process.env.VENUE_EDGE_MAX_CONCURRENT ??
