@@ -15,6 +15,24 @@ import type {
 } from "../health/types"
 import type { ReplayCaptureMode } from "../cloud/config-v2"
 import type { CaptureAttemptStatus } from "../selection/select-source"
+import type {
+  CommissioningDrillResult,
+  CommissioningStateRow,
+} from "./commissioning-types"
+import type {
+  LocalCameraCodec,
+  LocalCameraRow,
+  LocalCameraStreamProfile,
+  LocalCameraTestSummary,
+  LocalResourcePolicyRow,
+  LocalResourceRouteRow,
+} from "./local-camera-types"
+import type {
+  LocalNvrRow,
+  LocalNvrTestSummary,
+  LocalNvrTimeMode,
+  LocalNvrVendor,
+} from "./local-nvr-types"
 
 export interface CaptureAttemptRow {
   replayRequestId: string
@@ -682,6 +700,542 @@ export class EdgeRepositories {
 
     return rows.map(mapCaptureAttemptRow)
   }
+
+  listLocalNvrs(): LocalNvrRow[] {
+    const rows = this.db
+      .prepare(`SELECT * FROM edge_local_nvrs ORDER BY label ASC`)
+      .all() as Record<string, unknown>[]
+
+    return rows.map(mapLocalNvrRow)
+  }
+
+  getLocalNvrById(id: string): LocalNvrRow | null {
+    const row = this.db
+      .prepare(`SELECT * FROM edge_local_nvrs WHERE id = ?`)
+      .get(id) as Record<string, unknown> | undefined
+
+    return row ? mapLocalNvrRow(row) : null
+  }
+
+  getLocalNvrByConnectionKey(localConnectionKey: string): LocalNvrRow | null {
+    const row = this.db
+      .prepare(`SELECT * FROM edge_local_nvrs WHERE local_connection_key = ?`)
+      .get(localConnectionKey) as Record<string, unknown> | undefined
+
+    return row ? mapLocalNvrRow(row) : null
+  }
+
+  insertLocalNvr(input: {
+    id: string
+    label: string
+    vendor: LocalNvrVendor
+    host: string
+    rtspPort: number
+    playbackPort: number | null
+    username: string
+    localConnectionKey: string
+    enabled: boolean
+    testChannelKey: string
+    timeMode: LocalNvrTimeMode
+  }): LocalNvrRow {
+    const timestamp = nowIso()
+
+    this.db
+      .prepare(
+        `INSERT INTO edge_local_nvrs (
+          id, label, vendor, host, rtsp_port, playback_port, username,
+          local_connection_key, enabled, test_channel_key, time_mode,
+          last_test_json, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+      )
+      .run(
+        input.id,
+        input.label,
+        input.vendor,
+        input.host,
+        input.rtspPort,
+        input.playbackPort,
+        input.username,
+        input.localConnectionKey,
+        input.enabled ? 1 : 0,
+        input.testChannelKey,
+        input.timeMode,
+        timestamp,
+        timestamp,
+      )
+
+    return this.getLocalNvrById(input.id)!
+  }
+
+  updateLocalNvr(
+    id: string,
+    patch: {
+      label?: string
+      host?: string
+      rtspPort?: number
+      playbackPort?: number | null
+      username?: string
+      enabled?: boolean
+      testChannelKey?: string
+      timeMode?: LocalNvrTimeMode
+      lastTest?: LocalNvrTestSummary | null
+    },
+  ): LocalNvrRow | null {
+    const existing = this.getLocalNvrById(id)
+    if (!existing) {
+      return null
+    }
+
+    const fields: string[] = []
+    const values: Array<string | number | null> = []
+
+    if (patch.label !== undefined) {
+      fields.push("label = ?")
+      values.push(patch.label)
+    }
+    if (patch.host !== undefined) {
+      fields.push("host = ?")
+      values.push(patch.host)
+    }
+    if (patch.rtspPort !== undefined) {
+      fields.push("rtsp_port = ?")
+      values.push(patch.rtspPort)
+    }
+    if (patch.playbackPort !== undefined) {
+      fields.push("playback_port = ?")
+      values.push(patch.playbackPort)
+    }
+    if (patch.username !== undefined) {
+      fields.push("username = ?")
+      values.push(patch.username)
+    }
+    if (patch.enabled !== undefined) {
+      fields.push("enabled = ?")
+      values.push(patch.enabled ? 1 : 0)
+    }
+    if (patch.testChannelKey !== undefined) {
+      fields.push("test_channel_key = ?")
+      values.push(patch.testChannelKey)
+    }
+    if (patch.timeMode !== undefined) {
+      fields.push("time_mode = ?")
+      values.push(patch.timeMode)
+    }
+    if (patch.lastTest !== undefined) {
+      fields.push("last_test_json = ?")
+      values.push(
+        patch.lastTest ? JSON.stringify(patch.lastTest) : null,
+      )
+    }
+
+    if (fields.length === 0) {
+      return existing
+    }
+
+    fields.push("updated_at = ?")
+    values.push(nowIso())
+    values.push(id)
+
+    this.db
+      .prepare(
+        `UPDATE edge_local_nvrs SET ${fields.join(", ")} WHERE id = ?`,
+      )
+      .run(...(values as (string | number | null)[]))
+
+    return this.getLocalNvrById(id)
+  }
+
+  deleteLocalNvr(id: string): boolean {
+    const result = this.db
+      .prepare(`DELETE FROM edge_local_nvrs WHERE id = ?`)
+      .run(id)
+
+    return result.changes > 0
+  }
+
+  listLocalCameras(): LocalCameraRow[] {
+    const rows = this.db
+      .prepare(`SELECT * FROM edge_local_cameras ORDER BY label ASC`)
+      .all() as Record<string, unknown>[]
+
+    return rows.map(mapLocalCameraRow)
+  }
+
+  listLocalCamerasByNvrId(nvrId: string): LocalCameraRow[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM edge_local_cameras WHERE nvr_id = ? ORDER BY channel_key ASC`,
+      )
+      .all(nvrId) as Record<string, unknown>[]
+
+    return rows.map(mapLocalCameraRow)
+  }
+
+  getLocalCameraById(id: string): LocalCameraRow | null {
+    const row = this.db
+      .prepare(`SELECT * FROM edge_local_cameras WHERE id = ?`)
+      .get(id) as Record<string, unknown> | undefined
+
+    return row ? mapLocalCameraRow(row) : null
+  }
+
+  findLocalCameraByNvrChannel(
+    nvrId: string,
+    channelKey: string,
+    streamProfile: LocalCameraStreamProfile,
+  ): LocalCameraRow | null {
+    const row = this.db
+      .prepare(
+        `SELECT * FROM edge_local_cameras
+         WHERE nvr_id = ? AND channel_key = ? AND stream_profile = ?`,
+      )
+      .get(nvrId, channelKey, streamProfile) as Record<string, unknown> | undefined
+
+    return row ? mapLocalCameraRow(row) : null
+  }
+
+  insertLocalCamera(input: {
+    id: string
+    nvrId: string
+    label: string
+    channelKey: string
+    streamProfile: LocalCameraStreamProfile
+    codec: LocalCameraCodec
+    enabled: boolean
+  }): LocalCameraRow {
+    const timestamp = nowIso()
+
+    this.db
+      .prepare(
+        `INSERT INTO edge_local_cameras (
+          id, nvr_id, label, channel_key, stream_profile, codec, enabled,
+          last_test_json, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+      )
+      .run(
+        input.id,
+        input.nvrId,
+        input.label,
+        input.channelKey,
+        input.streamProfile,
+        input.codec,
+        input.enabled ? 1 : 0,
+        timestamp,
+        timestamp,
+      )
+
+    return this.getLocalCameraById(input.id)!
+  }
+
+  updateLocalCamera(
+    id: string,
+    patch: {
+      label?: string
+      streamProfile?: LocalCameraStreamProfile
+      codec?: LocalCameraCodec
+      enabled?: boolean
+      lastTest?: LocalCameraTestSummary | null
+    },
+  ): LocalCameraRow | null {
+    const existing = this.getLocalCameraById(id)
+    if (!existing) {
+      return null
+    }
+
+    const fields: string[] = []
+    const values: Array<string | number | null> = []
+
+    if (patch.label !== undefined) {
+      fields.push("label = ?")
+      values.push(patch.label)
+    }
+    if (patch.streamProfile !== undefined) {
+      fields.push("stream_profile = ?")
+      values.push(patch.streamProfile)
+    }
+    if (patch.codec !== undefined) {
+      fields.push("codec = ?")
+      values.push(patch.codec)
+    }
+    if (patch.enabled !== undefined) {
+      fields.push("enabled = ?")
+      values.push(patch.enabled ? 1 : 0)
+    }
+    if (patch.lastTest !== undefined) {
+      fields.push("last_test_json = ?")
+      values.push(patch.lastTest ? JSON.stringify(patch.lastTest) : null)
+    }
+
+    if (fields.length === 0) {
+      return existing
+    }
+
+    fields.push("updated_at = ?")
+    values.push(nowIso())
+    values.push(id)
+
+    this.db
+      .prepare(`UPDATE edge_local_cameras SET ${fields.join(", ")} WHERE id = ?`)
+      .run(...(values as (string | number | null)[]))
+
+    return this.getLocalCameraById(id)
+  }
+
+  deleteLocalCamera(id: string): boolean {
+    const result = this.db
+      .prepare(`DELETE FROM edge_local_cameras WHERE id = ?`)
+      .run(id)
+
+    return result.changes > 0
+  }
+
+  getLocalResourcePolicy(resourceId: string): LocalResourcePolicyRow | null {
+    const row = this.db
+      .prepare(`SELECT * FROM edge_local_resource_policies WHERE resource_id = ?`)
+      .get(resourceId) as Record<string, unknown> | undefined
+
+    return row ? mapLocalResourcePolicyRow(row) : null
+  }
+
+  listLocalResourcePolicies(): LocalResourcePolicyRow[] {
+    const rows = this.db
+      .prepare(`SELECT * FROM edge_local_resource_policies ORDER BY label ASC`)
+      .all() as Record<string, unknown>[]
+
+    return rows.map(mapLocalResourcePolicyRow)
+  }
+
+  upsertLocalResourcePolicy(input: {
+    resourceId: string
+    label: string
+    selectionMode: "automatic" | "manual"
+    manualSourceId: string | null
+    failureThreshold: number
+    cooldownSeconds: number
+    healthyThreshold: number
+    autoFailback: boolean
+  }): LocalResourcePolicyRow {
+    const existing = this.getLocalResourcePolicy(input.resourceId)
+    const timestamp = nowIso()
+
+    if (!existing) {
+      this.db
+        .prepare(
+          `INSERT INTO edge_local_resource_policies (
+            resource_id, label, selection_mode, manual_source_id,
+            failure_threshold, cooldown_seconds, healthy_threshold, auto_failback,
+            created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          input.resourceId,
+          input.label,
+          input.selectionMode,
+          input.manualSourceId,
+          input.failureThreshold,
+          input.cooldownSeconds,
+          input.healthyThreshold,
+          input.autoFailback ? 1 : 0,
+          timestamp,
+          timestamp,
+        )
+    } else {
+      this.db
+        .prepare(
+          `UPDATE edge_local_resource_policies SET
+            label = ?, selection_mode = ?, manual_source_id = ?,
+            failure_threshold = ?, cooldown_seconds = ?, healthy_threshold = ?,
+            auto_failback = ?, updated_at = ?
+           WHERE resource_id = ?`,
+        )
+        .run(
+          input.label,
+          input.selectionMode,
+          input.manualSourceId,
+          input.failureThreshold,
+          input.cooldownSeconds,
+          input.healthyThreshold,
+          input.autoFailback ? 1 : 0,
+          timestamp,
+          input.resourceId,
+        )
+    }
+
+    return this.getLocalResourcePolicy(input.resourceId)!
+  }
+
+  listLocalResourceRoutes(resourceId: string): LocalResourceRouteRow[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM edge_local_resource_routes
+         WHERE resource_id = ?
+         ORDER BY priority ASC`,
+      )
+      .all(resourceId) as Record<string, unknown>[]
+
+    return rows.map(mapLocalResourceRouteRow)
+  }
+
+  listAllLocalResourceRoutes(): LocalResourceRouteRow[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM edge_local_resource_routes ORDER BY resource_id ASC, priority ASC`,
+      )
+      .all() as Record<string, unknown>[]
+
+    return rows.map(mapLocalResourceRouteRow)
+  }
+
+  listLocalResourceRoutesForCamera(cameraId: string): LocalResourceRouteRow[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM edge_local_resource_routes WHERE camera_id = ?`,
+      )
+      .all(cameraId) as Record<string, unknown>[]
+
+    return rows.map(mapLocalResourceRouteRow)
+  }
+
+  listResourceIdsForCamera(cameraId: string): string[] {
+    const rows = this.db
+      .prepare(
+        `SELECT resource_id FROM edge_local_resource_routes WHERE camera_id = ?`,
+      )
+      .all(cameraId) as Array<{ resource_id: string }>
+
+    return rows.map((row) => String(row.resource_id))
+  }
+
+  replaceLocalResourceRoutes(
+    resourceId: string,
+    routes: Array<{
+      id: string
+      cameraId: string
+      priority: number
+      captureModes: ReplayCaptureMode[]
+      enabled: boolean
+    }>,
+  ): LocalResourceRouteRow[] {
+    const timestamp = nowIso()
+
+    this.db
+      .prepare(`DELETE FROM edge_local_resource_routes WHERE resource_id = ?`)
+      .run(resourceId)
+
+    for (const route of routes) {
+      this.db
+        .prepare(
+          `INSERT INTO edge_local_resource_routes (
+            id, resource_id, camera_id, priority, capture_modes_json, enabled,
+            created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          route.id,
+          resourceId,
+          route.cameraId,
+          route.priority,
+          JSON.stringify(route.captureModes),
+          route.enabled ? 1 : 0,
+          timestamp,
+          timestamp,
+        )
+    }
+
+    return this.listLocalResourceRoutes(resourceId)
+  }
+
+  getCommissioningState(): CommissioningStateRow {
+    const row = this.db
+      .prepare(`SELECT * FROM edge_commissioning_state WHERE id = 1`)
+      .get() as Record<string, unknown> | undefined
+
+    if (!row) {
+      const timestamp = nowIso()
+      this.db
+        .prepare(
+          `INSERT INTO edge_commissioning_state (id, completed, failover_ready, updated_at)
+           VALUES (1, 0, 0, ?)`,
+        )
+        .run(timestamp)
+      return {
+        completed: false,
+        completedAt: null,
+        publishedAt: null,
+        failoverReady: false,
+        lastError: null,
+        drillResults: {},
+        updatedAt: timestamp,
+      }
+    }
+
+    return mapCommissioningStateRow(row)
+  }
+
+  updateCommissioningState(
+    patch: {
+      completed?: boolean
+      completedAt?: string | null
+      publishedAt?: string | null
+      failoverReady?: boolean
+      lastError?: string | null
+      drillResults?: Record<string, CommissioningDrillResult>
+    },
+  ): CommissioningStateRow {
+    const fields: string[] = []
+    const values: Array<string | number | null> = []
+
+    if (patch.completed !== undefined) {
+      fields.push("completed = ?")
+      values.push(patch.completed ? 1 : 0)
+    }
+    if (patch.completedAt !== undefined) {
+      fields.push("completed_at = ?")
+      values.push(patch.completedAt)
+    }
+    if (patch.publishedAt !== undefined) {
+      fields.push("published_at = ?")
+      values.push(patch.publishedAt)
+    }
+    if (patch.failoverReady !== undefined) {
+      fields.push("failover_ready = ?")
+      values.push(patch.failoverReady ? 1 : 0)
+    }
+    if (patch.lastError !== undefined) {
+      fields.push("last_error = ?")
+      values.push(patch.lastError)
+    }
+    if (patch.drillResults !== undefined) {
+      fields.push("drill_results_json = ?")
+      values.push(JSON.stringify(patch.drillResults))
+    }
+
+    if (fields.length === 0) {
+      return this.getCommissioningState()
+    }
+
+    fields.push("updated_at = ?")
+    values.push(nowIso())
+
+    this.db
+      .prepare(
+        `UPDATE edge_commissioning_state SET ${fields.join(", ")} WHERE id = 1`,
+      )
+      .run(...(values as (string | number | null)[]))
+
+    return this.getCommissioningState()
+  }
+
+  invalidateCommissioning(): CommissioningStateRow {
+    return this.updateCommissioningState({
+      completed: false,
+      completedAt: null,
+      publishedAt: null,
+      failoverReady: false,
+      lastError: null,
+      drillResults: {},
+    })
+  }
 }
 
 function mapCommandRow(row: Record<string, unknown>): EdgeCommandRow {
@@ -772,6 +1326,100 @@ function mapConfigSnapshotRow(
     snapshot: JSON.parse(String(row.snapshot_json)) as EdgeConfigV2,
     appliedAt: String(row.applied_at),
     bootId: row.boot_id ? String(row.boot_id) : null,
+  }
+}
+
+function mapLocalNvrRow(row: Record<string, unknown>): LocalNvrRow {
+  return {
+    id: String(row.id),
+    label: String(row.label),
+    vendor: String(row.vendor) as LocalNvrVendor,
+    host: String(row.host),
+    rtspPort: Number(row.rtsp_port),
+    playbackPort:
+      row.playback_port === null || row.playback_port === undefined
+        ? null
+        : Number(row.playback_port),
+    username: String(row.username),
+    localConnectionKey: String(row.local_connection_key),
+    enabled: Boolean(row.enabled),
+    testChannelKey: String(row.test_channel_key),
+    timeMode: String(row.time_mode) as LocalNvrTimeMode,
+    lastTest: row.last_test_json
+      ? (JSON.parse(String(row.last_test_json)) as LocalNvrTestSummary)
+      : null,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  }
+}
+
+function mapLocalCameraRow(row: Record<string, unknown>): LocalCameraRow {
+  return {
+    id: String(row.id),
+    nvrId: String(row.nvr_id),
+    label: String(row.label),
+    channelKey: String(row.channel_key),
+    streamProfile: String(row.stream_profile) as LocalCameraStreamProfile,
+    codec: String(row.codec) as LocalCameraCodec,
+    enabled: Boolean(row.enabled),
+    lastTest: row.last_test_json
+      ? (JSON.parse(String(row.last_test_json)) as LocalCameraTestSummary)
+      : null,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  }
+}
+
+function mapLocalResourcePolicyRow(
+  row: Record<string, unknown>,
+): LocalResourcePolicyRow {
+  return {
+    resourceId: String(row.resource_id),
+    label: String(row.label),
+    selectionMode: String(row.selection_mode) as "automatic" | "manual",
+    manualSourceId: row.manual_source_id
+      ? String(row.manual_source_id)
+      : null,
+    failureThreshold: Number(row.failure_threshold),
+    cooldownSeconds: Number(row.cooldown_seconds),
+    healthyThreshold: Number(row.healthy_threshold),
+    autoFailback: Boolean(row.auto_failback),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  }
+}
+
+function mapLocalResourceRouteRow(
+  row: Record<string, unknown>,
+): LocalResourceRouteRow {
+  return {
+    id: String(row.id),
+    resourceId: String(row.resource_id),
+    cameraId: String(row.camera_id),
+    priority: Number(row.priority),
+    captureModes: JSON.parse(String(row.capture_modes_json)) as ReplayCaptureMode[],
+    enabled: Boolean(row.enabled),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  }
+}
+
+function mapCommissioningStateRow(
+  row: Record<string, unknown>,
+): CommissioningStateRow {
+  return {
+    completed: Boolean(row.completed),
+    completedAt: row.completed_at ? String(row.completed_at) : null,
+    publishedAt: row.published_at ? String(row.published_at) : null,
+    failoverReady: Boolean(row.failover_ready),
+    lastError: row.last_error ? String(row.last_error) : null,
+    drillResults: row.drill_results_json
+      ? (JSON.parse(String(row.drill_results_json)) as Record<
+          string,
+          CommissioningDrillResult
+        >)
+      : {},
+    updatedAt: String(row.updated_at),
   }
 }
 

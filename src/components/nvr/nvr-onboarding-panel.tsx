@@ -16,6 +16,7 @@ const LIFECYCLE_LABELS: Record<string, string> = {
   waiting_for_install: "Waiting for install",
   pending_setup: "Pending setup",
   online: "Online",
+  offline: "Offline",
   expired: "Expired",
   revoked: "Revoked",
   cancelled: "Cancelled",
@@ -23,6 +24,7 @@ const LIFECYCLE_LABELS: Record<string, string> = {
 
 function lifecycleVariant(status: string) {
   if (status === "online") return "default"
+  if (status === "offline") return "destructive"
   if (status === "pending_setup") return "secondary"
   if (status === "waiting_for_install") return "outline"
   return "outline"

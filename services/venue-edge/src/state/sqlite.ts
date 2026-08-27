@@ -130,6 +130,88 @@ CREATE TABLE IF NOT EXISTS edge_capture_attempts (
 
 CREATE INDEX IF NOT EXISTS edge_capture_attempts_replay_idx
   ON edge_capture_attempts(replay_request_id);
+
+CREATE TABLE IF NOT EXISTS edge_local_nvrs (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL UNIQUE,
+  vendor TEXT NOT NULL CHECK (vendor IN ('vigi')),
+  host TEXT NOT NULL,
+  rtsp_port INTEGER NOT NULL,
+  playback_port INTEGER,
+  username TEXT NOT NULL,
+  local_connection_key TEXT NOT NULL UNIQUE,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  test_channel_key TEXT NOT NULL DEFAULT '1',
+  time_mode TEXT NOT NULL DEFAULT 'unknown' CHECK (time_mode IN ('z', 'l', 'unknown')),
+  last_test_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  CHECK (rtsp_port > 0 AND rtsp_port <= 65535),
+  CHECK (playback_port IS NULL OR (playback_port > 0 AND playback_port <= 65535))
+);
+
+CREATE INDEX IF NOT EXISTS edge_local_nvrs_enabled_idx
+  ON edge_local_nvrs(enabled);
+
+CREATE TABLE IF NOT EXISTS edge_local_cameras (
+  id TEXT PRIMARY KEY,
+  nvr_id TEXT NOT NULL REFERENCES edge_local_nvrs(id) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  channel_key TEXT NOT NULL,
+  stream_profile TEXT NOT NULL CHECK (stream_profile IN ('main', 'sub')),
+  codec TEXT NOT NULL DEFAULT 'unknown' CHECK (codec IN ('h264', 'h265', 'unknown')),
+  enabled INTEGER NOT NULL DEFAULT 0,
+  last_test_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE (nvr_id, channel_key, stream_profile)
+);
+
+CREATE INDEX IF NOT EXISTS edge_local_cameras_nvr_idx
+  ON edge_local_cameras(nvr_id);
+
+CREATE INDEX IF NOT EXISTS edge_local_cameras_enabled_idx
+  ON edge_local_cameras(enabled);
+
+CREATE TABLE IF NOT EXISTS edge_local_resource_policies (
+  resource_id TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  selection_mode TEXT NOT NULL CHECK (selection_mode IN ('automatic', 'manual')),
+  manual_source_id TEXT,
+  failure_threshold INTEGER NOT NULL DEFAULT 3,
+  cooldown_seconds INTEGER NOT NULL DEFAULT 60,
+  healthy_threshold INTEGER NOT NULL DEFAULT 2,
+  auto_failback INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS edge_local_resource_routes (
+  id TEXT PRIMARY KEY,
+  resource_id TEXT NOT NULL REFERENCES edge_local_resource_policies(resource_id) ON DELETE CASCADE,
+  camera_id TEXT NOT NULL REFERENCES edge_local_cameras(id) ON DELETE CASCADE,
+  priority INTEGER NOT NULL,
+  capture_modes_json TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE (resource_id, camera_id),
+  UNIQUE (resource_id, priority)
+);
+
+CREATE INDEX IF NOT EXISTS edge_local_resource_routes_resource_idx
+  ON edge_local_resource_routes(resource_id);
+
+CREATE TABLE IF NOT EXISTS edge_commissioning_state (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  completed INTEGER NOT NULL DEFAULT 0,
+  completed_at TEXT,
+  published_at TEXT,
+  failover_ready INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT,
+  drill_results_json TEXT,
+  updated_at TEXT NOT NULL
+);
 `
 
 function migrateSchema(db: DatabaseSync): void {
@@ -153,6 +235,17 @@ function migrateSchema(db: DatabaseSync): void {
 
   if (!columnNames.has("config_snapshot_json")) {
     db.exec(`ALTER TABLE edge_replay_jobs ADD COLUMN config_snapshot_json TEXT`)
+  }
+
+  const commissioning = db
+    .prepare(`SELECT id FROM edge_commissioning_state WHERE id = 1`)
+    .get() as { id: number } | undefined
+
+  if (!commissioning) {
+    db.exec(
+      `INSERT INTO edge_commissioning_state (id, completed, failover_ready, updated_at)
+       VALUES (1, 0, 0, datetime('now'))`,
+    )
   }
 }
 

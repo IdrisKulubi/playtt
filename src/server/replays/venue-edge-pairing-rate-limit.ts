@@ -19,6 +19,13 @@ export const PAIRING_LOOKUP_RATE_LIMIT = {
 
 type RateLimitTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
 
+type RedisRateLimitClient = {
+  connect(): Promise<void>
+  incr(key: string): Promise<number>
+  pExpire(key: string, milliseconds: number): Promise<number | boolean>
+  quit(): Promise<void>
+}
+
 function windowStart(now: Date, windowMs: number) {
   const epochMs = now.getTime()
   return new Date(Math.floor(epochMs / windowMs) * windowMs)
@@ -99,10 +106,16 @@ async function tryRedisRateLimit(input: {
   }
 
   try {
-    const module = await import("redis")
-    const createClient =
-      module.createClient ??
-      (module.default as { createClient?: typeof module.createClient })?.createClient
+    // Keep Redis optional and isolate its richer command surface from the
+    // narrower ambient type used by the realtime adapter.
+    const loadModule = new Function(
+      "specifier",
+      "return import(specifier)",
+    ) as (specifier: string) => Promise<{
+      createClient(options: { url: string }): RedisRateLimitClient
+    }>
+    const module = await loadModule("redis")
+    const createClient = module.createClient
 
     if (!createClient) {
       return null
@@ -122,7 +135,7 @@ async function tryRedisRateLimit(input: {
         return false
       }
     } finally {
-      await client.disconnect()
+      await client.quit()
     }
   } catch {
     return null

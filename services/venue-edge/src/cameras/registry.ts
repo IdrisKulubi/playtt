@@ -64,7 +64,8 @@ function resolveSourceRtspUrl(
   edgeConfigV2: EdgeConfigV2,
   sourceId: string
 ): string | null {
-  const configured = env.sourceRtspUrls[sourceId]
+  const configured =
+    env.sourceRtspUrls[sourceId] ?? env.runtimeSourceRtspUrls[sourceId]
   if (configured) {
     return configured
   }

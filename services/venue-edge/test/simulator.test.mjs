@@ -296,6 +296,7 @@ test("duplicate command idempotency does not re-run completed job", async () => 
     repositories,
     orchestrator,
     () => edgeConfig,
+    () => null,
   )
 
   repositories.upsertCommand({

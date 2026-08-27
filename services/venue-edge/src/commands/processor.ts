@@ -11,7 +11,8 @@ export class CommandProcessor {
     private readonly repositories: EdgeRepositories,
     private readonly orchestrator: ReplayOrchestrator,
     private readonly getEdgeConfig: () => EdgeConfig | null,
-    private readonly getEdgeConfigV2: () => EdgeConfigV2 | null
+    private readonly getEdgeConfigV2: () => EdgeConfigV2 | null,
+    private readonly isProductionCaptureAllowed: () => boolean = () => true,
   ) {}
 
   async pollAndProcess(): Promise<number> {
@@ -52,6 +53,24 @@ export class CommandProcessor {
         commandId: command.id,
         kind: command.kind,
       })
+      return false
+    }
+
+    if (!this.isProductionCaptureAllowed()) {
+      this.repositories.updateCommandStatus(command.id, "rejected", {
+        reason: "commissioning_incomplete",
+      })
+
+      await this.client.acknowledgeCommand(command.id, {
+        idempotencyKey: `reject-commissioning-${command.id}`,
+        success: false,
+        result: {
+          reason: "commissioning_incomplete",
+          message:
+            "Production replay capture is disabled until commissioning is complete.",
+        },
+      })
+
       return false
     }
 
