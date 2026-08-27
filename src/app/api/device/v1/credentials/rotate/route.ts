@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
       data: {
         secret: rotated.secret,
         credentialVersion: rotated.credentialVersion,
+        previousVersion: rotated.previousVersion,
       },
     })
   } catch (error) {

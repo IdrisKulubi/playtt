@@ -260,6 +260,7 @@ export const deviceStatusEnum = pgEnum("device_status", [
 
 export const deviceCredentialStatusEnum = pgEnum("device_credential_status", [
   "active",
+  "retiring",
   "rotated",
   "revoked",
 ])
@@ -418,6 +419,11 @@ export const venueEdgeConfigRevisionStatusEnum = pgEnum(
 export const venueEdgeConfigApplicationStatusEnum = pgEnum(
   "venue_edge_config_application_status",
   ["pending", "applied", "rejected"]
+)
+
+export const venueEdgePairingSessionStatusEnum = pgEnum(
+  "venue_edge_pairing_session_status",
+  ["waiting_for_install", "cancelled", "expired", "consumed"]
 )
 
 export const replaySourceHealthStatusEnum = pgEnum(
@@ -1658,6 +1664,9 @@ export const deviceCredentials = pgTable(
     uniqueIndex("device_credentials_active_unique")
       .on(table.deviceId)
       .where(sql`${table.status} = 'active'`),
+    uniqueIndex("device_credentials_retiring_unique")
+      .on(table.deviceId)
+      .where(sql`${table.status} = 'retiring'`),
     uniqueIndex("device_credentials_tenant_id_unique").on(
       table.tenantId,
       table.id
@@ -2311,6 +2320,105 @@ export const venueEdgeInstallations = pgTable(
       foreignColumns: [devices.tenantId, devices.locationId, devices.id],
       name: "venue_edge_installations_tenant_location_device_fk",
     }).onDelete("cascade"),
+  ]
+)
+
+export const venueEdgePairingSessions = pgTable(
+  "venue_edge_pairing_sessions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
+    status: venueEdgePairingSessionStatusEnum("status")
+      .default("waiting_for_install")
+      .notNull(),
+    codeHash: text("code_hash").notNull(),
+    codeHint: text("code_hint").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    consumedDeviceId: uuid("consumed_device_id").references(() => devices.id, {
+      onDelete: "set null",
+    }),
+    createdByActorId: text("created_by_actor_id").notNull(),
+    replaceInstallationId: uuid("replace_installation_id"),
+    correlationId: text("correlation_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("venue_edge_pairing_sessions_tenant_id_unique").on(
+      table.tenantId,
+      table.id
+    ),
+    uniqueIndex("venue_edge_pairing_sessions_tenant_code_hash_unique").on(
+      table.tenantId,
+      table.codeHash
+    ),
+    index("venue_edge_pairing_sessions_location_status_idx").on(
+      table.tenantId,
+      table.locationId,
+      table.status
+    ),
+    index("venue_edge_pairing_sessions_expires_at_idx").on(table.expiresAt),
+    index("venue_edge_pairing_sessions_consumed_device_idx").on(
+      table.consumedDeviceId,
+    ),
+    foreignKey({
+      columns: [table.tenantId, table.locationId],
+      foreignColumns: [locations.tenantId, locations.id],
+      name: "venue_edge_pairing_sessions_tenant_location_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.tenantId, table.replaceInstallationId],
+      foreignColumns: [venueEdgeInstallations.tenantId, venueEdgeInstallations.id],
+      name: "venue_edge_pairing_sessions_replace_installation_fk",
+    }).onDelete("set null"),
+  ]
+)
+
+export const venueEdgePairingRateLimits = pgTable(
+  "venue_edge_pairing_rate_limits",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    scope: text("scope").notNull(),
+    subjectHash: text("subject_hash").notNull(),
+    windowStartedAt: timestamp("window_started_at", {
+      withTimezone: true,
+    }).notNull(),
+    count: integer("count").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("venue_edge_pairing_rate_limits_scope_subject_window_unique").on(
+      table.scope,
+      table.subjectHash,
+      table.windowStartedAt
+    ),
+    index("venue_edge_pairing_rate_limits_scope_subject_idx").on(
+      table.scope,
+      table.subjectHash
+    ),
+    check(
+      "venue_edge_pairing_rate_limits_count_non_negative",
+      sql`${table.count} >= 0`
+    ),
   ]
 )
 
@@ -4676,7 +4784,7 @@ export const venueEdgeSecretRefRelations = relations(
 
 export const venueEdgeInstallationRelations = relations(
   venueEdgeInstallations,
-  ({ one }) => ({
+  ({ one, many }) => ({
     tenant: one(tenants, {
       fields: [venueEdgeInstallations.tenantId],
       references: [tenants.id],
@@ -4687,6 +4795,29 @@ export const venueEdgeInstallationRelations = relations(
     }),
     edgeDevice: one(devices, {
       fields: [venueEdgeInstallations.edgeDeviceId],
+      references: [devices.id],
+    }),
+    pairingSessions: many(venueEdgePairingSessions),
+  })
+)
+
+export const venueEdgePairingSessionRelations = relations(
+  venueEdgePairingSessions,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [venueEdgePairingSessions.tenantId],
+      references: [tenants.id],
+    }),
+    location: one(locations, {
+      fields: [venueEdgePairingSessions.locationId],
+      references: [locations.id],
+    }),
+    replaceInstallation: one(venueEdgeInstallations, {
+      fields: [venueEdgePairingSessions.replaceInstallationId],
+      references: [venueEdgeInstallations.id],
+    }),
+    consumedDevice: one(devices, {
+      fields: [venueEdgePairingSessions.consumedDeviceId],
       references: [devices.id],
     }),
   })

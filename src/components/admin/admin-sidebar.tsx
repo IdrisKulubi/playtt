@@ -8,6 +8,7 @@ import {
   BuildingsIcon,
   CalendarBlankIcon,
   CpuIcon,
+  HardDrivesIcon,
   FlagIcon,
   GaugeIcon,
   GlobeHemisphereWestIcon,
@@ -52,6 +53,7 @@ const navigationGroups: NavGroup[] = [
     label: "Catalog",
     items: [
       { href: "/admin/venues", label: "Venues", icon: BuildingsIcon },
+      { href: "/nvr", label: "VenueEdge", icon: HardDrivesIcon },
       { href: "/admin/devices", label: "Devices", icon: CpuIcon },
       { href: "/admin/access", label: "Venue access", icon: DoorOpenIcon },
       { href: "/admin/vendors", label: "Vendors", icon: PlugsIcon },

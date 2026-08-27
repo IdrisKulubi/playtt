@@ -7,6 +7,10 @@ const migration = readFileSync(
   new URL("../drizzle/0025_phase1_venue_edge_sources.sql", import.meta.url),
   "utf8"
 )
+const pairingMigration = readFileSync(
+  new URL("../drizzle/0026_venue_edge_pairing_sessions.sql", import.meta.url),
+  "utf8"
+)
 
 const newTables = [
   "replay_recorders",
@@ -19,6 +23,11 @@ const newTables = [
   "venue_edge_config_applications",
   "replay_source_health",
   "replay_capture_attempts",
+]
+
+const pairingTables = [
+  "venue_edge_pairing_sessions",
+  "venue_edge_pairing_rate_limits",
 ]
 
 test("venue-edge source foundation is additive and leaves v1 assignments intact", () => {
@@ -36,6 +45,15 @@ test("venue-edge source foundation is additive and leaves v1 assignments intact"
     migration,
     /ALTER TABLE "replay_requests" ADD COLUMN "selected_camera_source_id" uuid;/
   )
+})
+
+test("venue-edge pairing session migration is additive", () => {
+  for (const table of pairingTables) {
+    assert.match(pairingMigration, new RegExp(`CREATE TABLE "${table}"`))
+    assert.match(schema, new RegExp(table))
+  }
+
+  assert.doesNotMatch(pairingMigration, /DROP (?:TABLE|COLUMN|TYPE|INDEX)/i)
 })
 
 test("routes model ordered cameras and ordered non-empty capture modes", () => {

@@ -136,7 +136,7 @@ Exact names may change during Phase 1 schema review. The important invariant is 
 | ------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Phase 1 — Architecture, contracts, and data foundation  | Complete    | Signed off 2026-08-27: schema `0025`, config v2, rollout flags, transactional audit, backfill tooling, disposable rehearsal. P1-04 dispatch and P1-06 production cutover deferred to Phase 2 / staging ops |
 | Phase 2 — Multi-NVR edge runtime and camera failover    | Complete    | P2-01 through P2-05 complete: LKG snapshots, multi-source supervisors, source health, deterministic capture selection, simulator matrix, restart recovery, and capacity bounds |
-| Phase 3 — Pairing and secure installation identity      | Not started | Depends on Phase 1 installation model                                                                                                                                                                   |
+| Phase 3 — Pairing and secure installation identity      | In progress | P3-01–P3-04 complete: pairing exchange, DPAPI secrets, overlap rotation, and `/nvr` onboarding UI; exit gate pending full agent E2E |
 | Phase 4 — Local setup and NVR configuration wizard      | Not started | Depends on Phases 2 and 3                                                                                                                                                                               |
 | Phase 5 — Windows service and signed Setup.exe          | Not started | Depends on a stable local runtime and setup flow                                                                                                                                                        |
 | Phase 6 — `/nvr` management and fleet experience        | Not started | Minimal pairing surface begins in Phase 3; full management follows installer                                                                                                                            |
@@ -320,42 +320,42 @@ Allow a generic VenueEdge installation to bind securely to one authorized PlayTT
 
 ### P3-01 — Pairing sessions
 
-- [ ] Add an authenticated, `venue.manage`-gated pairing-session API.
-- [ ] Generate a high-entropy, human-friendly, one-use code bound to tenant, venue, creator, and short expiry.
-- [ ] Store only a hash of the pairing code.
-- [ ] Use shared database/Redis rate limiting that works across application instances.
-- [ ] Add cancel, expire, reissue, replace-host, and audit behavior.
+- [x] Add an authenticated, `venue.manage`-gated pairing-session API.
+- [x] Generate a high-entropy, human-friendly, one-use code bound to tenant, venue, creator, and short expiry.
+- [x] Store only a hash of the pairing code.
+- [x] Use shared database/Redis rate limiting that works across application instances.
+- [x] Add cancel, expire, reissue, replace-host, and audit behavior.
 
 ### P3-02 — Installer enrollment exchange
 
-- [ ] Generate a stable random installation ID locally; do not treat hostname or MAC address as authentication.
-- [ ] Exchange pairing code, installation ID, platform, architecture, and agent version for device credentials.
-- [ ] Make concurrent code consumption atomic with exactly one winner.
-- [ ] Confirm pairing only after the first authenticated heartbeat and local initialization.
-- [ ] Show `Waiting for install`, `Pending setup`, `Online`, `Expired`, and `Revoked` states.
+- [x] Generate a stable random installation ID locally; do not treat hostname or MAC address as authentication.
+- [x] Exchange pairing code, installation ID, platform, architecture, and agent version for device credentials.
+- [x] Make concurrent code consumption atomic with exactly one winner.
+- [x] Confirm pairing only after the first authenticated heartbeat and local initialization.
+- [x] Show `Waiting for install`, `Pending setup`, `Online`, `Expired`, and `Revoked` states.
 
 ### P3-03 — Local device-secret protection
 
-- [ ] Store the PlayTT device secret through Windows DPAPI/Credential Manager under the service identity.
-- [ ] Fail closed if protected storage is unavailable; never silently save plaintext.
-- [ ] Add safe credential rotation with overlap, acknowledgement, and rollback.
-- [ ] Add revoke and replacement-PC behavior.
-- [ ] Redact pairing codes, device secrets, authorization headers, and upload URLs from logs and support bundles.
+- [x] Store the PlayTT device secret through Windows DPAPI/Credential Manager under the service identity.
+- [x] Fail closed if protected storage is unavailable; never silently save plaintext.
+- [x] Add safe credential rotation with overlap, acknowledgement, and rollback.
+- [x] Add revoke and replacement-PC behavior.
+- [x] Redact pairing codes, device secrets, authorization headers, and upload URLs from logs and support bundles.
 
 ### P3-04 — Minimal `/nvr` onboarding surface
 
-- [ ] Add an authorized venue selector and “Add VenueEdge” flow.
-- [ ] Publish the correct signed installer artifact metadata or a development placeholder until Phase 5.
-- [ ] Display pairing code, expiry, setup status, cancel, and reissue controls.
-- [ ] Poll or stream pairing/heartbeat state without revealing device credentials.
+- [x] Add an authorized venue selector and “Add VenueEdge” flow.
+- [x] Publish the correct signed installer artifact metadata or a development placeholder until Phase 5.
+- [x] Display pairing code, expiry, setup status, cancel, and reissue controls.
+- [x] Poll or stream pairing/heartbeat state without revealing device credentials.
 
 ## Required tests and evidence
 
-- [ ] Expired, reused, cancelled, guessed, wrong-venue, and rate-limited codes fail safely.
-- [ ] Concurrent enrollment produces one installation and one active credential.
-- [ ] Browser, API logs, audit metadata, and telemetry contain no plaintext secret.
-- [ ] Device revocation immediately blocks config, heartbeat, command, progress, and upload-grant APIs.
-- [ ] Credential rotation survives agent restart and network interruption.
+- [x] Expired, reused, cancelled, guessed, wrong-venue, and rate-limited codes fail safely.
+- [x] Concurrent enrollment produces one installation and one active credential.
+- [x] Browser, API logs, audit metadata, and telemetry contain no plaintext secret.
+- [x] Device revocation immediately blocks config, heartbeat, command, progress, and upload-grant APIs.
+- [x] Credential rotation survives agent restart and network interruption.
 
 ## Phase 3 exit gate
 
@@ -701,6 +701,10 @@ Add one row when a work package or phase exit is completed.
 | 2026-08-27 | P2-04 deterministic source selection              | Complete    | Codex | `services/venue-edge/src/selection/select-source.ts`, `replay/orchestrator.ts`, `state/sqlite.ts`, `local-storage/repositories.ts`, `cameras/registry.ts` | `services/venue-edge/test/source-selection.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`      | Local SQLite + command ack extras only            | Clear `edge_capture_attempts`; unlock jobs by clearing lock columns | Postgres `replay_capture_attempts` ingest deferred to P1-04 |
 | 2026-08-27 | P2-05 simulator and recovery                      | Complete    | Codex | `services/venue-edge/src/simulator/scenario.ts`, `recovery/reindex-buffers.ts`, `local-storage/prune.ts`, `health/engine.ts`, `replay/orchestrator.ts`, `fixtures/edge-v2-simulator-matrix.json`, `fixtures/edge-v2-ten-resource.json` | `services/venue-edge/test/simulator-recovery.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`    | Local SQLite + simulate fixtures only             | Roll back config slot; prune pending workspaces; reindex buffers from disk | Postgres `replay_capture_attempts` ingest deferred to P1-04 |
 | 2026-08-27 | Phase 2 production-path remediation audit          | Complete    | Codex | `services/venue-edge/src/cameras/registry.ts`, `config/apply-v2.ts`, `config/budgets.ts`, `health/engine.ts`, `replay/orchestrator.ts`, `src/server/replays/capture-replay-command.ts` | VenueEdge suite, typecheck, and `test:replay-edge`; production RTSP, stale revision, activation rollback, selected-source health, config-change recovery, recorder restart, and network budget regressions | Local SQLite replay snapshot columns only | Revert remediation files; edge rejects revision-bound commands until cloud and edge are rolled back together | Phase 2 re-audited after initial simulator-only gaps were found and corrected |
+| 2026-08-27 | P3-01 venue-edge pairing sessions                  | Complete    | Codex | `db/schema.ts`, `drizzle/0026_venue_edge_pairing_sessions.sql`, `src/server/replays/venue-edge-pairing-sessions.ts`, `src/app/api/operator/venue-edge/pairing-sessions/` | `src/server/replays/venue-edge-pairing-sessions.test.mjs`, `db/venue-edge-source-schema.test.mjs`, `pnpm test:db`, `pnpm test:replay-edge` | `drizzle/0026_venue_edge_pairing_sessions.sql` | Drop pairing tables; operator devices auto-issue path unchanged | P3-02 enroll exchange and `/nvr` UI deferred; replace-host validated via `replaceInstallationId` only |
+| 2026-08-27 | P3-02 installer enrollment exchange                | Complete    | Codex | `db/schema.ts`, `drizzle/0027_venue_edge_pairing_consumed_device.sql`, `src/server/replays/venue-edge-enrollment.ts`, `src/app/api/edge/v1/enroll/exchange/`, `src/app/api/edge/v1/enroll/confirm/` | `src/server/replays/venue-edge-pairing-sessions.test.mjs`, `pnpm test:db`, `pnpm test:replay-edge` | `drizzle/0027_venue_edge_pairing_consumed_device.sql` | Revoke enrolled devices; drop `consumed_device_id` column if rolling back migration | DPAPI, `/nvr` UI, and agent credential client deferred to P3-03/P3-04 |
+| 2026-08-27 | P3-03 local device-secret protection               | Complete    | Codex | `services/venue-edge/src/auth/secret-store.ts`, `credential-manager.ts`, `credential-rotation.ts`, `drizzle/0028_device_credential_retiring.sql`, `src/app/api/device/v1/credentials/acknowledge/`, `rollback/` | `services/venue-edge/test/secret-store.test.mjs`, `src/server/devices/devices.test.mjs`, `pnpm test`, `pnpm test:db`, `pnpm test:replay-edge` | `drizzle/0028_device_credential_retiring.sql` | Revert overlap rotation routes; restore single-active credential semantics | `/nvr` UI and Phase 3 exit gate deferred to P3-04 |
+| 2026-08-27 | P3-04 minimal /nvr onboarding surface              | Complete    | Codex | `src/app/nvr/page.tsx`, `src/components/nvr/nvr-onboarding-panel.tsx`, `src/server/replays/venue-edge-installer-metadata.ts` | `src/components/nvr/nvr-onboarding.test.mjs`, `pnpm test:replay-edge` | N/A | Remove `/nvr` route and sidebar link | Phase 3 exit gate deferred until full agent E2E through `/nvr` |
 
 ## Decision log
 

@@ -188,9 +188,19 @@ test("device v1 routes use dedicated device auth", () => {
     join(repoRoot, "src/app/api/device/v1/credentials/rotate/route.ts"),
     "utf8"
   )
+  const acknowledgeRoute = readFileSync(
+    join(repoRoot, "src/app/api/device/v1/credentials/acknowledge/route.ts"),
+    "utf8"
+  )
+  const rollbackRoute = readFileSync(
+    join(repoRoot, "src/app/api/device/v1/credentials/rollback/route.ts"),
+    "utf8"
+  )
 
   assert.match(configRoute, /requireDeviceRequest/)
   assert.match(rotateRoute, /requireDeviceRequest/)
+  assert.match(acknowledgeRoute, /acknowledgeDeviceCredentialRotation/)
+  assert.match(rollbackRoute, /rollbackDeviceCredentialRotation/)
   assert.doesNotMatch(configRoute, /getSessionWithBearerFallback/)
 })
 
@@ -274,6 +284,32 @@ test("enrollment provision and config flow works when database is available", as
     deviceId: provisioned.deviceId,
     tenantId: provisioned.tenantId,
   })
+  assert.equal(rotated.previousVersion, 1)
+  assert.equal(rotated.credentialVersion, 2)
+
+  const overlapOld = await authenticateDeviceCredential({
+    deviceId: provisioned.deviceId,
+    secret: provisioned.secret,
+  })
+  assert.equal(overlapOld.credentialVersion, 1)
+
+  const overlapNew = await authenticateDeviceCredential({
+    deviceId: provisioned.deviceId,
+    secret: rotated.secret,
+  })
+  assert.equal(overlapNew.credentialVersion, 2)
+
+  const {
+    acknowledgeDeviceCredentialRotation,
+    rollbackDeviceCredentialRotation,
+  } = await import("./devices.ts")
+
+  await acknowledgeDeviceCredentialRotation({
+    deviceId: provisioned.deviceId,
+    tenantId: provisioned.tenantId,
+    credentialVersion: rotated.credentialVersion,
+  })
+
   await assert.rejects(
     () =>
       authenticateDeviceCredential({
@@ -453,4 +489,151 @@ test("heartbeat and command lifecycle works when database is available", async (
   )
 
   await expireStaleDeviceCommands(new Date("2099-01-01T00:00:00.000Z"))
+})
+
+test("credential rotation overlap supports rollback before acknowledgement", async (t) => {
+  if (!process.env.POSTGRES_URL) {
+    t.skip("POSTGRES_URL is not configured")
+    return
+  }
+
+  const { createEnrollment, provisionDevice } = await import("./devices.ts")
+  const {
+    authenticateDeviceCredential,
+    rotateDeviceCredential,
+    rollbackDeviceCredentialRotation,
+  } = await import("./devices.ts")
+  const { DeviceError } = await import("./errors.ts")
+
+  const operatorContext = {
+    tenantId: PLAYTT_TENANT_ID,
+    actor: { type: "user", id: "operator-rollback" },
+    role: "operator",
+    membershipId: "membership-operator-rollback",
+    correlationId: "corr-rollback-test",
+  }
+
+  const enrollment = await createEnrollment(operatorContext, {
+    locationId: HURLINGHAM_VENUE_ID,
+    deviceType: "esp32_controller",
+  })
+
+  const provisioned = await provisionDevice({
+    enrollmentCode: enrollment.enrollmentCode,
+    hardwareUid: `sim-rollback-${Date.now()}`,
+    firmwareVersion: "0.2.0",
+    correlationId: "corr-rollback-provision",
+  })
+
+  const rotated = await rotateDeviceCredential({
+    deviceId: provisioned.deviceId,
+    tenantId: provisioned.tenantId,
+  })
+
+  await rollbackDeviceCredentialRotation({
+    deviceId: provisioned.deviceId,
+    tenantId: provisioned.tenantId,
+    credentialVersion: rotated.previousVersion,
+  })
+
+  await assert.rejects(
+    () =>
+      authenticateDeviceCredential({
+        deviceId: provisioned.deviceId,
+        secret: rotated.secret,
+      }),
+    DeviceError
+  )
+
+  const restored = await authenticateDeviceCredential({
+    deviceId: provisioned.deviceId,
+    secret: provisioned.secret,
+  })
+  assert.equal(restored.credentialVersion, 1)
+})
+
+test("revoked venue_edge devices cannot authenticate for edge APIs", async (t) => {
+  if (!process.env.POSTGRES_URL) {
+    t.skip("POSTGRES_URL is not configured")
+    return
+  }
+
+  const { randomUUID } = await import("node:crypto")
+  const { createVenueEdgePairingSession } = await import(
+    "../replays/venue-edge-pairing-sessions.ts"
+  )
+  const { exchangeVenueEdgeEnrollment } = await import(
+    "../replays/venue-edge-enrollment.ts"
+  )
+  const { authenticateDeviceCredential, revokeDevice } = await import(
+    "./devices.ts"
+  )
+  const { recordDeviceHeartbeat } = await import("./heartbeats.ts")
+  const { DeviceError } = await import("./errors.ts")
+  const { getDeviceConfigForAuthenticatedDevice } = await import("./devices.ts")
+
+  const operatorContext = {
+    tenantId: PLAYTT_TENANT_ID,
+    actor: { type: "user", id: "operator-revoke-edge" },
+    role: "operator",
+    membershipId: "membership-operator-revoke-edge",
+    correlationId: `corr-revoke-edge-${Date.now()}`,
+  }
+
+  const session = await createVenueEdgePairingSession(operatorContext, {
+    locationId: HURLINGHAM_VENUE_ID,
+  })
+
+  const exchanged = await exchangeVenueEdgeEnrollment({
+    pairingCode: session.pairingCode,
+    installationUid: randomUUID(),
+    platform: "windows",
+    architecture: "x64",
+    agentVersion: "0.3.0",
+    lookupSubject: "test-ip-revoke-edge",
+    correlationId: `corr-revoke-edge-exchange-${Date.now()}`,
+  })
+
+  await recordDeviceHeartbeat({
+    tenantId: exchanged.tenantId,
+    deviceId: exchanged.deviceId,
+    bootId: "boot-revoke-edge",
+    correlationId: "corr-revoke-edge-heartbeat",
+    appliedConfigVersion: 1,
+  })
+
+  await revokeDevice(operatorContext, exchanged.deviceId)
+
+  await assert.rejects(
+    () =>
+      authenticateDeviceCredential({
+        deviceId: exchanged.deviceId,
+        secret: exchanged.secret,
+      }),
+    (error) =>
+      error instanceof DeviceError && error.code === "DEVICE_REVOKED",
+  )
+
+  await assert.rejects(
+    () =>
+      getDeviceConfigForAuthenticatedDevice({
+        tenantId: exchanged.tenantId,
+        deviceId: exchanged.deviceId,
+        deviceStatus: "revoked",
+      }),
+    (error) =>
+      error instanceof DeviceError && error.code === "DEVICE_REVOKED",
+  )
+
+  await assert.rejects(
+    () =>
+      recordDeviceHeartbeat({
+        tenantId: exchanged.tenantId,
+        deviceId: exchanged.deviceId,
+        bootId: "boot-revoke-edge-2",
+        correlationId: "corr-revoke-edge-heartbeat-2",
+      }),
+    (error) =>
+      error instanceof DeviceError && error.code === "DEVICE_REVOKED",
+  )
 })

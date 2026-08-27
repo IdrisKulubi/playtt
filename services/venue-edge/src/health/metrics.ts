@@ -1,13 +1,23 @@
 const SECRET_KEY_PATTERN =
-  /(?:password|secret|token|credential|api[_-]?key|private[_-]?key|rtsp:\/\/[^@\s]+@)/i
+  /(?:password|secret|token|credential|api[_-]?key|private[_-]?key|authorization|pairing[_-]?code|uploadGrant|rtsp:\/\/[^@\s]+@)/i
 
 const SECRET_VALUE_PATTERNS = [
   /Device\s+[0-9a-f-]+\s+[A-Za-z0-9+/=_-]{8,}/i,
+  /[0-9A-HJ-NP-Z]{4}-[0-9A-HJ-NP-Z]{6}/,
   /X-Amz-Credential=[^&\s]+/i,
   /X-Amz-Signature=[^&\s]+/i,
   /https?:\/\/[^@\s]+@[^/\s]+/i,
   /rtsp:\/\/[^@\s]+@[^/\s]+/i,
+  /https?:\/\/[^\s]*[?&](?:X-Amz-Signature|X-Amz-Credential)=[^&\s]+/i,
 ]
+
+function shouldRedactUrlValue(key: string, value: string): boolean {
+  if (key.toLowerCase() === "url" || key.toLowerCase() === "uploadgrant") {
+    return /[?&](?:X-Amz-Signature|X-Amz-Credential)=/i.test(value)
+  }
+
+  return false
+}
 
 export function redactSecrets(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -26,6 +36,11 @@ export function redactSecrets(value: unknown): unknown {
 
   for (const [key, nested] of Object.entries(value)) {
     if (SECRET_KEY_PATTERN.test(key)) {
+      output[key] = "[redacted]"
+      continue
+    }
+
+    if (typeof nested === "string" && shouldRedactUrlValue(key, nested)) {
       output[key] = "[redacted]"
       continue
     }

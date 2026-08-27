@@ -309,4 +309,60 @@ export class EdgeV1Client {
 
     return body.data.uploadGrant
   }
+
+  async rotateCredential(): Promise<{
+    secret: string
+    credentialVersion: number
+    previousVersion: number
+  }> {
+    const body = (await this.request("/api/device/v1/credentials/rotate", {
+      method: "POST",
+      body: {},
+    })) as {
+      data: {
+        secret: string
+        credentialVersion: number
+        previousVersion: number
+      }
+    }
+
+    return body.data
+  }
+
+  async acknowledgeCredentialRotation(): Promise<{
+    credentialVersion: number
+    previousVersion: number | null
+  }> {
+    const body = (await this.request(
+      "/api/device/v1/credentials/acknowledge",
+      {
+        method: "POST",
+        body: {},
+      }
+    )) as {
+      data: {
+        credentialVersion: number
+        previousVersion: number | null
+      }
+    }
+
+    return body.data
+  }
+
+  async rollbackCredentialRotation(): Promise<{
+    credentialVersion: number
+    rolledBackVersion: number
+  }> {
+    const body = (await this.request("/api/device/v1/credentials/rollback", {
+      method: "POST",
+      body: {},
+    })) as {
+      data: {
+        credentialVersion: number
+        rolledBackVersion: number
+      }
+    }
+
+    return body.data
+  }
 }

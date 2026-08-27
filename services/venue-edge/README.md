@@ -36,8 +36,10 @@ pnpm start
 | `VENUE_EDGE_DATA_DIR` | `.venue-edge-data` | SQLite + clip storage root |
 | `RTSP_URL` | — | Legacy single-source RTSP URL; accepted only when exactly one buffering source exists |
 | `VENUE_EDGE_SOURCE_RTSP_URLS_JSON` | `{}` | Local JSON map of source UUID to authenticated RTSP URL; never supplied by cloud config |
-| `VENUE_EDGE_CREDENTIALS_PATH` | `{dataDir}/credentials.json` | Device auth store |
-| `VENUE_EDGE_ENCRYPT_CREDENTIALS` | `false` | AES-256-GCM at rest |
+| `VENUE_EDGE_CREDENTIALS_PATH` | `{dataDir}/credentials.json` | Legacy plaintext path (removed on startup) |
+| `VENUE_EDGE_INSTALLATION_PATH` | `{dataDir}/installation.json` | Non-secret installation metadata |
+| `VENUE_EDGE_SECRET_BLOB_PATH` | `{dataDir}/credentials.dpapi` | DPAPI-protected device secret blob |
+| `VENUE_EDGE_SECRET_STORE` | unset | `memory` for explicit test runs; production uses DPAPI |
 | `VENUE_EDGE_MAX_CONCURRENT` | `3` | Bounded replay concurrency (Stage 6) |
 | `VENUE_EDGE_MAX_BUFFER_PROCESSES` | `8` | Maximum concurrent FFmpeg rolling buffers |
 | `VENUE_EDGE_MAX_CPU_PERCENT` | `85` | Windows system CPU admission ceiling for new buffers |
@@ -49,7 +51,8 @@ pnpm start
 ```
 {dataDir}/
   venue-edge.sqlite
-  credentials.json
+  installation.json
+  credentials.dpapi
   buffers/{cameraId}/
   pending/{replayRequestId}/
   uploaded/

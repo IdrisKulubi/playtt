@@ -1,4 +1,5 @@
 import type { EdgeV1Client } from "../cloud/client"
+import { isDeviceRevokedCloudError } from "../auth/cloud-errors"
 import type { VenueEdgeEnv } from "../config/env"
 import { createMetricsSnapshot, safeLog } from "../health/metrics"
 import type { CommandProcessor } from "../commands/processor"
@@ -17,6 +18,7 @@ export interface HeartbeatLoopDeps {
     replayQueueDepth: number
     maxConcurrentReplays: number
   }
+  onDeviceRevoked?: () => Promise<void>
   startedAt: number
 }
 
@@ -34,6 +36,10 @@ export class HeartbeatLoop {
 
     this.commandTimer = setInterval(() => {
       void this.deps.processor.pollAndProcess().catch((error) => {
+        if (this.handleCloudAuthFailure(error)) {
+          return
+        }
+
         safeLog("error", "Command poll failed", {
           message: error instanceof Error ? error.message : String(error),
         })
@@ -96,9 +102,35 @@ export class HeartbeatLoop {
         await this.deps.processor.pollAndProcess()
       }
     } catch (error) {
+      if (this.handleCloudAuthFailure(error)) {
+        return
+      }
+
       safeLog("warn", "Heartbeat failed", {
         message: error instanceof Error ? error.message : String(error),
       })
     }
+  }
+
+  private handleCloudAuthFailure(error: unknown): boolean {
+    if (!isDeviceRevokedCloudError(error)) {
+      return false
+    }
+
+    safeLog("warn", "Device credentials were revoked by cloud")
+    this.stop()
+
+    if (this.deps.onDeviceRevoked) {
+      void this.deps.onDeviceRevoked().catch((revokeError) => {
+        safeLog("error", "Failed to wipe credentials after revocation", {
+          message:
+            revokeError instanceof Error
+              ? revokeError.message
+              : String(revokeError),
+        })
+      })
+    }
+
+    return true
   }
 }
