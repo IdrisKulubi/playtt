@@ -14,6 +14,7 @@ export interface VenueEdgeEnv {
   installationPath: string
   secretBlobPath: string
   secretStoreMode: string
+  pairingCode: string | null
   sqlitePath: string
   bootId: string
   firmwareVersion: string
@@ -104,6 +105,8 @@ export function loadEnv(overrides: Partial<VenueEdgeEnv> = {}): VenueEdgeEnv {
       overrides.secretStoreMode ??
       process.env.VENUE_EDGE_SECRET_STORE ??
       "",
+    pairingCode:
+      overrides.pairingCode ?? process.env.VENUE_EDGE_PAIRING_CODE ?? null,
     sqlitePath:
       overrides.sqlitePath ??
       process.env.VENUE_EDGE_SQLITE_PATH ??

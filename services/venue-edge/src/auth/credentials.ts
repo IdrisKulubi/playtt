@@ -2,6 +2,7 @@ export interface DeviceCredentials {
   deviceId: string
   secret: string
   credentialVersion?: number
+  installationUid?: string
 }
 
 export function redactCredentialValue(value: string): string {

@@ -365,4 +365,58 @@ export class EdgeV1Client {
 
     return body.data
   }
+
+  async exchangeEnrollment(input: {
+    pairingCode: string
+    installationUid: string
+    platform: string
+    architecture: string
+    agentVersion: string
+    displayName?: string
+  }): Promise<{
+    deviceId: string
+    secret: string
+    credentialVersion: number
+    installationId: string
+    tenantId: string
+    locationId: string
+    status: "pending_setup"
+  }> {
+    const body = (await this.request("/api/edge/v1/enroll/exchange", {
+      method: "POST",
+      auth: false,
+      body: input,
+    })) as {
+      data: {
+        deviceId: string
+        secret: string
+        credentialVersion: number
+        installationId: string
+        tenantId: string
+        locationId: string
+        status: "pending_setup"
+      }
+    }
+
+    return body.data
+  }
+
+  async confirmEnrollment(): Promise<{
+    deviceId: string
+    status: "online"
+    alreadyConfirmed: boolean
+  }> {
+    const body = (await this.request("/api/edge/v1/enroll/confirm", {
+      method: "POST",
+      body: {},
+    })) as {
+      data: {
+        deviceId: string
+        status: "online"
+        alreadyConfirmed: boolean
+      }
+    }
+
+    return body.data
+  }
 }

@@ -3,6 +3,10 @@ import { pathToFileURL } from "node:url"
 
 import { CredentialManager } from "./auth/credential-manager"
 import { isDeviceRevokedCloudError } from "./auth/cloud-errors"
+import {
+  confirmPendingEnrollment,
+  enrollVenueEdge,
+} from "./enrollment/enroll"
 import { SourceSupervisorRegistry } from "./buffers/registry"
 import { listBufferingSourceIds } from "./cameras/registry"
 import { CommandProcessor } from "./commands/processor"
@@ -103,6 +107,22 @@ export async function startVenueEdge(
     secret: credentials?.secret,
     agentVersion: env.firmwareVersion,
   })
+
+  if (!credentials && env.pairingCode) {
+    const enrolled = await enrollVenueEdge({
+      pairingCode: env.pairingCode,
+      credentialManager,
+      client,
+      agentVersion: env.firmwareVersion,
+      bootId: env.bootId,
+    })
+    credentials = await credentialManager.loadCredentials()
+    safeLog("info", "Paired with PlayTT venue", {
+      deviceId: enrolled.deviceId,
+      installationId: enrolled.installationId,
+      status: enrolled.status,
+    })
+  }
 
   let edgeConfig: EdgeConfig | null = null
   const configManager = new EdgeConfigV2Manager(
@@ -278,6 +298,9 @@ export async function startVenueEdge(
     getCapacityMetrics: () => orchestrator.getCapacityMetrics(),
     startedAt,
     onDeviceRevoked: handleDeviceRevoked,
+    onHeartbeatOk: async () => {
+      await confirmPendingEnrollment(client)
+    },
   })
 
   heartbeat = heartbeatLoop
@@ -305,8 +328,37 @@ export async function startVenueEdge(
 async function main(): Promise<void> {
   const command = process.argv[2] ?? "start"
 
+  if (command === "enroll") {
+    const pairingCode = process.argv[3] ?? process.env.VENUE_EDGE_PAIRING_CODE
+    if (!pairingCode) {
+      console.error("Usage: venue-edge enroll <pairing-code>")
+      process.exit(1)
+    }
+
+    const env = loadEnv({ pairingCode })
+    const credentialManager = CredentialManager.fromEnv(env)
+    await credentialManager.deleteLegacyPlaintextFile(env.credentialsPath)
+    const client = new EdgeV1Client({
+      baseUrl: env.cloudBaseUrl,
+      agentVersion: env.firmwareVersion,
+    })
+    const enrolled = await enrollVenueEdge({
+      pairingCode,
+      credentialManager,
+      client,
+      agentVersion: env.firmwareVersion,
+      bootId: env.bootId,
+    })
+    safeLog("info", "Enrollment finished", {
+      deviceId: enrolled.deviceId,
+      installationId: enrolled.installationId,
+      status: enrolled.status,
+    })
+    return
+  }
+
   if (command !== "start" && command !== "simulate") {
-    console.error("Usage: venue-edge <start|simulate>")
+    console.error("Usage: venue-edge <start|simulate|enroll>")
     process.exit(1)
   }
 
