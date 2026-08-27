@@ -21,6 +21,7 @@ test("edge-v1 protocol fixture is frozen", () => {
   assert.equal(fixture.version, "edge-v1")
   assert.equal(fixture.captureReplayPayload.preRollSeconds, 12)
   assert.equal(fixture.captureReplayPayload.postRollSeconds, 3)
+  assert.equal(fixture.captureReplayPayload.configRevisionId, "uuid")
   assert.deepEqual(fixture.progressStatuses, [
     "edge_acknowledged",
     "capturing",

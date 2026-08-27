@@ -11,6 +11,8 @@ import {
   resourceCapabilities,
   resources,
   sessionParticipants,
+  venueEdgeConfigApplications,
+  venueEdgeConfigRevisions,
 } from "@/db/schema"
 import type {
   replayCaptureSourceEnum,
@@ -23,7 +25,9 @@ import {
 } from "@/server/replays/constants"
 import type { TenantContext } from "@/server/tenancy/types"
 
-type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0]
+type DbExecutor =
+  | typeof db
+  | Parameters<Parameters<typeof db.transaction>[0]>[0]
 
 export type ReplayRequestStatus =
   (typeof replayRequestStatusEnum.enumValues)[number]
@@ -44,6 +48,7 @@ export interface ReplayRequestRecord {
   venueEdgeDeviceId: string | null
   cameraDeviceId: string | null
   assignmentId: string | null
+  configRevisionId: string | null
   sourceType: ReplayCaptureSource
   captureAt: Date
   preRollSeconds: number
@@ -110,12 +115,7 @@ const ALLOWED_REPLAY_REQUEST_TRANSITIONS: Record<
 > = {
   requested: ["authorized", "failed"],
   authorized: ["dispatched", "failed", "edge_offline"],
-  dispatched: [
-    "edge_acknowledged",
-    "edge_offline",
-    "failed",
-    "expired",
-  ],
+  dispatched: ["edge_acknowledged", "edge_offline", "failed", "expired"],
   edge_acknowledged: ["capturing", "edge_offline", "failed"],
   capturing: ["extracting", "buffer_missing", "failed"],
   extracting: ["uploading", "extraction_failed", "failed"],
@@ -145,7 +145,7 @@ const STATUS_TIMESTAMP_FIELD: Partial<
 }
 
 function mapReplayRequest(
-  row: typeof replayRequests.$inferSelect,
+  row: typeof replayRequests.$inferSelect
 ): ReplayRequestRecord {
   return {
     id: row.id,
@@ -160,6 +160,7 @@ function mapReplayRequest(
     venueEdgeDeviceId: row.venueEdgeDeviceId,
     cameraDeviceId: row.cameraDeviceId,
     assignmentId: row.assignmentId,
+    configRevisionId: row.configRevisionId,
     sourceType: row.sourceType,
     captureAt: row.captureAt,
     preRollSeconds: row.preRollSeconds,
@@ -192,7 +193,7 @@ export async function getReplayRequestByIdempotencyKey(
     playSessionId: string
     clientIdempotencyKey: string
   },
-  tx?: DbExecutor,
+  tx?: DbExecutor
 ) {
   const executor = tx ?? db
   const [row] = await executor
@@ -203,8 +204,8 @@ export async function getReplayRequestByIdempotencyKey(
         eq(replayRequests.tenantId, context.tenantId),
         eq(replayRequests.requesterUserId, input.requesterUserId),
         eq(replayRequests.playSessionId, input.playSessionId),
-        eq(replayRequests.clientIdempotencyKey, input.clientIdempotencyKey),
-      ),
+        eq(replayRequests.clientIdempotencyKey, input.clientIdempotencyKey)
+      )
     )
     .limit(1)
 
@@ -214,7 +215,7 @@ export async function getReplayRequestByIdempotencyKey(
 export async function getReplayRequestByMediaAssetId(
   context: TenantContext,
   mediaAssetId: string,
-  tx?: DbExecutor,
+  tx?: DbExecutor
 ) {
   const executor = tx ?? db
   const [row] = await executor
@@ -223,8 +224,8 @@ export async function getReplayRequestByMediaAssetId(
     .where(
       and(
         eq(replayRequests.tenantId, context.tenantId),
-        eq(replayRequests.mediaAssetId, mediaAssetId),
-      ),
+        eq(replayRequests.mediaAssetId, mediaAssetId)
+      )
     )
     .limit(1)
 
@@ -234,7 +235,7 @@ export async function getReplayRequestByMediaAssetId(
 export async function getReplayRequestById(
   context: TenantContext,
   replayRequestId: string,
-  tx?: DbExecutor,
+  tx?: DbExecutor
 ) {
   const executor = tx ?? db
   const [row] = await executor
@@ -243,8 +244,8 @@ export async function getReplayRequestById(
     .where(
       and(
         eq(replayRequests.tenantId, context.tenantId),
-        eq(replayRequests.id, replayRequestId),
-      ),
+        eq(replayRequests.id, replayRequestId)
+      )
     )
     .limit(1)
 
@@ -264,6 +265,7 @@ export async function insertReplayRequest(
     venueEdgeDeviceId: string
     cameraDeviceId?: string | null
     assignmentId: string
+    configRevisionId: string
     sourceType: ReplayCaptureSource
     captureAt: Date
     preRollSeconds: number
@@ -274,7 +276,7 @@ export async function insertReplayRequest(
     deviceCommandId?: string | null
     dispatchedAt?: Date | null
   },
-  tx?: DbExecutor,
+  tx?: DbExecutor
 ) {
   const executor = tx ?? db
   const [row] = await executor
@@ -291,6 +293,7 @@ export async function insertReplayRequest(
       venueEdgeDeviceId: input.venueEdgeDeviceId,
       cameraDeviceId: input.cameraDeviceId ?? null,
       assignmentId: input.assignmentId,
+      configRevisionId: input.configRevisionId,
       sourceType: input.sourceType,
       captureAt: input.captureAt,
       preRollSeconds: input.preRollSeconds,
@@ -306,6 +309,48 @@ export async function insertReplayRequest(
   return mapReplayRequest(row!)
 }
 
+export async function getAppliedConfigRevisionIdForDevice(
+  context: TenantContext,
+  locationId: string,
+  deviceId: string,
+  tx?: DbExecutor
+) {
+  const executor = tx ?? db
+  const [revision] = await executor
+    .select({ id: venueEdgeConfigRevisions.id })
+    .from(venueEdgeConfigApplications)
+    .innerJoin(
+      venueEdgeConfigRevisions,
+      and(
+        eq(
+          venueEdgeConfigRevisions.tenantId,
+          venueEdgeConfigApplications.tenantId
+        ),
+        eq(
+          venueEdgeConfigRevisions.locationId,
+          venueEdgeConfigApplications.locationId
+        ),
+        eq(
+          venueEdgeConfigRevisions.id,
+          venueEdgeConfigApplications.configRevisionId
+        )
+      )
+    )
+    .where(
+      and(
+        eq(venueEdgeConfigApplications.tenantId, context.tenantId),
+        eq(venueEdgeConfigApplications.locationId, locationId),
+        eq(venueEdgeConfigApplications.edgeDeviceId, deviceId),
+        eq(venueEdgeConfigApplications.status, "applied"),
+        eq(venueEdgeConfigRevisions.status, "published")
+      )
+    )
+    .orderBy(desc(venueEdgeConfigApplications.appliedAt))
+    .limit(1)
+
+  return revision?.id ?? null
+}
+
 export async function transitionReplayRequestStatus(
   context: TenantContext,
   input: {
@@ -314,7 +359,7 @@ export async function transitionReplayRequestStatus(
     failureReason?: string | null
     deviceCommandId?: string | null
   },
-  tx?: DbExecutor,
+  tx?: DbExecutor
 ) {
   const executor = tx ?? db
   const [current] = await executor
@@ -323,8 +368,8 @@ export async function transitionReplayRequestStatus(
     .where(
       and(
         eq(replayRequests.tenantId, context.tenantId),
-        eq(replayRequests.id, input.replayRequestId),
-      ),
+        eq(replayRequests.id, input.replayRequestId)
+      )
     )
     .limit(1)
     .for("update")
@@ -333,7 +378,7 @@ export async function transitionReplayRequestStatus(
     throw new ReplayServiceError(
       "REPLAY_REQUEST_NOT_FOUND",
       "Replay request was not found.",
-      404,
+      404
     )
   }
 
@@ -347,15 +392,13 @@ export async function transitionReplayRequestStatus(
     throw new ReplayServiceError(
       "INVALID_REPLAY_REQUEST_TRANSITION",
       `Cannot transition replay request from ${current.status} to ${input.toStatus}.`,
-      409,
+      409
     )
   }
 
   const now = new Date()
   const timestampField = STATUS_TIMESTAMP_FIELD[input.toStatus]
-  const timestampUpdate = timestampField
-    ? { [timestampField]: now }
-    : {}
+  const timestampUpdate = timestampField ? { [timestampField]: now } : {}
 
   const [updated] = await executor
     .update(replayRequests)
@@ -376,8 +419,8 @@ export async function transitionReplayRequestStatus(
       and(
         eq(replayRequests.tenantId, context.tenantId),
         eq(replayRequests.id, input.replayRequestId),
-        eq(replayRequests.status, current.status),
-      ),
+        eq(replayRequests.status, current.status)
+      )
     )
     .returning()
 
@@ -385,7 +428,7 @@ export async function transitionReplayRequestStatus(
     throw new ReplayServiceError(
       "REPLAY_REQUEST_STATE_CHANGED",
       "Replay request changed before the status update.",
-      409,
+      409
     )
   }
 
@@ -395,7 +438,7 @@ export async function transitionReplayRequestStatus(
 export async function getInFlightReplayRequestForSession(
   context: TenantContext,
   playSessionId: string,
-  tx?: DbExecutor,
+  tx?: DbExecutor
 ) {
   const executor = tx ?? db
   const [row] = await executor
@@ -405,8 +448,8 @@ export async function getInFlightReplayRequestForSession(
       and(
         eq(replayRequests.tenantId, context.tenantId),
         eq(replayRequests.playSessionId, playSessionId),
-        inArray(replayRequests.status, IN_FLIGHT_REPLAY_REQUEST_STATUSES),
-      ),
+        inArray(replayRequests.status, IN_FLIGHT_REPLAY_REQUEST_STATUSES)
+      )
     )
     .orderBy(desc(replayRequests.createdAt))
     .limit(1)
@@ -417,7 +460,7 @@ export async function getInFlightReplayRequestForSession(
 export async function getLatestReplayRequestForSession(
   context: TenantContext,
   playSessionId: string,
-  tx?: DbExecutor,
+  tx?: DbExecutor
 ) {
   const executor = tx ?? db
   const [row] = await executor
@@ -426,8 +469,8 @@ export async function getLatestReplayRequestForSession(
     .where(
       and(
         eq(replayRequests.tenantId, context.tenantId),
-        eq(replayRequests.playSessionId, playSessionId),
-      ),
+        eq(replayRequests.playSessionId, playSessionId)
+      )
     )
     .orderBy(desc(replayRequests.createdAt))
     .limit(1)
@@ -437,7 +480,7 @@ export async function getLatestReplayRequestForSession(
 
 export async function getActivePlaySessionOwnerForResource(
   context: TenantContext,
-  resourceId: string,
+  resourceId: string
 ) {
   const now = new Date()
 
@@ -461,16 +504,16 @@ export async function getActivePlaySessionOwnerForResource(
       sessionParticipants,
       and(
         eq(sessionParticipants.playSessionId, playSessions.id),
-        eq(sessionParticipants.role, "owner"),
-      ),
+        eq(sessionParticipants.role, "owner")
+      )
     )
     .innerJoin(
       resourceCapabilities,
       and(
         eq(resourceCapabilities.resourceId, playSessions.resourceId),
         eq(resourceCapabilities.tenantId, playSessions.tenantId),
-        eq(resourceCapabilities.code, "replay"),
-      ),
+        eq(resourceCapabilities.code, "replay")
+      )
     )
     .where(
       and(
@@ -479,8 +522,8 @@ export async function getActivePlaySessionOwnerForResource(
         eq(sessionParticipants.tenantId, context.tenantId),
         eq(resourceCapabilities.tenantId, context.tenantId),
         eq(playSessions.resourceId, resourceId),
-        eq(playSessions.status, "active"),
-      ),
+        eq(playSessions.status, "active")
+      )
     )
     .limit(1)
 
@@ -511,7 +554,7 @@ export async function getActivePlaySessionForReplayRequest(
   input: {
     playSessionId: string
     requesterUserId: string
-  },
+  }
 ) {
   const now = new Date()
 
@@ -537,16 +580,16 @@ export async function getActivePlaySessionForReplayRequest(
       sessionParticipants,
       and(
         eq(sessionParticipants.playSessionId, playSessions.id),
-        eq(sessionParticipants.userId, input.requesterUserId),
-      ),
+        eq(sessionParticipants.userId, input.requesterUserId)
+      )
     )
     .innerJoin(
       resourceCapabilities,
       and(
         eq(resourceCapabilities.resourceId, playSessions.resourceId),
         eq(resourceCapabilities.tenantId, playSessions.tenantId),
-        eq(resourceCapabilities.code, "replay"),
-      ),
+        eq(resourceCapabilities.code, "replay")
+      )
     )
     .where(
       and(
@@ -556,8 +599,8 @@ export async function getActivePlaySessionForReplayRequest(
         eq(resourceCapabilities.tenantId, context.tenantId),
         eq(playSessions.id, input.playSessionId),
         eq(playSessions.status, "active"),
-        eq(sessionParticipants.role, "owner"),
-      ),
+        eq(sessionParticipants.role, "owner")
+      )
     )
     .limit(1)
 
@@ -587,7 +630,7 @@ export async function getActivePlaySessionForReplayRequest(
 export async function resolveVenueEdgeForResource(
   context: TenantContext,
   resourceId: string,
-  at: Date = new Date(),
+  at: Date = new Date()
 ): Promise<VenueEdgeAssignment | null> {
   const [row] = await db
     .select({
@@ -600,8 +643,8 @@ export async function resolveVenueEdgeForResource(
       devices,
       and(
         eq(devices.id, deviceAssignments.deviceId),
-        eq(devices.tenantId, deviceAssignments.tenantId),
-      ),
+        eq(devices.tenantId, deviceAssignments.tenantId)
+      )
     )
     .where(
       and(
@@ -612,9 +655,9 @@ export async function resolveVenueEdgeForResource(
         lte(deviceAssignments.effectiveFrom, at),
         or(
           isNull(deviceAssignments.effectiveTo),
-          gt(deviceAssignments.effectiveTo, at),
-        ),
-      ),
+          gt(deviceAssignments.effectiveTo, at)
+        )
+      )
     )
     .orderBy(desc(deviceAssignments.effectiveFrom))
     .limit(1)
@@ -637,7 +680,7 @@ export async function resolveVenueEdgeForResource(
 export async function getReplayCreditBalance(
   context: TenantContext,
   userId: string,
-  tx?: DbExecutor,
+  tx?: DbExecutor
 ) {
   const executor = tx ?? db
   const [row] = await executor
@@ -646,8 +689,8 @@ export async function getReplayCreditBalance(
     .where(
       and(
         eq(replayCreditBalances.tenantId, context.tenantId),
-        eq(replayCreditBalances.userId, userId),
-      ),
+        eq(replayCreditBalances.userId, userId)
+      )
     )
     .limit(1)
 
@@ -661,7 +704,7 @@ export interface ReplayRequestListItem extends ReplayRequestRecord {
 export async function listReplayRequestsForLocation(
   context: TenantContext,
   locationId: string,
-  limit = 25,
+  limit = 25
 ) {
   const rows = await db
     .select({
@@ -673,8 +716,8 @@ export async function listReplayRequestsForLocation(
     .where(
       and(
         eq(replayRequests.tenantId, context.tenantId),
-        eq(replayRequests.locationId, locationId),
-      ),
+        eq(replayRequests.locationId, locationId)
+      )
     )
     .orderBy(desc(replayRequests.createdAt))
     .limit(limit)
@@ -688,7 +731,7 @@ export async function listReplayRequestsForLocation(
 export async function bumpReplayRequestAttempts(
   context: TenantContext,
   replayRequestId: string,
-  tx?: DbExecutor,
+  tx?: DbExecutor
 ) {
   const executor = tx ?? db
   const current = await getReplayRequestById(context, replayRequestId, executor)
@@ -697,7 +740,7 @@ export async function bumpReplayRequestAttempts(
     throw new ReplayServiceError(
       "REPLAY_REQUEST_NOT_FOUND",
       "Replay request was not found.",
-      404,
+      404
     )
   }
 
@@ -710,8 +753,8 @@ export async function bumpReplayRequestAttempts(
     .where(
       and(
         eq(replayRequests.tenantId, context.tenantId),
-        eq(replayRequests.id, replayRequestId),
-      ),
+        eq(replayRequests.id, replayRequestId)
+      )
     )
     .returning()
 

@@ -107,6 +107,25 @@ Copy `playtt-mobile/.env.example` to `playtt-mobile/.env` (or set in your shell)
 
 Defaults to `https://www.theplaytt.com`. For local dev, set `http://localhost:3000` or your LAN IP in `playtt-mobile/.env`.
 
+## VenueEdge (`services/venue-edge/`)
+
+VenueEdge reads process environment variables on the venue computer. Never
+commit authenticated RTSP URLs.
+
+| Variable | Default | Purpose |
+| -------- | ------- | ------- |
+| `VENUE_EDGE_MODE` | `simulate` | `simulate`, `buffer`, or `production` |
+| `VENUE_EDGE_SOURCE_RTSP_URLS_JSON` | `{}` | Local JSON map from source UUID to authenticated RTSP URL for multi-source buffering |
+| `RTSP_URL` | — | Legacy single-source URL; used only when exactly one buffering source is configured |
+| `VENUE_EDGE_MAX_BUFFER_PROCESSES` | `8` | FFmpeg rolling-buffer concurrency cap |
+| `VENUE_EDGE_MAX_CPU_PERCENT` | `85` | Windows system CPU ceiling before starting another buffer |
+| `VENUE_EDGE_MAX_NETWORK_MBPS` | `100` | Aggregate estimated ingress ceiling |
+| `VENUE_EDGE_ESTIMATED_SOURCE_NETWORK_MBPS` | `8` | Estimated ingress reserved for each active source |
+
+The installer will move source RTSP mappings into OS-protected local connection
+storage in the pairing/NVR setup phases. Cloud config contains only source IDs
+and opaque local connection keys.
+
 ### Apple Sign-In (web + mobile)
 
 | Variable                      | Used in                         | Purpose                                                            |

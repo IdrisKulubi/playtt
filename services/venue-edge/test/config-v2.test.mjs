@@ -11,6 +11,12 @@ function loadFixture(name) {
   return JSON.parse(readFileSync(join(fixturesRoot, name), "utf8"))
 }
 
+function loadTopologyFixture(name) {
+  const raw = loadFixture(name)
+  const { simulatorScenario: _ignored, ...topology } = raw
+  return topology
+}
+
 test("edge consumer accepts every frozen config v2 fixture", () => {
   for (const name of [
     "edge-v2-one-nvr.json",
@@ -18,8 +24,10 @@ test("edge consumer accepts every frozen config v2 fixture", () => {
     "edge-v2-disabled-source.json",
     "edge-v2-manual-override.json",
     "edge-v2-cross-nvr-failover.json",
+    "edge-v2-simulator-matrix.json",
+    "edge-v2-ten-resource.json",
   ]) {
-    const config = parseEdgeConfigV2(loadFixture(name))
+    const config = parseEdgeConfigV2(loadTopologyFixture(name))
     assert.equal(config.protocolVersion, "edge-v2", name)
   }
 })

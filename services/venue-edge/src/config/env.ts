@@ -7,6 +7,7 @@ export interface VenueEdgeEnv {
   cloudBaseUrl: string
   dataDir: string
   rtspUrl: string | null
+  sourceRtspUrls: Readonly<Record<string, string>>
   heartbeatIntervalMs: number
   commandPollIntervalMs: number
   credentialsPath: string
@@ -15,6 +16,40 @@ export interface VenueEdgeEnv {
   firmwareVersion: string
   maxConcurrentReplays: number
   encryptCredentials: boolean
+  maxBufferProcesses: number
+  perSourceBufferDiskBytes: number
+  reservedFreeDiskBytes: number
+  minFreeMemoryBytes: number
+  maxCpuLoadAverage: number
+  maxCpuPercent: number
+  maxNetworkMbps: number
+  estimatedSourceNetworkMbps: number
+}
+
+function parseSourceRtspUrls(
+  value: string | undefined
+): Record<string, string> {
+  if (!value) {
+    return {}
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {}
+    }
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        (entry): entry is [string, string] =>
+          entry[0].length > 0 &&
+          typeof entry[1] === "string" &&
+          entry[1].length > 0
+      )
+    )
+  } catch {
+    return {}
+  }
 }
 
 function parseMode(value: string | undefined): VenueEdgeMode {
@@ -38,15 +73,18 @@ export function loadEnv(overrides: Partial<VenueEdgeEnv> = {}): VenueEdgeEnv {
       "http://localhost:3000",
     dataDir,
     rtspUrl: overrides.rtspUrl ?? process.env.RTSP_URL ?? null,
+    sourceRtspUrls:
+      overrides.sourceRtspUrls ??
+      parseSourceRtspUrls(process.env.VENUE_EDGE_SOURCE_RTSP_URLS_JSON),
     heartbeatIntervalMs: Number(
       overrides.heartbeatIntervalMs ??
         process.env.VENUE_EDGE_HEARTBEAT_MS ??
-        15_000,
+        15_000
     ),
     commandPollIntervalMs: Number(
       overrides.commandPollIntervalMs ??
         process.env.VENUE_EDGE_COMMAND_POLL_MS ??
-        5_000,
+        5_000
     ),
     credentialsPath:
       overrides.credentialsPath ??
@@ -64,10 +102,44 @@ export function loadEnv(overrides: Partial<VenueEdgeEnv> = {}): VenueEdgeEnv {
     maxConcurrentReplays: Number(
       overrides.maxConcurrentReplays ??
         process.env.VENUE_EDGE_MAX_CONCURRENT ??
-        3,
+        3
     ),
     encryptCredentials:
       overrides.encryptCredentials ??
       process.env.VENUE_EDGE_ENCRYPT_CREDENTIALS === "true",
+    maxBufferProcesses: Number(
+      overrides.maxBufferProcesses ??
+        process.env.VENUE_EDGE_MAX_BUFFER_PROCESSES ??
+        8
+    ),
+    perSourceBufferDiskBytes: Number(
+      overrides.perSourceBufferDiskBytes ??
+        process.env.VENUE_EDGE_PER_SOURCE_BUFFER_BYTES ??
+        256 * 1024 * 1024
+    ),
+    reservedFreeDiskBytes: Number(
+      overrides.reservedFreeDiskBytes ??
+        process.env.VENUE_EDGE_RESERVED_FREE_DISK_BYTES ??
+        2 * 1024 * 1024 * 1024
+    ),
+    minFreeMemoryBytes: Number(
+      overrides.minFreeMemoryBytes ??
+        process.env.VENUE_EDGE_MIN_FREE_MEMORY_BYTES ??
+        512 * 1024 * 1024
+    ),
+    maxCpuLoadAverage: Number(
+      overrides.maxCpuLoadAverage ?? process.env.VENUE_EDGE_MAX_CPU_LOAD ?? 4
+    ),
+    maxCpuPercent: Number(
+      overrides.maxCpuPercent ?? process.env.VENUE_EDGE_MAX_CPU_PERCENT ?? 85
+    ),
+    maxNetworkMbps: Number(
+      overrides.maxNetworkMbps ?? process.env.VENUE_EDGE_MAX_NETWORK_MBPS ?? 100
+    ),
+    estimatedSourceNetworkMbps: Number(
+      overrides.estimatedSourceNetworkMbps ??
+        process.env.VENUE_EDGE_ESTIMATED_SOURCE_NETWORK_MBPS ??
+        8
+    ),
   }
 }
