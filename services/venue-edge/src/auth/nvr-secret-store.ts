@@ -1,4 +1,4 @@
-import { join } from "node:path"
+import { join, dirname } from "node:path"
 
 import {
   createProtectedSecretStore,
@@ -41,7 +41,12 @@ class PerKeyNvrPasswordStore implements NvrPasswordStore {
       this.nvrsDir,
       `${safeBlobName(localConnectionKey)}.dpapi`,
     )
-    const store = createProtectedSecretStore({ mode, blobPath })
+    const store = createProtectedSecretStore({
+      mode,
+      blobPath,
+      venueMode: this.venueMode,
+      dataDir: dirname(this.nvrsDir),
+    })
     this.stores.set(localConnectionKey, store)
     return store
   }

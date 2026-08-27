@@ -1,7 +1,10 @@
 import { createServer, type Server } from "node:http"
 import type { AddressInfo } from "node:net"
+import { mkdir, writeFile } from "node:fs/promises"
+import { join } from "node:path"
 
 import type { CredentialManager } from "../auth/credential-manager"
+import { detectHostSleepRisk } from "../health/host-sleep-risk"
 import { safeLog } from "../health/metrics"
 import { renderSetupPage } from "./html"
 import { LocalNvrError, type LocalNvrManager } from "./local-nvr-manager"
@@ -36,6 +39,7 @@ export interface SetupHostOptions {
   port: number
   sessionTtlMs: number
   credentialManager: CredentialManager
+  dataDir?: string
   localNvrManager?: LocalNvrManager
   localCameraManager?: LocalCameraManager
   localResourceMappingManager?: LocalResourceMappingManager
@@ -429,10 +433,12 @@ export async function startSetupHost(
         const enrollmentStatus = await resolveSetupEnrollmentStatus(
           options.credentialManager,
         )
+        const hostSleepRisk = await detectHostSleepRisk()
         const payload = buildSetupStatusPayload({
           enrollmentStatus,
           setupLocked: session.locked,
           expiresAt: session.expiresAt,
+          hostSleepRisk,
         })
         await sendNodeResponse(res, jsonResponse(200, payload))
         return
@@ -444,10 +450,12 @@ export async function startSetupHost(
         const enrollmentStatus = await resolveSetupEnrollmentStatus(
           options.credentialManager,
         )
+        const hostSleepRisk = await detectHostSleepRisk()
         const payload = buildSetupStatusPayload({
           enrollmentStatus,
           setupLocked: true,
           expiresAt: session.expiresAt,
+          hostSleepRisk,
         })
         await sendNodeResponse(res, jsonResponse(200, payload))
         return
@@ -678,6 +686,21 @@ export async function startSetupHost(
     setupUrl: "[redacted]",
     expiresAt: session.expiresAt.toISOString(),
   })
+
+  if (options.dataDir) {
+    try {
+      await mkdir(options.dataDir, { recursive: true })
+      await writeFile(
+        join(options.dataDir, "setup-url.txt"),
+        `${setupUrl}\n`,
+        { mode: 0o600 },
+      )
+    } catch (error) {
+      safeLog("warn", "Failed to write setup-url.txt", {
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
 
   return {
     port: getPort(),

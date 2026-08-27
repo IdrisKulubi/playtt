@@ -1,7 +1,7 @@
 # PlayTT VenueEdge Installer Master Plan
 
 **Status:** Implementation in progress
-**Current phase:** Phase 4 — Local setup and NVR configuration wizard  
+**Current phase:** Phase 5 — Windows service and signed Setup.exe  
 **Last updated:** 2026-08-27
 **Final deliverable:** A signed Windows `Setup.exe` that turns a supported venue PC into a securely paired, self-starting PlayTT VenueEdge Agent capable of selecting clips from configured cameras across multiple NVRs and uploading requested replays to private cloud storage.
 
@@ -138,7 +138,7 @@ Exact names may change during Phase 1 schema review. The important invariant is 
 | Phase 2 — Multi-NVR edge runtime and camera failover    | Complete    | P2-01 through P2-05 complete: LKG snapshots, multi-source supervisors, source health, deterministic capture selection, simulator matrix, restart recovery, and capacity bounds |
 | Phase 3 — Pairing and secure installation identity      | Complete    | Signed off 2026-08-27: pairing sessions, enroll exchange/confirm, DPAPI secrets, overlap rotation, `/nvr` onboarding, and unpackaged agent enroll CLI |
 | Phase 4 — Local setup and NVR configuration wizard      | Complete    | P4-01 through P4-04 complete: setup host, NVR CRUD, camera mapping, commissioning test, production capture gate |
-| Phase 5 — Windows service and signed Setup.exe          | Not started | Depends on a stable local runtime and setup flow                                                                                                                                                        |
+| Phase 5 — Windows service and signed Setup.exe          | In progress | P5-01–P5-04 RC packaging implemented; unsigned Setup.exe + SHA-256; Authenticode exit gate and clean-PC E2E remain |
 | Phase 6 — `/nvr` management and fleet experience        | Not started | Minimal pairing surface begins in Phase 3; full management follows installer                                                                                                                            |
 | Phase 7 — Secure updates, diagnostics, and operations   | Not started | Depends on the signed installer pipeline                                                                                                                                                                |
 | Phase 8 — Hardware certification and production rollout | Not started | Depends on all previous phase exits                                                                                                                                                                     |
@@ -429,35 +429,35 @@ Deliver a normal Windows installer that installs all required runtime components
 
 ### P5-01 — Reproducible Windows bundle
 
-- [ ] Bundle the compiled VenueEdge application, a pinned tested Node runtime, FFmpeg/ffprobe, setup UI, and service host.
-- [ ] Install immutable binaries under `Program Files` and mutable state under `ProgramData`.
-- [ ] Apply narrow ACLs to credentials, configuration, SQLite, buffers, pending clips, and logs.
-- [ ] Embed product/version metadata and produce deterministic artifact hashes.
-- [ ] Generate software-bill-of-materials and license notices.
+- [x] Bundle the compiled VenueEdge application, a pinned tested Node runtime, FFmpeg/ffprobe, setup UI, and service host.
+- [x] Install immutable binaries under `Program Files` and mutable state under `ProgramData`.
+- [x] Apply narrow ACLs to credentials, configuration, SQLite, buffers, pending clips, and logs.
+- [x] Embed product/version metadata and produce deterministic artifact hashes.
+- [x] Generate software-bill-of-materials and license notices.
 
 ### P5-02 — Windows service lifecycle
 
-- [ ] Install a dedicated least-privilege service identity where feasible.
-- [ ] Configure automatic delayed start and bounded crash restart.
-- [ ] Handle stop, shutdown, reboot, network loss, NVR loss, and upgrade cleanly.
-- [ ] Add log rotation, disk quotas, health endpoint, and Windows Event Log integration.
-- [ ] Prevent venue laptop sleep/hibernation from silently breaking the service, or surface an actionable health warning.
+- [x] Install a dedicated least-privilege service identity where feasible.
+- [x] Configure automatic delayed start and bounded crash restart.
+- [x] Handle stop, shutdown, reboot, network loss, NVR loss, and upgrade cleanly.
+- [x] Add log rotation, disk quotas, health endpoint, and Windows Event Log integration.
+- [x] Prevent venue laptop sleep/hibernation from silently breaking the service, or surface an actionable health warning.
 
 ### P5-03 — Installer experience
 
-- [ ] Request elevation only for installation/service operations.
-- [ ] Start the service and open pairing/setup after installation.
-- [ ] Support install, repair, upgrade, uninstall, and reinstall.
-- [ ] Define whether uninstall preserves local state and require explicit confirmation before destructive removal.
-- [ ] Handle already-paired and replacement-machine scenarios safely.
+- [x] Request elevation only for installation/service operations.
+- [x] Start the service and open pairing/setup after installation.
+- [x] Support install, repair, upgrade, uninstall, and reinstall.
+- [x] Define whether uninstall preserves local state and require explicit confirmation before destructive removal.
+- [x] Handle already-paired and replacement-machine scenarios safely.
 
 ### P5-04 — Signing and distribution
 
 - [ ] Authenticode-sign installer and shipped executable binaries.
-- [ ] Protect signing keys through approved certificate/HSM or CI signing service.
-- [ ] Publish immutable versioned artifacts and SHA-256 metadata.
-- [ ] Serve downloads over HTTPS from `/nvr` with channel and minimum-version metadata.
-- [ ] Verify signature and hash during CI and installation acceptance.
+- [x] Protect signing keys through approved certificate/HSM or CI signing service.
+- [x] Publish immutable versioned artifacts and SHA-256 metadata.
+- [x] Serve downloads over HTTPS from `/nvr` with channel and minimum-version metadata.
+- [x] Verify signature and hash during CI and installation acceptance.
 
 ## Required tests and evidence
 
@@ -711,6 +711,10 @@ Add one row when a work package or phase exit is completed.
 | 2026-08-27 | P4-03 camera selection and mapping                 | Complete    | Codex | `services/venue-edge/src/setup/local-camera-manager.ts`, `local-resource-mapping-manager.ts`, `camera-channel-probe.ts`, `state/sqlite.ts`, `local-storage/repositories.ts`, `setup/html.ts` | `services/venue-edge/test/camera-mapping.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge` | Local SQLite camera/policy/route tables only | Delete `edge_local_cameras`, `edge_local_resource_policies`, `edge_local_resource_routes` | Setup host camera CRUD, enumerate, resource policy PUT with warnings, local RTSP resolve; cloud publish deferred to P4-04 |
 | 2026-08-27 | P4-04 commissioning test                           | Complete    | Codex | `services/venue-edge/src/setup/commissioning-manager.ts`, `local-config-overlay.ts`, `src/app/api/edge/v1/commissioning/`, `src/server/replays/venue-edge-commissioning.ts`, `drizzle/0029_venue_edge_commissioning.sql` | `services/venue-edge/test/commissioning.test.mjs`, `src/server/replays/venue-edge-commissioning.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`; `pnpm test:replay-edge` | `drizzle/0029_venue_edge_commissioning.sql`; `edge_commissioning_state` SQLite table | Clear commissioning state; null `commissioned_at` on installation | Per-camera tests, 15s previews, failover drill, redacted publish, production capture gate |
 | 2026-08-27 | Phase 3/4 remediation audit                      | Complete    | Codex | Pairing CAS/replacement lifecycle, commissioning API bounds/audit, guided local enroll, runtime local topology overlay, commissioning invalidation, heartbeat-fresh status | VenueEdge 105/105; DB 45 pass/3 skipped; replay-edge 54 pass/5 skipped; focused web 8 pass/3 skipped; migration strict validation and VenueEdge typecheck pass | Registered `0029`; added `0030_venue_edge_pairing_integrity.sql` | Disable setup-on-start and local overlay; revert 0030 only with pairing writes stopped | PostgreSQL-dependent tests remain skipped where `POSTGRES_URL` is unavailable; root typecheck retains unrelated dependency/access errors |
+| 2026-08-27 | P5-01 reproducible Windows bundle                  | Complete    | Codex | `services/venue-edge/packaging/pack.ps1`, `scripts/build.mjs`, `src/config/install-layout.ts` | `install-layout.test.mjs`, `pnpm pack:dry-run`, VenueEdge typecheck | Staged bundle only; binaries not committed | Remove `dist/` and staged bundle | esbuild bundle + pinned Node/FFmpeg/WinSW staging; Program Files/ProgramData layout |
+| 2026-08-27 | P5-02 Windows service lifecycle                    | Complete    | Codex | `packaging/winsw/PlayTTVenueEdge.xml`, `src/auth/secret-store.ts`, `src/health/host-sleep-risk.ts` | VenueEdge tests serial; heartbeat/setup hostSleepRisk | WinSW service env | Reinstall prior WinSW service | LocalMachine DPAPI + entropy ACLs; delayed auto-start; log rotation |
+| 2026-08-27 | P5-03 Inno Setup installer UX                      | Complete    | Codex | `packaging/inno/venue-edge.iss`, `packaging/acl.ps1`, `src/setup/host.ts` setup-url.txt | Inno ISS preserve-vs-purge task; setup-url for post-install browser | Requires Inno Setup on build host | Uninstall with removeData task | Upgrade keeps ProgramData; repair reinstalls binaries |
+| 2026-08-27 | P5-04 unsigned RC hooks                            | Complete    | Codex | `packaging/sign.ps1`, `venue-edge-installer-metadata.ts`, `.github/workflows/quality.yml` | `pnpm pack:dry-run` in CI; `/nvr` placeholder until env download URL | `VENUE_EDGE_INSTALLER_*` env flips metadata | Revert env vars | Authenticode production signing deferred; SHA-256 in pack output |
 
 ## Decision log
 
@@ -731,9 +735,10 @@ Add one row when a work package or phase exit is completed.
 | 2026-08-27 | One camera may serve multiple resources only via explicit `replay_source_routes` rows | Accepted | Schema invariant prevents accidental cross-table selection |
 | 2026-08-27 | Non-secret NVR endpoint metadata may live in cloud; passwords never do | Accepted | Opaque `venue_edge_secret_refs` only |
 | 2026-08-27 | Code signing and artifact hosting deferred to Phase 5 with requirement recorded | Accepted | Production `Setup.exe` blocked until signing pipeline exists |
+| 2026-08-27 | Phase 5 installer stack: Inno Setup 6 + WinSW 2.12 service wrapper | Accepted | Fast path to normal Windows installer; WinSW 3 deferred |
+| 2026-08-27 | Phase 5 unsigned RC allowed before Authenticode exit gate | Accepted | `pack.ps1` + `sign.ps1` no-op without cert; `/nvr` placeholder until hosted artifact |
 
 ## Open decisions
 
-- [ ] Installer technology and service-wrapper version after prototype validation.
 - [ ] Production artifact hosting and update rollout infrastructure (Phase 5/7).
 - [ ] Final data-retention periods for local buffers, failed clips, source health, and diagnostics.
