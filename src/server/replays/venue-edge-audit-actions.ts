@@ -9,6 +9,7 @@ export const VENUE_EDGE_AUDIT_ACTIONS = {
   pairingExpired: "venue_edge.pairing.expired",
   pairingConsumed: "venue_edge.pairing.consumed",
   pairingConfirmed: "venue_edge.pairing.confirmed",
+  commissioningPublished: "venue_edge.commissioning.published",
 } as const
 
 export type VenueEdgeAuditAction =

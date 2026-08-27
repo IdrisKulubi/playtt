@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 
-import { and, eq, gt, isNull } from "drizzle-orm"
+import { and, desc, eq, gt, isNull } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import {
@@ -17,14 +17,14 @@ import {
   hashDeviceSecret,
 } from "@/server/devices/credentials"
 import { DeviceError } from "@/server/devices/errors"
+import { deriveDeviceHealth } from "@/server/devices/health-policy"
 import { validateDeviceAssignmentPolicy } from "@/server/devices/policies.mjs"
 import {
   hashVenueEdgePairingCode,
   normalizeVenueEdgePairingCode,
 } from "@/server/replays/venue-edge-pairing-credentials"
-import { recordFailedPairingLookup } from "@/server/replays/venue-edge-pairing-rate-limit"
 import { VENUE_EDGE_AUDIT_ACTIONS } from "@/server/replays/venue-edge-audit-actions"
-import { createServiceTenantContext } from "@/server/tenancy/context-factory.mjs"
+import { createServiceTenantContext } from "@/server/tenancy/context-factory"
 import { writeAuditLogInTransaction } from "@/server/tenancy/audit-log-write"
 
 export type VenueEdgeEnrollmentLifecycleStatus =
@@ -33,6 +33,7 @@ export type VenueEdgeEnrollmentLifecycleStatus =
   | "expired"
   | "pending_setup"
   | "online"
+  | "offline"
   | "revoked"
 
 export interface VenueEdgeEnrollmentExchangeResult {
@@ -47,7 +48,7 @@ export interface VenueEdgeEnrollmentExchangeResult {
 
 export interface VenueEdgeEnrollmentConfirmResult {
   deviceId: string
-  status: "online"
+  status: "online" | "offline"
   alreadyConfirmed: boolean
 }
 
@@ -57,7 +58,7 @@ function invalidPairingCodeError() {
   return new DeviceError(
     "PAIRING_SESSION_INVALID",
     "Pairing code is invalid.",
-    403,
+    403
   )
 }
 
@@ -65,7 +66,7 @@ async function revokeDeviceInTransaction(
   tx: EnrollmentTransaction,
   tenantId: string,
   deviceId: string,
-  now: Date,
+  now: Date
 ) {
   await tx
     .update(devices)
@@ -83,8 +84,8 @@ async function revokeDeviceInTransaction(
       and(
         eq(deviceCredentials.tenantId, tenantId),
         eq(deviceCredentials.deviceId, deviceId),
-        eq(deviceCredentials.status, "active"),
-      ),
+        eq(deviceCredentials.status, "active")
+      )
     )
 
   await tx
@@ -97,14 +98,14 @@ async function revokeDeviceInTransaction(
       and(
         eq(deviceAssignments.tenantId, tenantId),
         eq(deviceAssignments.deviceId, deviceId),
-        isNull(deviceAssignments.effectiveTo),
-      ),
+        isNull(deviceAssignments.effectiveTo)
+      )
     )
 }
 
 async function assertInstallationUidAvailable(
   tenantId: string,
-  installationUid: string,
+  installationUid: string
 ) {
   const [existing] = await db
     .select({ id: venueEdgeInstallations.id })
@@ -112,8 +113,8 @@ async function assertInstallationUidAvailable(
     .where(
       and(
         eq(venueEdgeInstallations.tenantId, tenantId),
-        eq(venueEdgeInstallations.installationUid, installationUid),
-      ),
+        eq(venueEdgeInstallations.installationUid, installationUid)
+      )
     )
     .limit(1)
 
@@ -121,7 +122,7 @@ async function assertInstallationUidAvailable(
     throw new DeviceError(
       "VALIDATION_ERROR",
       "Installation ID has already enrolled.",
-      409,
+      409
     )
   }
 }
@@ -147,7 +148,6 @@ export async function exchangeVenueEdgeEnrollment(input: {
     .limit(1)
 
   if (!session) {
-    await recordFailedPairingLookup({ subject: input.lookupSubject, now })
     throw invalidPairingCodeError()
   }
 
@@ -191,50 +191,6 @@ export async function exchangeVenueEdgeEnrollment(input: {
   })
 
   await db.transaction(async (tx) => {
-    const consumed = await tx
-      .update(venueEdgePairingSessions)
-      .set({
-        status: "consumed",
-        consumedAt: now,
-        updatedAt: now,
-      })
-      .where(
-        and(
-          eq(venueEdgePairingSessions.id, session.id),
-          eq(venueEdgePairingSessions.status, "waiting_for_install"),
-          gt(venueEdgePairingSessions.expiresAt, now),
-        ),
-      )
-      .returning()
-
-    if (consumed.length === 0) {
-      throw invalidPairingCodeError()
-    }
-
-    if (session.replaceInstallationId) {
-      const [replacement] = await tx
-        .select({
-          edgeDeviceId: venueEdgeInstallations.edgeDeviceId,
-        })
-        .from(venueEdgeInstallations)
-        .where(
-          and(
-            eq(venueEdgeInstallations.tenantId, session.tenantId),
-            eq(venueEdgeInstallations.id, session.replaceInstallationId),
-          ),
-        )
-        .limit(1)
-
-      if (replacement) {
-        await revokeDeviceInTransaction(
-          tx,
-          session.tenantId,
-          replacement.edgeDeviceId,
-          now,
-        )
-      }
-    }
-
     await tx.insert(devices).values({
       id: deviceId,
       tenantId: session.tenantId,
@@ -266,7 +222,7 @@ export async function exchangeVenueEdgeEnrollment(input: {
       throw new DeviceError(
         "DEVICE_ROLE_UNSUPPORTED",
         `VenueEdge assignment is incompatible (${policy.reason}).`,
-        400,
+        400
       )
     }
 
@@ -298,13 +254,26 @@ export async function exchangeVenueEdgeEnrollment(input: {
 
     installationId = installation.id
 
-    await tx
+    const consumed = await tx
       .update(venueEdgePairingSessions)
       .set({
+        status: "consumed",
+        consumedAt: now,
         consumedDeviceId: deviceId,
         updatedAt: now,
       })
-      .where(eq(venueEdgePairingSessions.id, session.id))
+      .where(
+        and(
+          eq(venueEdgePairingSessions.id, session.id),
+          eq(venueEdgePairingSessions.status, "waiting_for_install"),
+          gt(venueEdgePairingSessions.expiresAt, now)
+        )
+      )
+      .returning({ id: venueEdgePairingSessions.id })
+
+    if (consumed.length === 0) {
+      throw invalidPairingCodeError()
+    }
 
     await writeAuditLogInTransaction(tx, auditContext, {
       action: VENUE_EDGE_AUDIT_ACTIONS.pairingConsumed,
@@ -331,13 +300,13 @@ export async function exchangeVenueEdgeEnrollment(input: {
 }
 
 export async function confirmVenueEdgeEnrollment(
-  auth: AuthenticatedDevice,
+  auth: AuthenticatedDevice
 ): Promise<VenueEdgeEnrollmentConfirmResult> {
   if (auth.device.type !== "venue_edge") {
     throw new DeviceError(
       "DEVICE_FORBIDDEN",
       "Only VenueEdge devices can confirm enrollment.",
-      403,
+      403
     )
   }
 
@@ -345,10 +314,18 @@ export async function confirmVenueEdgeEnrollment(
     throw new DeviceError("DEVICE_REVOKED", "Device has been revoked.", 403)
   }
 
+  const now = new Date()
+
   if (auth.device.status === "active") {
+    const lastHeartbeatAt = auth.device.lastHeartbeatAt
+      ? new Date(auth.device.lastHeartbeatAt)
+      : null
     return {
       deviceId: auth.device.id,
-      status: "online",
+      status:
+        deriveDeviceHealth(lastHeartbeatAt, now) === "online"
+          ? "online"
+          : "offline",
       alreadyConfirmed: true,
     }
   }
@@ -357,27 +334,62 @@ export async function confirmVenueEdgeEnrollment(
     throw new DeviceError(
       "PAIRING_SESSION_INVALID",
       "Device is not awaiting enrollment confirmation.",
-      409,
+      409
     )
   }
 
   const [heartbeat] = await db
-    .select({ id: deviceHeartbeats.id })
+    .select({ observedAt: deviceHeartbeats.observedAt })
     .from(deviceHeartbeats)
-    .where(eq(deviceHeartbeats.deviceId, auth.device.id))
+    .where(
+      and(
+        eq(deviceHeartbeats.tenantId, auth.device.tenantId),
+        eq(deviceHeartbeats.deviceId, auth.device.id)
+      )
+    )
+    .orderBy(desc(deviceHeartbeats.observedAt))
     .limit(1)
 
-  if (!heartbeat) {
+  if (
+    !heartbeat ||
+    deriveDeviceHealth(heartbeat.observedAt, now) !== "online"
+  ) {
     throw new DeviceError(
       "PAIRING_HEARTBEAT_REQUIRED",
-      "Enrollment confirmation requires at least one heartbeat.",
-      409,
+      "Enrollment confirmation requires a fresh heartbeat.",
+      409
     )
   }
 
-  const now = new Date()
-
   await db.transaction(async (tx) => {
+    const [replacement] = await tx
+      .select({
+        pairingSessionId: venueEdgePairingSessions.id,
+        replacedDeviceId: venueEdgeInstallations.edgeDeviceId,
+      })
+      .from(venueEdgePairingSessions)
+      .leftJoin(
+        venueEdgeInstallations,
+        and(
+          eq(
+            venueEdgeInstallations.tenantId,
+            venueEdgePairingSessions.tenantId
+          ),
+          eq(
+            venueEdgeInstallations.id,
+            venueEdgePairingSessions.replaceInstallationId
+          )
+        )
+      )
+      .where(
+        and(
+          eq(venueEdgePairingSessions.tenantId, auth.device.tenantId),
+          eq(venueEdgePairingSessions.consumedDeviceId, auth.device.id),
+          eq(venueEdgePairingSessions.status, "consumed")
+        )
+      )
+      .limit(1)
+
     await tx
       .update(devices)
       .set({
@@ -388,9 +400,21 @@ export async function confirmVenueEdgeEnrollment(
         and(
           eq(devices.tenantId, auth.device.tenantId),
           eq(devices.id, auth.device.id),
-          eq(devices.status, "pending"),
-        ),
+          eq(devices.status, "pending")
+        )
       )
+
+    if (
+      replacement?.replacedDeviceId &&
+      replacement.replacedDeviceId !== auth.device.id
+    ) {
+      await revokeDeviceInTransaction(
+        tx,
+        auth.device.tenantId,
+        replacement.replacedDeviceId,
+        now
+      )
+    }
 
     await writeAuditLogInTransaction(tx, auth.context, {
       action: VENUE_EDGE_AUDIT_ACTIONS.pairingConfirmed,
@@ -399,6 +423,8 @@ export async function confirmVenueEdgeEnrollment(
       metadata: {
         locationId: auth.device.locationId,
         installationUid: auth.device.hardwareUid,
+        pairingSessionId: replacement?.pairingSessionId ?? null,
+        replacedDeviceId: replacement?.replacedDeviceId ?? null,
       },
     })
   })
@@ -413,6 +439,8 @@ export async function confirmVenueEdgeEnrollment(
 export function derivePairingLifecycleStatus(input: {
   pairingStatus: string
   deviceStatus: string | null
+  lastHeartbeatAt?: Date | string | null
+  now?: Date
 }): VenueEdgeEnrollmentLifecycleStatus {
   if (input.pairingStatus === "waiting_for_install") {
     return "waiting_for_install"
@@ -436,7 +464,15 @@ export function derivePairingLifecycleStatus(input: {
     }
 
     if (input.deviceStatus === "active") {
-      return "online"
+      const lastHeartbeatAt =
+        input.lastHeartbeatAt instanceof Date
+          ? input.lastHeartbeatAt
+          : input.lastHeartbeatAt
+            ? new Date(input.lastHeartbeatAt)
+            : null
+      return deriveDeviceHealth(lastHeartbeatAt, input.now) === "online"
+        ? "online"
+        : "offline"
     }
   }
 

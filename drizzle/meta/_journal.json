@@ -204,6 +204,20 @@
       "when": 1787767000000,
       "tag": "0028_device_credential_retiring",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1787851679969,
+      "tag": "0029_venue_edge_commissioning",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1787851886643,
+      "tag": "0030_venue_edge_pairing_integrity",
+      "breakpoints": true
     }
   ]
 }

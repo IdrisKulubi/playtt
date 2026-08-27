@@ -27,9 +27,13 @@ VENUE_EDGE_DATA_DIR=.venue-edge-data \
 VENUE_EDGE_SECRET_STORE=memory \
 pnpm start
 
-# Pair from a /nvr pairing code (stores secret in DPAPI, or memory in tests)
+# Guided local setup (loopback-only; also starts with `pnpm start` by default).
+# Create a code at PlayTT /nvr, then enter it in this wizard; no credential file editing.
 VENUE_EDGE_CLOUD_BASE_URL=http://localhost:3000 \
 VENUE_EDGE_SECRET_STORE=memory \
+pnpm setup
+
+# Development fallback: pair directly from the command line.
 pnpm enroll -- ABCD-EFGHJK
 ```
 
@@ -41,12 +45,15 @@ pnpm enroll -- ABCD-EFGHJK
 | `VENUE_EDGE_CLOUD_BASE_URL` | `http://localhost:3000` | PlayTT cloud base URL |
 | `VENUE_EDGE_DATA_DIR` | `.venue-edge-data` | SQLite + clip storage root |
 | `RTSP_URL` | — | Legacy single-source RTSP URL; accepted only when exactly one buffering source exists |
-| `VENUE_EDGE_SOURCE_RTSP_URLS_JSON` | `{}` | Local JSON map of source UUID to authenticated RTSP URL; never supplied by cloud config |
+| `VENUE_EDGE_SOURCE_RTSP_URLS_JSON` | `{}` | Optional override map of source UUID to RTSP URL; local setup NVR store is preferred |
 | `VENUE_EDGE_CREDENTIALS_PATH` | `{dataDir}/credentials.json` | Legacy plaintext path (removed on startup) |
 | `VENUE_EDGE_INSTALLATION_PATH` | `{dataDir}/installation.json` | Non-secret installation metadata |
 | `VENUE_EDGE_SECRET_BLOB_PATH` | `{dataDir}/credentials.dpapi` | DPAPI-protected device secret blob |
 | `VENUE_EDGE_SECRET_STORE` | unset | `memory` for explicit test runs; production uses DPAPI |
 | `VENUE_EDGE_PAIRING_CODE` | — | One-time `/nvr` pairing code for first-boot enrollment |
+| `VENUE_EDGE_SETUP_PORT` | `18764` | Loopback setup wizard HTTP port |
+| `VENUE_EDGE_SETUP_SESSION_TTL_MS` | `900000` | Setup session token TTL (15 minutes) |
+| `VENUE_EDGE_SETUP_ON_START` | `true` | Start loopback setup host alongside `pnpm start` |
 | `VENUE_EDGE_MAX_CONCURRENT` | `3` | Bounded replay concurrency (Stage 6) |
 | `VENUE_EDGE_MAX_BUFFER_PROCESSES` | `8` | Maximum concurrent FFmpeg rolling buffers |
 | `VENUE_EDGE_MAX_CPU_PERCENT` | `85` | Windows system CPU admission ceiling for new buffers |

@@ -233,6 +233,17 @@ export class EdgeV1Client {
     return body.data
   }
 
+  async publishCommissioning(
+    payload: Record<string, unknown>,
+  ): Promise<{ publishedAt: string }> {
+    const body = (await this.request("/api/edge/v1/commissioning", {
+      method: "POST",
+      body: payload,
+    })) as { data: { publishedAt: string } }
+
+    return body.data
+  }
+
   async heartbeat(input: {
     bootId: string
     observedAt?: string

@@ -2,6 +2,7 @@ import { mkdir } from "node:fs/promises"
 import { pathToFileURL } from "node:url"
 
 import { CredentialManager } from "./auth/credential-manager"
+import { createNvrPasswordStore } from "./auth/nvr-secret-store"
 import { isDeviceRevokedCloudError } from "./auth/cloud-errors"
 import {
   confirmPendingEnrollment,
@@ -11,7 +12,9 @@ import { SourceSupervisorRegistry } from "./buffers/registry"
 import { listBufferingSourceIds } from "./cameras/registry"
 import { CommandProcessor } from "./commands/processor"
 import { EdgeV1Client, type EdgeConfig } from "./cloud/client"
+import { parseEdgeConfigV2 } from "./cloud/config-v2"
 import { EdgeConfigV2Manager } from "./config/apply-v2"
+import { buildSourcePlan } from "./config/source-plan"
 import { loadEnv, type VenueEdgeMode } from "./config/env"
 import { SourceHealthEngine } from "./health/engine"
 import { HeartbeatLoop } from "./heartbeat/loop"
@@ -27,9 +30,16 @@ import {
 import { loadSimulatorScenario } from "./simulator/load-scenario"
 import { initDatabase } from "./state/sqlite"
 import { safeLog } from "./health/metrics"
+import { startSetupHost, type SetupHostHandle } from "./setup/host"
+import { LocalNvrManager } from "./setup/local-nvr-manager"
+import { LocalCameraManager } from "./setup/local-camera-manager"
+import { LocalResourceMappingManager } from "./setup/local-resource-mapping-manager"
+import { CommissioningManager } from "./setup/commissioning-manager"
+import { resolveRuntimeEdgeConfigV2 } from "./setup/local-config-overlay"
 
 export interface VenueEdgeRuntime {
   stop(): Promise<void>
+  setupHost: SetupHostHandle | null
 }
 
 function resolveStartupResourceId(
@@ -52,8 +62,30 @@ function resolveAppliedConfigVersion(
   return appliedV2Version ?? edgeConfig?.configVersion
 }
 
-function shouldRunRollingBuffer(mode: VenueEdgeMode): boolean {
-  return mode === "buffer" || mode === "simulate"
+function shouldRunRollingBuffer(
+  mode: VenueEdgeMode,
+  commissioned: boolean,
+): boolean {
+  if (mode === "simulate" || mode === "buffer") {
+    return true
+  }
+
+  if (mode === "production") {
+    return commissioned
+  }
+
+  return false
+}
+
+function isProductionCaptureAllowed(
+  mode: VenueEdgeMode,
+  commissioned: boolean,
+): boolean {
+  if (mode !== "production") {
+    return true
+  }
+
+  return commissioned
 }
 
 export async function startVenueEdge(
@@ -77,6 +109,18 @@ export async function startVenueEdge(
 
   const database = initDatabase(env.sqlitePath)
   const repositories = new EdgeRepositories(database.db)
+
+  const nvrPasswordStore = createNvrPasswordStore({
+    dataDir: env.dataDir,
+    secretStoreMode: env.secretStoreMode,
+    venueMode: env.mode,
+  })
+  const localNvrManager = new LocalNvrManager(repositories, nvrPasswordStore)
+  const localCameraManager = new LocalCameraManager(
+    repositories,
+    nvrPasswordStore,
+    localNvrManager,
+  )
 
   const credentialManager = CredentialManager.fromEnv({
     dataDir: env.dataDir,
@@ -131,9 +175,32 @@ export async function startVenueEdge(
     env.bootId
   )
 
-  const getEdgeConfigV2 = () => configManager.getState().edgeConfigV2
+  let runtimeEdgeConfigV2: import("./cloud/config-v2").EdgeConfigV2 | null = null
 
-  configManager.loadLastKnownGoodFromDisk()
+  const buildRuntimeEdgeConfigV2 = (
+    baseConfig: import("./cloud/config-v2").EdgeConfigV2 | null,
+  ): import("./cloud/config-v2").EdgeConfigV2 | null =>
+    resolveRuntimeEdgeConfigV2(repositories, baseConfig)
+
+  const getEdgeConfigV2 = () => runtimeEdgeConfigV2
+
+  const applyRuntimeSourceRtspUrls = async (
+    config: import("./cloud/config-v2").EdgeConfigV2 | null,
+  ): Promise<void> => {
+    if (Object.keys(env.sourceRtspUrls).length > 0) {
+      return
+    }
+
+    env.runtimeSourceRtspUrls =
+      await localCameraManager.buildRuntimeSourceRtspMap(config)
+  }
+
+  const refreshRuntimeSourceRtspUrls = async (): Promise<void> =>
+    applyRuntimeSourceRtspUrls(getEdgeConfigV2())
+
+  runtimeEdgeConfigV2 = buildRuntimeEdgeConfigV2(
+    configManager.loadLastKnownGoodFromDisk(),
+  )
 
   let simulatorScenario: SimulatorScenario | null = null
 
@@ -151,9 +218,15 @@ export async function startVenueEdge(
   )
   healthEngine.syncDisabledFromConfig()
 
+  const getCommissioningCompleted = (): boolean =>
+    repositories.getCommissioningState().completed
+
   const edgeConfigV2OnBoot = getEdgeConfigV2()
 
-  if (edgeConfigV2OnBoot && shouldRunRollingBuffer(env.mode)) {
+  if (
+    edgeConfigV2OnBoot &&
+    shouldRunRollingBuffer(env.mode, getCommissioningCompleted())
+  ) {
     await reindexBufferSegmentsFromDisk({
       repositories,
       paths,
@@ -175,25 +248,40 @@ export async function startVenueEdge(
     (sourceId) => clockOffsetSecondsForSource(simulatorScenario, sourceId)
   )
 
+  const activateRuntimeConfig = async (
+    baseConfig: import("./cloud/config-v2").EdgeConfigV2 | null,
+  ): Promise<void> => {
+    const nextRuntimeConfig = buildRuntimeEdgeConfigV2(baseConfig)
+
+    if (!shouldRunRollingBuffer(env.mode, getCommissioningCompleted())) {
+      await bufferRegistry.stopAll()
+      runtimeEdgeConfigV2 = nextRuntimeConfig
+      return
+    }
+
+    if (!nextRuntimeConfig) {
+      await bufferRegistry.stopAll()
+      runtimeEdgeConfigV2 = null
+      return
+    }
+
+    await applyRuntimeSourceRtspUrls(nextRuntimeConfig)
+    const runtimeSourcePlan = buildSourcePlan(
+      runtimeEdgeConfigV2,
+      nextRuntimeConfig,
+    )
+    await bufferRegistry.reconcile({
+      edgeConfig,
+      edgeConfigV2: nextRuntimeConfig,
+      sourcePlan: runtimeSourcePlan,
+    })
+    runtimeEdgeConfigV2 = nextRuntimeConfig
+  }
+
   const refreshConfig = async (): Promise<void> => {
     try {
       const v2Result = await configManager.refreshFromCloud({
-        activate: async (config, sourcePlan) => {
-          if (!shouldRunRollingBuffer(env.mode)) {
-            return
-          }
-
-          if (!config) {
-            await bufferRegistry.stopAll()
-            return
-          }
-
-          await bufferRegistry.reconcile({
-            edgeConfig,
-            edgeConfigV2: config,
-            sourcePlan,
-          })
-        },
+        activate: async (config) => activateRuntimeConfig(config),
       })
 
       if (!getEdgeConfigV2()) {
@@ -211,13 +299,11 @@ export async function startVenueEdge(
         }
       }
 
-      if (shouldRunRollingBuffer(env.mode) && !v2Result.applied) {
-        await bufferRegistry.reconcile({
-          edgeConfig,
-          edgeConfigV2: getEdgeConfigV2(),
-          sourcePlan: v2Result.sourcePlan,
-        })
+      if (!v2Result.applied) {
+        await activateRuntimeConfig(configManager.getState().edgeConfigV2)
       }
+
+      await refreshRuntimeSourceRtspUrls()
     } catch (error) {
       if (isDeviceRevokedCloudError(error)) {
         await handleDeviceRevoked()
@@ -238,7 +324,7 @@ export async function startVenueEdge(
   await refreshConfig()
 
   if (
-    shouldRunRollingBuffer(env.mode) &&
+    shouldRunRollingBuffer(env.mode, getCommissioningCompleted()) &&
     bufferRegistry.getBufferingSourceCount() === 0
   ) {
     await bufferRegistry.ensureAllBuffering(edgeConfig, getEdgeConfigV2())
@@ -260,7 +346,8 @@ export async function startVenueEdge(
     repositories,
     orchestrator,
     () => edgeConfig,
-    getEdgeConfigV2
+    getEdgeConfigV2,
+    () => isProductionCaptureAllowed(env.mode, getCommissioningCompleted()),
   )
 
   const resumed = await resumeUnfinishedJobs({
@@ -315,18 +402,163 @@ export async function startVenueEdge(
     void refreshConfig()
   }, 60_000)
 
+  const localResourceMappingManager = new LocalResourceMappingManager(
+    repositories,
+    getEdgeConfigV2,
+  )
+
+  const commissioningManager = new CommissioningManager(
+    repositories,
+    nvrPasswordStore,
+    localCameraManager,
+    paths,
+    credentialManager,
+    getEdgeConfigV2,
+    client,
+  )
+
+  let setupHost: SetupHostHandle | null = null
+  if (env.setupOnStart) {
+    setupHost = await startSetupHost({
+      port: env.setupPort,
+      sessionTtlMs: env.setupSessionTtlMs,
+      credentialManager,
+      localNvrManager,
+      localCameraManager,
+      localResourceMappingManager,
+      commissioningManager,
+      onConfigurationChanged: async () => {
+        await activateRuntimeConfig(configManager.getState().edgeConfigV2)
+        await refreshRuntimeSourceRtspUrls()
+      },
+      enroll: async (pairingCode) => {
+        const enrolled = await enrollVenueEdge({
+          pairingCode,
+          credentialManager,
+          client,
+          agentVersion: env.firmwareVersion,
+          bootId: env.bootId,
+        })
+        credentials = await credentialManager.loadCredentials()
+        heartbeatLoop.start()
+        await refreshConfig()
+        return enrolled
+      },
+    })
+    console.log(`VenueEdge setup: open ${setupHost.setupUrl}`)
+  }
+
   return {
+    setupHost,
     async stop() {
       heartbeatLoop.stop()
       clearInterval(configRefreshTimer)
+      if (setupHost) {
+        await setupHost.stop()
+      }
       await bufferRegistry.stopAll()
       database.close()
     },
   }
 }
 
+async function runSetupOnly(): Promise<void> {
+  const env = loadEnv()
+  const database = initDatabase(env.sqlitePath)
+  const repositories = new EdgeRepositories(database.db)
+  const credentialManager = CredentialManager.fromEnv(env)
+  await credentialManager.deleteLegacyPlaintextFile(env.credentialsPath)
+  const credentials = await credentialManager.loadCredentials()
+  const client = new EdgeV1Client({
+    baseUrl: env.cloudBaseUrl,
+    deviceId: credentials?.deviceId,
+    secret: credentials?.secret,
+    agentVersion: env.firmwareVersion,
+  })
+
+  const nvrPasswordStore = createNvrPasswordStore({
+    dataDir: env.dataDir,
+    secretStoreMode: env.secretStoreMode,
+    venueMode: env.mode,
+  })
+  const localNvrManager = new LocalNvrManager(repositories, nvrPasswordStore)
+  const localCameraManager = new LocalCameraManager(
+    repositories,
+    nvrPasswordStore,
+    localNvrManager,
+  )
+
+  const loadEdgeConfigV2 = () => {
+    const current = repositories.getCurrentConfig()
+    if (!current) {
+      return null
+    }
+
+    try {
+      return parseEdgeConfigV2(current.snapshot)
+    } catch {
+      return null
+    }
+  }
+
+  const localResourceMappingManager = new LocalResourceMappingManager(
+    repositories,
+    loadEdgeConfigV2,
+  )
+
+  const paths = createLocalStoragePaths(env)
+  const commissioningManager = new CommissioningManager(
+    repositories,
+    nvrPasswordStore,
+    localCameraManager,
+    paths,
+    credentialManager,
+    loadEdgeConfigV2,
+    client,
+  )
+
+  const setupHost = await startSetupHost({
+    port: env.setupPort,
+    sessionTtlMs: env.setupSessionTtlMs,
+    credentialManager,
+    localNvrManager,
+    localCameraManager,
+    localResourceMappingManager,
+    commissioningManager,
+    enroll: async (pairingCode) =>
+      enrollVenueEdge({
+        pairingCode,
+        credentialManager,
+        client,
+        agentVersion: env.firmwareVersion,
+        bootId: env.bootId,
+      }),
+  })
+
+  console.log(`VenueEdge setup: open ${setupHost.setupUrl}`)
+
+  const shutdown = async () => {
+    await setupHost.stop()
+    database.close()
+    process.exit(0)
+  }
+
+  process.on("SIGINT", () => {
+    void shutdown()
+  })
+
+  process.on("SIGTERM", () => {
+    void shutdown()
+  })
+}
+
 async function main(): Promise<void> {
   const command = process.argv[2] ?? "start"
+
+  if (command === "setup") {
+    await runSetupOnly()
+    return
+  }
 
   if (command === "enroll") {
     const pairingCode = process.argv[3] ?? process.env.VENUE_EDGE_PAIRING_CODE
@@ -358,7 +590,7 @@ async function main(): Promise<void> {
   }
 
   if (command !== "start" && command !== "simulate") {
-    console.error("Usage: venue-edge <start|simulate|enroll>")
+    console.error("Usage: venue-edge <start|simulate|enroll|setup>")
     process.exit(1)
   }
 

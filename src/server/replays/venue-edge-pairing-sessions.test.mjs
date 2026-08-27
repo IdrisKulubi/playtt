@@ -9,26 +9,41 @@ test("pairing session routes and schema wiring exist", () => {
   const schema = readFileSync(join(repoRoot, "db", "schema.ts"), "utf8")
   const migration = readFileSync(
     join(repoRoot, "drizzle", "0026_venue_edge_pairing_sessions.sql"),
-    "utf8",
+    "utf8"
   )
   const consumedDeviceMigration = readFileSync(
     join(repoRoot, "drizzle", "0027_venue_edge_pairing_consumed_device.sql"),
-    "utf8",
+    "utf8"
   )
-  const route = readFileSync(
+  const integrityMigration = readFileSync(
+    join(repoRoot, "drizzle", "0030_venue_edge_pairing_integrity.sql"),
+    "utf8"
+  )
+  const enrollmentService = readFileSync(
+    join(repoRoot, "src", "server", "replays", "venue-edge-enrollment.ts"),
+    "utf8"
+  )
+  const pairingService = readFileSync(
     join(
       repoRoot,
-      "src/app/api/operator/venue-edge/pairing-sessions/route.ts",
+      "src",
+      "server",
+      "replays",
+      "venue-edge-pairing-sessions.ts"
     ),
-    "utf8",
+    "utf8"
+  )
+  const route = readFileSync(
+    join(repoRoot, "src/app/api/operator/venue-edge/pairing-sessions/route.ts"),
+    "utf8"
   )
   const exchangeRoute = readFileSync(
     join(repoRoot, "src/app/api/edge/v1/enroll/exchange/route.ts"),
-    "utf8",
+    "utf8"
   )
   const confirmRoute = readFileSync(
     join(repoRoot, "src/app/api/edge/v1/enroll/confirm/route.ts"),
-    "utf8",
+    "utf8"
   )
 
   assert.match(schema, /venueEdgePairingSessions/)
@@ -37,6 +52,40 @@ test("pairing session routes and schema wiring exist", () => {
   assert.match(migration, /venue_edge_pairing_sessions/)
   assert.match(migration, /venue_edge_pairing_rate_limits/)
   assert.match(consumedDeviceMigration, /consumed_device_id/)
+  assert.match(
+    integrityMigration,
+    /venue_edge_pairing_sessions_code_hash_unique[^;]+\("code_hash"\)/
+  )
+  assert.match(
+    integrityMigration,
+    /venue_edge_pairing_sessions_consumed_tenant_device_fk[^;]+\("tenant_id","consumed_device_id"\)[^;]+devices"\("tenant_id","id"\)/
+  )
+  assert.match(
+    integrityMigration,
+    /venue_edge_pairing_sessions_lifecycle_consistent[\s\S]+NOT VALID/
+  )
+  assert.match(schema, /venue_edge_pairing_sessions_lifecycle_consistent/)
+  assert.match(
+    pairingService,
+    /eq\(venueEdgePairingSessions\.status, "waiting_for_install"\)/
+  )
+  assert.match(
+    enrollmentService,
+    /status: "consumed",\s+consumedAt: now,\s+consumedDeviceId: deviceId/
+  )
+  const confirmationTransaction = enrollmentService.indexOf(
+    "export async function confirmVenueEdgeEnrollment"
+  )
+  const replacementRevocation = enrollmentService.indexOf(
+    "await revokeDeviceInTransaction(",
+    confirmationTransaction
+  )
+  assert.ok(confirmationTransaction >= 0)
+  assert.ok(replacementRevocation > confirmationTransaction)
+  assert.doesNotMatch(
+    enrollmentService.slice(0, confirmationTransaction),
+    /await revokeDeviceInTransaction\(/
+  )
   assert.match(route, /createVenueEdgePairingSession/)
   assert.match(route, /resolveOperatorDeviceWriteContext/)
   assert.match(exchangeRoute, /exchangeVenueEdgeEnrollment/)
@@ -55,12 +104,54 @@ test("pairing code format is human-friendly and hashed with venue-edge prefix", 
   assert.equal(generated.codeHint, generated.normalized.slice(-4))
   assert.equal(
     normalizeVenueEdgePairingCode(generated.pairingCode),
-    generated.normalized,
+    generated.normalized
   )
   assert.notEqual(
     hashVenueEdgePairingCode(generated.pairingCode),
-    hashVenueEdgePairingCode("ABCD-EFGHJK"),
+    hashVenueEdgePairingCode("ABCD-EFGHJK")
   )
+})
+
+test("online lifecycle requires a fresh heartbeat", () => {
+  const enrollment = readFileSync(
+    join(repoRoot, "src/server/replays/venue-edge-enrollment.ts"),
+    "utf8"
+  )
+  const sessions = readFileSync(
+    join(repoRoot, "src/server/replays/venue-edge-pairing-sessions.ts"),
+    "utf8"
+  )
+
+  assert.match(enrollment, /deriveDeviceHealth\(lastHeartbeatAt, input\.now\)/)
+  assert.match(enrollment, /\? "online"\s+: "offline"/)
+  assert.match(enrollment, /PAIRING_HEARTBEAT_REQUIRED/)
+  assert.match(enrollment, /requires a fresh heartbeat/)
+  assert.match(enrollment, /deviceHeartbeats\.tenantId/)
+  assert.match(enrollment, /desc\(deviceHeartbeats\.observedAt\)/)
+  assert.match(sessions, /lastHeartbeatAt: devices\.lastHeartbeatAt/)
+})
+
+test("enrollment uses typed service context and lookup failures count once", () => {
+  const enrollment = readFileSync(
+    join(repoRoot, "src/server/replays/venue-edge-enrollment.ts"),
+    "utf8"
+  )
+  const exchangeRoute = readFileSync(
+    join(repoRoot, "src/app/api/edge/v1/enroll/exchange/route.ts"),
+    "utf8"
+  )
+  const rateLimit = readFileSync(
+    join(repoRoot, "src/server/replays/venue-edge-pairing-rate-limit.ts"),
+    "utf8"
+  )
+
+  assert.match(enrollment, /tenancy\/context-factory"/)
+  assert.doesNotMatch(enrollment, /tenancy\/context-factory\.mjs/)
+  assert.doesNotMatch(enrollment, /recordFailedPairingLookup/)
+  assert.match(exchangeRoute, /recordFailedPairingLookup/)
+  assert.match(rateLimit, /type RedisRateLimitClient/)
+  assert.match(rateLimit, /await client\.quit\(\)/)
+  assert.doesNotMatch(rateLimit, /await client\.disconnect\(\)/)
 })
 
 test("venue edge pairing sessions work when database is available", async (t) => {
@@ -71,18 +162,15 @@ test("venue edge pairing sessions work when database is available", async (t) =>
 
   const { eq } = await import("drizzle-orm")
   const db = (await import("../../../db/drizzle.ts")).default
-  const { auditLogs, venueEdgePairingSessions } = await import(
-    "../../../db/schema.ts"
-  )
+  const { auditLogs, venueEdgePairingSessions } =
+    await import("../../../db/schema.ts")
   const { HURLINGHAM_VENUE_ID } = await import("../catalog/constants.ts")
   const { DeviceError } = await import("../devices/errors.ts")
   const { PLAYTT_TENANT_ID } = await import("../tenancy/constants.ts")
-  const { hashVenueEdgePairingCode } = await import(
-    "./venue-edge-pairing-credentials.ts"
-  )
-  const { PAIRING_CREATE_RATE_LIMIT } = await import(
-    "./venue-edge-pairing-rate-limit.ts"
-  )
+  const { hashVenueEdgePairingCode } =
+    await import("./venue-edge-pairing-credentials.ts")
+  const { PAIRING_CREATE_RATE_LIMIT } =
+    await import("./venue-edge-pairing-rate-limit.ts")
   const {
     cancelVenueEdgePairingSession,
     createVenueEdgePairingSession,
@@ -147,7 +235,7 @@ test("venue edge pairing sessions work when database is available", async (t) =>
       ...operatorContext,
       correlationId: `corr-reissue-${Date.now()}`,
     },
-    created.id,
+    created.id
   )
   assert.notEqual(reissued.id, created.id)
   assert.notEqual(reissued.pairingCode, created.pairingCode)
@@ -155,7 +243,7 @@ test("venue edge pairing sessions work when database is available", async (t) =>
 
   const cancelled = await cancelVenueEdgePairingSession(
     operatorContext,
-    reissued.id,
+    reissued.id
   )
   assert.equal(cancelled.status, "cancelled")
 
@@ -167,7 +255,7 @@ test("venue edge pairing sessions work when database is available", async (t) =>
         pairingCode: reissued.pairingCode,
         lookupSubject: "test-ip-cancelled",
       }),
-    DeviceError,
+    DeviceError
   )
 
   const expiredContext = {
@@ -189,7 +277,7 @@ test("venue edge pairing sessions work when database is available", async (t) =>
         now: new Date(Date.now() + 60_000),
       }),
     (error) =>
-      error instanceof DeviceError && error.code === "PAIRING_SESSION_INVALID",
+      error instanceof DeviceError && error.code === "PAIRING_SESSION_INVALID"
   )
 
   const auditRows = await db
@@ -214,12 +302,10 @@ test("pairing create rate limit is enforced across repeated creates", async (t) 
   const { HURLINGHAM_VENUE_ID } = await import("../catalog/constants.ts")
   const { DeviceError } = await import("../devices/errors.ts")
   const { PLAYTT_TENANT_ID } = await import("../tenancy/constants.ts")
-  const { PAIRING_CREATE_RATE_LIMIT } = await import(
-    "./venue-edge-pairing-rate-limit.ts"
-  )
-  const { createVenueEdgePairingSession } = await import(
-    "./venue-edge-pairing-sessions.ts"
-  )
+  const { PAIRING_CREATE_RATE_LIMIT } =
+    await import("./venue-edge-pairing-rate-limit.ts")
+  const { createVenueEdgePairingSession } =
+    await import("./venue-edge-pairing-sessions.ts")
 
   const operatorContext = {
     tenantId: PLAYTT_TENANT_ID,
@@ -231,7 +317,11 @@ test("pairing create rate limit is enforced across repeated creates", async (t) 
 
   const venueId = HURLINGHAM_VENUE_ID
 
-  for (let index = 0; index < PAIRING_CREATE_RATE_LIMIT.maxAttempts; index += 1) {
+  for (
+    let index = 0;
+    index < PAIRING_CREATE_RATE_LIMIT.maxAttempts;
+    index += 1
+  ) {
     const session = await createVenueEdgePairingSession(operatorContext, {
       locationId: venueId,
     })
@@ -244,7 +334,7 @@ test("pairing create rate limit is enforced across repeated creates", async (t) 
         locationId: venueId,
       }),
     (error) =>
-      error instanceof DeviceError && error.code === "PAIRING_RATE_LIMITED",
+      error instanceof DeviceError && error.code === "PAIRING_RATE_LIMITED"
   )
 })
 
@@ -269,13 +359,10 @@ test("venue edge enrollment exchange and confirm work when database is available
   const { DeviceError } = await import("../devices/errors.ts")
   const { recordDeviceHeartbeat } = await import("../devices/heartbeats.ts")
   const { PLAYTT_TENANT_ID } = await import("../tenancy/constants.ts")
-  const { resolveTenantContextForDevice } = await import(
-    "../tenancy/context-factory.mjs"
-  )
-  const {
-    confirmVenueEdgeEnrollment,
-    exchangeVenueEdgeEnrollment,
-  } = await import("./venue-edge-enrollment.ts")
+  const { resolveTenantContextForDevice } =
+    await import("../tenancy/context-factory.mjs")
+  const { confirmVenueEdgeEnrollment, exchangeVenueEdgeEnrollment } =
+    await import("./venue-edge-enrollment.ts")
   const {
     cancelVenueEdgePairingSession,
     createVenueEdgePairingSession,
@@ -345,17 +432,19 @@ test("venue edge enrollment exchange and confirm work when database is available
     .where(
       and(
         eq(deviceCredentials.deviceId, exchanged.deviceId),
-        eq(deviceCredentials.status, "active"),
-      ),
+        eq(deviceCredentials.status, "active")
+      )
     )
 
   assert.equal(activeCredentials.length, 1)
 
   const listedAfterExchange = await listVenueEdgePairingSessions(
     operatorContext,
-    HURLINGHAM_VENUE_ID,
+    HURLINGHAM_VENUE_ID
   )
-  const consumedSession = listedAfterExchange.find((row) => row.id === created.id)
+  const consumedSession = listedAfterExchange.find(
+    (row) => row.id === created.id
+  )
   assert.ok(consumedSession)
   assert.equal(consumedSession.status, "consumed")
   assert.equal(consumedSession.lifecycleStatus, "pending_setup")
@@ -379,7 +468,8 @@ test("venue edge enrollment exchange and confirm work when database is available
   await assert.rejects(
     () => confirmVenueEdgeEnrollment(auth),
     (error) =>
-      error instanceof DeviceError && error.code === "PAIRING_HEARTBEAT_REQUIRED",
+      error instanceof DeviceError &&
+      error.code === "PAIRING_HEARTBEAT_REQUIRED"
   )
 
   await recordDeviceHeartbeat({
@@ -405,7 +495,7 @@ test("venue edge enrollment exchange and confirm work when database is available
 
   const listedAfterConfirm = await listVenueEdgePairingSessions(
     operatorContext,
-    HURLINGHAM_VENUE_ID,
+    HURLINGHAM_VENUE_ID
   )
   const onlineSession = listedAfterConfirm.find((row) => row.id === created.id)
   assert.ok(onlineSession)
@@ -414,6 +504,66 @@ test("venue edge enrollment exchange and confirm work when database is available
   const duplicateConfirm = await confirmVenueEdgeEnrollment(auth)
   assert.equal(duplicateConfirm.alreadyConfirmed, true)
 
+  const replacementSession = await createVenueEdgePairingSession(
+    {
+      ...operatorContext,
+      correlationId: `corr-replacement-${Date.now()}`,
+    },
+    {
+      locationId: HURLINGHAM_VENUE_ID,
+      replaceInstallationId: installation.id,
+    }
+  )
+  const replacementExchange = await exchangeVenueEdgeEnrollment({
+    pairingCode: replacementSession.pairingCode,
+    installationUid: randomUUID(),
+    ...enrollmentBase,
+    lookupSubject: "test-ip-replacement",
+    correlationId: `corr-replacement-exchange-${Date.now()}`,
+  })
+
+  const [oldDeviceBeforeReplacementConfirm] = await db
+    .select({ status: devices.status })
+    .from(devices)
+    .where(eq(devices.id, exchanged.deviceId))
+    .limit(1)
+  assert.equal(oldDeviceBeforeReplacementConfirm.status, "active")
+
+  const replacementCredentialAuth = await authenticateDeviceCredential({
+    deviceId: replacementExchange.deviceId,
+    secret: replacementExchange.secret,
+  })
+  const replacementAuth = {
+    ...replacementCredentialAuth,
+    context: resolveTenantContextForDevice({
+      deviceId: replacementCredentialAuth.device.id,
+      tenantId: replacementCredentialAuth.device.tenantId,
+      correlationId: `corr-replacement-confirm-${Date.now()}`,
+    }),
+  }
+
+  await recordDeviceHeartbeat({
+    tenantId: replacementExchange.tenantId,
+    deviceId: replacementExchange.deviceId,
+    bootId: "boot-replacement-1",
+    correlationId: "corr-replacement-heartbeat",
+    appliedConfigVersion: 1,
+  })
+  await confirmVenueEdgeEnrollment(replacementAuth)
+
+  const [oldDeviceAfterReplacementConfirm] = await db
+    .select({ status: devices.status })
+    .from(devices)
+    .where(eq(devices.id, exchanged.deviceId))
+    .limit(1)
+  const [newDeviceAfterReplacementConfirm] = await db
+    .select({ status: devices.status })
+    .from(devices)
+    .where(eq(devices.id, replacementExchange.deviceId))
+    .limit(1)
+  assert.equal(oldDeviceAfterReplacementConfirm.status, "revoked")
+  assert.equal(newDeviceAfterReplacementConfirm.status, "active")
+
   const concurrentSession = await createVenueEdgePairingSession(
     {
       ...operatorContext,
@@ -421,7 +571,7 @@ test("venue edge enrollment exchange and confirm work when database is available
     },
     {
       locationId: HURLINGHAM_VENUE_ID,
-    },
+    }
   )
 
   const concurrentResults = await Promise.allSettled([
@@ -441,8 +591,12 @@ test("venue edge enrollment exchange and confirm work when database is available
     }),
   ])
 
-  const winners = concurrentResults.filter((result) => result.status === "fulfilled")
-  const losers = concurrentResults.filter((result) => result.status === "rejected")
+  const winners = concurrentResults.filter(
+    (result) => result.status === "fulfilled"
+  )
+  const losers = concurrentResults.filter(
+    (result) => result.status === "rejected"
+  )
   assert.equal(winners.length, 1)
   assert.equal(losers.length, 1)
   assert.ok(losers[0].reason instanceof DeviceError)
@@ -462,15 +616,15 @@ test("venue edge enrollment exchange and confirm work when database is available
     .where(
       and(
         eq(deviceCredentials.deviceId, winnerDeviceId),
-        eq(deviceCredentials.status, "active"),
-      ),
+        eq(deviceCredentials.status, "active")
+      )
     )
 
   assert.equal(concurrentCredentials.length, 1)
 
   const cancelledSession = await createVenueEdgePairingSession(
     operatorContext,
-    { locationId: HURLINGHAM_VENUE_ID },
+    { locationId: HURLINGHAM_VENUE_ID }
   )
   await cancelVenueEdgePairingSession(operatorContext, cancelledSession.id)
 
@@ -484,7 +638,7 @@ test("venue edge enrollment exchange and confirm work when database is available
         correlationId: `corr-cancelled-${Date.now()}`,
       }),
     (error) =>
-      error instanceof DeviceError && error.code === "PAIRING_SESSION_INVALID",
+      error instanceof DeviceError && error.code === "PAIRING_SESSION_INVALID"
   )
 
   const expiredSession = await createVenueEdgePairingSession(
@@ -495,7 +649,7 @@ test("venue edge enrollment exchange and confirm work when database is available
     {
       locationId: HURLINGHAM_VENUE_ID,
       expiresInMinutes: 0,
-    },
+    }
   )
 
   await assert.rejects(
@@ -508,7 +662,7 @@ test("venue edge enrollment exchange and confirm work when database is available
         correlationId: `corr-expired-exchange-${Date.now()}`,
       }),
     (error) =>
-      error instanceof DeviceError && error.code === "PAIRING_SESSION_INVALID",
+      error instanceof DeviceError && error.code === "PAIRING_SESSION_INVALID"
   )
 
   await assert.rejects(
@@ -521,7 +675,7 @@ test("venue edge enrollment exchange and confirm work when database is available
         correlationId: `corr-guessed-${Date.now()}`,
       }),
     (error) =>
-      error instanceof DeviceError && error.code === "PAIRING_SESSION_INVALID",
+      error instanceof DeviceError && error.code === "PAIRING_SESSION_INVALID"
   )
 
   await assert.rejects(
@@ -534,7 +688,7 @@ test("venue edge enrollment exchange and confirm work when database is available
         correlationId: `corr-reused-${Date.now()}`,
       }),
     (error) =>
-      error instanceof DeviceError && error.code === "PAIRING_SESSION_INVALID",
+      error instanceof DeviceError && error.code === "PAIRING_SESSION_INVALID"
   )
 
   const [consumedPairingRow] = await db

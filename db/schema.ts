@@ -2289,6 +2289,10 @@ export const venueEdgeInstallations = pgTable(
     lastConfigAppliedAt: timestamp("last_config_applied_at", {
       withTimezone: true,
     }),
+    commissionedAt: timestamp("commissioned_at", { withTimezone: true }),
+    commissioningSnapshotJson: jsonb("commissioning_snapshot_json").$type<
+      Record<string, unknown>
+    >(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -2342,9 +2346,7 @@ export const venueEdgePairingSessions = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     consumedAt: timestamp("consumed_at", { withTimezone: true }),
-    consumedDeviceId: uuid("consumed_device_id").references(() => devices.id, {
-      onDelete: "set null",
-    }),
+    consumedDeviceId: uuid("consumed_device_id"),
     createdByActorId: text("created_by_actor_id").notNull(),
     replaceInstallationId: uuid("replace_installation_id"),
     correlationId: text("correlation_id").notNull(),
@@ -2365,6 +2367,9 @@ export const venueEdgePairingSessions = pgTable(
       table.tenantId,
       table.codeHash
     ),
+    uniqueIndex("venue_edge_pairing_sessions_code_hash_unique").on(
+      table.codeHash
+    ),
     index("venue_edge_pairing_sessions_location_status_idx").on(
       table.tenantId,
       table.locationId,
@@ -2372,7 +2377,7 @@ export const venueEdgePairingSessions = pgTable(
     ),
     index("venue_edge_pairing_sessions_expires_at_idx").on(table.expiresAt),
     index("venue_edge_pairing_sessions_consumed_device_idx").on(
-      table.consumedDeviceId,
+      table.consumedDeviceId
     ),
     foreignKey({
       columns: [table.tenantId, table.locationId],
@@ -2381,9 +2386,26 @@ export const venueEdgePairingSessions = pgTable(
     }).onDelete("restrict"),
     foreignKey({
       columns: [table.tenantId, table.replaceInstallationId],
-      foreignColumns: [venueEdgeInstallations.tenantId, venueEdgeInstallations.id],
+      foreignColumns: [
+        venueEdgeInstallations.tenantId,
+        venueEdgeInstallations.id,
+      ],
       name: "venue_edge_pairing_sessions_replace_installation_fk",
     }).onDelete("set null"),
+    foreignKey({
+      columns: [table.tenantId, table.consumedDeviceId],
+      foreignColumns: [devices.tenantId, devices.id],
+      name: "venue_edge_pairing_sessions_consumed_tenant_device_fk",
+    }).onDelete("restrict"),
+    check(
+      "venue_edge_pairing_sessions_lifecycle_consistent",
+      sql`(
+        (${table.status} = 'waiting_for_install' and ${table.cancelledAt} is null and ${table.consumedAt} is null and ${table.consumedDeviceId} is null)
+        or (${table.status} = 'cancelled' and ${table.cancelledAt} is not null and ${table.consumedAt} is null and ${table.consumedDeviceId} is null)
+        or (${table.status} = 'expired' and ${table.cancelledAt} is null and ${table.consumedAt} is null and ${table.consumedDeviceId} is null)
+        or (${table.status} = 'consumed' and ${table.cancelledAt} is null and ${table.consumedAt} is not null and ${table.consumedDeviceId} is not null)
+      )`
+    ),
   ]
 )
 
@@ -2406,11 +2428,9 @@ export const venueEdgePairingRateLimits = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex("venue_edge_pairing_rate_limits_scope_subject_window_unique").on(
-      table.scope,
-      table.subjectHash,
-      table.windowStartedAt
-    ),
+    uniqueIndex(
+      "venue_edge_pairing_rate_limits_scope_subject_window_unique"
+    ).on(table.scope, table.subjectHash, table.windowStartedAt),
     index("venue_edge_pairing_rate_limits_scope_subject_idx").on(
       table.scope,
       table.subjectHash

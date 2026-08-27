@@ -7,8 +7,10 @@ export interface LocalStoragePaths {
   pending: string
   uploaded: string
   failed: string
+  commissioning: string
   bufferForCamera(cameraId: string): string
   pendingForReplay(replayRequestId: string): string
+  commissioningPreviewForCamera(cameraId: string): string
 }
 
 export function createLocalStoragePaths(env: VenueEdgeEnv): LocalStoragePaths {
@@ -20,11 +22,15 @@ export function createLocalStoragePaths(env: VenueEdgeEnv): LocalStoragePaths {
     pending: join(root, "pending"),
     uploaded: join(root, "uploaded"),
     failed: join(root, "failed"),
+    commissioning: join(root, "commissioning"),
     bufferForCamera(cameraId: string) {
       return join(root, "buffers", cameraId)
     },
     pendingForReplay(replayRequestId: string) {
       return join(root, "pending", replayRequestId)
+    },
+    commissioningPreviewForCamera(cameraId: string) {
+      return join(root, "commissioning", cameraId, "preview.mp4")
     },
   }
 }

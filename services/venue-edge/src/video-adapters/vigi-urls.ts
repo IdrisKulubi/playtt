@@ -1,3 +1,27 @@
+export function streamProfileToVigiStream(streamProfile: string): string {
+  const normalized = streamProfile.trim().toLowerCase()
+  if (normalized === "substream" || normalized === "sub") {
+    return "2"
+  }
+
+  return "1"
+}
+
+export function buildVigiLiveRtspUrl(input: {
+  host: string
+  rtspPort: number
+  username: string
+  password: string
+  channelKey: string
+  streamProfile: string
+}): string {
+  const user = encodeURIComponent(input.username)
+  const password = encodeURIComponent(input.password)
+  const stream = streamProfileToVigiStream(input.streamProfile)
+  const channel = encodeURIComponent(input.channelKey)
+  return `rtsp://${user}:${password}@${input.host}:${input.rtspPort}/live/${channel}/${stream}/avm`
+}
+
 export function formatVigiTime(date: Date, suffix: "z" | "l" = "z"): string {
   if (suffix === "l") {
     const y = date.getFullYear()

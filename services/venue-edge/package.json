@@ -8,6 +8,7 @@
     "start": "tsx src/index.ts start",
     "simulate": "tsx src/index.ts simulate",
     "enroll": "tsx src/index.ts enroll",
+    "setup": "tsx src/index.ts setup",
     "test": "node --import tsx --test test/*.test.mjs",
     "typecheck": "tsc --noEmit"
   },

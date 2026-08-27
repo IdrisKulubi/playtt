@@ -8,6 +8,7 @@ export interface VenueEdgeEnv {
   dataDir: string
   rtspUrl: string | null
   sourceRtspUrls: Readonly<Record<string, string>>
+  runtimeSourceRtspUrls: Record<string, string>
   heartbeatIntervalMs: number
   commandPollIntervalMs: number
   credentialsPath: string
@@ -15,6 +16,9 @@ export interface VenueEdgeEnv {
   secretBlobPath: string
   secretStoreMode: string
   pairingCode: string | null
+  setupPort: number
+  setupSessionTtlMs: number
+  setupOnStart: boolean
   sqlitePath: string
   bootId: string
   firmwareVersion: string
@@ -79,6 +83,7 @@ export function loadEnv(overrides: Partial<VenueEdgeEnv> = {}): VenueEdgeEnv {
     sourceRtspUrls:
       overrides.sourceRtspUrls ??
       parseSourceRtspUrls(process.env.VENUE_EDGE_SOURCE_RTSP_URLS_JSON),
+    runtimeSourceRtspUrls: overrides.runtimeSourceRtspUrls ?? {},
     heartbeatIntervalMs: Number(
       overrides.heartbeatIntervalMs ??
         process.env.VENUE_EDGE_HEARTBEAT_MS ??
@@ -107,6 +112,19 @@ export function loadEnv(overrides: Partial<VenueEdgeEnv> = {}): VenueEdgeEnv {
       "",
     pairingCode:
       overrides.pairingCode ?? process.env.VENUE_EDGE_PAIRING_CODE ?? null,
+    setupPort: Number(
+      overrides.setupPort ?? process.env.VENUE_EDGE_SETUP_PORT ?? 18_764,
+    ),
+    setupSessionTtlMs: Number(
+      overrides.setupSessionTtlMs ??
+        process.env.VENUE_EDGE_SETUP_SESSION_TTL_MS ??
+        15 * 60 * 1000,
+    ),
+    setupOnStart:
+      overrides.setupOnStart ??
+      (process.env.VENUE_EDGE_SETUP_ON_START === undefined
+        ? true
+        : process.env.VENUE_EDGE_SETUP_ON_START === "true"),
     sqlitePath:
       overrides.sqlitePath ??
       process.env.VENUE_EDGE_SQLITE_PATH ??

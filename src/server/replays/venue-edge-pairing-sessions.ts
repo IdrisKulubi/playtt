@@ -53,6 +53,7 @@ export interface CreatedVenueEdgePairingSession extends VenueEdgePairingSessionV
 function mapSessionRow(
   row: typeof venueEdgePairingSessions.$inferSelect,
   deviceStatus: string | null = null,
+  lastHeartbeatAt: Date | null = null
 ): VenueEdgePairingSessionView {
   return {
     id: row.id,
@@ -61,6 +62,7 @@ function mapSessionRow(
     lifecycleStatus: derivePairingLifecycleStatus({
       pairingStatus: row.status,
       deviceStatus,
+      lastHeartbeatAt,
     }),
     codeHint: row.codeHint,
     expiresAt: row.expiresAt.toISOString(),
@@ -72,23 +74,18 @@ function mapSessionRow(
   }
 }
 
-async function assertLocationForTenant(
-  tenantId: string,
-  locationId: string,
-) {
+async function assertLocationForTenant(tenantId: string, locationId: string) {
   const [location] = await db
     .select({ id: locations.id })
     .from(locations)
-    .where(
-      and(eq(locations.tenantId, tenantId), eq(locations.id, locationId)),
-    )
+    .where(and(eq(locations.tenantId, tenantId), eq(locations.id, locationId)))
     .limit(1)
 
   if (!location) {
     throw new DeviceError(
       "VALIDATION_ERROR",
       "Venue not found for this tenant.",
-      404,
+      404
     )
   }
 }
@@ -96,7 +93,7 @@ async function assertLocationForTenant(
 async function assertReplaceInstallation(
   tenantId: string,
   locationId: string,
-  replaceInstallationId: string,
+  replaceInstallationId: string
 ) {
   const [installation] = await db
     .select({ id: venueEdgeInstallations.id })
@@ -105,8 +102,8 @@ async function assertReplaceInstallation(
       and(
         eq(venueEdgeInstallations.tenantId, tenantId),
         eq(venueEdgeInstallations.locationId, locationId),
-        eq(venueEdgeInstallations.id, replaceInstallationId),
-      ),
+        eq(venueEdgeInstallations.id, replaceInstallationId)
+      )
     )
     .limit(1)
 
@@ -114,7 +111,7 @@ async function assertReplaceInstallation(
     throw new DeviceError(
       "VALIDATION_ERROR",
       "Replacement installation was not found for this venue.",
-      404,
+      404
     )
   }
 }
@@ -122,7 +119,7 @@ async function assertReplaceInstallation(
 async function expireStaleSessions(
   tenantId: string,
   locationId: string,
-  now = new Date(),
+  now = new Date()
 ) {
   const expired = await db
     .update(venueEdgePairingSessions)
@@ -135,8 +132,8 @@ async function expireStaleSessions(
         eq(venueEdgePairingSessions.tenantId, tenantId),
         eq(venueEdgePairingSessions.locationId, locationId),
         eq(venueEdgePairingSessions.status, "waiting_for_install"),
-        lt(venueEdgePairingSessions.expiresAt, now),
-      ),
+        lt(venueEdgePairingSessions.expiresAt, now)
+      )
     )
     .returning({ id: venueEdgePairingSessions.id })
 
@@ -150,7 +147,7 @@ async function cancelWaitingSessions(
     locationId: string
     now: Date
     excludeSessionId?: string
-  },
+  }
 ) {
   const conditions = [
     eq(venueEdgePairingSessions.tenantId, input.tenantId),
@@ -168,18 +165,15 @@ async function cancelWaitingSessions(
     .where(and(...conditions))
 }
 
-async function getSessionForTenant(
-  tenantId: string,
-  sessionId: string,
-) {
+async function getSessionForTenant(tenantId: string, sessionId: string) {
   const [session] = await db
     .select()
     .from(venueEdgePairingSessions)
     .where(
       and(
         eq(venueEdgePairingSessions.tenantId, tenantId),
-        eq(venueEdgePairingSessions.id, sessionId),
-      ),
+        eq(venueEdgePairingSessions.id, sessionId)
+      )
     )
     .limit(1)
 
@@ -187,7 +181,7 @@ async function getSessionForTenant(
     throw new DeviceError(
       "PAIRING_SESSION_NOT_FOUND",
       "Pairing session was not found.",
-      404,
+      404
     )
   }
 
@@ -196,7 +190,7 @@ async function getSessionForTenant(
 
 export async function listVenueEdgePairingSessions(
   context: TenantContext,
-  locationId: string,
+  locationId: string
 ): Promise<VenueEdgePairingSessionView[]> {
   await assertLocationForTenant(context.tenantId, locationId)
   await expireStaleSessions(context.tenantId, locationId)
@@ -205,11 +199,12 @@ export async function listVenueEdgePairingSessions(
     .select({
       session: venueEdgePairingSessions,
       deviceStatus: devices.status,
+      lastHeartbeatAt: devices.lastHeartbeatAt,
     })
     .from(venueEdgePairingSessions)
     .leftJoin(
       devices,
-      eq(venueEdgePairingSessions.consumedDeviceId, devices.id),
+      eq(venueEdgePairingSessions.consumedDeviceId, devices.id)
     )
     .where(
       and(
@@ -220,13 +215,17 @@ export async function listVenueEdgePairingSessions(
           "cancelled",
           "expired",
           "consumed",
-        ]),
-      ),
+        ])
+      )
     )
     .orderBy(venueEdgePairingSessions.createdAt)
 
   return rows.map((row) =>
-    mapSessionRow(row.session, row.deviceStatus ?? null),
+    mapSessionRow(
+      row.session,
+      row.deviceStatus ?? null,
+      row.lastHeartbeatAt ?? null
+    )
   )
 }
 
@@ -236,7 +235,7 @@ export async function createVenueEdgePairingSession(
     locationId: string
     replaceInstallationId?: string | null
     expiresInMinutes?: number
-  },
+  }
 ): Promise<CreatedVenueEdgePairingSession> {
   await assertLocationForTenant(context.tenantId, input.locationId)
 
@@ -244,7 +243,7 @@ export async function createVenueEdgePairingSession(
     await assertReplaceInstallation(
       context.tenantId,
       input.locationId,
-      input.replaceInstallationId,
+      input.replaceInstallationId
     )
   }
 
@@ -256,7 +255,7 @@ export async function createVenueEdgePairingSession(
   const created = await db.transaction(async (tx) => {
     await assertPairingCreateAllowed(
       { tenantId: context.tenantId, locationId: input.locationId, now },
-      tx,
+      tx
     )
 
     await cancelWaitingSessions(tx, {
@@ -302,21 +301,11 @@ export async function createVenueEdgePairingSession(
 
 export async function cancelVenueEdgePairingSession(
   context: TenantContext,
-  sessionId: string,
+  sessionId: string
 ): Promise<VenueEdgePairingSessionView> {
   const now = new Date()
 
   const updated = await db.transaction(async (tx) => {
-    const session = await getSessionForTenant(context.tenantId, sessionId)
-
-    if (session.status !== "waiting_for_install") {
-      throw new DeviceError(
-        "PAIRING_SESSION_INVALID",
-        "Only waiting pairing sessions can be cancelled.",
-        409,
-      )
-    }
-
     const [row] = await tx
       .update(venueEdgePairingSessions)
       .set({
@@ -324,8 +313,22 @@ export async function cancelVenueEdgePairingSession(
         cancelledAt: now,
         updatedAt: now,
       })
-      .where(eq(venueEdgePairingSessions.id, session.id))
+      .where(
+        and(
+          eq(venueEdgePairingSessions.tenantId, context.tenantId),
+          eq(venueEdgePairingSessions.id, sessionId),
+          eq(venueEdgePairingSessions.status, "waiting_for_install")
+        )
+      )
       .returning()
+
+    if (!row) {
+      throw new DeviceError(
+        "PAIRING_SESSION_INVALID",
+        "Only waiting pairing sessions can be cancelled.",
+        409
+      )
+    }
 
     await writeAuditLogInTransaction(tx, context, {
       action: VENUE_EDGE_AUDIT_ACTIONS.pairingCancelled,
@@ -344,7 +347,7 @@ export async function cancelVenueEdgePairingSession(
 
 export async function reissueVenueEdgePairingSession(
   context: TenantContext,
-  sessionId: string,
+  sessionId: string
 ): Promise<CreatedVenueEdgePairingSession> {
   const session = await getSessionForTenant(context.tenantId, sessionId)
 
@@ -352,7 +355,7 @@ export async function reissueVenueEdgePairingSession(
     throw new DeviceError(
       "PAIRING_SESSION_INVALID",
       "Only waiting pairing sessions can be reissued.",
-      409,
+      409
     )
   }
 
@@ -390,7 +393,8 @@ export async function resolveVenueEdgePairingSessionFromCode(input: {
   const now = input.now ?? new Date()
   const normalized = normalizeVenueEdgePairingCode(input.pairingCode)
   const lookupSubject =
-    input.lookupSubject ?? `tenant:${input.tenantId}:code:${normalized.slice(0, 4)}`
+    input.lookupSubject ??
+    `tenant:${input.tenantId}:code:${normalized.slice(0, 4)}`
 
   const [session] = await db
     .select()
@@ -400,9 +404,9 @@ export async function resolveVenueEdgePairingSessionFromCode(input: {
         eq(venueEdgePairingSessions.tenantId, input.tenantId),
         eq(
           venueEdgePairingSessions.codeHash,
-          hashVenueEdgePairingCode(normalized),
-        ),
-      ),
+          hashVenueEdgePairingCode(normalized)
+        )
+      )
     )
     .limit(1)
 
@@ -425,7 +429,7 @@ export async function resolveVenueEdgePairingSessionFromCode(input: {
     throw new DeviceError(
       "PAIRING_SESSION_INVALID",
       "Pairing code has been cancelled.",
-      403,
+      403
     )
   }
 
@@ -433,7 +437,7 @@ export async function resolveVenueEdgePairingSessionFromCode(input: {
     throw new DeviceError(
       "PAIRING_SESSION_INVALID",
       "Pairing code has already been used.",
-      403,
+      403
     )
   }
 
@@ -448,7 +452,7 @@ export async function resolveVenueEdgePairingSessionFromCode(input: {
     throw new DeviceError(
       "PAIRING_SESSION_INVALID",
       "Pairing code has expired.",
-      403,
+      403
     )
   }
 
@@ -456,7 +460,7 @@ export async function resolveVenueEdgePairingSessionFromCode(input: {
     throw new DeviceError(
       "PAIRING_SESSION_INVALID",
       "Pairing code is not available.",
-      403,
+      403
     )
   }
 

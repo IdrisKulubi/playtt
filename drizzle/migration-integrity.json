@@ -88,6 +88,12 @@
     },
     "0028_device_credential_retiring": {
       "sha256": "c8f6836cb0462b650c9207765f601bfe54e6074b5a836c13de735c9a590d09b9"
+    },
+    "0029_venue_edge_commissioning": {
+      "sha256": "0c246bc5cd6bec3693b196ced9194b529cf6a6222b5ca74b68da76833b267757"
+    },
+    "0030_venue_edge_pairing_integrity": {
+      "sha256": "cdf73763dd87771194ca530b87410f6886fa6089b028a0d3844f9677ce7f3001"
     }
   },
   "acknowledgedMetadataDrift": [],

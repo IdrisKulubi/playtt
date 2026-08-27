@@ -1,7 +1,7 @@
 # PlayTT VenueEdge Installer Master Plan
 
 **Status:** Implementation in progress
-**Current phase:** Phase 2 — Multi-NVR edge runtime and camera failover  
+**Current phase:** Phase 4 — Local setup and NVR configuration wizard  
 **Last updated:** 2026-08-27
 **Final deliverable:** A signed Windows `Setup.exe` that turns a supported venue PC into a securely paired, self-starting PlayTT VenueEdge Agent capable of selecting clips from configured cameras across multiple NVRs and uploading requested replays to private cloud storage.
 
@@ -137,7 +137,7 @@ Exact names may change during Phase 1 schema review. The important invariant is 
 | Phase 1 — Architecture, contracts, and data foundation  | Complete    | Signed off 2026-08-27: schema `0025`, config v2, rollout flags, transactional audit, backfill tooling, disposable rehearsal. P1-04 dispatch and P1-06 production cutover deferred to Phase 2 / staging ops |
 | Phase 2 — Multi-NVR edge runtime and camera failover    | Complete    | P2-01 through P2-05 complete: LKG snapshots, multi-source supervisors, source health, deterministic capture selection, simulator matrix, restart recovery, and capacity bounds |
 | Phase 3 — Pairing and secure installation identity      | Complete    | Signed off 2026-08-27: pairing sessions, enroll exchange/confirm, DPAPI secrets, overlap rotation, `/nvr` onboarding, and unpackaged agent enroll CLI |
-| Phase 4 — Local setup and NVR configuration wizard      | Not started | Depends on Phases 2 and 3                                                                                                                                                                               |
+| Phase 4 — Local setup and NVR configuration wizard      | Complete    | P4-01 through P4-04 complete: setup host, NVR CRUD, camera mapping, commissioning test, production capture gate |
 | Phase 5 — Windows service and signed Setup.exe          | Not started | Depends on a stable local runtime and setup flow                                                                                                                                                        |
 | Phase 6 — `/nvr` management and fleet experience        | Not started | Minimal pairing surface begins in Phase 3; full management follows installer                                                                                                                            |
 | Phase 7 — Secure updates, diagnostics, and operations   | Not started | Depends on the signed installer pipeline                                                                                                                                                                |
@@ -373,49 +373,49 @@ Provide a guided local experience for adding multiple NVRs, choosing eligible ca
 
 ### P4-01 — Hardened local setup host
 
-- [ ] Build a small local setup application or loopback-only web UI that can run beside the service.
-- [ ] Bind only to loopback and require a random, short-lived setup session token.
-- [ ] Protect against CSRF, DNS rebinding, unauthorized local users, and stale setup links.
-- [ ] Ensure closing the setup UI does not stop the VenueEdge service.
+- [x] Build a small local setup application or loopback-only web UI that can run beside the service.
+- [x] Bind only to loopback and require a random, short-lived setup session token.
+- [x] Protect against CSRF, DNS rebinding, unauthorized local users, and stale setup links.
+- [x] Ensure closing the setup UI does not stop the VenueEdge service.
 
 ### P4-02 — NVR management
 
-- [ ] Add, edit, rename, disable, and remove multiple NVR connections.
-- [ ] Request NVR IP/host, port, vendor, dedicated least-privilege username, and password.
-- [ ] Store credentials in protected local storage and expose only opaque secret references to cloud config.
-- [ ] Test network reachability, authentication, live RTSP, recorded playback, time mode, clock skew, and codec.
-- [ ] Support discovery where reliable and explicit manual entry as a fallback.
+- [x] Add, edit, rename, disable, and remove multiple NVR connections.
+- [x] Request NVR IP/host, port, vendor, dedicated least-privilege username, and password.
+- [x] Store credentials in protected local storage and expose only opaque secret references to cloud config.
+- [x] Test network reachability, authentication, live RTSP, recorded playback, time mode, clock skew, and codec.
+- [x] Support discovery where reliable and explicit manual entry as a fallback.
 
 ### P4-03 — Camera selection and mapping
 
-- [ ] Enumerate or manually add channels/cameras for each NVR.
-- [ ] Show camera label, NVR, channel, stream, codec, preview/test state, and health.
-- [ ] Allow PlayTT capture to be enabled only for selected cameras.
-- [ ] Map cameras to one or more explicitly authorized PlayTT resources when policy permits.
-- [ ] Choose primary and drag/reorder fallback priority.
-- [ ] Choose manual or automatic selection and configure failback behavior.
-- [ ] Warn about duplicate, missing, unhealthy, or unrelated resource mappings.
+- [x] Enumerate or manually add channels/cameras for each NVR.
+- [x] Show camera label, NVR, channel, stream, codec, preview/test state, and health.
+- [x] Allow PlayTT capture to be enabled only for selected cameras.
+- [x] Map cameras to one or more explicitly authorized PlayTT resources when policy permits.
+- [x] Choose primary and drag/reorder fallback priority.
+- [x] Choose manual or automatic selection and configure failback behavior.
+- [x] Warn about duplicate, missing, unhealthy, or unrelated resource mappings.
 
 ### P4-04 — Commissioning test
 
-- [ ] Test every enabled source individually.
-- [ ] Perform a clock/wave test and display actionable skew remediation.
-- [ ] Capture and locally preview a 15-second test clip.
-- [ ] Test primary failure and fallback selection before declaring automatic policy ready.
-- [ ] Publish redacted topology and health to the cloud.
-- [ ] Require an explicit completion gate before enabling production replay capture.
+- [x] Test every enabled source individually.
+- [x] Perform a clock/wave test and display actionable skew remediation.
+- [x] Capture and locally preview a 15-second test clip.
+- [x] Test primary failure and fallback selection before declaring automatic policy ready.
+- [x] Publish redacted topology and health to the cloud.
+- [x] Require an explicit completion gate before enabling production replay capture.
 
 ## Required tests and evidence
 
-- [ ] Fresh setup configures three NVRs and selects a subset of their cameras.
-- [ ] Restart preserves protected credentials, topology, mappings, and policy.
-- [ ] Bad credentials, unreachable NVR, unsupported codec, wrong channel, and clock skew show clear remediation.
-- [ ] A user can promote a fallback after a camera failure without editing files or restarting unrelated sources.
-- [ ] Setup UI security tests cover loopback binding, token expiry, CSRF, and DNS rebinding.
+- [x] Fresh setup configures three NVRs and selects a subset of their cameras.
+- [x] Restart preserves protected credentials, topology, mappings, and policy.
+- [x] Bad credentials, unreachable NVR, unsupported codec, wrong channel, and clock skew show clear remediation.
+- [x] A user can promote a fallback after a camera failure without editing files or restarting unrelated sources.
+- [x] Setup UI security tests cover loopback binding, token expiry, CSRF, and DNS rebinding.
 
 ## Phase 4 exit gate
 
-- [ ] A new PC can be paired and fully commissioned through guided UI with no terminal or plaintext configuration editing.
+- [x] A new PC can be paired and fully commissioned through guided UI with no terminal or plaintext configuration editing.
 
 ---
 
@@ -706,6 +706,11 @@ Add one row when a work package or phase exit is completed.
 | 2026-08-27 | P3-03 local device-secret protection               | Complete    | Codex | `services/venue-edge/src/auth/secret-store.ts`, `credential-manager.ts`, `credential-rotation.ts`, `drizzle/0028_device_credential_retiring.sql`, `src/app/api/device/v1/credentials/acknowledge/`, `rollback/` | `services/venue-edge/test/secret-store.test.mjs`, `src/server/devices/devices.test.mjs`, `pnpm test`, `pnpm test:db`, `pnpm test:replay-edge` | `drizzle/0028_device_credential_retiring.sql` | Revert overlap rotation routes; restore single-active credential semantics | `/nvr` UI and Phase 3 exit gate deferred to P3-04 |
 | 2026-08-27 | P3-04 minimal /nvr onboarding surface              | Complete    | Codex | `src/app/nvr/page.tsx`, `src/components/nvr/nvr-onboarding-panel.tsx`, `src/server/replays/venue-edge-installer-metadata.ts` | `src/components/nvr/nvr-onboarding.test.mjs`, `pnpm test:replay-edge` | N/A | Remove `/nvr` route and sidebar link | Phase 3 exit gate deferred until full agent E2E through `/nvr` |
 | 2026-08-27 | Phase 3 exit gate: unpackaged agent enroll         | Complete    | Codex | `services/venue-edge/src/enrollment/enroll.ts`, `services/venue-edge/src/index.ts`, `src/app/nvr/page.tsx` | `services/venue-edge/test/enrollment.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge` | N/A | Delete enrolled `installation.json` / DPAPI blob; reissue pairing code | Agent enrolls via `/nvr` code, DPAPI persist, heartbeat, confirm; no plaintext credential files |
+| 2026-08-27 | P4-01 hardened local setup host                    | Complete    | Codex | `services/venue-edge/src/setup/`, `services/venue-edge/src/index.ts`, `services/venue-edge/src/config/env.ts` | `services/venue-edge/test/setup-host.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge` | N/A | Disable `VENUE_EDGE_SETUP_ON_START`; remove setup CLI | Loopback-only host with session token, CSRF/DNS-rebinding guards, stub status UI; lock does not stop agent |
+| 2026-08-27 | P4-02 local NVR management                         | Complete    | Codex | `services/venue-edge/src/setup/local-nvr-manager.ts`, `auth/nvr-secret-store.ts`, `state/sqlite.ts`, `local-storage/repositories.ts`, `setup/nvr-probe.ts` | `services/venue-edge/test/nvr-management.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge` | Local SQLite `edge_local_nvrs` only | Delete local NVR rows and `nvrs/*.dpapi` blobs | Setup host CRUD, DPAPI passwords, opaque keys, injectable probes; camera mapping deferred to P4-03 |
+| 2026-08-27 | P4-03 camera selection and mapping                 | Complete    | Codex | `services/venue-edge/src/setup/local-camera-manager.ts`, `local-resource-mapping-manager.ts`, `camera-channel-probe.ts`, `state/sqlite.ts`, `local-storage/repositories.ts`, `setup/html.ts` | `services/venue-edge/test/camera-mapping.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge` | Local SQLite camera/policy/route tables only | Delete `edge_local_cameras`, `edge_local_resource_policies`, `edge_local_resource_routes` | Setup host camera CRUD, enumerate, resource policy PUT with warnings, local RTSP resolve; cloud publish deferred to P4-04 |
+| 2026-08-27 | P4-04 commissioning test                           | Complete    | Codex | `services/venue-edge/src/setup/commissioning-manager.ts`, `local-config-overlay.ts`, `src/app/api/edge/v1/commissioning/`, `src/server/replays/venue-edge-commissioning.ts`, `drizzle/0029_venue_edge_commissioning.sql` | `services/venue-edge/test/commissioning.test.mjs`, `src/server/replays/venue-edge-commissioning.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`; `pnpm test:replay-edge` | `drizzle/0029_venue_edge_commissioning.sql`; `edge_commissioning_state` SQLite table | Clear commissioning state; null `commissioned_at` on installation | Per-camera tests, 15s previews, failover drill, redacted publish, production capture gate |
+| 2026-08-27 | Phase 3/4 remediation audit                      | Complete    | Codex | Pairing CAS/replacement lifecycle, commissioning API bounds/audit, guided local enroll, runtime local topology overlay, commissioning invalidation, heartbeat-fresh status | VenueEdge 105/105; DB 45 pass/3 skipped; replay-edge 54 pass/5 skipped; focused web 8 pass/3 skipped; migration strict validation and VenueEdge typecheck pass | Registered `0029`; added `0030_venue_edge_pairing_integrity.sql` | Disable setup-on-start and local overlay; revert 0030 only with pairing writes stopped | PostgreSQL-dependent tests remain skipped where `POSTGRES_URL` is unavailable; root typecheck retains unrelated dependency/access errors |
 
 ## Decision log
 
