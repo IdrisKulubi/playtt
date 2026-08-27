@@ -1,7 +1,8 @@
 #Requires -Version 5.1
 param(
   [string] $OutputDir = "",
-  [switch] $SkipSetupExe
+  [switch] $SkipSetupExe,
+  [switch] $AllowUnsignedDevelopment
 )
 
 $ErrorActionPreference = "Stop"
@@ -17,6 +18,19 @@ if (-not $OutputDir) {
 $pinsPath = Join-Path $packagingRoot "pins.json"
 $pins = Get-Content $pinsPath -Raw | ConvertFrom-Json
 $version = $pins.packageVersion
+$sourceDateEpoch = if ($env:SOURCE_DATE_EPOCH) { [long]$env:SOURCE_DATE_EPOCH } else { 0 }
+$builtAt = [DateTimeOffset]::FromUnixTimeSeconds($sourceDateEpoch).UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ")
+$isSignedBuild = -not $AllowUnsignedDevelopment
+
+foreach ($dependency in @("node", "ffmpeg", "winsw")) {
+  $pin = $pins.$dependency
+  if (-not $pin.url.StartsWith("https://") -or $pin.url -match "/latest/" -or $pin.url -match "-latest-") {
+    throw "$dependency must use an immutable HTTPS download URL"
+  }
+  if ($pin.sha256 -notmatch "^[a-fA-F0-9]{64}$") {
+    throw "$dependency must have a non-empty SHA-256 pin"
+  }
+}
 
 $stagingRoot = Join-Path $OutputDir "staging"
 $artifactRoot = Join-Path $OutputDir "artifacts"
@@ -44,11 +58,12 @@ function Download-IfMissing {
     Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing
   }
 
-  if ($ExpectedSha256) {
-    $actual = Get-FileSha256Hex -Path $Destination
-    if ($actual -ne $ExpectedSha256.ToLowerInvariant()) {
-      throw "SHA-256 mismatch for $Destination. Expected $ExpectedSha256 got $actual"
-    }
+  if ($ExpectedSha256 -notmatch "^[a-fA-F0-9]{64}$") {
+    throw "A valid expected SHA-256 is required for $Url"
+  }
+  $actual = Get-FileSha256Hex -Path $Destination
+  if ($actual -ne $ExpectedSha256.ToLowerInvariant()) {
+    throw "SHA-256 mismatch for $Destination. Expected $ExpectedSha256 got $actual"
   }
 }
 
@@ -76,8 +91,8 @@ $versionJson = @{
   version = $version
   channel = "development"
   minimumAgentVersion = "0.1.0"
-  signed = $false
-  builtAt = (Get-Date).ToUniversalTime().ToString("o")
+  signed = $isSignedBuild
+  builtAt = $builtAt
 }
 $versionJsonPath = Join-Path $installRoot "version.json"
 $versionJson | ConvertTo-Json -Depth 4 | Set-Content -Path $versionJsonPath -Encoding UTF8
@@ -106,8 +121,26 @@ Download-IfMissing -Url $pins.winsw.url -Destination $winswExe -ExpectedSha256 $
 Copy-Item $winswExe (Join-Path $installRoot "PlayTTVenueEdge.exe") -Force
 Copy-Item (Join-Path $packagingRoot "winsw\PlayTTVenueEdge.xml") (Join-Path $installRoot "PlayTTVenueEdge.xml") -Force
 
+$executablePaths = @(
+  (Join-Path $installRoot "node\node.exe"),
+  (Join-Path $installRoot "ffmpeg\ffmpeg.exe"),
+  (Join-Path $installRoot "ffmpeg\ffprobe.exe"),
+  (Join-Path $installRoot "PlayTTVenueEdge.exe")
+)
+& (Join-Path $packagingRoot "sign.ps1") -ArtifactPath $executablePaths -AllowUnsignedDevelopment:$AllowUnsignedDevelopment
+
+& node `
+  (Join-Path $serviceRoot "scripts\generate-sbom.mjs") `
+  $pinsPath `
+  (Join-Path $serviceRoot "package.json") `
+  (Join-Path $installRoot "licenses\SBOM.spdx.json") `
+  $builtAt
+if ($LASTEXITCODE -ne 0) {
+  throw "SBOM generation failed"
+}
+
 $checksumLines = @()
-Get-ChildItem -Path $installRoot -Recurse -File | ForEach-Object {
+Get-ChildItem -Path $installRoot -Recurse -File | Sort-Object FullName | ForEach-Object {
   $hash = Get-FileHash -Algorithm SHA256 -Path $_.FullName
   $relative = $_.FullName.Substring($installRoot.Length + 1).Replace("\", "/")
   $checksumLines += "$($hash.Hash.ToLowerInvariant())  $relative"
@@ -117,7 +150,7 @@ $checksumLines | Set-Content (Join-Path $installRoot "SHA256SUMS") -Encoding ASC
 $manifest = @{
   version = $version
   channel = "development"
-  signed = $false
+  signed = $isSignedBuild
   artifacts = @{
     bundleRoot = "PlayTTVenueEdge"
     setupExe = "PlayTTVenueEdge-Setup-$version.exe"
@@ -134,13 +167,14 @@ if (-not $SkipSetupExe) {
   if (Test-Path $iscc) {
     & $iscc (Join-Path $packagingRoot "inno\venue-edge.iss") "/DMyAppVersion=$version" "/DStagingRoot=$stagingRoot" "/DOutputDir=$artifactRoot"
     $setupExe = Join-Path $artifactRoot "PlayTTVenueEdge-Setup-$version.exe"
-    if (Test-Path $setupExe) {
-      & (Join-Path $packagingRoot "sign.ps1") -ArtifactPath $setupExe
-      $setupHash = Get-FileSha256Hex -Path $setupExe
-      "$setupHash  PlayTTVenueEdge-Setup-$version.exe" | Add-Content (Join-Path $artifactRoot "SHA256SUMS")
+    if (-not (Test-Path $setupExe)) {
+      throw "Inno Setup completed without producing $setupExe"
     }
+    & (Join-Path $packagingRoot "sign.ps1") -ArtifactPath $setupExe -AllowUnsignedDevelopment:$AllowUnsignedDevelopment
+    $setupHash = Get-FileSha256Hex -Path $setupExe
+    "$setupHash  PlayTTVenueEdge-Setup-$version.exe" | Add-Content (Join-Path $artifactRoot "SHA256SUMS")
   } else {
-    Write-Warning "Inno Setup compiler not found. Bundle staged at $installRoot"
+    throw "Inno Setup compiler not found. Set INNO_SETUP_COMPILER or use -SkipSetupExe for an explicit bundle-only build."
   }
 }
 

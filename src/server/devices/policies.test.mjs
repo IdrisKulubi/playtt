@@ -48,13 +48,15 @@ test("assignment policy rejects wrong device roles and missing capabilities", ()
     }).reason,
     "role_not_supported"
   )
-  assert.equal(
+  assert.deepEqual(
     validateDeviceAssignmentPolicy({
       role: "venue_edge",
       deviceType: "venue_edge",
-      resourceCapabilityCodes: ["replay"],
-    }).reason,
-    "resource_required"
+      deviceCapabilityCodes: ["replay"],
+      resourceId: null,
+      resourceCapabilityCodes: [],
+    }),
+    { ok: true, requiredCapability: "replay" }
   )
   assert.deepEqual(
     validateDeviceAssignmentPolicy({

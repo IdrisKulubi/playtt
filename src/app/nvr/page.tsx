@@ -1,9 +1,11 @@
 import { AdminShell } from "@/components/admin/admin-shell"
 import { AdminVenueSelector } from "@/components/admin/admin-catalog-forms"
 import { adminShellUser } from "@/components/admin/admin-utils"
+import { NvrFleetPanel } from "@/components/nvr/nvr-fleet-panel"
 import { NvrOnboardingPanel } from "@/components/nvr/nvr-onboarding-panel"
 import { requireAdminPageAccess } from "@/server/admin/gate"
 import { isDeviceRegistryEnabledForTenant } from "@/server/devices/feature-policy"
+import { listVenueEdgeInstallations } from "@/server/replays/venue-edge-fleet"
 import { listVenueEdgePairingSessions } from "@/server/replays/venue-edge-pairing-sessions"
 import { getVenueEdgeInstallerArtifactMetadata } from "@/server/replays/venue-edge-installer-metadata"
 import { HURLINGHAM_VENUE_ID } from "@/server/catalog/constants"
@@ -36,13 +38,17 @@ export default async function NvrOnboardingPage({ searchParams }: PageProps) {
     ? await listVenueEdgePairingSessions(access.context, selectedVenueId)
     : []
 
+  const installations = selectedVenueId
+    ? await listVenueEdgeInstallations(access.context, selectedVenueId)
+    : []
+
   const canManage = canPerformTenantAction(access.context.role, "venue.manage")
   const installer = getVenueEdgeInstallerArtifactMetadata()
 
   return (
     <AdminShell
-      title="VenueEdge onboarding"
-      subtitle="Pair new venue-edge agents without exposing device secrets."
+      title="VenueEdge management"
+      subtitle="Pair, monitor, and recover venue-edge agents without exposing device secrets."
       backHref="/admin"
       searchable={false}
       user={adminShellUser(access)}
@@ -55,6 +61,10 @@ export default async function NvrOnboardingPage({ searchParams }: PageProps) {
             basePath="/nvr"
           />
         </div>
+        <NvrFleetPanel
+          selectedVenueId={selectedVenueId}
+          initialInstallations={installations}
+        />
         <div className="admin-dashboard-card p-5">
           <NvrOnboardingPanel
             selectedVenueId={selectedVenueId}

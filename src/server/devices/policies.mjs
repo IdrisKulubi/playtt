@@ -25,7 +25,7 @@ const ROLE_POLICY = {
   venue_edge: {
     deviceTypes: new Set(["venue_edge"]),
     capability: "replay",
-    resourceRequired: true,
+    resourceRequired: false,
   },
   replay_primary: {
     deviceTypes: new Set(["camera"]),
