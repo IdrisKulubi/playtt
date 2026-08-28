@@ -11,6 +11,30 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { VenueEdgeInstallationDetailView } from "@/server/replays/venue-edge-fleet"
 
+function readApiErrorMessage(payload: unknown, fallback: string): string {
+  if (!payload || typeof payload !== "object") {
+    return fallback
+  }
+
+  const record = payload as {
+    message?: unknown
+    error?: { message?: unknown }
+  }
+
+  if (typeof record.message === "string" && record.message.trim().length > 0) {
+    return record.message
+  }
+
+  if (
+    typeof record.error?.message === "string" &&
+    record.error.message.trim().length > 0
+  ) {
+    return record.error.message
+  }
+
+  return fallback
+}
+
 export function NvrInstallationDetail({
   installation,
   canManage,
@@ -53,11 +77,12 @@ export function NvrInstallationDetail({
       )
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as {
-          error?: { message?: string }
-        } | null
+        const payload = await response.json().catch(() => null)
         setMessage(
-          payload?.error?.message ?? "VenueEdge action failed. Check permissions.",
+          readApiErrorMessage(
+            payload,
+            "VenueEdge action failed. Check permissions.",
+          ),
         )
         return
       }
@@ -82,7 +107,13 @@ export function NvrInstallationDetail({
       })
 
       if (!response.ok) {
-        setMessage("Could not create replace-PC pairing session.")
+        const payload = await response.json().catch(() => null)
+        setMessage(
+          readApiErrorMessage(
+            payload,
+            "Could not create replace-PC pairing session.",
+          ),
+        )
         return
       }
 
@@ -120,7 +151,13 @@ export function NvrInstallationDetail({
       )
 
       if (!response.ok) {
-        setMessage("Could not clear manual override for this resource.")
+        const payload = await response.json().catch(() => null)
+        setMessage(
+          readApiErrorMessage(
+            payload,
+            "Could not clear manual override for this resource.",
+          ),
+        )
         return
       }
 
@@ -141,7 +178,13 @@ export function NvrInstallationDetail({
       )
 
       if (!response.ok) {
-        setMessage("Could not rename this installation.")
+        const payload = await response.json().catch(() => null)
+        setMessage(
+          readApiErrorMessage(
+            payload,
+            "Could not rename this installation.",
+          ),
+        )
         return
       }
 

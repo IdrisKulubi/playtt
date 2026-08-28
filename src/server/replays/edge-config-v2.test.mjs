@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import test from "node:test"
 
+import { PLAYTT_TENANT_ID } from "../tenancy/constants.ts"
 import {
   assertEdgeConfigV2,
   validateEdgeConfigV2,
@@ -131,6 +132,25 @@ test("rejects password, token, secretRef, and credentialized RTSP material", () 
       issueCodes(validateEdgeConfigV2(invalid)).includes("secret_material"),
     )
   }
+})
+
+test("accepts Postgres uuid values including PlayTT sentinel tenant IDs", () => {
+  const fixture = clone(edgeConfigV2Fixtures.oneNvr)
+  const venueId = "11111111-1111-1111-1111-111111111111"
+  const resourceId = fixture.resources[0].resourceId
+
+  fixture.installation.tenantId = PLAYTT_TENANT_ID
+  fixture.installation.venueId = venueId
+  fixture.resources[0].tenantId = PLAYTT_TENANT_ID
+  fixture.resources[0].venueId = venueId
+
+  const result = validateEdgeConfigV2(fixture)
+  assert.equal(
+    result.success,
+    true,
+    result.success ? "" : JSON.stringify(result.issues),
+  )
+  assert.equal(assertEdgeConfigV2(fixture).resources[0].resourceId, resourceId)
 })
 
 test("allows opaque localConnectionKey references", () => {

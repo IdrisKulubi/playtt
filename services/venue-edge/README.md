@@ -52,7 +52,7 @@ pnpm enroll -- ABCD-EFGHJK
 | `VENUE_EDGE_SECRET_STORE` | unset | `memory` for explicit test runs; production uses DPAPI |
 | `VENUE_EDGE_PAIRING_CODE` | — | One-time `/nvr` pairing code for first-boot enrollment |
 | `VENUE_EDGE_SETUP_PORT` | `18764` | Loopback setup wizard HTTP port |
-| `VENUE_EDGE_SETUP_SESSION_TTL_MS` | `900000` | Setup session token TTL (15 minutes) |
+| `VENUE_EDGE_SETUP_SESSION_TTL_MS` | `14400000` | Setup session token TTL (4 hours). Each successful wizard request refreshes the timer. |
 | `VENUE_EDGE_SETUP_ON_START` | `true` | Start loopback setup host alongside `pnpm start` |
 | `VENUE_EDGE_MAX_CONCURRENT` | `3` | Bounded replay concurrency (Stage 6) |
 | `VENUE_EDGE_MAX_BUFFER_PROCESSES` | `8` | Maximum concurrent FFmpeg rolling buffers |

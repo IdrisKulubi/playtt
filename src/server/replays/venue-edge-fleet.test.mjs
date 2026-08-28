@@ -107,6 +107,8 @@ test("topology helpers count commissioning snapshot without secrets", () => {
   assert.match(topology, /export function countSourceHealthFromMetrics/)
   assert.match(topology, /snapshot\.nvrs/)
   assert.match(topology, /metrics\?\.sourceHealth/)
+  assert.match(topology, /routedResourceIds/)
+  assert.match(topology, /hostWithoutScheme/)
   assert.doesNotMatch(topology, /password/i)
 })
 
@@ -120,5 +122,17 @@ test("rollback publishes a new monotonic revision from prior snapshot", async ()
   assert.match(
     topology,
     /publishEdgeConfigV2Revision\([\s\S]+snapshot: revision\.snapshot/,
+  )
+})
+
+test("config publication surfaces contract validation details", () => {
+  const publication = readFileSync(
+    join(repoRoot, "src/server/replays/edge-config-v2-publication.ts"),
+    "utf8",
+  )
+
+  assert.match(
+    publication,
+    /VenueEdge configuration failed secret-free contract validation\. \$\{detail\}/,
   )
 })

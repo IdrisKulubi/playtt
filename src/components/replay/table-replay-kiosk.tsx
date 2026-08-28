@@ -47,6 +47,18 @@ function describeCaptureFailure(status: string, reason: string | null) {
     return "Replay capture is offline. Ask staff for help."
   }
 
+  if (reason === "resource_not_configured" || reason === "no_source_configured") {
+    return "This table is not mapped to a camera. Map it in VenueEdge setup, then try again."
+  }
+
+  if (reason === "stale_config") {
+    return "VenueEdge config changed during capture. Tap Replay again."
+  }
+
+  if (reason === "capture_command_expired") {
+    return "Capture timed out before VenueEdge picked it up. Tap Replay again."
+  }
+
   return reason || "Could not capture replay."
 }
 

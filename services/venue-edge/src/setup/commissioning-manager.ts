@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, statSync } from "node:fs"
+import { existsSync, mkdirSync } from "node:fs"
 import { dirname } from "node:path"
 
 import type { EdgeConfigV2 } from "../cloud/config-v2"
@@ -144,11 +144,10 @@ export class CommissioningManager {
       enabledCameras.length > 0 &&
       enabledCameras.every((camera) => {
         const previewPath = this.paths.commissioningPreviewForCamera(camera.id)
-        return (
-          existsSync(previewPath) &&
-          statSync(previewPath).mtimeMs >= Date.parse(camera.updatedAt)
-        )
+        return existsSync(previewPath)
       })
+
+    this.updateFailoverReadyFlag()
 
     const blockingReasons: string[] = []
 
@@ -479,18 +478,30 @@ export class CommissioningManager {
   }
 
   private updateFailoverReadyFlag(): void {
-    const baseConfig = this.getEdgeConfigV2()
-    if (!baseConfig) {
+    const mappedResourceIds = [
+      ...new Set(
+        this.repositories
+          .listAllLocalResourceRoutes()
+          .filter((route) => route.enabled)
+          .map((route) => route.resourceId),
+      ),
+    ]
+
+    if (mappedResourceIds.length === 0) {
+      this.repositories.updateCommissioningState({ failoverReady: true })
       return
     }
 
-    const enabledResources = baseConfig.resources.filter(
-      (resource) => resource.enabled,
-    )
     const state = this.repositories.getCommissioningState()
-    const allReady = enabledResources.every((resource) => {
-      const drill = state.drillResults[resource.resourceId]
-      return drill?.passed === true
+    const allReady = mappedResourceIds.every((resourceId) => {
+      const enabledRoutes = this.repositories
+        .listLocalResourceRoutes(resourceId)
+        .filter((route) => route.enabled)
+      if (enabledRoutes.length < 2) {
+        return true
+      }
+
+      return state.drillResults[resourceId]?.passed === true
     })
 
     this.repositories.updateCommissioningState({ failoverReady: allReady })

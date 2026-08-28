@@ -41,6 +41,23 @@ export interface SourceHealthCounts {
   unknown: number
 }
 
+function hostWithoutScheme(host: string): string {
+  const trimmed = host.trim()
+  if (!trimmed) {
+    return "127.0.0.1"
+  }
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)) {
+    return trimmed.split("/")[0] ?? trimmed
+  }
+  try {
+    return new URL(trimmed).hostname || trimmed
+  } catch {
+    return (
+      trimmed.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").split("/")[0] ?? trimmed
+    )
+  }
+}
+
 function asArray(value: unknown): Array<Record<string, unknown>> {
   if (!Array.isArray(value)) {
     return []
@@ -163,7 +180,8 @@ export async function ingestCommissioningSnapshotForLocation(input: {
         typeof nvr.vendor === "string" && nvr.vendor.length > 0
           ? nvr.vendor
           : "generic_rtsp"
-      const host = typeof nvr.host === "string" ? nvr.host : null
+      const host =
+        typeof nvr.host === "string" ? hostWithoutScheme(nvr.host) : null
       const rtspPort =
         typeof nvr.rtspPort === "number" ? nvr.rtspPort : 554
       const playbackPort =
@@ -498,13 +516,46 @@ export async function buildTopologySnapshotForLocation(
     routesByResource.set(route.resourceId, bucket)
   }
 
+  const venueResourceIds = new Set(venueResources.map((resource) => resource.id))
+  const recorderIds = new Set(recorders.map((recorder) => recorder.id))
+  const enabledRecorderIds = new Set(
+    recorders
+      .filter((recorder) => recorder.isEnabled)
+      .map((recorder) => recorder.id),
+  )
+  const enabledSourceIds = new Set(
+    sources
+      .filter(
+        (source) =>
+          source.isEnabled && enabledRecorderIds.has(source.recorderId),
+      )
+      .map((source) => source.id),
+  )
+  const policyByResource = new Map(
+    policies.map((policy) => [policy.resourceId, policy]),
+  )
+
+  const candidatesFor = (resourceId: string) =>
+    (routesByResource.get(resourceId) ?? [])
+      .filter((route) => enabledSourceIds.has(route.cameraSourceId))
+      .sort((left, right) => left.priority - right.priority)
+      .map((route) => ({
+        sourceId: route.cameraSourceId,
+        priority: route.priority,
+        captureModes: route.captureModes,
+      }))
+
+  const routedResourceIds = [...venueResourceIds].filter((resourceId) =>
+    candidatesFor(resourceId).some((candidate) => candidate.priority === 1),
+  )
+
   return {
     resources: venueResources.map((resource) => ({
       resourceId: resource.id,
       tenantId,
       venueId: locationId,
       label: resource.name,
-      enabled: resource.isActive,
+      enabled: resource.isActive && routedResourceIds.includes(resource.id),
     })),
     recorders: recorders.map((recorder) => ({
       id: recorder.id,
@@ -515,40 +566,45 @@ export async function buildTopologySnapshotForLocation(
           : "generic_rtsp",
       enabled: recorder.isEnabled,
       connection: {
-        host: recorder.host ?? "127.0.0.1",
+        host: hostWithoutScheme(recorder.host ?? "127.0.0.1"),
         rtspPort: recorder.rtspPort ?? 554,
       },
       localConnectionKey:
-        secretRefByRecorder.get(recorder.id) ?? `local-nvr-${recorder.id.slice(0, 8)}`,
+        secretRefByRecorder.get(recorder.id) ??
+        `local-nvr-${recorder.id.slice(0, 8)}`,
     })),
-    sources: sources.map((source) => ({
-      id: source.id,
-      recorderId: source.recorderId,
-      label: source.label,
-      channelKey: source.channelKey,
-      streamProfile: source.streamProfile,
-      codec:
-        source.capabilities?.codec === "h265" ? "h265" : "h264",
-      enabled: source.isEnabled,
-    })),
-    resourcePolicies: policies.map((policy) => {
-      const candidates = (routesByResource.get(policy.resourceId) ?? [])
-        .sort((left, right) => left.priority - right.priority)
-        .map((route) => ({
-          sourceId: route.cameraSourceId,
-          priority: route.priority,
-          captureModes: route.captureModes,
-        }))
+    sources: sources
+      .filter((source) => recorderIds.has(source.recorderId))
+      .map((source) => ({
+        id: source.id,
+        recorderId: source.recorderId,
+        label: source.label,
+        channelKey: source.channelKey,
+        streamProfile: source.streamProfile,
+        codec: source.capabilities?.codec === "h265" ? "h265" : "h264",
+        enabled: source.isEnabled && enabledRecorderIds.has(source.recorderId),
+      })),
+    resourcePolicies: routedResourceIds.map((resourceId) => {
+      const existing = policyByResource.get(resourceId)
+      const candidates = candidatesFor(resourceId)
+      const manualSourceId =
+        existing?.selectionMode === "manual" &&
+        existing.manualSourceId &&
+        candidates.some(
+          (candidate) => candidate.sourceId === existing.manualSourceId,
+        )
+          ? existing.manualSourceId
+          : null
 
       return {
-        resourceId: policy.resourceId,
-        selectionMode: policy.selectionMode,
-        manualSourceId: policy.manualSourceId,
+        resourceId,
+        selectionMode: manualSourceId ? "manual" : "automatic",
+        manualSourceId,
         failover: {
-          failureThreshold: policy.failureThreshold,
-          cooldownSeconds: policy.cooldownSeconds,
-          healthyThreshold: policy.healthyThreshold,
-          autoFailback: policy.autoFailback,
+          failureThreshold: existing?.failureThreshold ?? 3,
+          cooldownSeconds: existing?.cooldownSeconds ?? 60,
+          healthyThreshold: existing?.healthyThreshold ?? 2,
+          autoFailback: existing?.autoFailback ?? true,
         },
         candidates,
       }

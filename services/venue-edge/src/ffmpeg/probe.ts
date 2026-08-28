@@ -7,9 +7,14 @@ export interface CodecProbeResult {
 }
 
 export async function probeCodec(inputUrl: string): Promise<CodecProbeResult> {
+  const rtspArgs = inputUrl.startsWith("rtsp://")
+    ? ["-rtsp_transport", "tcp"]
+    : []
+
   const result = await runFfmpeg({
-    args: ["-i", inputUrl, "-t", "0.1", "-f", "null", "-"],
+    args: [...rtspArgs, "-i", inputUrl, "-t", "0.1", "-f", "null", "-"],
     timeoutMs: 15_000,
+    logLevel: "info",
   })
 
   const combined = `${result.stdout}\n${result.stderr}`

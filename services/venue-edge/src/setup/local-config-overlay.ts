@@ -98,6 +98,6 @@ export function buildMinimalOverlayInstallation(
     deviceId: randomUUID(),
     tenantId: randomUUID(),
     venueId: randomUUID(),
-    minimumAgentVersion: "0.1.0",
+    minimumAgentVersion: "0.2.0",
   }
 }

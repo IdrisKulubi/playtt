@@ -173,10 +173,12 @@ export async function publishEdgeConfigV2Revision(input: {
         },
         ...canonicalTopology,
       })
-    } catch {
+    } catch (error) {
+      const detail =
+        error instanceof Error ? error.message : "Unknown validation error."
       throw new DeviceError(
         "CONFIG_INVALID",
-        "VenueEdge configuration failed secret-free contract validation.",
+        `VenueEdge configuration failed secret-free contract validation. ${detail}`,
         422
       )
     }

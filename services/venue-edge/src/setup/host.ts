@@ -28,6 +28,7 @@ import {
   createSetupSession,
   isSetupSessionActive,
   lockSetupSession,
+  touchSetupSession,
   type SetupSessionState,
 } from "./session"
 import {
@@ -427,6 +428,10 @@ export async function startSetupHost(
           jsonResponse(security.status, { error: security.message }),
         )
         return
+      }
+
+      if (method !== "POST" || url.pathname !== "/api/setup/lock") {
+        session = touchSetupSession(session, options.sessionTtlMs)
       }
 
       if (method === "GET" && url.pathname === "/api/setup/status") {
