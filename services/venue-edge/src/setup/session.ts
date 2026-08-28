@@ -31,3 +31,18 @@ export function lockSetupSession(session: SetupSessionState): SetupSessionState 
     locked: true,
   }
 }
+
+export function touchSetupSession(
+  session: SetupSessionState,
+  ttlMs: number,
+  now = Date.now(),
+): SetupSessionState {
+  if (session.locked) {
+    return session
+  }
+
+  return {
+    ...session,
+    expiresAt: new Date(now + ttlMs),
+  }
+}

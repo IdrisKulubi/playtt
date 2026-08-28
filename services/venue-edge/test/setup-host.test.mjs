@@ -11,6 +11,7 @@ import { startSetupHost, stopSetupHost } from "../src/setup/host.ts"
 import {
   createSetupSession,
   isSetupSessionActive,
+  touchSetupSession,
 } from "../src/setup/session.ts"
 
 async function createCredentialManager() {
@@ -265,4 +266,7 @@ test("setup session helper tracks expiry and lock state", () => {
     expiresAt: new Date(Date.now() - 1),
   }
   assert.equal(isSetupSessionActive(expired), false)
+
+  const touched = touchSetupSession(expired, 60_000)
+  assert.equal(isSetupSessionActive(touched), true)
 })

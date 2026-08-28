@@ -342,8 +342,8 @@ export async function getAppliedConfigRevisionIdForDevice(
         eq(venueEdgeConfigApplications.locationId, locationId),
         eq(venueEdgeConfigApplications.edgeDeviceId, deviceId),
         eq(venueEdgeConfigApplications.status, "applied"),
-        eq(venueEdgeConfigRevisions.status, "published")
-      )
+        inArray(venueEdgeConfigRevisions.status, ["published", "superseded"]),
+      ),
     )
     .orderBy(desc(venueEdgeConfigApplications.appliedAt))
     .limit(1)
@@ -632,7 +632,7 @@ export async function resolveVenueEdgeForResource(
   resourceId: string,
   at: Date = new Date()
 ): Promise<VenueEdgeAssignment | null> {
-  const [row] = await db
+  let [row] = await db
     .select({
       deviceId: devices.id,
       assignmentId: deviceAssignments.id,
@@ -661,6 +661,56 @@ export async function resolveVenueEdgeForResource(
     )
     .orderBy(desc(deviceAssignments.effectiveFrom))
     .limit(1)
+
+  if (!row) {
+    const [resource] = await db
+      .select({ locationId: resources.locationId })
+      .from(resources)
+      .where(
+        and(
+          eq(resources.tenantId, context.tenantId),
+          eq(resources.id, resourceId),
+        ),
+      )
+      .limit(1)
+
+    if (!resource) {
+      return null
+    }
+
+    const [venueRow] = await db
+      .select({
+        deviceId: devices.id,
+        assignmentId: deviceAssignments.id,
+        cameraDeviceId: deviceAssignments.config,
+      })
+      .from(deviceAssignments)
+      .innerJoin(
+        devices,
+        and(
+          eq(devices.id, deviceAssignments.deviceId),
+          eq(devices.tenantId, deviceAssignments.tenantId),
+        ),
+      )
+      .where(
+        and(
+          eq(deviceAssignments.tenantId, context.tenantId),
+          eq(deviceAssignments.locationId, resource.locationId),
+          isNull(deviceAssignments.resourceId),
+          eq(deviceAssignments.role, "venue_edge"),
+          eq(devices.type, "venue_edge"),
+          lte(deviceAssignments.effectiveFrom, at),
+          or(
+            isNull(deviceAssignments.effectiveTo),
+            gt(deviceAssignments.effectiveTo, at),
+          ),
+        ),
+      )
+      .orderBy(desc(deviceAssignments.effectiveFrom))
+      .limit(1)
+
+    row = venueRow
+  }
 
   if (!row) {
     return null

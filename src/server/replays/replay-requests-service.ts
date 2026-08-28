@@ -52,6 +52,78 @@ import type { TenantContext } from "@/server/tenancy/types"
 
 type DbExecutor = Parameters<Parameters<typeof db.transaction>[0]>[0]
 
+const TERMINAL_CAPTURE_COMMAND_STATUSES = new Set([
+  "failed",
+  "expired",
+  "cancelled",
+  "acknowledged",
+])
+
+function captureCommandFailureReason(
+  command: {
+    status: string
+    lastError: string | null
+    result: unknown
+  } | null,
+): string {
+  if (!command) {
+    return "capture_command_missing"
+  }
+
+  if (
+    command.result &&
+    typeof command.result === "object" &&
+    !Array.isArray(command.result) &&
+    typeof (command.result as { reason?: unknown }).reason === "string"
+  ) {
+    return (command.result as { reason: string }).reason
+  }
+
+  if (command.status === "expired") {
+    return "capture_command_expired"
+  }
+
+  return command.lastError ?? "capture_command_failed"
+}
+
+async function failReplayRequestIfCaptureCommandIsTerminal(
+  context: TenantContext,
+  replayRequest: ReplayRequestRecord,
+): Promise<ReplayRequestRecord> {
+  if (!replayRequest.deviceCommandId) {
+    return replayRequest
+  }
+
+  const [command] = await db
+    .select({
+      status: deviceCommands.status,
+      lastError: deviceCommands.lastError,
+      result: deviceCommands.result,
+    })
+    .from(deviceCommands)
+    .where(
+      and(
+        eq(deviceCommands.tenantId, context.tenantId),
+        eq(deviceCommands.id, replayRequest.deviceCommandId),
+      ),
+    )
+    .limit(1)
+
+  if (!command || !TERMINAL_CAPTURE_COMMAND_STATUSES.has(command.status)) {
+    return replayRequest
+  }
+
+  try {
+    return await transitionReplayRequestStatus(context, {
+      replayRequestId: replayRequest.id,
+      toStatus: "failed",
+      failureReason: captureCommandFailureReason(command),
+    })
+  } catch {
+    return replayRequest
+  }
+}
+
 async function buildExistingReplayRequestResult(
   context: TenantContext,
   userId: string,
@@ -448,10 +520,17 @@ export async function getKioskReplayStatus(resourceId: string) {
   const remainingCredits = sessionOwner
     ? await getReplayCreditBalance(context, sessionOwner.ownerUserId)
     : null
-  const inFlight = await getInFlightReplayRequestForSession(
+  let inFlight = await getInFlightReplayRequestForSession(
     context,
     snapshot.playSession.id
   )
+  if (inFlight) {
+    const maybeFailed = await failReplayRequestIfCaptureCommandIsTerminal(
+      context,
+      inFlight,
+    )
+    inFlight = maybeFailed.status === "failed" ? null : maybeFailed
+  }
   const latest = await getLatestReplayRequestForSession(
     context,
     snapshot.playSession.id

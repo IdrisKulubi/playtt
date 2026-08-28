@@ -55,11 +55,10 @@ function resolveStartupResourceId(
   return edgeConfig?.resourceId ?? null
 }
 
-function resolveAppliedConfigVersion(
-  appliedV2Version: number | undefined,
+function resolveHeartbeatAssignmentVersion(
   edgeConfig: EdgeConfig | null
 ): number | undefined {
-  return appliedV2Version ?? edgeConfig?.configVersion
+  return edgeConfig?.configVersion
 }
 
 function shouldRunRollingBuffer(
@@ -364,10 +363,8 @@ export async function startVenueEdge(
     resumedJobs: resumed,
     resourceId,
     bufferingSourceCount: bufferRegistry.getBufferingSourceCount(),
-    configVersion: resolveAppliedConfigVersion(
-      configManager.getState().appliedConfigVersion,
-      edgeConfig
-    ),
+    assignmentConfigVersion: resolveHeartbeatAssignmentVersion(edgeConfig),
+    configRevision: configManager.getState().appliedConfigVersion,
   })
 
   const startedAt = Date.now()
@@ -378,10 +375,7 @@ export async function startVenueEdge(
     bufferRegistry,
     healthEngine,
     getAppliedConfigVersion: () =>
-      resolveAppliedConfigVersion(
-        configManager.getState().appliedConfigVersion,
-        edgeConfig
-      ),
+      resolveHeartbeatAssignmentVersion(edgeConfig),
     getCapacityMetrics: () => orchestrator.getCapacityMetrics(),
     startedAt,
     onDeviceRevoked: handleDeviceRevoked,

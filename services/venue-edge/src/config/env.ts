@@ -82,7 +82,7 @@ export function loadEnv(overrides: Partial<VenueEdgeEnv> = {}): VenueEdgeEnv {
     overrides.firmwareVersion ??
     process.env.VENUE_EDGE_FIRMWARE_VERSION?.trim() ??
     resolvePackagedFirmwareVersion(undefined) ??
-    "0.1.0"
+    "0.2.0"
 
   return {
     mode: overrides.mode ?? parseMode(process.env.VENUE_EDGE_MODE),
@@ -131,7 +131,7 @@ export function loadEnv(overrides: Partial<VenueEdgeEnv> = {}): VenueEdgeEnv {
     setupSessionTtlMs: Number(
       overrides.setupSessionTtlMs ??
         process.env.VENUE_EDGE_SETUP_SESSION_TTL_MS ??
-        15 * 60 * 1000,
+        4 * 60 * 60 * 1000,
     ),
     setupOnStart:
       overrides.setupOnStart ??

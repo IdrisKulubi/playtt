@@ -47,3 +47,12 @@ export async function writeAuditLogInTransaction(
 
   return created
 }
+
+export async function writeAuditLog(
+  context: TenantContext,
+  input: AuditLogWriteInput,
+) {
+  return db.transaction(async (tx) =>
+    writeAuditLogInTransaction(tx, context, input),
+  )
+}

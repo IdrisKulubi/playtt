@@ -145,7 +145,7 @@ export function renderSetupPage(input: {
 
     <div class="card">
       <h2>Resource mapping</h2>
-      <p class="muted">Map enabled cameras to authorized PlayTT resources with ordered failover.</p>
+      <p class="muted">Map enabled cameras to PlayTT tables. Disabled tables are not live for replay yet — map them here, then publish a snapshot and sync on /nvr.</p>
       <p id="mapping-config-hint" class="muted"></p>
       <div id="resource-list"></div>
       <p id="mapping-message" class="muted"></p>
@@ -557,7 +557,7 @@ export function renderSetupPage(input: {
             });
           }
 
-          if (!setupLocked && resource.enabled) {
+          if (!setupLocked) {
             const modeSelect = document.createElement("select");
             modeSelect.innerHTML =
               "<option value='automatic'>automatic</option><option value='manual'>manual</option>";
@@ -566,16 +566,44 @@ export function renderSetupPage(input: {
             failbackCheck.type = "checkbox";
             failbackCheck.checked = policy.failover.autoFailback;
             const cameraSelect = document.createElement("select");
-            for (const camera of enabledCameras) {
-              const opt = document.createElement("option");
-              opt.value = camera.id;
-              opt.textContent = camera.label + " (" + camera.nvrLabel + ")";
-              cameraSelect.appendChild(opt);
+            const mappableCameras = camerasData.cameras.filter((c) => c.enabled);
+            const cameraPool =
+              mappableCameras.length > 0 ? mappableCameras : camerasData.cameras;
+            if (cameraPool.length === 0) {
+              const empty = document.createElement("option");
+              empty.value = "";
+              empty.textContent = "No cameras yet — enable capture on a camera above";
+              cameraSelect.appendChild(empty);
+              cameraSelect.disabled = true;
+            } else {
+              for (const camera of cameraPool) {
+                const opt = document.createElement("option");
+                opt.value = camera.id;
+                opt.textContent =
+                  camera.label +
+                  " (" +
+                  camera.nvrLabel +
+                  ")" +
+                  (camera.enabled ? "" : " — capture disabled");
+                opt.disabled = !camera.enabled;
+                cameraSelect.appendChild(opt);
+              }
+            }
+            if (mappableCameras.length === 0) {
+              const help = document.createElement("p");
+              help.className = "muted";
+              help.textContent =
+                "Enable capture on ch1 (or another H.264 camera) in the Cameras section, then reload this page.";
+              item.appendChild(help);
             }
             const addBtn = document.createElement("button");
             addBtn.textContent = "Add candidate";
             addBtn.className = "inline";
+            addBtn.disabled = mappableCameras.length === 0;
             addBtn.onclick = async () => {
+              if (!cameraSelect.value) {
+                return;
+              }
               const nextPriority =
                 liveCandidates.length === 0
                   ? 1
@@ -588,8 +616,8 @@ export function renderSetupPage(input: {
                   captureModes: ["edge_buffer"],
                   enabled: true,
                   cameraLabel:
-                    enabledCameras.find((c) => c.id === cameraSelect.value)?.label ??
-                    cameraSelect.value,
+                    camerasData.cameras.find((c) => c.id === cameraSelect.value)
+                      ?.label ?? cameraSelect.value,
                 },
               ]);
               renderCandidateControls();

@@ -84,9 +84,31 @@ export class CommandProcessor {
     )
 
     if (!validation.accepted) {
+      safeLog("warn", "Rejected capture_replay command", {
+        commandId: command.id,
+        replayRequestId: command.payload.replayRequestId,
+        resourceId: command.payload.resourceId,
+        reason: validation.reason,
+      })
+
       this.repositories.updateCommandStatus(command.id, "rejected", {
         reason: validation.reason,
       })
+
+      try {
+        await this.client.reportReplayProgress(command.payload.replayRequestId, {
+          status: "failed",
+          failureReason: validation.reason,
+        })
+      } catch (progressError) {
+        safeLog("warn", "Failed to report rejected capture_replay", {
+          commandId: command.id,
+          message:
+            progressError instanceof Error
+              ? progressError.message
+              : String(progressError),
+        })
+      }
 
       await this.client.acknowledgeCommand(command.id, {
         idempotencyKey: `reject-${command.id}`,

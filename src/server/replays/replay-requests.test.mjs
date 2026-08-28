@@ -103,6 +103,11 @@ test("createReplayRequest orchestrates credit debit, media, command, and dispatc
     repositorySource,
     /venueEdgeConfigApplications\.status, "applied"/
   )
+  assert.match(
+    repositorySource,
+    /venueEdgeConfigRevisions\.status, \["published", "superseded"\]/,
+  )
+  assert.match(repositorySource, /isNull\(deviceAssignments\.resourceId\)/)
   assert.match(repositorySource, /configRevisionId: input\.configRevisionId/)
 })
 
@@ -294,6 +299,7 @@ test("kiosk replay service charges session owner via createReplayRequest", () =>
   assert.match(serviceSource, /requestSource: "table_kiosk"/)
   assert.match(serviceSource, /REPLAY_IN_FLIGHT/)
   assert.match(serviceSource, /sessionOwner\.ownerUserId/)
+  assert.match(serviceSource, /failReplayRequestIfCaptureCommandIsTerminal/)
 })
 
 test("display kiosk replay route exposes GET status and POST capture", () => {

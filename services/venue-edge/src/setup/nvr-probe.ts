@@ -212,7 +212,15 @@ export class DefaultNvrProbeRunner implements NvrProbeRunner {
       ),
     )
 
-    const passed = checks.every((entry) => entry.passed)
+    const blocking = new Set([
+      "reachability",
+      "authentication",
+      "live_rtsp",
+      "codec",
+    ])
+    const passed = checks
+      .filter((entry) => blocking.has(entry.check))
+      .every((entry) => entry.passed)
     return { passed, timeMode, checks }
   }
 }
