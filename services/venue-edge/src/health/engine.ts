@@ -345,4 +345,21 @@ export class SourceHealthEngine {
       reasonCode: row.reasonCode,
     }))
   }
+
+  getMaxBufferAgeSeconds(): number | null {
+    const rows = this.repositories.listAllSourceHealth()
+    let maxAge: number | null = null
+
+    for (const row of rows) {
+      const details = row.details as { bufferAgeSeconds?: number } | null
+      if (typeof details?.bufferAgeSeconds === "number") {
+        maxAge =
+          maxAge === null
+            ? details.bufferAgeSeconds
+            : Math.max(maxAge, details.bufferAgeSeconds)
+      }
+    }
+
+    return maxAge
+  }
 }

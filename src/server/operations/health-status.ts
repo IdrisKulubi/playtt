@@ -142,6 +142,12 @@ export function evaluateEdgeDimension(
         health: "online" | "offline" | "unknown"
         replayQueueDepth?: number
         maxConcurrentReplays?: number
+        updateStatus?: string | null
+        lastUpdateErrorCode?: string | null
+        diskPressure?: boolean
+        unsupportedVersion?: boolean
+        unhealthyCameraCount?: number
+        nvrOfflineCount?: number
       }
     | null,
 ): HealthDimensionEvaluation {
@@ -158,6 +164,46 @@ export function evaluateEdgeDimension(
       status: "down",
       count: 1,
       summary: "Venue edge offline",
+    }
+  }
+
+  if (edge.updateStatus === "failed" || edge.updateStatus === "rolled_back") {
+    return {
+      status: "degraded",
+      count: 1,
+      summary: `Venue edge update failed (${edge.lastUpdateErrorCode ?? edge.updateStatus})`,
+    }
+  }
+
+  if (edge.unsupportedVersion) {
+    return {
+      status: "degraded",
+      count: 1,
+      summary: "Unsupported VenueEdge version reported",
+    }
+  }
+
+  if (edge.nvrOfflineCount && edge.nvrOfflineCount > 0) {
+    return {
+      status: "degraded",
+      count: edge.nvrOfflineCount,
+      summary: `Venue edge NVR offline (${edge.nvrOfflineCount})`,
+    }
+  }
+
+  if (edge.unhealthyCameraCount && edge.unhealthyCameraCount > 0) {
+    return {
+      status: "degraded",
+      count: edge.unhealthyCameraCount,
+      summary: `Venue edge camera unhealthy (${edge.unhealthyCameraCount})`,
+    }
+  }
+
+  if (edge.diskPressure) {
+    return {
+      status: "degraded",
+      count: 1,
+      summary: "Venue edge disk pressure",
     }
   }
 

@@ -1890,6 +1890,11 @@ export const venueEdgeInstallations = pgTable(
     currentAgentVersion: text("current_agent_version").notNull(),
     desiredAgentVersion: text("desired_agent_version"),
     updateChannel: text("update_channel").default("stable").notNull(),
+    updateStatus: text("update_status").default("idle").notNull(),
+    pinnedVersion: text("pinned_version"),
+    activeUpdateAttemptId: uuid("active_update_attempt_id"),
+    lastUpdateAt: timestamp("last_update_at", { withTimezone: true }),
+    lastUpdateErrorCode: text("last_update_error_code"),
     installedAt: timestamp("installed_at", { withTimezone: true }).notNull(),
     lastConfigAppliedAt: timestamp("last_config_applied_at", {
       withTimezone: true,
@@ -2697,6 +2702,127 @@ export const venueEdgeConfigApplications = pgTable(
       ],
       name: "venue_edge_config_applications_tenant_location_revision_fk",
     }).onDelete("restrict"),
+  ]
+)
+
+export const venueEdgeReleases = pgTable(
+  "venue_edge_releases",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    version: text("version").notNull(),
+    channel: text("channel").notNull(),
+    platform: text("platform").notNull(),
+    architecture: text("architecture").notNull(),
+    artifactUrl: text("artifact_url").notNull(),
+    sha256: text("sha256").notNull(),
+    signature: text("signature").notNull(),
+    minSupportedVersion: text("min_supported_version").notNull(),
+    rolloutCohort: text("rollout_cohort"),
+    rolloutPercentage: integer("rollout_percentage").default(100).notNull(),
+    canaryInstallationIds: jsonb("canary_installation_ids")
+      .$type<string[]>()
+      .default([])
+      .notNull(),
+    deadline: timestamp("deadline", { withTimezone: true }),
+    status: text("status").default("draft").notNull(),
+    releaseNotes: text("release_notes"),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("venue_edge_releases_tenant_id_unique").on(
+      table.tenantId,
+      table.id
+    ),
+    uniqueIndex("venue_edge_releases_version_channel_platform_arch_unique").on(
+      table.tenantId,
+      table.version,
+      table.channel,
+      table.platform,
+      table.architecture
+    ),
+    index("venue_edge_releases_channel_status_idx").on(
+      table.tenantId,
+      table.channel,
+      table.status,
+      table.publishedAt
+    ),
+    check(
+      "venue_edge_releases_rollout_percentage_valid",
+      sql`${table.rolloutPercentage} >= 0 and ${table.rolloutPercentage} <= 100`
+    ),
+    check(
+      "venue_edge_releases_checksum_present",
+      sql`length(${table.sha256}) > 0 and length(${table.signature}) > 0`
+    ),
+  ]
+)
+
+export const venueEdgeUpdateAttempts = pgTable(
+  "venue_edge_update_attempts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
+    installationId: uuid("installation_id").notNull(),
+    releaseId: uuid("release_id").notNull(),
+    edgeDeviceId: uuid("edge_device_id").notNull(),
+    targetVersion: text("target_version").notNull(),
+    status: text("status").default("started").notNull(),
+    reasonCode: text("reason_code"),
+    correlationId: text("correlation_id").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("venue_edge_update_attempts_tenant_id_unique").on(
+      table.tenantId,
+      table.id
+    ),
+    index("venue_edge_update_attempts_installation_started_idx").on(
+      table.tenantId,
+      table.installationId,
+      table.startedAt
+    ),
+    foreignKey({
+      columns: [table.tenantId, table.locationId, table.installationId],
+      foreignColumns: [
+        venueEdgeInstallations.tenantId,
+        venueEdgeInstallations.locationId,
+        venueEdgeInstallations.id,
+      ],
+      name: "venue_edge_update_attempts_tenant_location_installation_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.tenantId, table.releaseId],
+      foreignColumns: [venueEdgeReleases.tenantId, venueEdgeReleases.id],
+      name: "venue_edge_update_attempts_tenant_release_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.tenantId, table.locationId, table.edgeDeviceId],
+      foreignColumns: [devices.tenantId, devices.locationId, devices.id],
+      name: "venue_edge_update_attempts_tenant_location_device_fk",
+    }).onDelete("cascade"),
   ]
 )
 
@@ -4969,6 +5095,44 @@ export const venueEdgeInstallationRelations = relations(
     sourceRoutes: many(replaySourceRoutes),
     sourcePolicies: many(replaySourcePolicies),
     configRevisions: many(venueEdgeConfigRevisions),
+    updateAttempts: many(venueEdgeUpdateAttempts),
+  })
+)
+
+export const venueEdgeReleaseRelations = relations(
+  venueEdgeReleases,
+  ({ one, many }) => ({
+    tenant: one(tenants, {
+      fields: [venueEdgeReleases.tenantId],
+      references: [tenants.id],
+    }),
+    updateAttempts: many(venueEdgeUpdateAttempts),
+  })
+)
+
+export const venueEdgeUpdateAttemptRelations = relations(
+  venueEdgeUpdateAttempts,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [venueEdgeUpdateAttempts.tenantId],
+      references: [tenants.id],
+    }),
+    location: one(locations, {
+      fields: [venueEdgeUpdateAttempts.locationId],
+      references: [locations.id],
+    }),
+    installation: one(venueEdgeInstallations, {
+      fields: [venueEdgeUpdateAttempts.installationId],
+      references: [venueEdgeInstallations.id],
+    }),
+    release: one(venueEdgeReleases, {
+      fields: [venueEdgeUpdateAttempts.releaseId],
+      references: [venueEdgeReleases.id],
+    }),
+    edgeDevice: one(devices, {
+      fields: [venueEdgeUpdateAttempts.edgeDeviceId],
+      references: [devices.id],
+    }),
   })
 )
 

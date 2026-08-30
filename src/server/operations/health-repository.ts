@@ -8,6 +8,7 @@ import {
   devices,
   playSessions,
   replayRequests,
+  venueEdgeInstallations,
 } from "@/db/schema"
 import { deriveDeviceHealth } from "@/server/devices/health-policy"
 import { getLatestDeviceHeartbeat } from "@/server/devices/heartbeats"
@@ -36,6 +37,12 @@ export interface RawVenueEdgeMetrics {
   health: "online" | "offline" | "unknown"
   replayQueueDepth: number
   maxConcurrentReplays: number
+  updateStatus?: string | null
+  lastUpdateErrorCode?: string | null
+  diskPressure?: boolean
+  unsupportedVersion?: boolean
+  unhealthyCameraCount?: number
+  nvrOfflineCount?: number
 }
 
 export interface RawVenueHealthRow {
@@ -189,12 +196,39 @@ export async function fetchVenueHealthRows(
     edgeDevices.map(async (edgeDevice) => {
       const heartbeat = await getLatestDeviceHeartbeat(tenantId, edgeDevice.id)
       const metrics = heartbeat?.metrics ?? {}
+      const [installation] = await db
+        .select({
+          updateStatus: venueEdgeInstallations.updateStatus,
+          lastUpdateErrorCode: venueEdgeInstallations.lastUpdateErrorCode,
+        })
+        .from(venueEdgeInstallations)
+        .where(
+          and(
+            eq(venueEdgeInstallations.tenantId, tenantId),
+            eq(venueEdgeInstallations.edgeDeviceId, edgeDevice.id),
+          ),
+        )
+        .limit(1)
+
+      const sourceHealth = Array.isArray(metrics.sourceHealth)
+        ? (metrics.sourceHealth as Array<{ reasonCode?: string | null; status?: string }>)
+        : []
 
       edgeMetricsByVenue.set(edgeDevice.locationId, {
         locationId: edgeDevice.locationId,
         health: edgeDevice.health,
         replayQueueDepth: Number(metrics.uploadQueueDepth ?? 0),
         maxConcurrentReplays: Number(metrics.maxConcurrentReplays ?? 0),
+        updateStatus: installation?.updateStatus ?? null,
+        lastUpdateErrorCode: installation?.lastUpdateErrorCode ?? null,
+        diskPressure: Boolean(metrics.diskPressure),
+        unsupportedVersion: heartbeat?.firmwareVersion === "unsupported",
+        unhealthyCameraCount: sourceHealth.filter(
+          (entry) => entry.status === "degraded" || entry.status === "down",
+        ).length,
+        nvrOfflineCount: sourceHealth.filter(
+          (entry) => entry.reasonCode === "nvr_unreachable",
+        ).length,
       })
     }),
   )

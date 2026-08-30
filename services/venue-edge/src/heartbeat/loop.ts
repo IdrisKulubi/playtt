@@ -1,6 +1,7 @@
 import type { EdgeV1Client } from "../cloud/client"
 import { isDeviceRevokedCloudError } from "../auth/cloud-errors"
 import type { VenueEdgeEnv } from "../config/env"
+import { readHostResourceMetrics } from "../config/budgets"
 import { detectHostSleepRisk } from "../health/host-sleep-risk"
 import { createMetricsSnapshot, safeLog } from "../health/metrics"
 import type { CommandProcessor } from "../commands/processor"
@@ -72,15 +73,24 @@ export class HeartbeatLoop {
       maxConcurrentReplays: this.deps.env.maxConcurrentReplays,
     }
     const hostSleepRisk = await detectHostSleepRisk()
+    const hostResources = await readHostResourceMetrics(this.deps.env)
     const registry = this.deps.bufferRegistry
+    const bufferAgeSeconds = this.deps.healthEngine?.getMaxBufferAgeSeconds() ?? null
     const metrics = createMetricsSnapshot({
       ffmpegRunning: registry?.isAnyRunning() ?? false,
       bufferingSourceCount: registry?.getBufferingSourceCount() ?? 0,
       ffmpegProcessCount: registry?.getRunningCount() ?? 0,
-      bufferAgeSeconds: null,
+      bufferAgeSeconds,
       uploadQueueDepth: capacity.replayQueueDepth,
       activeReplayJobs: capacity.activeReplayJobs,
       maxConcurrentReplays: capacity.maxConcurrentReplays,
+      cpuPercent: hostResources.cpuPercent,
+      freeMemoryBytes: hostResources.freeMemoryBytes,
+      diskUsageBytes: hostResources.diskUsageBytes,
+      reservedFreeDiskBytes: hostResources.reservedFreeDiskBytes,
+      diskPressure: hostResources.diskPressure,
+      uploadHealth:
+        capacity.replayQueueDepth > 0 ? "backlogged" : "healthy",
     })
 
     try {

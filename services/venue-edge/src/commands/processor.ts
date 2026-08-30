@@ -122,7 +122,9 @@ export class CommandProcessor {
     this.repositories.updateCommandStatus(command.id, "delivered")
 
     void this.orchestrator
-      .processCaptureReplay(command.id, command.payload)
+      .processCaptureReplay(command.id, command.payload, {
+        correlationId: command.correlationId,
+      })
       .catch((error) => {
         safeLog("error", "capture_replay processing crashed", {
           commandId: command.id,

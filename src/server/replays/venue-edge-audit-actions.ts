@@ -14,6 +14,13 @@ export const VENUE_EDGE_AUDIT_ACTIONS = {
   installationRenamed: "venue_edge.installation.rename",
   installationRevoked: "venue_edge.installation.revoke",
   installationRotateCredential: "venue_edge.installation.rotate_credential",
+  updateStarted: "venue_edge.update.started",
+  updateSucceeded: "venue_edge.update.succeeded",
+  updateRolledBack: "venue_edge.update.rolled_back",
+  updateFailed: "venue_edge.update.failed",
+  updateChannelChanged: "venue_edge.update.channel_changed",
+  updatePinned: "venue_edge.update.pinned",
+  updateRetryRequested: "venue_edge.update.retry_requested",
 } as const
 
 export type VenueEdgeAuditAction =

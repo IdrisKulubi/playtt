@@ -37,6 +37,7 @@ import { TopologyReviewManager } from "./setup/topology-review-manager"
 import { LocalResourceMappingManager } from "./setup/local-resource-mapping-manager"
 import { CommissioningManager } from "./setup/commissioning-manager"
 import { resolveRuntimeEdgeConfigV2 } from "./setup/local-config-overlay"
+import { VenueEdgeUpdater } from "./update/updater"
 
 export interface VenueEdgeRuntime {
   stop(): Promise<void>
@@ -374,6 +375,15 @@ export async function startVenueEdge(
   })
 
   const startedAt = Date.now()
+  const updater = new VenueEdgeUpdater({
+    client,
+    dataDir: env.dataDir,
+    currentVersion: env.firmwareVersion,
+    platform: process.platform,
+    architecture: process.arch,
+    publicKeyPem: process.env.VENUE_EDGE_UPDATE_PUBLIC_KEY?.trim() ?? null,
+  })
+
   const heartbeatLoop = new HeartbeatLoop({
     env,
     client,
@@ -387,6 +397,7 @@ export async function startVenueEdge(
     onDeviceRevoked: handleDeviceRevoked,
     onHeartbeatOk: async () => {
       await confirmPendingEnrollment(client)
+      await updater.pollAndApply()
     },
   })
 
