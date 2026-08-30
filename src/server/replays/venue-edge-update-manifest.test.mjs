@@ -16,6 +16,8 @@ test("update manifest module exports signing and validation helpers", () => {
   assert.match(manifestModule, /verifyUpdateManifestSignature/)
   assert.match(manifestModule, /validateUpdateManifest/)
   assert.match(manifestModule, /isInstallationEligibleForRollout/)
+  assert.match(manifestModule, /releaseMatchesInstallationCohort/)
+  assert.match(manifestModule, /isReleaseEligibleForInstallation/)
 })
 
 test("update policy module resolves channel and rollout eligibility", () => {
@@ -26,7 +28,21 @@ test("update policy module resolves channel and rollout eligibility", () => {
 
   assert.match(policy, /resolveEffectiveUpdateChannel/)
   assert.match(policy, /pickReleaseForInstallation/)
+  assert.match(policy, /releaseMatchesInstallationCohort/)
   assert.match(policy, /shouldOfferUpdate/)
+})
+
+test("update result path audits failed tampered updates", () => {
+  const updatesModule = readFileSync(
+    join(repoRoot, "src/server/replays/venue-edge-updates.ts"),
+    "utf8",
+  )
+
+  assert.match(updatesModule, /updateFailed/)
+  assert.match(updatesModule, /reasonCode/)
+  assert.match(updatesModule, /updateStarted/)
+  assert.match(updatesModule, /"succeeded"/)
+  assert.match(updatesModule, /autoRevokedCanary/)
 })
 
 test("Ed25519 signing round-trip matches manifest contract", () => {

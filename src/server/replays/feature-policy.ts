@@ -8,9 +8,17 @@ import {
   parseFeatureFlagScope,
   type FeatureFlagScopeTarget,
 } from "@/server/replays/feature-scope"
+import {
+  REPLAY_EDGE_FLAG_KEY,
+  resolveFeatureFlagEnvFallback,
+  VENUE_EDGE_CONFIG_V2_FLAG_KEY,
+} from "@/server/replays/feature-env-fallback"
 
-export const REPLAY_EDGE_FLAG_KEY = "replay_edge"
-export const VENUE_EDGE_CONFIG_V2_FLAG_KEY = "venue_edge_config_v2"
+export {
+  REPLAY_EDGE_FLAG_KEY,
+  VENUE_EDGE_CONFIG_V2_FLAG_KEY,
+  resolveFeatureFlagEnvFallback,
+} from "@/server/replays/feature-env-fallback"
 
 async function readFeatureFlag(
   tenantId: string,
@@ -35,28 +43,13 @@ async function readFeatureFlag(
   }
 }
 
-function envFallbackEnabled(flagKey: string): boolean {
-  if (flagKey === REPLAY_EDGE_FLAG_KEY) {
-    return (
-      process.env.REPLAY_EDGE_ENABLED === "true" ||
-      process.env.NODE_ENV !== "production"
-    )
-  }
-
-  if (flagKey === VENUE_EDGE_CONFIG_V2_FLAG_KEY) {
-    return process.env.NODE_ENV !== "production"
-  }
-
-  return false
-}
-
 export async function isFeatureFlagEnabledForTarget(
   tenantId: string,
   key: string,
   target: FeatureFlagScopeTarget = {},
 ): Promise<boolean> {
   const row = await readFeatureFlag(tenantId, key)
-  const enabled = row?.enabled ?? envFallbackEnabled(key)
+  const enabled = row?.enabled ?? resolveFeatureFlagEnvFallback(key)
   const scope = parseFeatureFlagScope(row?.scope)
 
   return isFeatureFlagEnabledForScope(enabled, scope, target)

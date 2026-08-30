@@ -15,7 +15,10 @@ export interface AlertCatalogEntry {
   owner: string
   escalation: string
   runbookPath: string
-  buildHref: (input: { venueId?: string }) => string | null
+  buildHref: (input: {
+    venueId?: string
+    installationId?: string
+  }) => string | null
 }
 
 export interface OperationalAlert {
@@ -27,6 +30,10 @@ export interface OperationalAlert {
   summary: string
   venueId: string | null
   venueName: string | null
+  installationId: string | null
+  recorderId: string | null
+  cameraSourceId: string | null
+  resourceId: string | null
   owner: string
   escalation: string
   runbookPath: string

@@ -11,6 +11,7 @@ import {
   evaluateReplayDimension,
   evaluateSessionDimension,
   evaluateWorkerDimension,
+  extractEdgeSourceHealthIssues,
   rollupHealthStatus,
 } from "./health-status.ts"
 
@@ -54,9 +55,60 @@ test("edge health evaluation respects offline and queue pressure", () => {
     "degraded",
   )
   assert.equal(
+    evaluateEdgeDimension({
+      health: "online",
+      clockSkewCount: 1,
+    }).status,
+    "degraded",
+  )
+  assert.equal(
+    evaluateEdgeDimension({
+      health: "online",
+      staleBufferCount: 2,
+    }).summary,
+    "Venue edge stale buffer (2)",
+  )
+  assert.equal(
+    evaluateEdgeDimension({
+      health: "online",
+      repeatedFailoverCount: 1,
+    }).summary,
+    "Venue edge repeated failover (1)",
+  )
+  assert.equal(
     evaluateEdgeDimension({ health: "online" }).status,
     "ok",
   )
+})
+
+test("extractEdgeSourceHealthIssues maps heartbeat reason codes", () => {
+  const issues = extractEdgeSourceHealthIssues({
+    installationId: "installation-1",
+    sourceHealth: [
+      {
+        sourceId: "camera-1",
+        recorderId: "recorder-1",
+        reasonCode: "clock_skew",
+      },
+      {
+        sourceId: "camera-2",
+        recorderId: "recorder-1",
+        reasonCode: "buffer_stale",
+      },
+      {
+        sourceId: "camera-3",
+        recorderId: "recorder-2",
+        reasonCode: "repeated_failover",
+        resourceId: "resource-1",
+      },
+    ],
+  })
+
+  assert.equal(issues.length, 3)
+  assert.equal(issues[0]?.code, "clock_skew")
+  assert.equal(issues[1]?.code, "stale_buffer")
+  assert.equal(issues[2]?.code, "repeated_failover")
+  assert.equal(issues[2]?.resourceId, "resource-1")
 })
 
 test("session and replay evaluators escalate stuck or failed work", () => {
@@ -135,6 +187,10 @@ test("health repository scopes reads by tenant and venue", () => {
   assert.match(source, /accessPoints\.tenantId/)
   assert.match(source, /accessCredentials\.tenantId/)
   assert.match(source, /inArray\(devices\.locationId, venueIds\)/)
+  assert.match(source, /extractEdgeSourceHealthIssues/)
+  assert.match(source, /clock_skew/)
+  assert.match(source, /stale_buffer/)
+  assert.match(source, /repeated_failover/)
   assert.match(source, /countTenantDeadLetters\(context\)/)
 })
 

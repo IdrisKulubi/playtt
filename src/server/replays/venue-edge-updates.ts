@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm"
 import db from "@/db/drizzle"
 import {
   venueEdgeInstallations,
+  venueEdgeReleases,
   venueEdgeUpdateAttempts,
 } from "@/db/schema"
 import { DeviceError } from "@/server/devices/errors"
@@ -12,6 +13,7 @@ import { VENUE_EDGE_AUDIT_ACTIONS } from "@/server/replays/venue-edge-audit-acti
 import {
   buildSignedManifestForInstallation,
   listPublishedVenueEdgeReleasesForChannel,
+  revokeVenueEdgeRelease,
   type VenueEdgeReleaseRecord,
 } from "@/server/replays/venue-edge-releases"
 import {
@@ -61,18 +63,26 @@ async function getInstallationForDevice(input: {
   return installation
 }
 
-async function findReleaseForInstallation(
+function mapInstallationUpdateState(
   installation: typeof venueEdgeInstallations.$inferSelect,
-): Promise<VenueEdgeReleaseRecord | null> {
-  const channel = resolveEffectiveUpdateChannel({
+) {
+  return {
     id: installation.id,
+    locationId: installation.locationId,
     currentAgentVersion: installation.currentAgentVersion,
     desiredAgentVersion: installation.desiredAgentVersion,
     updateChannel: installation.updateChannel,
+    rolloutCohortTag: installation.updateChannel,
     pinnedVersion: installation.pinnedVersion,
     platform: installation.platform,
     architecture: installation.architecture,
-  })
+  }
+}
+
+async function findReleaseForInstallation(
+  installation: typeof venueEdgeInstallations.$inferSelect,
+): Promise<VenueEdgeReleaseRecord | null> {
+  const channel = resolveEffectiveUpdateChannel(mapInstallationUpdateState(installation))
 
   const releases = await listPublishedVenueEdgeReleasesForChannel({
     tenantId: installation.tenantId,
@@ -82,15 +92,7 @@ async function findReleaseForInstallation(
   })
 
   return pickReleaseForInstallation(
-    {
-      id: installation.id,
-      currentAgentVersion: installation.currentAgentVersion,
-      desiredAgentVersion: installation.desiredAgentVersion,
-      updateChannel: installation.updateChannel,
-      pinnedVersion: installation.pinnedVersion,
-      platform: installation.platform,
-      architecture: installation.architecture,
-    },
+    mapInstallationUpdateState(installation),
     releases,
   )
 }
@@ -103,15 +105,7 @@ export async function getVenueEdgeUpdateManifestForDevice(input: {
   const installation = await getInstallationForDevice(input)
   const release = await findReleaseForInstallation(installation)
 
-  if (!release || !shouldOfferUpdate({ installation: {
-    id: installation.id,
-    currentAgentVersion: installation.currentAgentVersion,
-    desiredAgentVersion: installation.desiredAgentVersion,
-    updateChannel: installation.updateChannel,
-    pinnedVersion: installation.pinnedVersion,
-    platform: installation.platform,
-    architecture: installation.architecture,
-  }, release })) {
+  if (!release || !shouldOfferUpdate({ installation: mapInstallationUpdateState(installation), release })) {
     return {
       manifest: null,
       desiredVersion: release?.version ?? installation.desiredAgentVersion,
@@ -128,6 +122,46 @@ export async function getVenueEdgeUpdateManifestForDevice(input: {
       "Update signing is not configured.",
       503,
     )
+  }
+
+  if (
+    installation.activeUpdateAttemptId &&
+    (installation.updateStatus === "staged" ||
+      installation.updateStatus === "applying")
+  ) {
+    const [existingAttempt] = await db
+      .select()
+      .from(venueEdgeUpdateAttempts)
+      .where(
+        and(
+          eq(venueEdgeUpdateAttempts.tenantId, installation.tenantId),
+          eq(venueEdgeUpdateAttempts.id, installation.activeUpdateAttemptId),
+          eq(venueEdgeUpdateAttempts.installationId, installation.id),
+        ),
+      )
+      .limit(1)
+
+    if (
+      existingAttempt &&
+      existingAttempt.status === "started" &&
+      existingAttempt.releaseId === release.id &&
+      existingAttempt.targetVersion === release.version
+    ) {
+      const manifest = buildSignedManifestForInstallation({
+        release,
+        attemptId: existingAttempt.id,
+        installationId: installation.id,
+        privateKeyPem: privateKey,
+      })
+
+      return {
+        manifest,
+        desiredVersion: release.version,
+        currentVersion: installation.currentAgentVersion,
+        updateStatus: installation.updateStatus,
+        attemptId: existingAttempt.id,
+      }
+    }
   }
 
   const attemptId = randomUUID()
@@ -171,6 +205,26 @@ export async function getVenueEdgeUpdateManifestForDevice(input: {
       installationId: installation.id,
       privateKeyPem: privateKey,
     })
+
+    await writeAuditLog(
+      {
+        tenantId: installation.tenantId,
+        locationId: installation.locationId,
+        actorId: installation.edgeDeviceId,
+        actorType: "device",
+        correlationId: input.correlationId,
+      },
+      {
+        action: VENUE_EDGE_AUDIT_ACTIONS.updateStarted,
+        targetType: "venue_edge_installation",
+        targetId: installation.id,
+        metadata: {
+          attemptId: attempt.id,
+          targetVersion: release.version,
+          releaseId: release.id,
+        },
+      },
+    )
 
     return {
       manifest,
@@ -240,7 +294,7 @@ export async function recordVenueEdgeUpdateResult(
 
   const updateStatus =
     input.status === "succeeded"
-      ? "idle"
+      ? "succeeded"
       : input.status === "rolled_back"
         ? "rolled_back"
         : "failed"
@@ -301,6 +355,40 @@ export async function recordVenueEdgeUpdateResult(
       reasonCode: input.reasonCode ?? null,
     },
   })
+
+  if (input.status === "failed" || input.status === "rolled_back") {
+    const [release] = await db
+      .select({
+        id: venueEdgeReleases.id,
+        canaryInstallationIds: venueEdgeReleases.canaryInstallationIds,
+      })
+      .from(venueEdgeReleases)
+      .where(
+        and(
+          eq(venueEdgeReleases.tenantId, input.tenantId),
+          eq(venueEdgeReleases.id, attempt.releaseId),
+          eq(venueEdgeReleases.status, "published"),
+        ),
+      )
+      .limit(1)
+
+    if (
+      release?.canaryInstallationIds?.includes(installation.id)
+    ) {
+      await revokeVenueEdgeRelease(auditContext, release.id)
+      await writeAuditLog(auditContext, {
+        action: VENUE_EDGE_AUDIT_ACTIONS.updateFailed,
+        targetType: "venue_edge_release",
+        targetId: release.id,
+        metadata: {
+          attemptId: input.attemptId,
+          installationId: installation.id,
+          reasonCode: input.reasonCode ?? input.status,
+          autoRevokedCanary: true,
+        },
+      })
+    }
+  }
 
   return {
     accepted: true,

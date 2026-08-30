@@ -81,6 +81,8 @@ function buildVenueSnapshot(
     venueName: row.venueName,
     status: rollupHealthStatus(...dimensions.map((dimension) => dimension.status)),
     dimensions,
+    edgeInstallationId: row.edgeInstallationId,
+    edgeSourceIssues: row.edgeSourceIssues,
   }
 }
 

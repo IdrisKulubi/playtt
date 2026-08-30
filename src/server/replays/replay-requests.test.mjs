@@ -41,13 +41,13 @@ test("migration adds replay_requests table and enum extensions", () => {
 })
 
 test("seed includes replay_edge feature flag", () => {
-  const featurePolicySource = readFileSync(
-    join(replaysRoot, "feature-policy.ts"),
+  const featureEnvFallbackSource = readFileSync(
+    join(replaysRoot, "feature-env-fallback.ts"),
     "utf8"
   )
 
   assert.match(seedSource, /'replay_edge'/)
-  assert.match(featurePolicySource, /REPLAY_EDGE_FLAG_KEY = "replay_edge"/)
+  assert.match(featureEnvFallbackSource, /REPLAY_EDGE_FLAG_KEY = "replay_edge"/)
 })
 
 test("replay timing constants use 12s pre-roll and 3s post-roll", () => {

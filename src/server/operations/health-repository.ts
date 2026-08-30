@@ -9,6 +9,7 @@ import {
   playSessions,
   replayRequests,
   venueEdgeInstallations,
+  venueEdgeReleases,
 } from "@/db/schema"
 import { deriveDeviceHealth } from "@/server/devices/health-policy"
 import { getLatestDeviceHeartbeat } from "@/server/devices/heartbeats"
@@ -16,13 +17,17 @@ import { countTenantDeadLetters } from "@/server/operator/durable-work-repositor
 import { listVenues } from "@/server/operator/repository"
 import { countWebhookInboxByStatus } from "@/server/payments/webhook-inbox-repository"
 import {
+  extractEdgeSourceHealthIssues,
   FAILED_REPLAY_STATUSES,
   IN_FLIGHT_REPLAY_STATUSES,
   STUCK_SESSION_GRACE_MS,
   TERMINAL_PLAY_SESSION_STATUSES,
+  type EdgeSourceHealthEntry,
+  type EdgeSourceHealthIssue,
   type WorkerHealthInput,
 } from "@/server/operations/health-status"
 import type { TenantContext } from "@/server/tenancy/types"
+import { compareSemver } from "@/server/replays/edge-agent-version"
 import { countOutboxEventsByStatus } from "@/server/workers/outbox-repository"
 
 export interface RawVenueDeviceRow {
@@ -34,6 +39,7 @@ export interface RawVenueDeviceRow {
 
 export interface RawVenueEdgeMetrics {
   locationId: string
+  installationId: string
   health: "online" | "offline" | "unknown"
   replayQueueDepth: number
   maxConcurrentReplays: number
@@ -43,6 +49,10 @@ export interface RawVenueEdgeMetrics {
   unsupportedVersion?: boolean
   unhealthyCameraCount?: number
   nvrOfflineCount?: number
+  clockSkewCount?: number
+  staleBufferCount?: number
+  repeatedFailoverCount?: number
+  sourceHealthIssues?: EdgeSourceHealthIssue[]
 }
 
 export interface RawVenueHealthRow {
@@ -50,6 +60,8 @@ export interface RawVenueHealthRow {
   venueName: string
   deviceHealths: Array<"online" | "offline" | "unknown">
   edge: RawVenueEdgeMetrics | null
+  edgeInstallationId: string | null
+  edgeSourceIssues: EdgeSourceHealthIssue[]
   stuckSessionCount: number
   replayFailedCount: number
   replayInFlightCount: number
@@ -57,6 +69,91 @@ export interface RawVenueHealthRow {
   accessPointCount: number
   failedAccessCredentialCount: number
   pendingAccessCredentialCount: number
+}
+
+function parseSourceHealthEntries(
+  metrics: Record<string, unknown> | null | undefined,
+): EdgeSourceHealthEntry[] {
+  if (!Array.isArray(metrics?.sourceHealth)) {
+    return []
+  }
+
+  return metrics.sourceHealth
+    .filter(
+      (entry): entry is Record<string, unknown> =>
+        Boolean(entry) && typeof entry === "object" && !Array.isArray(entry),
+    )
+    .map((entry) => ({
+      sourceId: typeof entry.sourceId === "string" ? entry.sourceId : null,
+      recorderId:
+        typeof entry.recorderId === "string" ? entry.recorderId : null,
+      resourceId:
+        typeof entry.resourceId === "string" ? entry.resourceId : null,
+      status: typeof entry.status === "string" ? entry.status : null,
+      reasonCode:
+        typeof entry.reasonCode === "string" ? entry.reasonCode : null,
+      details:
+        entry.details && typeof entry.details === "object"
+          ? (entry.details as Record<string, unknown>)
+          : undefined,
+    }))
+}
+
+function isUnsupportedAgentVersion(
+  version: string | null | undefined,
+  minSupportedVersion: string | null | undefined,
+): boolean {
+  if (!version || !minSupportedVersion) {
+    return false
+  }
+
+  const comparison = compareSemver(version, minSupportedVersion)
+  return comparison === null || comparison < 0
+}
+
+function releaseLookupKey(input: {
+  platform: string
+  architecture: string
+  channel: string
+}) {
+  return `${input.platform}:${input.architecture}:${input.channel}`
+}
+
+async function loadMinimumSupportedVersions(
+  tenantId: string,
+): Promise<Map<string, string>> {
+  const rows = await db
+    .select({
+      platform: venueEdgeReleases.platform,
+      architecture: venueEdgeReleases.architecture,
+      channel: venueEdgeReleases.channel,
+      minSupportedVersion: venueEdgeReleases.minSupportedVersion,
+      publishedAt: venueEdgeReleases.publishedAt,
+    })
+    .from(venueEdgeReleases)
+    .where(
+      and(
+        eq(venueEdgeReleases.tenantId, tenantId),
+        eq(venueEdgeReleases.status, "published"),
+      ),
+    )
+    .orderBy(sql`${venueEdgeReleases.publishedAt} desc nulls last`)
+
+  const minimums = new Map<string, string>()
+
+  for (const row of rows) {
+    const key = releaseLookupKey({
+      platform: row.platform,
+      architecture: row.architecture,
+      channel: row.channel,
+    })
+
+    if (!minimums.has(key)) {
+      minimums.set(key, row.minSupportedVersion)
+    }
+  }
+
+  return minimums
 }
 
 export async function fetchTenantWorkerHealth(
@@ -191,6 +288,8 @@ export async function fetchVenueHealthRows(
 
   const edgeDevices = mappedDevices.filter((device) => device.type === "venue_edge")
   const edgeMetricsByVenue = new Map<string, RawVenueEdgeMetrics>()
+  const edgeSourceIssuesByVenue = new Map<string, EdgeSourceHealthIssue[]>()
+  const minimumSupportedVersions = await loadMinimumSupportedVersions(tenantId)
 
   await Promise.all(
     edgeDevices.map(async (edgeDevice) => {
@@ -198,6 +297,11 @@ export async function fetchVenueHealthRows(
       const metrics = heartbeat?.metrics ?? {}
       const [installation] = await db
         .select({
+          id: venueEdgeInstallations.id,
+          platform: venueEdgeInstallations.platform,
+          architecture: venueEdgeInstallations.architecture,
+          updateChannel: venueEdgeInstallations.updateChannel,
+          currentAgentVersion: venueEdgeInstallations.currentAgentVersion,
           updateStatus: venueEdgeInstallations.updateStatus,
           lastUpdateErrorCode: venueEdgeInstallations.lastUpdateErrorCode,
         })
@@ -210,25 +314,59 @@ export async function fetchVenueHealthRows(
         )
         .limit(1)
 
-      const sourceHealth = Array.isArray(metrics.sourceHealth)
-        ? (metrics.sourceHealth as Array<{ reasonCode?: string | null; status?: string }>)
+      const sourceHealth = parseSourceHealthEntries(metrics)
+      const sourceHealthIssues = installation
+        ? extractEdgeSourceHealthIssues({
+            installationId: installation.id,
+            sourceHealth,
+          })
         : []
+
+      const minimumSupportedVersion = installation
+        ? minimumSupportedVersions.get(
+            releaseLookupKey({
+              platform: installation.platform,
+              architecture: installation.architecture,
+              channel: installation.updateChannel,
+            }),
+          )
+        : undefined
+
+      const currentIssues = edgeSourceIssuesByVenue.get(edgeDevice.locationId) ?? []
+      edgeSourceIssuesByVenue.set(edgeDevice.locationId, [
+        ...currentIssues,
+        ...sourceHealthIssues,
+      ])
 
       edgeMetricsByVenue.set(edgeDevice.locationId, {
         locationId: edgeDevice.locationId,
+        installationId: installation?.id ?? edgeDevice.id,
         health: edgeDevice.health,
         replayQueueDepth: Number(metrics.uploadQueueDepth ?? 0),
         maxConcurrentReplays: Number(metrics.maxConcurrentReplays ?? 0),
         updateStatus: installation?.updateStatus ?? null,
         lastUpdateErrorCode: installation?.lastUpdateErrorCode ?? null,
         diskPressure: Boolean(metrics.diskPressure),
-        unsupportedVersion: heartbeat?.firmwareVersion === "unsupported",
+        unsupportedVersion: isUnsupportedAgentVersion(
+          heartbeat?.firmwareVersion ?? installation?.currentAgentVersion ?? null,
+          minimumSupportedVersion,
+        ),
         unhealthyCameraCount: sourceHealth.filter(
           (entry) => entry.status === "degraded" || entry.status === "down",
         ).length,
         nvrOfflineCount: sourceHealth.filter(
           (entry) => entry.reasonCode === "nvr_unreachable",
         ).length,
+        clockSkewCount: sourceHealthIssues.filter(
+          (issue) => issue.code === "clock_skew",
+        ).length,
+        staleBufferCount: sourceHealthIssues.filter(
+          (issue) => issue.code === "stale_buffer",
+        ).length,
+        repeatedFailoverCount: sourceHealthIssues.filter(
+          (issue) => issue.code === "repeated_failover",
+        ).length,
+        sourceHealthIssues,
       })
     }),
   )
@@ -307,6 +445,8 @@ export async function fetchVenueHealthRows(
       venueName: venue.name,
       deviceHealths: venueDevices.map((device) => device.health),
       edge: edgeMetricsByVenue.get(venue.id) ?? null,
+      edgeInstallationId: edgeMetricsByVenue.get(venue.id)?.installationId ?? null,
+      edgeSourceIssues: edgeSourceIssuesByVenue.get(venue.id) ?? [],
       stuckSessionCount: stuckSessionsByVenue.get(venue.id) ?? 0,
       replayFailedCount: replayCounts.failed,
       replayInFlightCount: replayCounts.inFlight,

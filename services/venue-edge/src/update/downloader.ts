@@ -45,11 +45,14 @@ export async function downloadUpdateArtifact(
     throw new Error(`UPDATE_DOWNLOAD_FAILED:${response.status}`)
   }
 
+  const resuming = Boolean(input.resumeFromBytes && input.resumeFromBytes > 0)
+  const serverResumed = resuming && response.status === 206
+
   const writeStream = createWriteStream(partPath, {
-    flags: input.resumeFromBytes ? "a" : "w",
+    flags: serverResumed ? "a" : "w",
   })
 
-  let bytesWritten = input.resumeFromBytes ?? 0
+  let bytesWritten = serverResumed ? (input.resumeFromBytes ?? 0) : 0
   const reader = Readable.fromWeb(response.body as never)
 
   reader.on("data", (chunk: Buffer) => {

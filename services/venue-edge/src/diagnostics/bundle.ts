@@ -19,6 +19,7 @@ export interface SupportBundleInput {
   platform: string
   architecture: string
   healthEngine?: SourceHealthEngine | null
+  topology?: Record<string, unknown> | null
   recentFailureCodes?: string[]
   logPath?: string | null
 }
@@ -36,6 +37,7 @@ export async function buildSupportBundle(
       platform: input.platform,
       architecture: input.architecture,
     },
+    topology: input.topology ?? null,
     health: {
       sourceHealth,
       bufferAgeSeconds: input.healthEngine?.getMaxBufferAgeSeconds() ?? null,
@@ -54,6 +56,7 @@ export async function buildSupportBundle(
       generatedAt: bundle.generatedAt,
       installationId: bundle.installationId,
       versions: bundle.versions,
+      topology: bundle.topology ?? null,
       health: bundle.health,
       recentFailureCodes: bundle.recentFailureCodes,
       truncated: true,

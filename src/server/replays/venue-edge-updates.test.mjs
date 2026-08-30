@@ -33,6 +33,7 @@ test("operator update-actions route exists with audited actions", () => {
   assert.match(route, /change_channel/)
   assert.match(route, /pin_version/)
   assert.match(route, /retry_update/)
+  assert.match(route, /rollback_update/)
   assert.match(route, /publish_release/)
   assert.match(route, /resolveOperatorDeviceWriteContext/)
 })

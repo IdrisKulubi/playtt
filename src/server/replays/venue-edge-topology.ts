@@ -46,6 +46,27 @@ export interface SourceHealthCounts {
   unknown: number
 }
 
+export interface ParsedHeartbeatMetrics {
+  cpuPercent: number | null
+  freeMemoryBytes: number
+  diskUsageBytes: number
+  reservedFreeDiskBytes: number
+  bufferAgeSeconds: number | null
+  uploadHealth: string
+  ffmpegRunning: boolean
+  ffmpegProcessCount: number
+  uploadQueueDepth: number
+  uptimeMs: number | null
+  appliedConfigVersion: number | null
+}
+
+export interface ParsedSourceHealthRow {
+  sourceId: string
+  recorderId: string
+  status: string
+  reasonCode: string | null
+}
+
 function hostWithoutScheme(host: string): string {
   const trimmed = host.trim()
   if (!trimmed) {
@@ -106,6 +127,72 @@ export function countTopologyFromSnapshot(
     cameraCount: cameras.length,
     enabledCameraCount: cameras.filter((camera) => camera.enabled === true).length,
   }
+}
+
+export function parseHeartbeatMetrics(
+  metrics: Record<string, unknown> | null | undefined,
+  heartbeat?: {
+    uptimeMs?: number | null
+    appliedConfigVersion?: number | null
+  } | null,
+): ParsedHeartbeatMetrics {
+  return {
+    cpuPercent:
+      typeof metrics?.cpuPercent === "number" ? metrics.cpuPercent : null,
+    freeMemoryBytes:
+      typeof metrics?.freeMemoryBytes === "number" ? metrics.freeMemoryBytes : 0,
+    diskUsageBytes:
+      typeof metrics?.diskUsageBytes === "number" ? metrics.diskUsageBytes : 0,
+    reservedFreeDiskBytes:
+      typeof metrics?.reservedFreeDiskBytes === "number"
+        ? metrics.reservedFreeDiskBytes
+        : 0,
+    bufferAgeSeconds:
+      typeof metrics?.bufferAgeSeconds === "number"
+        ? metrics.bufferAgeSeconds
+        : null,
+    uploadHealth:
+      typeof metrics?.uploadHealth === "string" ? metrics.uploadHealth : "unknown",
+    ffmpegRunning: metrics?.ffmpegRunning === true,
+    ffmpegProcessCount:
+      typeof metrics?.ffmpegProcessCount === "number"
+        ? metrics.ffmpegProcessCount
+        : 0,
+    uploadQueueDepth:
+      typeof metrics?.uploadQueueDepth === "number"
+        ? metrics.uploadQueueDepth
+        : typeof metrics?.replayQueueDepth === "number"
+          ? metrics.replayQueueDepth
+          : 0,
+    uptimeMs:
+      typeof heartbeat?.uptimeMs === "number"
+        ? heartbeat.uptimeMs
+        : typeof metrics?.uptimeMs === "number"
+          ? metrics.uptimeMs
+          : null,
+    appliedConfigVersion:
+      typeof heartbeat?.appliedConfigVersion === "number"
+        ? heartbeat.appliedConfigVersion
+        : typeof metrics?.appliedConfigVersion === "number"
+          ? metrics.appliedConfigVersion
+          : null,
+  }
+}
+
+export function parseSourceHealthRows(
+  metrics: Record<string, unknown> | null | undefined,
+): ParsedSourceHealthRow[] {
+  const rows = asArray(metrics?.sourceHealth)
+
+  return rows
+    .map((row) => ({
+      sourceId: typeof row.sourceId === "string" ? row.sourceId : "",
+      recorderId: typeof row.recorderId === "string" ? row.recorderId : "",
+      status: typeof row.status === "string" ? row.status : "unknown",
+      reasonCode:
+        typeof row.reasonCode === "string" ? row.reasonCode : null,
+    }))
+    .filter((row) => row.sourceId.length > 0 || row.recorderId.length > 0)
 }
 
 export function countSourceHealthFromMetrics(

@@ -4,8 +4,14 @@ import { mkdir, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 
 import type { CredentialManager } from "../auth/credential-manager"
+import {
+  buildSupportBundle,
+  resolveDefaultLogPath,
+} from "../diagnostics/bundle"
+import type { VenueEdgeEnv } from "../config/env"
 import { detectHostSleepRisk } from "../health/host-sleep-risk"
 import { safeLog } from "../health/metrics"
+import type { SourceHealthEngine } from "../health/engine"
 import { renderSetupPage } from "./html"
 import { LocalNvrError, type LocalNvrManager } from "./local-nvr-manager"
 import {
@@ -41,6 +47,16 @@ import {
   type TopologyReviewManager,
 } from "./topology-review-manager"
 
+export interface SetupHostDiagnosticsContext {
+  env: VenueEdgeEnv
+  resolveInstallationId: () => Promise<string | null>
+  currentVersion: string
+  platform: string
+  architecture: string
+  healthEngine?: SourceHealthEngine | null
+  getRecentFailureCodes?: () => string[]
+}
+
 export interface SetupHostOptions {
   port: number
   sessionTtlMs: number
@@ -51,6 +67,7 @@ export interface SetupHostOptions {
   localResourceMappingManager?: LocalResourceMappingManager
   commissioningManager?: CommissioningManager
   topologyReviewManager?: TopologyReviewManager
+  diagnostics?: SetupHostDiagnosticsContext
   onConfigurationChanged?: () => Promise<void>
   resetConfigCache?: () => Promise<void> | void
   enroll?: (pairingCode: string) => Promise<unknown>
@@ -505,6 +522,61 @@ export async function startSetupHost(
           hostSleepRisk,
         })
         await sendNodeResponse(res, jsonResponse(200, payload))
+        return
+      }
+
+      if (
+        method === "GET" &&
+        url.pathname === "/api/setup/diagnostics/support-bundle"
+      ) {
+        if (!options.diagnostics) {
+          await sendNodeResponse(
+            res,
+            jsonResponse(503, { error: "Diagnostics are unavailable." }),
+          )
+          return
+        }
+
+        const diagnostics = options.diagnostics
+        const enrollmentStatus = await resolveSetupEnrollmentStatus(
+          options.credentialManager,
+        )
+        let topology: Record<string, unknown> | null = null
+
+        if (options.commissioningManager) {
+          const publishPayload =
+            options.commissioningManager.buildRedactedPublishPayload(
+              options.commissioningManager.getState().completed ||
+                enrollmentStatus === "enrolled",
+            )
+          topology = {
+            commissioned: publishPayload.commissioned,
+            nvrCount: Array.isArray(publishPayload.nvrs)
+              ? publishPayload.nvrs.length
+              : 0,
+            cameraCount: Array.isArray(publishPayload.cameras)
+              ? publishPayload.cameras.length
+              : 0,
+            nvrs: publishPayload.nvrs,
+            cameras: publishPayload.cameras,
+            resourceRoutes: publishPayload.resourceRoutes,
+            resourcePolicies: publishPayload.resourcePolicies,
+          }
+        }
+
+        const bundle = await buildSupportBundle({
+          env: diagnostics.env,
+          installationId: await diagnostics.resolveInstallationId(),
+          currentVersion: diagnostics.currentVersion,
+          platform: diagnostics.platform,
+          architecture: diagnostics.architecture,
+          healthEngine: diagnostics.healthEngine ?? null,
+          topology,
+          recentFailureCodes: diagnostics.getRecentFailureCodes?.() ?? [],
+          logPath: resolveDefaultLogPath(diagnostics.env.dataDir),
+        })
+
+        await sendNodeResponse(res, jsonResponse(200, { bundle }))
         return
       }
 

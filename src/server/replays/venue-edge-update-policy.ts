@@ -1,15 +1,27 @@
 import { compareSemver } from "@/server/replays/edge-agent-version"
 import {
-  isInstallationEligibleForRollout,
+  isReleaseEligibleForInstallation,
   type VenueEdgeUpdateChannel,
 } from "@/server/replays/venue-edge-update-manifest"
 import type { VenueEdgeReleaseRecord } from "@/server/replays/venue-edge-releases"
 
+export type {
+  VenueEdgeInstallationRolloutState,
+  VenueEdgeReleaseRolloutCandidate,
+} from "@/server/replays/venue-edge-rollout-policy"
+export {
+  isReleaseEligibleForInstallation,
+  releaseMatchesInstallationCohort,
+  resolveInstallationRolloutCohort,
+} from "@/server/replays/venue-edge-rollout-policy"
+
 export interface VenueEdgeInstallationUpdateState {
   id: string
+  locationId: string
   currentAgentVersion: string
   desiredAgentVersion: string | null
   updateChannel: string
+  rolloutCohortTag?: string | null
   pinnedVersion: string | null
   platform: string
   architecture: string
@@ -56,13 +68,7 @@ export function pickReleaseForInstallation(
   }
 
   const eligible = releases
-    .filter((release) =>
-      isInstallationEligibleForRollout({
-        installationId: installation.id,
-        rolloutPercentage: release.rolloutPercentage,
-        canaryInstallationIds: release.canaryInstallationIds,
-      }),
-    )
+    .filter((release) => isReleaseEligibleForInstallation(installation, release))
     .sort((left, right) => {
       const comparison = compareSemver(left.version, right.version)
       return comparison === null ? 0 : -comparison

@@ -2,6 +2,18 @@ import { createHash, createPrivateKey, createPublicKey, sign, verify } from "nod
 
 import { compareSemver } from "./edge-agent-version"
 
+export type {
+  VenueEdgeInstallationRolloutState,
+  VenueEdgeReleaseRolloutCandidate,
+} from "./venue-edge-rollout-policy"
+export {
+  isInstallationEligibleForRollout,
+  isReleaseEligibleForInstallation,
+  releaseMatchesInstallationCohort,
+  resolveInstallationRolloutCohort,
+  rolloutBucketForInstallation,
+} from "./venue-edge-rollout-policy"
+
 export const VENUE_EDGE_UPDATE_CHANNELS = [
   "pilot",
   "stable",
@@ -17,6 +29,7 @@ export const VENUE_EDGE_UPDATE_STATUSES = [
   "idle",
   "staged",
   "applying",
+  "succeeded",
   "failed",
   "rolled_back",
 ] as const
@@ -243,29 +256,4 @@ export function validateUpdateManifest(input: {
 
 export function hashUpdateArtifact(buffer: Buffer): string {
   return createHash("sha256").update(buffer).digest("hex")
-}
-
-export function rolloutBucketForInstallation(installationId: string): number {
-  const digest = createHash("sha256").update(installationId).digest()
-  return digest[0] % 100
-}
-
-export function isInstallationEligibleForRollout(input: {
-  installationId: string
-  rolloutPercentage: number
-  canaryInstallationIds: string[]
-}): boolean {
-  if (input.canaryInstallationIds.includes(input.installationId)) {
-    return true
-  }
-
-  if (input.rolloutPercentage >= 100) {
-    return true
-  }
-
-  if (input.rolloutPercentage <= 0) {
-    return false
-  }
-
-  return rolloutBucketForInstallation(input.installationId) < input.rolloutPercentage
 }

@@ -3,6 +3,7 @@ import type {
   HealthStatus,
   TenantHealthOverview,
   VenueHealthSnapshot,
+  EdgeSourceHealthIssue,
 } from "./health-status.ts"
 import {
   type AlertCatalogEntry,
@@ -34,8 +35,12 @@ export const ALERT_CATALOG: AlertCatalogEntry[] = [
     owner: "platform-ops",
     escalation: "On-call operator",
     runbookPath: "docs/operations/runbooks/venue-edge-offline.md",
-    buildHref: ({ venueId }) =>
-      venueId ? `/admin/venues/${venueId}` : "/admin/venues",
+    buildHref: ({ venueId, installationId }) =>
+      installationId
+        ? `/nvr/${installationId}`
+        : venueId
+          ? `/nvr?venueId=${venueId}`
+          : "/nvr",
   },
   {
     code: "venue_edge_update_failed",
@@ -48,7 +53,12 @@ export const ALERT_CATALOG: AlertCatalogEntry[] = [
     owner: "platform-ops",
     escalation: "On-call operator",
     runbookPath: "docs/operations/runbooks/venue-edge-update-rollback.md",
-    buildHref: ({ venueId }) => (venueId ? `/nvr?venueId=${venueId}` : "/nvr"),
+    buildHref: ({ venueId, installationId }) =>
+      installationId
+        ? `/nvr/${installationId}`
+        : venueId
+          ? `/nvr?venueId=${venueId}`
+          : "/nvr",
   },
   {
     code: "venue_edge_disk_pressure",
@@ -61,7 +71,12 @@ export const ALERT_CATALOG: AlertCatalogEntry[] = [
     owner: "platform-ops",
     escalation: "On-call operator",
     runbookPath: "docs/operations/runbooks/venue-edge-disk-pressure.md",
-    buildHref: ({ venueId }) => (venueId ? `/nvr?venueId=${venueId}` : "/nvr"),
+    buildHref: ({ venueId, installationId }) =>
+      installationId
+        ? `/nvr/${installationId}`
+        : venueId
+          ? `/nvr?venueId=${venueId}`
+          : "/nvr",
   },
   {
     code: "venue_edge_camera_unhealthy",
@@ -74,7 +89,12 @@ export const ALERT_CATALOG: AlertCatalogEntry[] = [
     owner: "platform-ops",
     escalation: "On-call operator",
     runbookPath: "docs/operations/runbooks/venue-edge-camera-failure.md",
-    buildHref: ({ venueId }) => (venueId ? `/nvr?venueId=${venueId}` : "/nvr"),
+    buildHref: ({ venueId, installationId }) =>
+      installationId
+        ? `/nvr/${installationId}`
+        : venueId
+          ? `/nvr?venueId=${venueId}`
+          : "/nvr",
   },
   {
     code: "venue_edge_nvr_offline",
@@ -87,7 +107,12 @@ export const ALERT_CATALOG: AlertCatalogEntry[] = [
     owner: "platform-ops",
     escalation: "On-call operator",
     runbookPath: "docs/operations/runbooks/venue-edge-nvr-replacement.md",
-    buildHref: ({ venueId }) => (venueId ? `/nvr?venueId=${venueId}` : "/nvr"),
+    buildHref: ({ venueId, installationId }) =>
+      installationId
+        ? `/nvr/${installationId}`
+        : venueId
+          ? `/nvr?venueId=${venueId}`
+          : "/nvr",
   },
   {
     code: "venue_edge_unsupported_version",
@@ -100,7 +125,66 @@ export const ALERT_CATALOG: AlertCatalogEntry[] = [
     owner: "platform-ops",
     escalation: "On-call operator",
     runbookPath: "docs/operations/runbooks/venue-edge-update-rollback.md",
-    buildHref: ({ venueId }) => (venueId ? `/nvr?venueId=${venueId}` : "/nvr"),
+    buildHref: ({ venueId, installationId }) =>
+      installationId
+        ? `/nvr/${installationId}`
+        : venueId
+          ? `/nvr?venueId=${venueId}`
+          : "/nvr",
+  },
+  {
+    code: "clock_skew",
+    title: "Venue edge clock skew",
+    scope: "venue",
+    healthDimensionKey: "edge",
+    matchStatuses: ["degraded"],
+    matchSummaryIncludes: "clock skew",
+    severityByStatus: { degraded: "warning" },
+    owner: "platform-ops",
+    escalation: "On-call operator",
+    runbookPath: "docs/operations/runbooks/venue-edge-nvr-replacement.md",
+    buildHref: ({ venueId, installationId }) =>
+      installationId
+        ? `/nvr/${installationId}`
+        : venueId
+          ? `/nvr?venueId=${venueId}`
+          : "/nvr",
+  },
+  {
+    code: "stale_buffer",
+    title: "Venue edge stale buffer",
+    scope: "venue",
+    healthDimensionKey: "edge",
+    matchStatuses: ["degraded"],
+    matchSummaryIncludes: "stale buffer",
+    severityByStatus: { degraded: "warning" },
+    owner: "platform-ops",
+    escalation: "On-call operator",
+    runbookPath: "docs/operations/runbooks/venue-edge-camera-failure.md",
+    buildHref: ({ venueId, installationId }) =>
+      installationId
+        ? `/nvr/${installationId}`
+        : venueId
+          ? `/nvr?venueId=${venueId}`
+          : "/nvr",
+  },
+  {
+    code: "repeated_failover",
+    title: "Venue edge repeated failover",
+    scope: "venue",
+    healthDimensionKey: "edge",
+    matchStatuses: ["degraded"],
+    matchSummaryIncludes: "repeated failover",
+    severityByStatus: { degraded: "warning" },
+    owner: "platform-ops",
+    escalation: "On-call operator",
+    runbookPath: "docs/operations/runbooks/venue-edge-nvr-replacement.md",
+    buildHref: ({ venueId, installationId }) =>
+      installationId
+        ? `/nvr/${installationId}`
+        : venueId
+          ? `/nvr?venueId=${venueId}`
+          : "/nvr",
   },
   {
     code: "stuck_session",
@@ -256,6 +340,12 @@ export const ALERT_CATALOG: AlertCatalogEntry[] = [
 
 export const ALERT_CATALOG_STUBS = [] as const
 
+const SOURCE_SCOPED_ALERT_CODES = new Set([
+  "clock_skew",
+  "stale_buffer",
+  "repeated_failover",
+])
+
 function matchesCatalogEntry(
   entry: AlertCatalogEntry,
   dimension: HealthDimension,
@@ -290,6 +380,7 @@ function buildAlert(input: {
   dimension: HealthDimension
   firedAt: string
   venue?: VenueHealthSnapshot
+  sourceIssue?: EdgeSourceHealthIssue
 }): OperationalAlert | null {
   const severity = severityForAlert(input.entry, input.dimension.status)
 
@@ -299,24 +390,72 @@ function buildAlert(input: {
 
   const venueId = input.venue?.venueId ?? null
   const venueName = input.venue?.venueName ?? null
+  const installationId =
+    input.sourceIssue?.installationId ?? input.venue?.edgeInstallationId ?? null
+  const recorderId = input.sourceIssue?.recorderId ?? null
+  const cameraSourceId = input.sourceIssue?.cameraSourceId ?? null
+  const resourceId = input.sourceIssue?.resourceId ?? null
+  const scopeKey =
+    cameraSourceId ?? recorderId ?? installationId ?? venueId ?? "tenant"
 
   return {
-    id: `${input.entry.code}:${venueId ?? "tenant"}`,
+    id: `${input.entry.code}:${venueId ?? "tenant"}:${scopeKey}`,
     code: input.entry.code,
     title: input.venue
       ? `${input.entry.title} · ${input.venue.venueName}`
       : input.entry.title,
     severity,
     scope: input.entry.scope,
-    summary: input.dimension.summary,
+    summary: input.sourceIssue?.summary ?? input.dimension.summary,
     venueId,
     venueName,
+    installationId,
+    recorderId,
+    cameraSourceId,
+    resourceId,
     owner: input.entry.owner,
     escalation: input.entry.escalation,
     runbookPath: input.entry.runbookPath,
-    href: input.entry.buildHref({ venueId: venueId ?? undefined }),
+    href: input.entry.buildHref({
+      venueId: venueId ?? undefined,
+      installationId: installationId ?? undefined,
+    }),
     firedAt: input.firedAt,
   }
+}
+
+function buildSourceScopedAlerts(input: {
+  venue: VenueHealthSnapshot
+  firedAt: string
+}): OperationalAlert[] {
+  const alerts: OperationalAlert[] = []
+  const edgeDimension = input.venue.dimensions.find((item) => item.key === "edge")
+
+  if (!edgeDimension) {
+    return alerts
+  }
+
+  for (const issue of input.venue.edgeSourceIssues ?? []) {
+    const entry = ALERT_CATALOG.find((item) => item.code === issue.code)
+
+    if (!entry || !matchesCatalogEntry(entry, edgeDimension)) {
+      continue
+    }
+
+    const alert = buildAlert({
+      entry,
+      dimension: edgeDimension,
+      firedAt: input.firedAt,
+      venue: input.venue,
+      sourceIssue: issue,
+    })
+
+    if (alert) {
+      alerts.push(alert)
+    }
+  }
+
+  return alerts
 }
 
 export function deriveOperationalAlerts(
@@ -326,6 +465,10 @@ export function deriveOperationalAlerts(
 
   for (const venue of overview.venues) {
     for (const entry of ALERT_CATALOG.filter((item) => item.scope === "venue")) {
+      if (SOURCE_SCOPED_ALERT_CODES.has(entry.code)) {
+        continue
+      }
+
       const dimension = venue.dimensions.find(
         (item) => item.key === entry.healthDimensionKey,
       )
@@ -345,6 +488,13 @@ export function deriveOperationalAlerts(
         alerts.push(alert)
       }
     }
+
+    alerts.push(
+      ...buildSourceScopedAlerts({
+        venue,
+        firedAt: overview.generatedAt,
+      }),
+    )
   }
 
   for (const entry of ALERT_CATALOG.filter((item) => item.scope === "tenant")) {
