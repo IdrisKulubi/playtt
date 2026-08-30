@@ -35,6 +35,10 @@ import {
   buildSetupStatusPayload,
   resolveSetupEnrollmentStatus,
 } from "./status"
+import {
+  TopologyReviewError,
+  type TopologyReviewManager,
+} from "./topology-review-manager"
 
 export interface SetupHostOptions {
   port: number
@@ -45,7 +49,9 @@ export interface SetupHostOptions {
   localCameraManager?: LocalCameraManager
   localResourceMappingManager?: LocalResourceMappingManager
   commissioningManager?: CommissioningManager
+  topologyReviewManager?: TopologyReviewManager
   onConfigurationChanged?: () => Promise<void>
+  resetConfigCache?: () => Promise<void> | void
   enroll?: (pairingCode: string) => Promise<unknown>
   host?: string
 }
@@ -311,6 +317,42 @@ function jsonResponse(status: number, body: unknown): Response {
   })
 }
 
+async function handleTopologyReviewRoutes(
+  method: string,
+  pathname: string,
+  body: unknown,
+  manager: TopologyReviewManager,
+): Promise<Response | null> {
+  if (method === "GET" && pathname === "/api/setup/topology/review") {
+    return jsonResponse(200, { proposal: manager.buildProposal() })
+  }
+
+  if (method === "POST" && pathname === "/api/setup/topology/review/apply") {
+    const payload = (body ?? {}) as Record<string, unknown>
+    const proposal = await manager.apply({
+      fingerprint: typeof payload.fingerprint === "string" ? payload.fingerprint : "",
+      deleteNvrIds: Array.isArray(payload.deleteNvrIds)
+        ? payload.deleteNvrIds.filter((id): id is string => typeof id === "string")
+        : [],
+      deleteCameraIds: Array.isArray(payload.deleteCameraIds)
+        ? payload.deleteCameraIds.filter((id): id is string => typeof id === "string")
+        : [],
+      renames: Array.isArray(payload.renames)
+        ? payload.renames.filter(
+            (entry): entry is { nvrId: string; label: string } =>
+              Boolean(entry) &&
+              typeof entry === "object" &&
+              typeof (entry as { nvrId?: unknown }).nvrId === "string" &&
+              typeof (entry as { label?: unknown }).label === "string",
+          )
+        : [],
+    })
+    return jsonResponse(200, { proposal })
+  }
+
+  return null
+}
+
 function isTopologyMutation(method: string, pathname: string): boolean {
   if (!new Set(["POST", "PUT", "PATCH", "DELETE"]).has(method)) {
     return false
@@ -335,7 +377,8 @@ function isTopologyMutation(method: string, pathname: string): boolean {
   return (
     pathname.startsWith("/api/setup/nvrs") ||
     pathname.startsWith("/api/setup/cameras") ||
-    pathname.startsWith("/api/setup/resources")
+    pathname.startsWith("/api/setup/resources") ||
+    pathname.startsWith("/api/setup/topology")
   )
 }
 
@@ -500,6 +543,28 @@ export async function startSetupHost(
         jsonBody = await readJsonBody(req)
       }
 
+      if (method === "POST" && url.pathname === "/api/setup/config/reset-cache") {
+        if (!options.resetConfigCache) {
+          await sendNodeResponse(res, jsonResponse(409, { error: "Config reset is unavailable." }))
+          return
+        }
+        const confirmation =
+          jsonBody && typeof jsonBody === "object"
+            ? (jsonBody as Record<string, unknown>).confirmation
+            : null
+        if (confirmation !== "RESET LOCAL CONFIG") {
+          await sendNodeResponse(
+            res,
+            jsonResponse(400, { error: "Type RESET LOCAL CONFIG to confirm this installation reset." }),
+          )
+          return
+        }
+        await options.resetConfigCache()
+        if (options.onConfigurationChanged) await options.onConfigurationChanged()
+        await sendNodeResponse(res, jsonResponse(200, { reset: true }))
+        return
+      }
+
       const previewFileMatch = url.pathname.match(
         /^\/api\/setup\/cameras\/([^/]+)\/preview\.mp4$/,
       )
@@ -577,6 +642,40 @@ export async function startSetupHost(
             await sendNodeResponse(
               res,
               jsonResponse(400, { error: error.message, code: error.code }),
+            )
+            return
+          }
+          throw error
+        }
+      }
+
+      if (options.topologyReviewManager) {
+        try {
+          const topologyResponse = await handleTopologyReviewRoutes(
+            method,
+            url.pathname,
+            jsonBody,
+            options.topologyReviewManager,
+          )
+          if (topologyResponse) {
+            if (
+              options.onConfigurationChanged &&
+              isTopologyMutation(method, url.pathname) &&
+              topologyResponse.ok
+            ) {
+              await options.onConfigurationChanged()
+            }
+            await sendNodeResponse(res, topologyResponse)
+            return
+          }
+        } catch (error) {
+          if (error instanceof TopologyReviewError) {
+            await sendNodeResponse(
+              res,
+              jsonResponse(error.code === "topology_changed" ? 409 : 400, {
+                error: error.message,
+                code: error.code,
+              }),
             )
             return
           }

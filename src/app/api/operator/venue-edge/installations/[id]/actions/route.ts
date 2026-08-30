@@ -2,6 +2,9 @@ import { type NextRequest } from "next/server"
 import { z } from "zod/v3"
 
 import {
+  publishVenueEdgeInstallationConfig,
+  reconcileVenueEdgeSnapshot,
+  recoverVenueEdgeStaleConfig,
   revokeVenueEdgeInstallation,
   rotateVenueEdgeInstallationCredential,
   rollbackVenueEdgeInstallationConfig,
@@ -16,6 +19,18 @@ import { operatorJson } from "@/server/operator/http"
 const actionSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("sync_commissioning"),
+    reason: z.string().trim().min(4).max(256),
+  }),
+  z.object({
+    action: z.literal("reconcile_snapshot"),
+    reason: z.string().trim().min(4).max(256),
+  }),
+  z.object({
+    action: z.literal("publish_config"),
+    reason: z.string().trim().min(4).max(256),
+  }),
+  z.object({
+    action: z.literal("recover_config_stale"),
     reason: z.string().trim().min(4).max(256),
   }),
   z.object({
@@ -53,6 +68,21 @@ export async function POST(
         body.reason,
       )
       return operatorJson({ result })
+    }
+
+    if (body.action === "reconcile_snapshot") {
+      const reconciled = await reconcileVenueEdgeSnapshot(resolved.context, id, body.reason)
+      return operatorJson({ reconciled })
+    }
+
+    if (body.action === "publish_config") {
+      const revision = await publishVenueEdgeInstallationConfig(resolved.context, id, body.reason)
+      return operatorJson({ revision })
+    }
+
+    if (body.action === "recover_config_stale") {
+      const revision = await recoverVenueEdgeStaleConfig(resolved.context, id, body.reason)
+      return operatorJson({ revision })
     }
 
     if (body.action === "rollback_config") {

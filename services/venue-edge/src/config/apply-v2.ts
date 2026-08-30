@@ -30,6 +30,17 @@ export interface ConfigApplyOptions {
   ) => Promise<void>
 }
 
+type ConfigStaleReason = "version_not_newer" | "installation_mismatch"
+
+class ConfigStaleError extends Error {
+  readonly details: Record<string, unknown>
+
+  constructor(reason: ConfigStaleReason, details: Record<string, unknown>) {
+    super("CONFIG_STALE")
+    this.details = { staleReason: reason, ...details }
+  }
+}
+
 function topologyFromConfig(config: EdgeConfigV2) {
   return {
     resources: config.resources,
@@ -164,15 +175,34 @@ export class EdgeConfigV2Manager {
       }
     }
 
-    if (
-      current &&
-      (current.installationId !== parsed.installation.id ||
-        parsed.configRevision.version <= current.version)
-    ) {
+    if (current && current.installationId !== parsed.installation.id) {
       return await this.rejectSnapshot(
         input,
         options,
-        new Error("CONFIG_STALE")
+        new ConfigStaleError("installation_mismatch", {
+          localInstallationId: current.installationId,
+          localRevisionId: current.revisionId,
+          localVersion: current.version,
+          receivedInstallationId: parsed.installation.id,
+          receivedRevisionId: parsed.configRevision.id,
+          receivedVersion: parsed.configRevision.version,
+          remediation: "Reset the local config cache or use the replace-PC flow before applying this installation.",
+        })
+      )
+    }
+
+    if (current && parsed.configRevision.version <= current.version) {
+      return await this.rejectSnapshot(
+        input,
+        options,
+        new ConfigStaleError("version_not_newer", {
+          installationId: current.installationId,
+          localRevisionId: current.revisionId,
+          localVersion: current.version,
+          receivedRevisionId: parsed.configRevision.id,
+          receivedVersion: parsed.configRevision.version,
+          remediation: "Publish a revision with a version greater than the locally applied version.",
+        })
       )
     }
 
@@ -264,6 +294,7 @@ export class EdgeConfigV2Manager {
               code: errorCode,
               message:
                 error instanceof Error ? error.message : "Invalid snapshot.",
+              ...(error instanceof ConfigStaleError ? error.details : {}),
             },
           })
         } catch (ackError) {
@@ -293,6 +324,11 @@ export class EdgeConfigV2Manager {
     verifyChecksum(parsed)
     this.edgeConfigV2 = parsed
     return parsed
+  }
+
+  resetLocalConfigCache(): void {
+    this.repositories.clearConfigSnapshots()
+    this.edgeConfigV2 = null
   }
 
   private async acknowledgeApplied(config: EdgeConfigV2): Promise<void> {

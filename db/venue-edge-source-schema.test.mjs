@@ -11,6 +11,10 @@ const pairingMigration = readFileSync(
   new URL("../drizzle/0026_venue_edge_pairing_sessions.sql", import.meta.url),
   "utf8"
 )
+const provenanceMigration = readFileSync(
+  new URL("../drizzle/0031_powerful_bloodscream.sql", import.meta.url),
+  "utf8"
+)
 
 const newTables = [
   "replay_recorders",
@@ -54,6 +58,91 @@ test("venue-edge pairing session migration is additive", () => {
   }
 
   assert.doesNotMatch(pairingMigration, /DROP (?:TABLE|COLUMN|TYPE|INDEX)/i)
+})
+
+test("venue-edge topology provenance migration is additive and review-first", () => {
+  for (const table of [
+    "replay_recorders",
+    "replay_camera_sources",
+    "replay_source_routes",
+    "replay_source_policies",
+  ]) {
+    for (const column of [
+      "installation_id",
+      "reported_version",
+      "report_checksum_sha256",
+      "last_reported_version",
+      "retired_at",
+    ]) {
+      assert.match(
+        provenanceMigration,
+        new RegExp(`ALTER TABLE "${table}" ADD COLUMN "${column}"`)
+      )
+    }
+
+    assert.match(
+      provenanceMigration,
+      new RegExp(`${table}_tenant_location_installation_fk`)
+    )
+    assert.match(
+      provenanceMigration,
+      new RegExp(`${table}_report_lineage_valid`)
+    )
+    assert.match(
+      provenanceMigration,
+      new RegExp(`${table}_installation_active_idx`)
+    )
+  }
+
+  for (const column of [
+    "last_report_version",
+    "last_report_checksum_sha256",
+    "last_reported_at",
+    "retired_at",
+  ]) {
+    assert.match(
+      provenanceMigration,
+      new RegExp(
+        `ALTER TABLE "venue_edge_installations" ADD COLUMN "${column}"`
+      )
+    )
+  }
+
+  for (const column of [
+    "commissioning_installation_id",
+    "source_report_version",
+    "source_report_checksum_sha256",
+  ]) {
+    assert.match(
+      provenanceMigration,
+      new RegExp(
+        `ALTER TABLE "venue_edge_config_revisions" ADD COLUMN "${column}"`
+      )
+    )
+  }
+
+  assert.match(
+    provenanceMigration,
+    /venue_edge_config_revisions_commissioning_installation_fk/
+  )
+  assert.match(
+    provenanceMigration,
+    /venue_edge_config_revisions_report_lineage_consistent/
+  )
+  assert.ok(
+    provenanceMigration.indexOf(
+      'CREATE UNIQUE INDEX "venue_edge_installations_tenant_location_id_unique"'
+    ) <
+      provenanceMigration.indexOf(
+        'ADD CONSTRAINT "replay_recorders_tenant_location_installation_fk"'
+      ),
+    "the referenced installation key must exist before topology foreign keys"
+  )
+  assert.doesNotMatch(
+    provenanceMigration,
+    /(?:^|\n)\s*(?:DROP|DELETE|UPDATE|TRUNCATE)\b/i
+  )
+  assert.doesNotMatch(provenanceMigration, /\bSET\s+"installation_id"\b/i)
 })
 
 test("routes model ordered cameras and ordered non-empty capture modes", () => {

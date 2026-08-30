@@ -200,6 +200,47 @@ test("stale config revisions cannot replace the current snapshot", async () => {
   database.close()
 })
 
+test("stale acknowledgements distinguish old versions from installation mismatch", async () => {
+  const { database, manager, client } = await createTestStack()
+  const base = loadFixture("edge-v2-one-nvr.json")
+  const current = withValidChecksum({
+    ...base,
+    configRevision: { ...base.configRevision, version: 4 },
+  })
+  await manager.applyValidatedSnapshot(current, { acknowledge: false })
+
+  const oldVersion = withValidChecksum({
+    ...base,
+    configRevision: {
+      ...base.configRevision,
+      id: "77777777-7777-4777-8777-777777777777",
+      version: 3,
+    },
+  })
+  await manager.applyValidatedSnapshot(oldVersion, { acknowledge: true })
+  assert.equal(client.ackCalls.at(-1).errorDetails.staleReason, "version_not_newer")
+  assert.equal(client.ackCalls.at(-1).errorDetails.localVersion, 4)
+
+  const mismatch = withValidChecksum({
+    ...base,
+    installation: {
+      ...base.installation,
+      id: "88888888-8888-4888-8888-888888888888",
+    },
+    configRevision: {
+      ...base.configRevision,
+      id: "99999999-9999-4999-8999-999999999999",
+      version: 5,
+    },
+  })
+  await manager.applyValidatedSnapshot(mismatch, { acknowledge: true })
+  const mismatchAck = client.ackCalls.at(-1)
+  assert.equal(mismatchAck.errorDetails.staleReason, "installation_mismatch")
+  assert.equal(mismatchAck.errorDetails.localInstallationId, base.installation.id)
+  assert.equal(mismatchAck.errorDetails.receivedInstallationId, mismatch.installation.id)
+  database.close()
+})
+
 test("runtime activation failure keeps the previous config and rejects the new revision", async () => {
   const { database, repositories, manager } = await createTestStack()
   const first = withValidChecksum(loadFixture("edge-v2-one-nvr.json"))

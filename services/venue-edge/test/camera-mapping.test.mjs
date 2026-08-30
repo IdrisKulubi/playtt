@@ -421,6 +421,33 @@ test("enumerate with fake probe creates only live channels", async () => {
   assert.deepEqual(channels, ["1", "3", "5"])
 })
 
+test("enumeration rescans existing channels and marks failed probes unavailable", async () => {
+  const liveChannels = new Set(["1"])
+  const { nvrManager, cameraManager } = await createTestStack({
+    channelProbe: createChannelProbe(liveChannels),
+  })
+  const nvr = await nvrManager.createNvr({
+    label: "Rescan NVR",
+    vendor: "vigi",
+    host: "192.168.10.51",
+    rtspPort: 554,
+    username: "playtt_edge",
+    password: "enum-secret",
+    testChannelKey: "1",
+  })
+
+  const first = await cameraManager.enumerateCameras(nvr.id, { maxChannels: 1 })
+  assert.equal(first.created.length, 1)
+  liveChannels.clear()
+
+  const second = await cameraManager.enumerateCameras(nvr.id, { maxChannels: 1 })
+  assert.equal(second.created.length, 0)
+  assert.equal(second.unavailable.length, 1)
+  assert.equal(second.unavailable[0].id, first.created[0].id)
+  assert.equal(second.unavailable[0].lastTest.passed, false)
+  assert.equal(second.unavailable[0].codec, "unknown")
+})
+
 test("setup camera and mapping APIs require setup token", async () => {
   const { nvrManager, cameraManager, mappingManager, credentialManager } =
     await createTestStack({ fixture: "edge-v2-one-nvr.json" })

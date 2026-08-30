@@ -2,220 +2,69 @@
 
 import Link from "next/link"
 import { useMemo, useState } from "react"
+import { ArrowRightIcon, CheckCircleIcon, DotsThreeIcon, WarningCircleIcon } from "@phosphor-icons/react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { VenueEdgeInstallationFleetView } from "@/server/replays/venue-edge-fleet"
 
-function connectivityVariant(
-  connectivity: VenueEdgeInstallationFleetView["connectivity"],
-) {
-  if (connectivity === "online") return "default"
-  if (connectivity === "offline") return "destructive"
-  if (connectivity === "pending_setup") return "secondary"
-  return "outline"
-}
-
-export function NvrFleetPanel({
-  selectedVenueId,
-  initialInstallations,
-}: {
-  selectedVenueId: string
-  initialInstallations: VenueEdgeInstallationFleetView[]
-}) {
-  const [installations, setInstallations] =
-    useState<VenueEdgeInstallationFleetView[]>(initialInstallations)
-  const [healthFilter, setHealthFilter] = useState<string>("all")
-  const [commissioningFilter, setCommissioningFilter] = useState<string>("all")
+export function NvrFleetPanel({ selectedVenueId, initialInstallations }: { selectedVenueId: string; initialInstallations: VenueEdgeInstallationFleetView[] }) {
+  const [installations, setInstallations] = useState(initialInstallations)
+  const [healthFilter, setHealthFilter] = useState("all")
+  const [commissioningFilter, setCommissioningFilter] = useState("all")
   const [message, setMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-
-  const filtered = useMemo(() => {
-    return installations.filter((installation) => {
-      if (healthFilter !== "all" && installation.connectivity !== healthFilter) {
-        return false
-      }
-
-      if (
-        commissioningFilter !== "all" &&
-        installation.commissioningState !== commissioningFilter
-      ) {
-        return false
-      }
-
-      return true
-    })
-  }, [installations, healthFilter, commissioningFilter])
+  const filtered = useMemo(() => installations.filter((item) => (healthFilter === "all" || item.connectivity === healthFilter) && (commissioningFilter === "all" || item.commissioningState === commissioningFilter)), [installations, healthFilter, commissioningFilter])
 
   async function refreshFleet() {
-    setLoading(true)
-    setMessage(null)
-
+    setLoading(true); setMessage(null)
     try {
       const params = new URLSearchParams({ locationId: selectedVenueId })
-      if (healthFilter !== "all") {
-        params.set("health", healthFilter)
-      }
-      if (commissioningFilter !== "all") {
-        params.set("commissioning", commissioningFilter)
-      }
-
-      const response = await fetch(
-        `/api/operator/venue-edge/installations?${params.toString()}`,
-      )
-      if (!response.ok) {
-        setMessage("Could not refresh VenueEdge fleet.")
-        return
-      }
-
-      const payload = (await response.json()) as {
-        data?: { installations?: VenueEdgeInstallationFleetView[] }
-      }
+      if (healthFilter !== "all") params.set("health", healthFilter)
+      if (commissioningFilter !== "all") params.set("commissioning", commissioningFilter)
+      const response = await fetch(`/api/operator/venue-edge/installations?${params}`)
+      if (!response.ok) return setMessage("Could not refresh VenueEdge fleet.")
+      const payload = (await response.json()) as { data?: { installations?: VenueEdgeInstallationFleetView[] } }
       setInstallations(payload.data?.installations ?? [])
-    } finally {
-      setLoading(false)
-    }
+    } catch { setMessage("Could not refresh VenueEdge fleet.") } finally { setLoading(false) }
+  }
+
+  async function handleDeleteInstallation(installation: VenueEdgeInstallationFleetView) {
+    if (!window.confirm(`Delete ${installation.displayName}? This permanently removes the VenueEdge device from this venue.`)) return
+    setLoading(true); setMessage(null)
+    try {
+      const response = await fetch("/api/operator/devices", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", deviceId: installation.edgeDeviceId }) })
+      if (!response.ok) { const error = (await response.json()) as { message?: string }; return setMessage(error.message ?? "Could not delete installation.") }
+      await refreshFleet()
+    } catch { setMessage("Could not delete installation.") } finally { setLoading(false) }
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <div>
-          <CardTitle>VenueEdge fleet</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Installations, health, commissioning, and config status for this
-            venue.
-          </p>
-        </div>
-        <Button variant="outline" onClick={() => void refreshFleet()} disabled={loading}>
-          {loading ? "Refreshing…" : "Refresh"}
-        </Button>
+    <Card className="overflow-visible rounded-2xl shadow-none">
+      <CardHeader className="flex flex-row items-start justify-between gap-4 border-b pb-5">
+        <div className="space-y-1"><CardTitle className="text-lg">VenueEdge fleet</CardTitle><p className="max-w-2xl text-sm text-muted-foreground">One clear next step for every installation at this venue.</p></div>
+        <Button variant="outline" onClick={() => void refreshFleet()} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</Button>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-3">
-          <Select value={healthFilter} onValueChange={setHealthFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Health" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All connectivity</SelectItem>
-              <SelectItem value="online">Online</SelectItem>
-              <SelectItem value="offline">Offline</SelectItem>
-              <SelectItem value="pending_setup">Pending setup</SelectItem>
-              <SelectItem value="revoked">Revoked</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={commissioningFilter}
-            onValueChange={setCommissioningFilter}
-          >
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Commissioning" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All commissioning</SelectItem>
-              <SelectItem value="commissioned">Commissioned</SelectItem>
-              <SelectItem value="not_commissioned">Not commissioned</SelectItem>
-            </SelectContent>
-          </Select>
+      <CardContent className="space-y-5 pt-5">
+        <div className="flex flex-wrap gap-3" aria-label="Fleet filters">
+          <Select value={healthFilter} onValueChange={setHealthFilter}><SelectTrigger className="w-full sm:w-48"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All connectivity</SelectItem><SelectItem value="online">Online</SelectItem><SelectItem value="offline">Offline</SelectItem><SelectItem value="pending_setup">Pending setup</SelectItem></SelectContent></Select>
+          <Select value={commissioningFilter} onValueChange={setCommissioningFilter}><SelectTrigger className="w-full sm:w-52"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All commissioning</SelectItem><SelectItem value="commissioned">Commissioned</SelectItem><SelectItem value="not_commissioned">Not commissioned</SelectItem></SelectContent></Select>
         </div>
-
-        {message ? <p className="text-sm text-destructive">{message}</p> : null}
-
-        {filtered.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No VenueEdge installations match these filters. Pair a new agent
-            above to get started.
-          </p>
-        ) : (
-          <div className="admin-table-card overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left">
-                  <th className="p-3">Installation</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3">Version</th>
-                  <th className="p-3">Topology</th>
-                  <th className="p-3">Health</th>
-                  <th className="p-3">Config</th>
-                  <th className="p-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((installation) => (
-                  <tr key={installation.id} className="border-b align-top">
-                    <td className="p-3">
-                      <div className="font-medium">{installation.displayName}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {installation.platform} / {installation.architecture}
-                      </div>
-                      {installation.hostSleepRisk ? (
-                        <p className="mt-1 text-xs text-amber-700">
-                          {installation.hostSleepRiskReason ??
-                            "Host sleep risk detected."}
-                        </p>
-                      ) : null}
-                    </td>
-                    <td className="p-3">
-                      <Badge variant={connectivityVariant(installation.connectivity)}>
-                        {installation.connectivity}
-                      </Badge>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {installation.commissioningState === "commissioned"
-                          ? "Commissioned"
-                          : "Not commissioned"}
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <div>{installation.currentAgentVersion}</div>
-                      <div className="text-xs text-muted-foreground">
-                        channel {installation.updateChannel}
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <div>
-                        {installation.topology.nvrCount} NVRs ·{" "}
-                        {installation.topology.enabledCameraCount}/
-                        {installation.topology.cameraCount} cameras
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        healthy {installation.sourceHealth.healthy} · degraded{" "}
-                        {installation.sourceHealth.degraded} · unhealthy{" "}
-                        {installation.sourceHealth.unhealthy}
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <div>
-                        v{installation.publishedConfigVersion ?? "—"}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {installation.configApplicationStatus ?? "no ack"}
-                      </div>
-                      {installation.reauthRequiredCount > 0 ? (
-                        <p className="mt-1 text-xs text-amber-700">
-                          {installation.reauthRequiredCount} NVR credential(s)
-                          need local re-entry
-                        </p>
-                      ) : null}
-                    </td>
-                    <td className="p-3">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/nvr/${installation.id}`}>Manage</Link>
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {message ? <p role="status" className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{message}</p> : null}
+        {filtered.length === 0 ? <div className="py-12 text-center"><p className="font-medium">No installations match these filters</p><p className="mt-1 text-sm text-muted-foreground">Change a filter or pair a venue PC below.</p></div> : (
+          <ul className="divide-y" aria-label="VenueEdge installations">
+            {filtered.map((installation) => {
+              const ready = installation.readiness === "ready"
+              return <li key={installation.id} className="grid gap-5 py-5 first:pt-0 last:pb-0 lg:grid-cols-[minmax(12rem,1.1fr)_minmax(14rem,1.4fr)_minmax(12rem,1fr)_auto] lg:items-center">
+                <div className="flex min-w-0 items-center gap-2"><span className={`grid size-8 shrink-0 place-items-center rounded-full ${ready ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"}`}>{ready ? <CheckCircleIcon size={19} weight="fill" /> : <WarningCircleIcon size={19} weight="fill" />}</span><div className="min-w-0"><p className="truncate font-semibold">{installation.displayName}</p><p className="text-xs text-muted-foreground">{installation.platform} · {installation.architecture} · agent {installation.currentAgentVersion}</p></div></div>
+                <div><div className="flex flex-wrap items-center gap-2"><Badge variant={ready ? "default" : "outline"}>{ready ? "Ready" : "Action required"}</Badge><span className="text-xs text-muted-foreground">{installation.connectivity}</span></div><p className="mt-2 text-sm font-medium">{installation.nextAction.detail}</p></div>
+                <dl className="grid grid-cols-2 gap-3 text-sm lg:block"><div><dt className="text-xs text-muted-foreground">Reported</dt><dd>{installation.reportedTopology.topology.nvrCount} NVR · {installation.reportedTopology.topology.enabledCameraCount}/{installation.reportedTopology.topology.cameraCount} cameras</dd></div><div className="lg:mt-2"><dt className="text-xs text-muted-foreground">Configuration</dt><dd>desired v{installation.desiredTopology.revisionVersion ?? "—"} · applied v{installation.appliedTopology.revisionVersion ?? "—"}</dd></div></dl>
+                <div className="flex items-center gap-2 lg:justify-end"><Button asChild className="min-w-36"><Link href={installation.nextAction.href}>{installation.nextAction.label}<ArrowRightIcon /></Link></Button><details className="relative"><summary className="grid size-10 cursor-pointer list-none place-items-center rounded-full text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`More actions for ${installation.displayName}`}><DotsThreeIcon size={22} weight="bold" /></summary><div className="absolute right-0 z-20 mt-2 min-w-44 rounded-xl bg-popover p-1 shadow-md ring-1 ring-border"><button className="w-full rounded-lg px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10 disabled:opacity-50" disabled={loading} onClick={() => void handleDeleteInstallation(installation)}>Delete installation</button></div></details></div>
+              </li>
+            })}
+          </ul>
         )}
       </CardContent>
     </Card>

@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto"
+
 import { and, eq } from "drizzle-orm"
 
 import db from "@/db/drizzle"
@@ -91,6 +93,29 @@ export async function publishVenueEdgeCommissioning(input: {
 
   assertSafeCommissioningPayload(input.payload)
 
+  const receivedReportVersion =
+    typeof input.payload.reportVersion === "number" &&
+    Number.isSafeInteger(input.payload.reportVersion) &&
+    input.payload.reportVersion > 0
+      ? input.payload.reportVersion
+      : null
+  const reportForChecksum = { ...input.payload }
+  delete reportForChecksum.reportChecksumSha256
+  const computedChecksum = createHash("sha256")
+    .update(JSON.stringify(reportForChecksum))
+    .digest("hex")
+  const receivedChecksum =
+    typeof input.payload.reportChecksumSha256 === "string"
+      ? input.payload.reportChecksumSha256.toLowerCase()
+      : null
+  if (receivedChecksum && receivedChecksum !== computedChecksum) {
+    throw new DeviceError(
+      "CONFIG_CHECKSUM_MISMATCH",
+      "Commissioning report checksum does not match its payload.",
+      422,
+    )
+  }
+
   const commissioned = input.payload.commissioned === true
 
   const publishedAtRaw = input.payload.publishedAt
@@ -106,6 +131,7 @@ export async function publishVenueEdgeCommissioning(input: {
       .select({
         id: venueEdgeInstallations.id,
         installationUid: venueEdgeInstallations.installationUid,
+        lastReportVersion: venueEdgeInstallations.lastReportVersion,
       })
       .from(venueEdgeInstallations)
       .innerJoin(
@@ -133,14 +159,34 @@ export async function publishVenueEdgeCommissioning(input: {
       )
     }
 
+
+    const reportVersion = receivedReportVersion ?? (installation.lastReportVersion ?? 0) + 1
+    if (
+      receivedReportVersion !== null &&
+      installation.lastReportVersion !== null &&
+      receivedReportVersion <= installation.lastReportVersion
+    ) {
+      throw new DeviceError(
+        "CONFIG_STALE",
+        "This commissioning report is older than the latest accepted report.",
+        409,
+      )
+    }
+
     const updateValues: {
       commissioningSnapshotJson: Record<string, unknown>
       updatedAt: Date
       commissionedAt: Date | null
+      lastReportVersion: number
+      lastReportChecksumSha256: string | null
+      lastReportedAt: Date
     } = {
       commissioningSnapshotJson: input.payload,
       updatedAt: now,
       commissionedAt: commissioned ? now : null,
+      lastReportVersion: reportVersion,
+      lastReportChecksumSha256: receivedChecksum ?? computedChecksum,
+      lastReportedAt: now,
     }
 
     await tx

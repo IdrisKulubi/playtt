@@ -35,6 +35,12 @@ const commissioningSchema = z
   .object({
     commissioned: z.boolean(),
     publishedAt: timestamp,
+    reportVersion: z.number().int().positive().optional(),
+    reportChecksumSha256: z
+      .string()
+      .length(64)
+      .regex(/^[a-f0-9]+$/i)
+      .optional(),
     nvrs: z
       .array(
         z

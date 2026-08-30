@@ -257,6 +257,8 @@ export class LocalCameraManager {
     options?: { maxChannels?: number },
   ): Promise<{
     created: LocalCameraPublicView[]
+    updated: LocalCameraPublicView[]
+    unavailable: LocalCameraPublicView[]
     skipped: number
     probed: number
   }> {
@@ -275,6 +277,8 @@ export class LocalCameraManager {
 
     const maxChannels = options?.maxChannels ?? 8
     const created: LocalCameraPublicView[] = []
+    const updated: LocalCameraPublicView[] = []
+    const unavailable: LocalCameraPublicView[] = []
     let skipped = 0
 
     for (let channel = 1; channel <= maxChannels; channel += 1) {
@@ -286,11 +290,6 @@ export class LocalCameraManager {
         channelKey,
         streamProfile,
       )
-      if (existing) {
-        skipped += 1
-        continue
-      }
-
       const liveRtspUrl = buildVigiLiveRtspUrl({
         host: nvr.host,
         rtspPort: nvr.rtspPort,
@@ -302,6 +301,45 @@ export class LocalCameraManager {
 
       const probe = await this.channelProbeRunner.probe({ liveRtspUrl })
       if (!probe.live) {
+        if (existing) {
+          const lastTest: LocalCameraTestSummary = {
+            passed: false,
+            testedAt: new Date().toISOString(),
+            checks: [
+              {
+                check: "live_rtsp",
+                passed: false,
+                code: probe.code ?? "source_unavailable",
+                message:
+                  probe.code === "source_auth_failed"
+                    ? "Authentication failed while checking this channel."
+                    : probe.code === "probe_timed_out"
+                      ? "The channel did not respond before the probe timed out."
+                      : "No valid video stream was found on this channel.",
+              },
+            ],
+          }
+          const row = this.repositories.updateLocalCamera(existing.id, {
+            codec: "unknown",
+            lastTest,
+          })!
+          unavailable.push({
+            id: row.id,
+            nvrId: row.nvrId,
+            nvrLabel: nvr.label,
+            label: row.label,
+            channelKey: row.channelKey,
+            streamProfile: row.streamProfile,
+            codec: row.codec,
+            enabled: row.enabled,
+            lastTest,
+            healthStatus: null,
+            createdAt: row.createdAt,
+            updatedAt: row.updatedAt,
+          })
+        } else {
+          skipped += 1
+        }
         continue
       }
 
@@ -317,19 +355,26 @@ export class LocalCameraManager {
         ],
       }
 
-      const row = this.repositories.insertLocalCamera({
-        id: randomUUID(),
-        nvrId,
-        label: defaultCameraLabel(nvr.label, channelKey, streamProfile),
-        channelKey,
-        streamProfile,
-        codec: probe.codec,
-        enabled: false,
-      })
+      const row = existing
+        ? this.repositories.updateLocalCamera(existing.id, {
+            codec: probe.codec,
+            lastTest,
+          })!
+        : this.repositories.insertLocalCamera({
+            id: randomUUID(),
+            nvrId,
+            label: defaultCameraLabel(nvr.label, channelKey, streamProfile),
+            channelKey,
+            streamProfile,
+            codec: probe.codec,
+            enabled: false,
+          })
 
-      this.repositories.updateLocalCamera(row.id, { lastTest })
+      if (!existing) {
+        this.repositories.updateLocalCamera(row.id, { lastTest })
+      }
 
-      created.push({
+      const view = {
         id: row.id,
         nvrId: row.nvrId,
         nvrLabel: nvr.label,
@@ -342,10 +387,15 @@ export class LocalCameraManager {
         healthStatus: null,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
-      })
+      }
+      if (existing) {
+        updated.push(view)
+      } else {
+        created.push(view)
+      }
     }
 
-    return { created, skipped, probed: maxChannels }
+    return { created, updated, unavailable, skipped, probed: maxChannels }
   }
 
   async resolveCameraRtspUrl(cameraId: string): Promise<string | null> {

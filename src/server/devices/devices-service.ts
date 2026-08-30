@@ -5,6 +5,7 @@ import {
   issueProvisionedDevice,
   listDevices,
   revokeDevice,
+  deleteDevice,
   rotateDeviceCredential,
   type DeviceAssignmentRole,
   type DeviceListItem,
@@ -150,6 +151,25 @@ export async function revokeDeviceForOperator(
   })
 
   return device
+}
+
+export async function deleteDeviceForOperator(
+  context: TenantContext,
+  deviceId: string,
+) {
+  authorize(context, "venue.manage")
+  const deleted = await deleteDevice(context, deviceId)
+
+  await writeAuditLog(context, {
+    action: "device.delete",
+    targetType: "device",
+    targetId: deleted.id,
+    metadata: {
+      hardwareUid: deleted.hardwareUid,
+    },
+  })
+
+  return deleted
 }
 
 export async function rotateDeviceCredentialForOperator(

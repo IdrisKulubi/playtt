@@ -94,6 +94,9 @@
     },
     "0030_venue_edge_pairing_integrity": {
       "sha256": "cdf73763dd87771194ca530b87410f6886fa6089b028a0d3844f9677ce7f3001"
+    },
+    "0031_powerful_bloodscream": {
+      "sha256": "7a5f0a1e957b0f70921bd4bfc55f6a33b564c6e9f090c391d0b72cefd97ec6d3"
     }
   },
   "acknowledgedMetadataDrift": [],

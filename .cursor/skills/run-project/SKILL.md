@@ -89,10 +89,28 @@ Use **`npm start`**, not `npx expo start`. On Windows, `npx expo` may resolve to
 - **Empty `node_modules/.bin`**: run `npm install` to regenerate CLI shims.
 - **Expo version mismatch warnings**: align packages with `npx expo install <package>` from `playtt-mobile/`.
 
+## VenueEdge (`services/venue-edge/`)
+
+Independent package. Install and run it from that directory, not the repo root.
+
+```bash
+cd services/venue-edge
+pnpm install
+pnpm start           # or `pnpm simulate` / `pnpm setup`
+```
+
+See `services/venue-edge/README.md` for mode, env, and pairing details.
+
+### VenueEdge troubleshooting
+
+- **`Cannot find package 'esbuild'` from `tsx`**: `node_modules` is incomplete or unlinked. From `services/venue-edge/`, delete `node_modules` and run `pnpm install` again. `tsx` needs a hoisted `esbuild` (see that package's `.npmrc`).
+- **`EPERM` during `pnpm install` on Windows**: stop any running `pnpm start` / `tsx` process in that folder, then retry install.
+
 ## Typical dev session
 
 1. Terminal 1: `pnpm dev` (repo root)
 2. Terminal 2 (optional): `cd playtt-mobile && npm start`
+3. Terminal 3 (optional): `cd services/venue-edge && pnpm install && pnpm start`
 
 ## shadcn components (web only)
 

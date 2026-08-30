@@ -4,6 +4,9 @@ export interface CodecProbeResult {
   codec: string | null
   compatible: boolean
   raw: string
+  exitCode: number | null
+  timedOut: boolean
+  cancelled: boolean
 }
 
 export async function probeCodec(inputUrl: string): Promise<CodecProbeResult> {
@@ -26,5 +29,8 @@ export async function probeCodec(inputUrl: string): Promise<CodecProbeResult> {
     codec,
     compatible,
     raw: combined,
+    exitCode: result.exitCode,
+    timedOut: result.timedOut,
+    cancelled: result.cancelled,
   }
 }

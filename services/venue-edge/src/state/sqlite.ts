@@ -207,6 +207,7 @@ CREATE TABLE IF NOT EXISTS edge_commissioning_state (
   completed INTEGER NOT NULL DEFAULT 0,
   completed_at TEXT,
   published_at TEXT,
+  report_version INTEGER NOT NULL DEFAULT 0,
   failover_ready INTEGER NOT NULL DEFAULT 0,
   last_error TEXT,
   drill_results_json TEXT,
@@ -245,6 +246,15 @@ function migrateSchema(db: DatabaseSync): void {
     db.exec(
       `INSERT INTO edge_commissioning_state (id, completed, failover_ready, updated_at)
        VALUES (1, 0, 0, datetime('now'))`,
+    )
+  }
+
+  const commissioningColumns = db
+    .prepare(`PRAGMA table_info(edge_commissioning_state)`)
+    .all() as Array<{ name: string }>
+  if (!commissioningColumns.some((column) => column.name === "report_version")) {
+    db.exec(
+      `ALTER TABLE edge_commissioning_state ADD COLUMN report_version INTEGER NOT NULL DEFAULT 0`,
     )
   }
 }

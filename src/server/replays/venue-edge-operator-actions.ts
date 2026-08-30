@@ -1,9 +1,10 @@
-import { and, eq } from "drizzle-orm"
+import { and, desc, eq } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import {
   replaySourcePolicies,
   replaySourceRoutes,
+  venueEdgeConfigApplications,
   venueEdgeInstallations,
 } from "@/db/schema"
 import {
@@ -133,6 +134,9 @@ export async function syncVenueEdgeCommissioning(
     tenantId: context.tenantId,
     locationId: installation.locationId,
     edgeDeviceId: installation.edgeDeviceId,
+    installationId: installation.id,
+    reportVersion: installation.lastReportVersion,
+    reportChecksumSha256: installation.lastReportChecksumSha256,
     snapshot,
     createdByActorId: context.actor.type === "user" ? context.actor.id : null,
     correlationId: context.correlationId,
@@ -150,6 +154,128 @@ export async function syncVenueEdgeCommissioning(
   })
 
   return result
+}
+
+export async function reconcileVenueEdgeSnapshot(
+  context: TenantContext,
+  installationId: string,
+  reason?: string,
+) {
+  const auditReason = requireReason(reason)
+  const installation = await getInstallationForTenant(context.tenantId, installationId)
+  const snapshot = parseCommissioningSnapshot(installation.commissioningSnapshotJson)
+  if (!snapshot) {
+    throw new DeviceError("CONFIG_NOT_READY", "No commissioning snapshot is available for this installation.", 409)
+  }
+  const ingested = await ingestCommissioningSnapshotForLocation({
+    tenantId: context.tenantId,
+    locationId: installation.locationId,
+    edgeDeviceId: installation.edgeDeviceId,
+    installationId: installation.id,
+    reportVersion: installation.lastReportVersion,
+    reportChecksumSha256: installation.lastReportChecksumSha256,
+    snapshot,
+  })
+  await writeAuditLog(context, {
+    action: "venue_edge.topology.reconciled",
+    targetType: "venue_edge_installation",
+    targetId: installationId,
+    metadata: { reason: auditReason, ingested },
+  })
+  return ingested
+}
+
+export async function publishVenueEdgeInstallationConfig(
+  context: TenantContext,
+  installationId: string,
+  reason?: string,
+  minimumVersionExclusive?: number,
+) {
+  const auditReason = requireReason(reason)
+  const installation = await getInstallationForTenant(context.tenantId, installationId)
+  const topology = await buildTopologySnapshotForLocation(context.tenantId, installation.locationId)
+  const revision = await publishEdgeConfigV2Revision({
+    tenantId: context.tenantId,
+    locationId: installation.locationId,
+    snapshot: topology,
+    createdByActorId: context.actor.type === "user" ? context.actor.id : null,
+    correlationId: context.correlationId,
+    minimumVersionExclusive,
+    commissioningInstallationId: installation.id,
+    sourceReportVersion: installation.lastReportVersion,
+    sourceReportChecksumSha256: installation.lastReportChecksumSha256,
+  })
+  await writeAuditLog(context, {
+    action: VENUE_EDGE_AUDIT_ACTIONS.configPublished,
+    targetType: "venue_edge_installation",
+    targetId: installationId,
+    metadata: { reason: auditReason, revisionVersion: revision.version, mode: "publish_only" },
+  })
+  return revision
+}
+
+function safeNumber(details: Record<string, unknown> | null, keys: string[]) {
+  for (const key of keys) {
+    const value = details?.[key]
+    if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) return value
+  }
+  return null
+}
+
+function safeString(details: Record<string, unknown> | null, keys: string[]) {
+  for (const key of keys) {
+    const value = details?.[key]
+    if (typeof value === "string" && value.trim()) return value.trim()
+  }
+  return null
+}
+
+export async function recoverVenueEdgeStaleConfig(
+  context: TenantContext,
+  installationId: string,
+  reason?: string,
+) {
+  const installation = await getInstallationForTenant(context.tenantId, installationId)
+  const [application] = await db
+    .select({
+      errorCode: venueEdgeConfigApplications.errorCode,
+      errorDetails: venueEdgeConfigApplications.errorDetails,
+    })
+    .from(venueEdgeConfigApplications)
+    .where(
+      and(
+        eq(venueEdgeConfigApplications.tenantId, context.tenantId),
+        eq(venueEdgeConfigApplications.locationId, installation.locationId),
+        eq(venueEdgeConfigApplications.edgeDeviceId, installation.edgeDeviceId),
+      ),
+    )
+    .orderBy(desc(venueEdgeConfigApplications.attemptedAt))
+    .limit(1)
+
+  const details = application?.errorDetails ?? null
+  const staleReason = safeString(details, ["reason", "staleReason"])
+  if (application?.errorCode !== "CONFIG_STALE") {
+    throw new DeviceError("CONFIG_NOT_READY", "The latest configuration was not rejected as stale.", 409)
+  }
+  if (staleReason === "installation_mismatch") {
+    throw new DeviceError(
+      "CONFIG_NOT_READY",
+      "The venue PC belongs to a different installation. Reset its local installation cache or use Replace PC before retrying.",
+      409,
+    )
+  }
+  if (staleReason !== "version_not_newer") {
+    throw new DeviceError("CONFIG_NOT_READY", "The stale configuration reason is unknown. Review the venue PC before retrying.", 409)
+  }
+  const localInstallationId = safeString(details, ["localInstallationId"])
+  if (localInstallationId && localInstallationId !== installation.installationUid) {
+    throw new DeviceError("CONFIG_NOT_READY", "The venue PC installation identity does not match this installation.", 409)
+  }
+  const localVersion = safeNumber(details, ["localVersion", "appliedVersion"])
+  if (localVersion === null) {
+    throw new DeviceError("CONFIG_NOT_READY", "The venue PC did not report its local configuration version.", 409)
+  }
+  return publishVenueEdgeInstallationConfig(context, installationId, reason, localVersion)
 }
 
 export async function rollbackVenueEdgeInstallationConfig(

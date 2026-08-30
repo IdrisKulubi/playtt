@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 
-import { and, desc, eq } from "drizzle-orm"
+import { and, desc, eq, isNull } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import {
@@ -11,11 +11,16 @@ import {
   replaySourceRoutes,
   resources,
   venueEdgeConfigRevisions,
+  venueEdgeInstallations,
   venueEdgeSecretRefs,
 } from "@/db/schema"
 import { DeviceError } from "@/server/devices/errors"
 import type { EdgeConfigV2TopologySnapshot } from "@/server/replays/edge-config-v2-publication"
 import { publishEdgeConfigV2Revision } from "@/server/replays/edge-config-v2-publication"
+import {
+  normalizeCommissioningRevisionLineage,
+  normalizeTopologyReportLineage,
+} from "@/server/replays/venue-edge-report-lineage"
 
 export interface CommissioningSnapshot {
   commissioned?: boolean
@@ -159,10 +164,41 @@ export async function ingestCommissioningSnapshotForLocation(input: {
   tenantId: string
   locationId: string
   edgeDeviceId: string
+  installationId?: string
+  reportVersion?: number | null
+  reportChecksumSha256?: string | null
   snapshot: CommissioningSnapshot
   now?: Date
 }): Promise<{ recorders: number; sources: number; routes: number; policies: number }> {
   await assertLocation(input.tenantId, input.locationId)
+
+  const [installation] = await db
+    .select({
+      id: venueEdgeInstallations.id,
+      lastReportVersion: venueEdgeInstallations.lastReportVersion,
+      lastReportChecksumSha256: venueEdgeInstallations.lastReportChecksumSha256,
+    })
+    .from(venueEdgeInstallations)
+    .where(
+      and(
+        eq(venueEdgeInstallations.tenantId, input.tenantId),
+        eq(venueEdgeInstallations.locationId, input.locationId),
+        eq(venueEdgeInstallations.edgeDeviceId, input.edgeDeviceId),
+        ...(input.installationId
+          ? [eq(venueEdgeInstallations.id, input.installationId)]
+          : []),
+      ),
+    )
+    .limit(1)
+  if (!installation) {
+    throw new DeviceError("CONFIG_NOT_READY", "VenueEdge installation ownership could not be verified.", 409)
+  }
+
+  const { reportedVersion, reportChecksumSha256 } =
+    normalizeTopologyReportLineage(
+      input.reportVersion ?? installation.lastReportVersion,
+      input.reportChecksumSha256 ?? installation.lastReportChecksumSha256,
+    )
 
   const now = input.now ?? new Date()
   const inserted = {
@@ -173,6 +209,11 @@ export async function ingestCommissioningSnapshotForLocation(input: {
   }
 
   return db.transaction(async (tx) => {
+    const seenRecorderIds = new Set<string>()
+    const seenSourceIds = new Set<string>()
+    const seenRouteKeys = new Set<string>()
+    const seenPolicyResourceIds = new Set<string>()
+
     for (const nvr of input.snapshot.nvrs ?? []) {
       const id = typeof nvr.id === "string" ? nvr.id : randomUUID()
       const label = typeof nvr.label === "string" ? nvr.label : "NVR"
@@ -193,6 +234,7 @@ export async function ingestCommissioningSnapshotForLocation(input: {
           : `local-nvr-${id.slice(0, 8)}`
       const username =
         typeof nvr.username === "string" ? nvr.username : null
+      seenRecorderIds.add(id)
 
       const recorderResult = await tx
         .insert(replayRecorders)
@@ -200,6 +242,11 @@ export async function ingestCommissioningSnapshotForLocation(input: {
           id,
           tenantId: input.tenantId,
           locationId: input.locationId,
+          installationId: installation.id,
+          reportedVersion,
+          reportChecksumSha256,
+          lastReportedVersion: reportedVersion,
+          retiredAt: null,
           label,
           vendor,
           host,
@@ -220,6 +267,11 @@ export async function ingestCommissioningSnapshotForLocation(input: {
           ],
           set: {
             label,
+            installationId: installation.id,
+            reportedVersion,
+            reportChecksumSha256,
+            lastReportedVersion: reportedVersion,
+            retiredAt: null,
             vendor,
             host,
             rtspPort,
@@ -283,6 +335,7 @@ export async function ingestCommissioningSnapshotForLocation(input: {
       const enabled = camera.enabled !== false
       const codec =
         camera.codec === "h265" ? "h265" : "h264"
+      seenSourceIds.add(id)
 
       const sourceResult = await tx
         .insert(replayCameraSources)
@@ -290,6 +343,11 @@ export async function ingestCommissioningSnapshotForLocation(input: {
           id,
           tenantId: input.tenantId,
           locationId: input.locationId,
+          installationId: installation.id,
+          reportedVersion,
+          reportChecksumSha256,
+          lastReportedVersion: reportedVersion,
+          retiredAt: null,
           recorderId,
           channelKey,
           streamProfile,
@@ -306,6 +364,11 @@ export async function ingestCommissioningSnapshotForLocation(input: {
           ],
           set: {
             recorderId,
+            installationId: installation.id,
+            reportedVersion,
+            reportChecksumSha256,
+            lastReportedVersion: reportedVersion,
+            retiredAt: null,
             channelKey,
             streamProfile,
             label,
@@ -334,19 +397,25 @@ export async function ingestCommissioningSnapshotForLocation(input: {
         typeof route.priority === "number" && route.priority > 0
           ? route.priority
           : 1
-      const captureModes = Array.isArray(route.captureModes)
+      const captureModes: Array<"edge_buffer" | "nvr_playback"> = Array.isArray(route.captureModes)
         ? route.captureModes.filter(
             (mode): mode is "edge_buffer" | "nvr_playback" =>
               mode === "edge_buffer" || mode === "nvr_playback",
           )
         : ["edge_buffer", "nvr_playback"]
       const enabled = route.enabled !== false
+      seenRouteKeys.add(`${resourceId}:${cameraSourceId}`)
 
       const routeResult = await tx
         .insert(replaySourceRoutes)
         .values({
           tenantId: input.tenantId,
           locationId: input.locationId,
+          installationId: installation.id,
+          reportedVersion,
+          reportChecksumSha256,
+          lastReportedVersion: reportedVersion,
+          retiredAt: null,
           resourceId,
           cameraSourceId,
           priority,
@@ -364,6 +433,11 @@ export async function ingestCommissioningSnapshotForLocation(input: {
           ],
           set: {
             priority,
+            installationId: installation.id,
+            reportedVersion,
+            reportChecksumSha256,
+            lastReportedVersion: reportedVersion,
+            retiredAt: null,
             captureModes,
             isEnabled: enabled,
             updatedAt: now,
@@ -396,12 +470,18 @@ export async function ingestCommissioningSnapshotForLocation(input: {
       const cooldownSeconds =
         typeof policy.cooldownSeconds === "number" ? policy.cooldownSeconds : 60
       const autoFailback = policy.autoFailback !== false
+      seenPolicyResourceIds.add(resourceId)
 
       const policyResult = await tx
         .insert(replaySourcePolicies)
         .values({
           tenantId: input.tenantId,
           locationId: input.locationId,
+          installationId: installation.id,
+          reportedVersion,
+          reportChecksumSha256,
+          lastReportedVersion: reportedVersion,
+          retiredAt: null,
           resourceId,
           selectionMode,
           manualSourceId,
@@ -419,6 +499,11 @@ export async function ingestCommissioningSnapshotForLocation(input: {
           ],
           set: {
             selectionMode,
+            installationId: installation.id,
+            reportedVersion,
+            reportChecksumSha256,
+            lastReportedVersion: reportedVersion,
+            retiredAt: null,
             manualSourceId,
             failureThreshold,
             healthyThreshold,
@@ -433,6 +518,26 @@ export async function ingestCommissioningSnapshotForLocation(input: {
         inserted.policies += 1
       }
     }
+
+    const ownedRecorders = await tx.select({ id: replayRecorders.id }).from(replayRecorders).where(
+      and(eq(replayRecorders.tenantId, input.tenantId), eq(replayRecorders.locationId, input.locationId), eq(replayRecorders.installationId, installation.id), isNull(replayRecorders.retiredAt)),
+    )
+    for (const row of ownedRecorders) if (!seenRecorderIds.has(row.id)) await tx.update(replayRecorders).set({ retiredAt: now, isEnabled: false, lastReportedVersion: reportedVersion }).where(eq(replayRecorders.id, row.id))
+
+    const ownedSources = await tx.select({ id: replayCameraSources.id }).from(replayCameraSources).where(
+      and(eq(replayCameraSources.tenantId, input.tenantId), eq(replayCameraSources.locationId, input.locationId), eq(replayCameraSources.installationId, installation.id), isNull(replayCameraSources.retiredAt)),
+    )
+    for (const row of ownedSources) if (!seenSourceIds.has(row.id)) await tx.update(replayCameraSources).set({ retiredAt: now, isEnabled: false, lastReportedVersion: reportedVersion }).where(eq(replayCameraSources.id, row.id))
+
+    const ownedRoutes = await tx.select({ id: replaySourceRoutes.id, resourceId: replaySourceRoutes.resourceId, cameraSourceId: replaySourceRoutes.cameraSourceId }).from(replaySourceRoutes).where(
+      and(eq(replaySourceRoutes.tenantId, input.tenantId), eq(replaySourceRoutes.locationId, input.locationId), eq(replaySourceRoutes.installationId, installation.id), isNull(replaySourceRoutes.retiredAt)),
+    )
+    for (const row of ownedRoutes) if (!seenRouteKeys.has(`${row.resourceId}:${row.cameraSourceId}`)) await tx.update(replaySourceRoutes).set({ retiredAt: now, isEnabled: false, lastReportedVersion: reportedVersion }).where(eq(replaySourceRoutes.id, row.id))
+
+    const ownedPolicies = await tx.select({ id: replaySourcePolicies.id, resourceId: replaySourcePolicies.resourceId }).from(replaySourcePolicies).where(
+      and(eq(replaySourcePolicies.tenantId, input.tenantId), eq(replaySourcePolicies.locationId, input.locationId), eq(replaySourcePolicies.installationId, installation.id), isNull(replaySourcePolicies.retiredAt)),
+    )
+    for (const row of ownedPolicies) if (!seenPolicyResourceIds.has(row.resourceId)) await tx.update(replaySourcePolicies).set({ retiredAt: now, lastReportedVersion: reportedVersion }).where(eq(replaySourcePolicies.id, row.id))
 
     return inserted
   })
@@ -460,6 +565,7 @@ export async function buildTopologySnapshotForLocation(
       and(
         eq(replayRecorders.tenantId, tenantId),
         eq(replayRecorders.locationId, locationId),
+        isNull(replayRecorders.retiredAt),
       ),
     )
 
@@ -485,6 +591,7 @@ export async function buildTopologySnapshotForLocation(
       and(
         eq(replayCameraSources.tenantId, tenantId),
         eq(replayCameraSources.locationId, locationId),
+        isNull(replayCameraSources.retiredAt),
       ),
     )
 
@@ -496,6 +603,7 @@ export async function buildTopologySnapshotForLocation(
         eq(replaySourceRoutes.tenantId, tenantId),
         eq(replaySourceRoutes.locationId, locationId),
         eq(replaySourceRoutes.isEnabled, true),
+        isNull(replaySourceRoutes.retiredAt),
       ),
     )
 
@@ -506,6 +614,7 @@ export async function buildTopologySnapshotForLocation(
       and(
         eq(replaySourcePolicies.tenantId, tenantId),
         eq(replaySourcePolicies.locationId, locationId),
+        isNull(replaySourcePolicies.retiredAt),
       ),
     )
 
@@ -616,6 +725,9 @@ export async function syncCommissioningAndPublish(input: {
   tenantId: string
   locationId: string
   edgeDeviceId: string
+  installationId?: string
+  reportVersion?: number | null
+  reportChecksumSha256?: string | null
   snapshot: CommissioningSnapshot
   createdByActorId?: string | null
   correlationId?: string
@@ -624,6 +736,9 @@ export async function syncCommissioningAndPublish(input: {
     tenantId: input.tenantId,
     locationId: input.locationId,
     edgeDeviceId: input.edgeDeviceId,
+    installationId: input.installationId,
+    reportVersion: input.reportVersion,
+    reportChecksumSha256: input.reportChecksumSha256,
     snapshot: input.snapshot,
   })
 
@@ -632,12 +747,21 @@ export async function syncCommissioningAndPublish(input: {
     input.locationId,
   )
 
+  const revisionLineage = normalizeCommissioningRevisionLineage({
+    installationId: input.installationId,
+    reportVersion: input.reportVersion,
+    reportChecksumSha256: input.reportChecksumSha256,
+  })
+
   const revision = await publishEdgeConfigV2Revision({
     tenantId: input.tenantId,
     locationId: input.locationId,
     snapshot: topology,
     createdByActorId: input.createdByActorId,
     correlationId: input.correlationId,
+    commissioningInstallationId: revisionLineage.commissioningInstallationId,
+    sourceReportVersion: revisionLineage.sourceReportVersion,
+    sourceReportChecksumSha256: revisionLineage.sourceReportChecksumSha256,
   })
 
   return { ingested, revision }

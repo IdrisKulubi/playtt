@@ -26,6 +26,8 @@ test("commissioning route is device-authenticated", () => {
   assert.match(route, /\.max\(32\)/)
   assert.match(route, /\.max\(256\)/)
   assert.match(route, /\.max\(1_024\)/)
+  assert.match(route, /reportVersion/)
+  assert.match(route, /reportChecksumSha256/)
   assert.doesNotMatch(route, /\.passthrough\(\)/)
 })
 
@@ -49,6 +51,8 @@ test("commissioning service scans secrets and persists installation snapshot", (
     /writeAuditLogInTransaction\(tx, input\.auditContext, \{/,
   )
   assert.doesNotMatch(service, /passwordStore/)
+  assert.match(service, /computedChecksum/)
+  assert.match(service, /lastReportChecksumSha256: receivedChecksum \?\? computedChecksum/)
 })
 
 test("commissioning migration adds durable installation fields", () => {

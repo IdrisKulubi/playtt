@@ -153,6 +153,16 @@ export class LocalNvrManager {
       throw new LocalNvrError("invalid_password", "NVR password is required.")
     }
 
+    const host = parseHost(input.host)
+    const rtspPort = parsePort(input.rtspPort, "rtspPort")
+    const duplicate = this.repositories.findLocalNvrByEndpoint(host, rtspPort)
+    if (duplicate) {
+      throw new LocalNvrError(
+        "duplicate_endpoint",
+        `This NVR is already saved as ${duplicate.label}. Edit that recorder instead of adding it again.`,
+      )
+    }
+
     const id = randomUUID()
     const localConnectionKey = mintLocalConnectionKey(id)
     const playbackPort =
@@ -164,8 +174,8 @@ export class LocalNvrManager {
       id,
       label,
       vendor: parseVendor(input.vendor),
-      host: parseHost(input.host),
-      rtspPort: parsePort(input.rtspPort, "rtspPort"),
+      host,
+      rtspPort,
       playbackPort,
       username,
       localConnectionKey,
@@ -267,6 +277,18 @@ export class LocalNvrManager {
         : null
     if (newPassword) {
       await this.passwordStore.set(existing.localConnectionKey, newPassword)
+    }
+
+    const duplicate = this.repositories.findLocalNvrByEndpoint(
+      patch.host ?? existing.host,
+      patch.rtspPort ?? existing.rtspPort,
+      id,
+    )
+    if (duplicate) {
+      throw new LocalNvrError(
+        "duplicate_endpoint",
+        `This endpoint is already saved as ${duplicate.label}.`,
+      )
     }
 
     const configurationChanged = Object.keys(patch).length > 0 || newPassword !== null

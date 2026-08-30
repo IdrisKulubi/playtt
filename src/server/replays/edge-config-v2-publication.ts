@@ -22,6 +22,7 @@ import {
 import { VENUE_EDGE_V2_MINIMUM_AGENT_VERSION } from "@/server/replays/edge-config-v2-repository"
 import { assertVenueEdgeConfigV2Enabled } from "@/server/replays/venue-edge-config-v2-gate"
 import { VENUE_EDGE_AUDIT_ACTIONS } from "@/server/replays/venue-edge-audit-actions"
+import { normalizeCommissioningRevisionLineage } from "@/server/replays/venue-edge-report-lineage"
 import { writeAuditLogInTransaction } from "@/server/tenancy/audit-log-write"
 import type { TenantContext } from "@/server/tenancy/types"
 
@@ -65,6 +66,10 @@ export async function publishEdgeConfigV2Revision(input: {
   createdByActorId?: string | null
   correlationId?: string
   now?: Date
+  minimumVersionExclusive?: number
+  commissioningInstallationId?: string | null
+  sourceReportVersion?: number | null
+  sourceReportChecksumSha256?: string | null
 }): Promise<PublishedEdgeConfigV2Revision> {
   await assertVenueEdgeConfigV2Enabled(input.tenantId, input.locationId)
 
@@ -148,7 +153,10 @@ export async function publishEdgeConfigV2Revision(input: {
       .limit(1)
       .for("update")
 
-    const version = (latestRevision?.version ?? 0) + 1
+    const version = Math.max(
+      (latestRevision?.version ?? 0) + 1,
+      (input.minimumVersionExclusive ?? 0) + 1,
+    )
     const topology = requireTopologySnapshot(input.snapshot)
     let canonicalTopology: EdgeConfigV2TopologySnapshot
     let checksumSha256: string
@@ -194,6 +202,12 @@ export async function publishEdgeConfigV2Revision(input: {
         )
       )
 
+    const revisionLineage = normalizeCommissioningRevisionLineage({
+      installationId: input.commissioningInstallationId,
+      reportVersion: input.sourceReportVersion,
+      reportChecksumSha256: input.sourceReportChecksumSha256,
+    })
+
     await tx.insert(venueEdgeConfigRevisions).values({
       id: revisionId,
       tenantId: input.tenantId,
@@ -202,6 +216,9 @@ export async function publishEdgeConfigV2Revision(input: {
       status: "published",
       checksumSha256,
       snapshot: canonicalTopology,
+      commissioningInstallationId: revisionLineage.commissioningInstallationId,
+      sourceReportVersion: revisionLineage.sourceReportVersion,
+      sourceReportChecksumSha256: revisionLineage.sourceReportChecksumSha256,
       createdByActorId: input.createdByActorId ?? null,
       publishedAt,
     })

@@ -258,6 +258,48 @@ test("three local NVRs can be stored and listed", async () => {
   assert.equal(listed.length, 3)
 })
 
+test("duplicate active NVR endpoints are rejected while alternate ports remain valid", async () => {
+  const { manager } = await createTestStack()
+  const first = await manager.createNvr({
+    label: "Primary",
+    vendor: "vigi",
+    host: "NVR.LOCAL",
+    rtspPort: 554,
+    username: "playtt_edge",
+    password: "primary-secret",
+    testChannelKey: "1",
+  })
+
+  await assert.rejects(
+    manager.createNvr({
+      label: "Duplicate",
+      vendor: "vigi",
+      host: "nvr.local",
+      rtspPort: 554,
+      username: "playtt_edge",
+      password: "duplicate-secret",
+      testChannelKey: "1",
+    }),
+    (error) => error?.code === "duplicate_endpoint",
+  )
+
+  const alternate = await manager.createNvr({
+    label: "Alternate port",
+    vendor: "vigi",
+    host: "nvr.local",
+    rtspPort: 8554,
+    username: "playtt_edge",
+    password: "alternate-secret",
+    testChannelKey: "1",
+  })
+  assert.equal(alternate.rtspPort, 8554)
+
+  await assert.rejects(
+    manager.updateNvr(alternate.id, { rtspPort: first.rtspPort }),
+    (error) => error?.code === "duplicate_endpoint",
+  )
+})
+
 test("runtime RTSP map resolves from local connection key", async () => {
   const { manager } = await createTestStack()
   const created = await manager.createNvr({
