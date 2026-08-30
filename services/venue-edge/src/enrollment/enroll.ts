@@ -76,7 +76,7 @@ export async function enrollVenueEdge(
     )
   }
 
-  const installationUid = resolveInstallationUid(metadata?.installationUid)
+  const installationUid = resolveInstallationUid()
   const exchanged = await input.client.exchangeEnrollment({
     pairingCode: input.pairingCode,
     installationUid,

@@ -1,5 +1,4 @@
-import { createHash } from "node:crypto"
-import { mkdir, readFile } from "node:fs/promises"
+import { mkdir } from "node:fs/promises"
 import { join } from "node:path"
 
 import { commandMatchesActiveConfig } from "../cameras/source"
@@ -833,21 +832,6 @@ export class ReplayOrchestrator {
     this.deps.repositories.updateReplayJob(payload.replayRequestId, {
       uploadGrant: grant,
     })
-
-    if (this.deps.env.mode === "simulate") {
-      const body = await readFile(job.localClipPath)
-      const checksumSha256 = createHash("sha256").update(body).digest("hex")
-      this.uploadResults.set(payload.replayRequestId, {
-        checksumSha256,
-        bytesUploaded: body.byteLength,
-        etag: null,
-      })
-      safeLog("info", "Simulator upload skipped (mock PUT)", {
-        replayRequestId: payload.replayRequestId,
-        bytes: body.byteLength,
-      })
-      return
-    }
 
     const uploaded = await uploadToPresignedUrl({
       grant,

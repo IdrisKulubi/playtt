@@ -3,7 +3,7 @@ import { existsSync, mkdirSync } from "node:fs"
 import { dirname } from "node:path"
 
 import type { EdgeConfigV2 } from "../cloud/config-v2"
-import type { EdgeV1Client } from "../cloud/client"
+import { EdgeProtocolError, type EdgeV1Client } from "../cloud/client"
 import type { NvrPasswordStore } from "../auth/nvr-secret-store"
 import type { CredentialManager } from "../auth/credential-manager"
 import type { EdgeRepositories } from "../local-storage/repositories"
@@ -69,6 +69,30 @@ export class CommissioningError extends Error {
     super(message)
     this.name = "CommissioningError"
   }
+}
+
+function rethrowAsCommissioningError(error: unknown, fallbackCode: string): never {
+  if (error instanceof CommissioningError) {
+    throw error
+  }
+  if (error instanceof EdgeProtocolError) {
+    throw new CommissioningError(
+      error.code.toLowerCase(),
+      error.message,
+    )
+  }
+  throw new CommissioningError(
+    fallbackCode,
+    error instanceof Error ? error.message : "Commissioning request failed.",
+  )
+}
+
+function nonemptyOrNull(value: string | null | undefined): string | null {
+  if (typeof value !== "string") {
+    return null
+  }
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
 }
 
 function scanForSecrets(value: unknown, path = "$"): void {
@@ -158,11 +182,14 @@ export class CommissioningManager {
     if (!allEnabledCamerasTested) {
       blockingReasons.push("Run tests on every enabled camera.")
     }
+    const recommendedReasons: string[] = []
     if (!allEnabledCamerasPreviewed) {
-      blockingReasons.push("Capture a 15-second preview for every enabled camera.")
+      recommendedReasons.push(
+        "Capture a 15-second preview for every enabled camera.",
+      )
     }
     if (!state.failoverReady) {
-      blockingReasons.push("Complete failover drills for mapped resources.")
+      recommendedReasons.push("Complete failover drills for mapped resources.")
     }
 
     const baseConfig = this.getEdgeConfigV2()
@@ -187,7 +214,9 @@ export class CommissioningManager {
     } else if (!state.publishedAt) {
       blockingReasons.push("Publish commissioning snapshot to PlayTT.")
     } else if (!configApplied) {
-      blockingReasons.push("Wait for the published cloud configuration to be applied locally.")
+      recommendedReasons.push(
+        "Cloud configuration will apply when PlayTT publishes it. You can lock setup now.",
+      )
     }
 
     const canComplete =
@@ -204,6 +233,7 @@ export class CommissioningManager {
       completed: state.completed,
       canComplete,
       blockingReasons,
+      recommendedReasons,
     }
   }
 
@@ -526,13 +556,27 @@ export class CommissioningManager {
       vendor: nvr.vendor,
       host: nvr.host,
       rtspPort: nvr.rtspPort,
-      playbackPort: nvr.playbackPort,
+      playbackPort: nvr.playbackPort ?? null,
       username: nvr.username,
       localConnectionKey: nvr.localConnectionKey,
       enabled: nvr.enabled,
       testChannelKey: nvr.testChannelKey,
       timeMode: nvr.timeMode,
-      lastTest: nvr.lastTest,
+      lastTest: nvr.lastTest
+        ? {
+            passed: nvr.lastTest.passed,
+            testedAt: nvr.lastTest.testedAt,
+            timeMode: nvr.lastTest.timeMode,
+            checks: nvr.lastTest.checks.map((check) => ({
+              check: check.check,
+              passed: check.passed,
+              message: check.message,
+              ...(nonemptyOrNull(check.code)
+                ? { code: check.code }
+                : {}),
+            })),
+          }
+        : null,
     }))
 
     const cameras = this.repositories.listLocalCameras().map((camera) => ({
@@ -543,7 +587,20 @@ export class CommissioningManager {
       streamProfile: camera.streamProfile,
       codec: camera.codec,
       enabled: camera.enabled,
-      lastTest: camera.lastTest,
+      lastTest: camera.lastTest
+        ? {
+            passed: camera.lastTest.passed,
+            testedAt: camera.lastTest.testedAt,
+            checks: camera.lastTest.checks.map((check) => ({
+              check: check.check,
+              passed: check.passed,
+              message: check.message,
+              ...(nonemptyOrNull(check.code)
+                ? { code: check.code }
+                : {}),
+            })),
+          }
+        : null,
       healthStatus:
         this.repositories.getSourceHealthBySourceId(camera.id)?.status ?? null,
     }))
@@ -569,9 +626,9 @@ export class CommissioningManager {
       sourceHealth: sourceHealth.map((row) => ({
         scope: row.scope,
         recorderId: row.recorderId,
-        sourceId: row.sourceId,
+        sourceId: nonemptyOrNull(row.sourceId),
         status: row.status,
-        reasonCode: row.reasonCode,
+        reasonCode: nonemptyOrNull(row.reasonCode),
         observedAt: row.observedAt,
       })),
     }
@@ -604,7 +661,11 @@ export class CommissioningManager {
 
     const reportVersion = this.repositories.getCommissioningState().reportVersion + 1
     const payload = this.buildRedactedPublishPayload(false, reportVersion)
-    await this.client.publishCommissioning(payload)
+    try {
+      await this.client.publishCommissioning(payload)
+    } catch (error) {
+      rethrowAsCommissioningError(error, "publish_failed")
+    }
 
     const publishedAt = new Date().toISOString()
     this.repositories.updateCommissioningState({ publishedAt, reportVersion })
@@ -629,7 +690,11 @@ export class CommissioningManager {
 
     const reportVersion = this.repositories.getCommissioningState().reportVersion + 1
     const payload = this.buildRedactedPublishPayload(true, reportVersion)
-    await this.client.publishCommissioning(payload)
+    try {
+      await this.client.publishCommissioning(payload)
+    } catch (error) {
+      rethrowAsCommissioningError(error, "publish_failed")
+    }
 
     const completedAt = new Date().toISOString()
     return this.repositories.updateCommissioningState({

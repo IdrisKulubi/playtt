@@ -105,6 +105,7 @@ See `services/venue-edge/README.md` for mode, env, and pairing details.
 
 - **`Cannot find package 'esbuild'` from `tsx`**: `node_modules` is incomplete or unlinked. From `services/venue-edge/`, delete `node_modules` and run `pnpm install` again. `tsx` needs a hoisted `esbuild` (see that package's `.npmrc`).
 - **`EPERM` during `pnpm install` on Windows**: stop any running `pnpm start` / `tsx` process in that folder, then retry install.
+- **Simulate/buffer** default to in-memory device secrets. Pairing is lost on restart unless `VENUE_EDGE_SECRET_STORE=dpapi`. Production still requires DPAPI.
 
 ## Typical dev session
 

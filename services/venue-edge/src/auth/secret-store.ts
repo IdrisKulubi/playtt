@@ -230,13 +230,19 @@ export function resolveSecretStoreMode(
     return "dpapi"
   }
 
+  if (explicit) {
+    throw new SecretStoreUnavailableError(
+      `Unknown VENUE_EDGE_SECRET_STORE=${explicit}. Use memory or dpapi.`,
+    )
+  }
+
+  // Local wizard / simulate / buffer: start without extra env. Pairing lives
+  // in process memory until restart. Production still requires DPAPI.
   if (mode === "production") {
     return "dpapi"
   }
 
-  throw new SecretStoreUnavailableError(
-    "Protected secret storage is not configured. Set VENUE_EDGE_SECRET_STORE=memory for non-production test runs.",
-  )
+  return "memory"
 }
 
 export function createProtectedSecretStore(input: {

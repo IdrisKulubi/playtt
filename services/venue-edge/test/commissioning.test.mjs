@@ -468,6 +468,76 @@ test("complete refused until checklist passes", async () => {
   stack.database.close()
 })
 
+test("15-second previews are recommended and do not block complete", async () => {
+  const stack = await createCommissioningStack({
+    probeRunner: createProbeScenario("ok"),
+    client: {
+      async publishCommissioning() {
+        return { publishedAt: new Date().toISOString() }
+      },
+    },
+  })
+  const nvr = await stack.nvrManager.createNvr({
+    label: "Preview NVR",
+    vendor: "vigi",
+    host: "192.168.10.80",
+    rtspPort: 554,
+    username: "playtt_edge",
+    password: "secret-value",
+    testChannelKey: "1",
+  })
+  const camera = await stack.cameraManager.createCamera({
+    nvrId: nvr.id,
+    channelKey: "1",
+    streamProfile: "main",
+  })
+  await stack.cameraManager.updateCamera(camera.id, { enabled: true })
+  await stack.commissioningManager.testCamera(camera.id)
+  stack.repositories.updateCommissioningState({
+    publishedAt: new Date().toISOString(),
+  })
+
+  const checklist = stack.commissioningManager.buildChecklist(true)
+  assert.equal(checklist.allEnabledCamerasPreviewed, false)
+  assert.equal(checklist.canComplete, true)
+  assert.ok(
+    checklist.recommendedReasons.some((reason) => /preview/i.test(reason)),
+  )
+  assert.equal(
+    checklist.blockingReasons.includes(
+      "Capture a 15-second preview for every enabled camera.",
+    ),
+    false,
+  )
+
+  const completed = await stack.commissioningManager.complete(true)
+  assert.equal(completed.completed, true)
+  stack.database.close()
+})
+
+test("publish surfaces cloud protocol errors", async () => {
+  const { EdgeProtocolError } = await import("../src/cloud/client.ts")
+  const stack = await createCommissioningStack({
+    client: {
+      async publishCommissioning() {
+        throw new EdgeProtocolError(
+          "VALIDATION_ERROR",
+          "nvrs.0.host: Invalid",
+          400,
+        )
+      },
+    },
+  })
+
+  await assert.rejects(
+    () => stack.commissioningManager.publish(true),
+    (error) =>
+      error instanceof CommissioningError &&
+      /nvrs\.0\.host/.test(error.message),
+  )
+  stack.database.close()
+})
+
 test("unpaired publish returns 409 through setup host", async () => {
   const stack = await createCommissioningStack({
     client: {
@@ -631,4 +701,15 @@ test("topology changes invalidate completed commissioning", async () => {
   assert.equal(state.completedAt, null)
   assert.equal(state.publishedAt, null)
   assert.equal(state.failoverReady, false)
+})
+
+test("setup wizard shows a spinner and does not require waiting for cloud config", () => {
+  const html = readFileSync(
+    new URL("../src/setup/html.ts", import.meta.url),
+    "utf8",
+  )
+  assert.match(html, /complete-spinner/)
+  assert.match(html, /setCompleteStatus/)
+  assert.match(html, /Publishing final snapshot to PlayTT/)
+  assert.match(html, /you can lock setup now/)
 })

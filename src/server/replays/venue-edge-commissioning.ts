@@ -68,6 +68,32 @@ export function assertSafeCommissioningPayload(
   scanCommissioningPayload(payload)
 }
 
+export function hashCommissioningReport(
+  payload: Record<string, unknown>,
+): string {
+  const report = { ...payload }
+  delete report.reportChecksumSha256
+  return createHash("sha256").update(JSON.stringify(report)).digest("hex")
+}
+
+export function assertCommissioningReportChecksum(
+  payload: Record<string, unknown>,
+): string {
+  const computedChecksum = hashCommissioningReport(payload)
+  const receivedChecksum =
+    typeof payload.reportChecksumSha256 === "string"
+      ? payload.reportChecksumSha256.toLowerCase()
+      : null
+  if (receivedChecksum && receivedChecksum !== computedChecksum) {
+    throw new DeviceError(
+      "CONFIG_CHECKSUM_MISMATCH",
+      "Commissioning report checksum does not match its payload.",
+      422,
+    )
+  }
+  return receivedChecksum ?? computedChecksum
+}
+
 export interface PublishedVenueEdgeCommissioning {
   publishedAt: string
   commissioned: boolean
@@ -99,22 +125,12 @@ export async function publishVenueEdgeCommissioning(input: {
     input.payload.reportVersion > 0
       ? input.payload.reportVersion
       : null
-  const reportForChecksum = { ...input.payload }
-  delete reportForChecksum.reportChecksumSha256
-  const computedChecksum = createHash("sha256")
-    .update(JSON.stringify(reportForChecksum))
-    .digest("hex")
   const receivedChecksum =
     typeof input.payload.reportChecksumSha256 === "string"
       ? input.payload.reportChecksumSha256.toLowerCase()
       : null
-  if (receivedChecksum && receivedChecksum !== computedChecksum) {
-    throw new DeviceError(
-      "CONFIG_CHECKSUM_MISMATCH",
-      "Commissioning report checksum does not match its payload.",
-      422,
-    )
-  }
+  const reportChecksumSha256 =
+    receivedChecksum ?? hashCommissioningReport(input.payload)
 
   const commissioned = input.payload.commissioned === true
 
@@ -185,7 +201,7 @@ export async function publishVenueEdgeCommissioning(input: {
       updatedAt: now,
       commissionedAt: commissioned ? now : null,
       lastReportVersion: reportVersion,
-      lastReportChecksumSha256: receivedChecksum ?? computedChecksum,
+      lastReportChecksumSha256: reportChecksumSha256,
       lastReportedAt: now,
     }
 

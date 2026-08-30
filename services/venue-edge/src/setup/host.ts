@@ -20,6 +20,7 @@ import {
   CommissioningError,
   type CommissioningManager,
 } from "./commissioning-manager"
+import { EdgeProtocolError } from "../cloud/client"
 import {
   checkSetupSecurity,
   extractSetupToken,
@@ -317,6 +318,21 @@ function jsonResponse(status: number, body: unknown): Response {
   })
 }
 
+function mapSetupHostError(error: unknown): Response {
+  if (error instanceof EdgeProtocolError) {
+    const status = error.status >= 400 ? error.status : 502
+    return jsonResponse(status, { error: error.message, code: error.code })
+  }
+  if (error instanceof CommissioningError) {
+    const status = error.code === "not_enrolled" ? 409 : 400
+    return jsonResponse(status, { error: error.message, code: error.code })
+  }
+  if (error instanceof Error && error.message) {
+    return jsonResponse(400, { error: error.message })
+  }
+  return jsonResponse(500, { error: "Internal setup host error." })
+}
+
 async function handleTopologyReviewRoutes(
   method: string,
   pathname: string,
@@ -593,15 +609,19 @@ export async function startSetupHost(
             enrollmentStatus,
           )
           if (commissioningResponse) {
-            if (
-              options.onConfigurationChanged &&
+            const applyAfterComplete =
+              Boolean(options.onConfigurationChanged) &&
               method === "POST" &&
               url.pathname === "/api/setup/commissioning/complete" &&
               commissioningResponse.ok
-            ) {
-              await options.onConfigurationChanged()
-            }
             await sendNodeResponse(res, commissioningResponse)
+            if (applyAfterComplete) {
+              void options.onConfigurationChanged!().catch((error) => {
+                safeLog("warn", "Post-commissioning config apply failed", {
+                  message: error instanceof Error ? error.message : String(error),
+                })
+              })
+            }
             return
           }
         } catch (error) {
@@ -611,6 +631,16 @@ export async function startSetupHost(
             await sendNodeResponse(
               res,
               jsonResponse(status, { error: error.message, code: error.code }),
+            )
+            return
+          }
+          if (error instanceof EdgeProtocolError) {
+            await sendNodeResponse(
+              res,
+              jsonResponse(error.status >= 400 ? error.status : 502, {
+                error: error.message,
+                code: error.code,
+              }),
             )
             return
           }
@@ -764,10 +794,7 @@ export async function startSetupHost(
       safeLog("error", "Setup host request failed", {
         message: error instanceof Error ? error.message : String(error),
       })
-      await sendNodeResponse(
-        res,
-        jsonResponse(500, { error: "Internal setup host error." }),
-      )
+      await sendNodeResponse(res, mapSetupHostError(error))
     }
   }
 

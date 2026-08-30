@@ -3,15 +3,28 @@ import { z } from "zod/v3"
 
 import { requireDeviceRequest } from "@/server/devices/auth"
 import { deviceJson, mapDeviceError } from "@/server/devices/http"
-import { publishVenueEdgeCommissioning } from "@/server/replays/venue-edge-commissioning"
+import {
+  assertCommissioningReportChecksum,
+  publishVenueEdgeCommissioning,
+} from "@/server/replays/venue-edge-commissioning"
 
 const boundedText = (max: number) => z.string().trim().min(1).max(max)
+const nullableBoundedText = (max: number) =>
+  z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+    boundedText(max).nullable(),
+  )
+const optionalBoundedText = (max: number) =>
+  z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    boundedText(max).optional(),
+  )
 const timestamp = z.string().max(50).datetime()
 const probeCheckSchema = z
   .object({
     check: boundedText(120),
     passed: z.boolean(),
-    code: boundedText(120).optional(),
+    code: optionalBoundedText(120),
     message: boundedText(1_000),
   })
   .strict()
@@ -87,7 +100,7 @@ const commissioningSchema = z
             resourceId: boundedText(160),
             label: boundedText(160),
             selectionMode: z.enum(["automatic", "manual"]),
-            manualSourceId: boundedText(160).nullable(),
+            manualSourceId: nullableBoundedText(160),
             failureThreshold: z.number().int().min(1).max(100),
             cooldownSeconds: z.number().int().min(0).max(86_400),
             healthyThreshold: z.number().int().min(1).max(100),
@@ -120,7 +133,7 @@ const commissioningSchema = z
           .object({
             scope: z.enum(["recorder", "source"]),
             recorderId: boundedText(160),
-            sourceId: boundedText(160).nullable(),
+            sourceId: nullableBoundedText(160),
             status: z.enum([
               "unknown",
               "healthy",
@@ -128,7 +141,7 @@ const commissioningSchema = z
               "unhealthy",
               "disabled",
             ]),
-            reasonCode: boundedText(160).nullable(),
+            reasonCode: nullableBoundedText(160),
             observedAt: timestamp,
           })
           .strict(),
@@ -140,7 +153,13 @@ const commissioningSchema = z
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireDeviceRequest(req)
-    const body = commissioningSchema.parse(await req.json())
+    const raw = await req.json()
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      throw new Error("Commissioning payload must be an object.")
+    }
+    const rawPayload = raw as Record<string, unknown>
+    assertCommissioningReportChecksum(rawPayload)
+    const body = commissioningSchema.parse(rawPayload)
 
     const result = await publishVenueEdgeCommissioning({
       tenantId: auth.device.tenantId,

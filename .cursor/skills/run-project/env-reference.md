@@ -115,6 +115,7 @@ commit authenticated RTSP URLs.
 | Variable | Default | Purpose |
 | -------- | ------- | ------- |
 | `VENUE_EDGE_MODE` | `simulate` | `simulate`, `buffer`, or `production` |
+| `VENUE_EDGE_SECRET_STORE` | `memory` unless mode is `production` | Optional `memory` or `dpapi`. Simulate/buffer start without this set. |
 | `VENUE_EDGE_SOURCE_RTSP_URLS_JSON` | `{}` | Local JSON map from source UUID to authenticated RTSP URL for multi-source buffering |
 | `RTSP_URL` | — | Legacy single-source URL; used only when exactly one buffering source is configured |
 | `VENUE_EDGE_MAX_BUFFER_PROCESSES` | `8` | FFmpeg rolling-buffer concurrency cap |

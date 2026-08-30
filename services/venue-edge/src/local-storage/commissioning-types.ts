@@ -29,4 +29,5 @@ export interface CommissioningChecklist {
   completed: boolean
   canComplete: boolean
   blockingReasons: string[]
+  recommendedReasons: string[]
 }
