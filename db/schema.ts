@@ -1871,6 +1871,87 @@ export const deviceCommandAcks = pgTable(
   ]
 )
 
+export const venueEdgeInstallations = pgTable(
+  "venue_edge_installations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
+    edgeDeviceId: uuid("edge_device_id").notNull(),
+    installationUid: uuid("installation_uid").notNull(),
+    displayName: text("display_name").notNull(),
+    platform: text("platform").notNull(),
+    architecture: text("architecture").notNull(),
+    currentAgentVersion: text("current_agent_version").notNull(),
+    desiredAgentVersion: text("desired_agent_version"),
+    updateChannel: text("update_channel").default("stable").notNull(),
+    installedAt: timestamp("installed_at", { withTimezone: true }).notNull(),
+    lastConfigAppliedAt: timestamp("last_config_applied_at", {
+      withTimezone: true,
+    }),
+    lastReportVersion: integer("last_report_version"),
+    lastReportChecksumSha256: text("last_report_checksum_sha256"),
+    lastReportedAt: timestamp("last_reported_at", { withTimezone: true }),
+    retiredAt: timestamp("retired_at", { withTimezone: true }),
+    commissionedAt: timestamp("commissioned_at", { withTimezone: true }),
+    commissioningSnapshotJson: jsonb("commissioning_snapshot_json").$type<
+      Record<string, unknown>
+    >(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("venue_edge_installations_tenant_id_unique").on(
+      table.tenantId,
+      table.id
+    ),
+    uniqueIndex("venue_edge_installations_tenant_location_id_unique").on(
+      table.tenantId,
+      table.locationId,
+      table.id
+    ),
+    uniqueIndex("venue_edge_installations_tenant_device_unique").on(
+      table.tenantId,
+      table.edgeDeviceId
+    ),
+    uniqueIndex("venue_edge_installations_tenant_uid_unique").on(
+      table.tenantId,
+      table.installationUid
+    ),
+    index("venue_edge_installations_location_channel_idx").on(
+      table.tenantId,
+      table.locationId,
+      table.updateChannel
+    ),
+    index("venue_edge_installations_location_active_idx")
+      .on(table.tenantId, table.locationId)
+      .where(sql`${table.retiredAt} is null`),
+    foreignKey({
+      columns: [table.tenantId, table.locationId, table.edgeDeviceId],
+      foreignColumns: [devices.tenantId, devices.locationId, devices.id],
+      name: "venue_edge_installations_tenant_location_device_fk",
+    }).onDelete("cascade"),
+    check(
+      "venue_edge_installations_report_version_positive",
+      sql`${table.lastReportVersion} is null or ${table.lastReportVersion} > 0`
+    ),
+    check(
+      "venue_edge_installations_report_lineage_consistent",
+      sql`(${table.lastReportVersion} is null and ${table.lastReportChecksumSha256} is null and ${table.lastReportedAt} is null) or (${table.lastReportVersion} is not null and coalesce(length(${table.lastReportChecksumSha256}), 0) > 0 and ${table.lastReportedAt} is not null)`
+    ),
+  ]
+)
+
 export const replayRecorders = pgTable(
   "replay_recorders",
   {
@@ -1882,6 +1963,11 @@ export const replayRecorders = pgTable(
     locationId: uuid("location_id")
       .notNull()
       .references(() => locations.id, { onDelete: "restrict" }),
+    installationId: uuid("installation_id"),
+    reportedVersion: integer("reported_version"),
+    reportChecksumSha256: text("report_checksum_sha256"),
+    lastReportedVersion: integer("last_reported_version"),
+    retiredAt: timestamp("retired_at", { withTimezone: true }),
     label: text("label").notNull(),
     vendor: text("vendor").notNull(),
     model: text("model"),
@@ -1922,6 +2008,18 @@ export const replayRecorders = pgTable(
       table.locationId,
       table.isEnabled
     ),
+    index("replay_recorders_installation_active_idx")
+      .on(table.tenantId, table.locationId, table.installationId)
+      .where(sql`${table.retiredAt} is null`),
+    foreignKey({
+      columns: [table.tenantId, table.locationId, table.installationId],
+      foreignColumns: [
+        venueEdgeInstallations.tenantId,
+        venueEdgeInstallations.locationId,
+        venueEdgeInstallations.id,
+      ],
+      name: "replay_recorders_tenant_location_installation_fk",
+    }).onDelete("restrict"),
     foreignKey({
       columns: [table.tenantId, table.locationId],
       foreignColumns: [locations.tenantId, locations.id],
@@ -1939,6 +2037,10 @@ export const replayRecorders = pgTable(
       "replay_recorders_host_not_credentialized",
       sql`${table.host} is null or position('@' in ${table.host}) = 0`
     ),
+    check(
+      "replay_recorders_report_lineage_valid",
+      sql`(${table.reportedVersion} is null or ${table.reportedVersion} > 0) and (${table.lastReportedVersion} is null or ${table.lastReportedVersion} > 0) and (${table.reportedVersion} is null or ${table.lastReportedVersion} is null or ${table.lastReportedVersion} >= ${table.reportedVersion}) and (${table.reportChecksumSha256} is null or length(${table.reportChecksumSha256}) > 0)`
+    ),
   ]
 )
 
@@ -1953,6 +2055,11 @@ export const replayCameraSources = pgTable(
     locationId: uuid("location_id")
       .notNull()
       .references(() => locations.id, { onDelete: "restrict" }),
+    installationId: uuid("installation_id"),
+    reportedVersion: integer("reported_version"),
+    reportChecksumSha256: text("report_checksum_sha256"),
+    lastReportedVersion: integer("last_reported_version"),
+    retiredAt: timestamp("retired_at", { withTimezone: true }),
     recorderId: uuid("recorder_id").notNull(),
     cameraDeviceId: uuid("camera_device_id"),
     channelKey: text("channel_key").notNull(),
@@ -2003,6 +2110,18 @@ export const replayCameraSources = pgTable(
       table.locationId,
       table.isEnabled
     ),
+    index("replay_camera_sources_installation_active_idx")
+      .on(table.tenantId, table.locationId, table.installationId)
+      .where(sql`${table.retiredAt} is null`),
+    foreignKey({
+      columns: [table.tenantId, table.locationId, table.installationId],
+      foreignColumns: [
+        venueEdgeInstallations.tenantId,
+        venueEdgeInstallations.locationId,
+        venueEdgeInstallations.id,
+      ],
+      name: "replay_camera_sources_tenant_location_installation_fk",
+    }).onDelete("restrict"),
     foreignKey({
       columns: [table.tenantId, table.locationId, table.recorderId],
       foreignColumns: [
@@ -2021,6 +2140,10 @@ export const replayCameraSources = pgTable(
       "replay_camera_sources_live_path_relative",
       sql`${table.liveStreamPath} is null or position('://' in ${table.liveStreamPath}) = 0`
     ),
+    check(
+      "replay_camera_sources_report_lineage_valid",
+      sql`(${table.reportedVersion} is null or ${table.reportedVersion} > 0) and (${table.lastReportedVersion} is null or ${table.lastReportedVersion} > 0) and (${table.reportedVersion} is null or ${table.lastReportedVersion} is null or ${table.lastReportedVersion} >= ${table.reportedVersion}) and (${table.reportChecksumSha256} is null or length(${table.reportChecksumSha256}) > 0)`
+    ),
   ]
 )
 
@@ -2035,6 +2158,11 @@ export const replaySourceRoutes = pgTable(
     locationId: uuid("location_id")
       .notNull()
       .references(() => locations.id, { onDelete: "restrict" }),
+    installationId: uuid("installation_id"),
+    reportedVersion: integer("reported_version"),
+    reportChecksumSha256: text("report_checksum_sha256"),
+    lastReportedVersion: integer("last_reported_version"),
+    retiredAt: timestamp("retired_at", { withTimezone: true }),
     resourceId: uuid("resource_id").notNull(),
     cameraSourceId: uuid("camera_source_id").notNull(),
     priority: integer("priority").notNull(),
@@ -2088,6 +2216,18 @@ export const replaySourceRoutes = pgTable(
       table.resourceId,
       table.isEnabled
     ),
+    index("replay_source_routes_installation_active_idx")
+      .on(table.tenantId, table.locationId, table.installationId)
+      .where(sql`${table.retiredAt} is null`),
+    foreignKey({
+      columns: [table.tenantId, table.locationId, table.installationId],
+      foreignColumns: [
+        venueEdgeInstallations.tenantId,
+        venueEdgeInstallations.locationId,
+        venueEdgeInstallations.id,
+      ],
+      name: "replay_source_routes_tenant_location_installation_fk",
+    }).onDelete("restrict"),
     foreignKey({
       columns: [table.tenantId, table.locationId],
       foreignColumns: [locations.tenantId, locations.id],
@@ -2112,6 +2252,10 @@ export const replaySourceRoutes = pgTable(
       "replay_source_routes_capture_modes_nonempty",
       sql`cardinality(${table.captureModes}) > 0`
     ),
+    check(
+      "replay_source_routes_report_lineage_valid",
+      sql`(${table.reportedVersion} is null or ${table.reportedVersion} > 0) and (${table.lastReportedVersion} is null or ${table.lastReportedVersion} > 0) and (${table.reportedVersion} is null or ${table.lastReportedVersion} is null or ${table.lastReportedVersion} >= ${table.reportedVersion}) and (${table.reportChecksumSha256} is null or length(${table.reportChecksumSha256}) > 0)`
+    ),
   ]
 )
 
@@ -2126,6 +2270,11 @@ export const replaySourcePolicies = pgTable(
     locationId: uuid("location_id")
       .notNull()
       .references(() => locations.id, { onDelete: "restrict" }),
+    installationId: uuid("installation_id"),
+    reportedVersion: integer("reported_version"),
+    reportChecksumSha256: text("report_checksum_sha256"),
+    lastReportedVersion: integer("last_reported_version"),
+    retiredAt: timestamp("retired_at", { withTimezone: true }),
     resourceId: uuid("resource_id").notNull(),
     selectionMode: replaySourceSelectionModeEnum("selection_mode")
       .default("automatic")
@@ -2163,6 +2312,18 @@ export const replaySourcePolicies = pgTable(
       table.locationId,
       table.selectionMode
     ),
+    index("replay_source_policies_installation_active_idx")
+      .on(table.tenantId, table.locationId, table.installationId)
+      .where(sql`${table.retiredAt} is null`),
+    foreignKey({
+      columns: [table.tenantId, table.locationId, table.installationId],
+      foreignColumns: [
+        venueEdgeInstallations.tenantId,
+        venueEdgeInstallations.locationId,
+        venueEdgeInstallations.id,
+      ],
+      name: "replay_source_policies_tenant_location_installation_fk",
+    }).onDelete("restrict"),
     foreignKey({
       columns: [table.tenantId, table.locationId, table.resourceId],
       foreignColumns: [resources.tenantId, resources.locationId, resources.id],
@@ -2194,6 +2355,10 @@ export const replaySourcePolicies = pgTable(
     check(
       "replay_source_policies_cooldown_nonnegative",
       sql`${table.cooldownSeconds} >= 0`
+    ),
+    check(
+      "replay_source_policies_report_lineage_valid",
+      sql`(${table.reportedVersion} is null or ${table.reportedVersion} > 0) and (${table.lastReportedVersion} is null or ${table.lastReportedVersion} > 0) and (${table.reportedVersion} is null or ${table.lastReportedVersion} is null or ${table.lastReportedVersion} >= ${table.reportedVersion}) and (${table.reportChecksumSha256} is null or length(${table.reportChecksumSha256}) > 0)`
     ),
   ]
 )
@@ -2263,67 +2428,6 @@ export const venueEdgeSecretRefs = pgTable(
       "venue_edge_secret_refs_credential_version_positive",
       sql`${table.credentialVersion} > 0`
     ),
-  ]
-)
-
-export const venueEdgeInstallations = pgTable(
-  "venue_edge_installations",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    tenantId: uuid("tenant_id")
-      .notNull()
-      .default(PLAYTT_TENANT_ID)
-      .references(() => tenants.id, { onDelete: "restrict" }),
-    locationId: uuid("location_id")
-      .notNull()
-      .references(() => locations.id, { onDelete: "restrict" }),
-    edgeDeviceId: uuid("edge_device_id").notNull(),
-    installationUid: uuid("installation_uid").notNull(),
-    displayName: text("display_name").notNull(),
-    platform: text("platform").notNull(),
-    architecture: text("architecture").notNull(),
-    currentAgentVersion: text("current_agent_version").notNull(),
-    desiredAgentVersion: text("desired_agent_version"),
-    updateChannel: text("update_channel").default("stable").notNull(),
-    installedAt: timestamp("installed_at", { withTimezone: true }).notNull(),
-    lastConfigAppliedAt: timestamp("last_config_applied_at", {
-      withTimezone: true,
-    }),
-    commissionedAt: timestamp("commissioned_at", { withTimezone: true }),
-    commissioningSnapshotJson: jsonb("commissioning_snapshot_json").$type<
-      Record<string, unknown>
-    >(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .defaultNow()
-      .$onUpdate(() => new Date())
-      .notNull(),
-  },
-  (table) => [
-    uniqueIndex("venue_edge_installations_tenant_id_unique").on(
-      table.tenantId,
-      table.id
-    ),
-    uniqueIndex("venue_edge_installations_tenant_device_unique").on(
-      table.tenantId,
-      table.edgeDeviceId
-    ),
-    uniqueIndex("venue_edge_installations_tenant_uid_unique").on(
-      table.tenantId,
-      table.installationUid
-    ),
-    index("venue_edge_installations_location_channel_idx").on(
-      table.tenantId,
-      table.locationId,
-      table.updateChannel
-    ),
-    foreignKey({
-      columns: [table.tenantId, table.locationId, table.edgeDeviceId],
-      foreignColumns: [devices.tenantId, devices.locationId, devices.id],
-      name: "venue_edge_installations_tenant_location_device_fk",
-    }).onDelete("cascade"),
   ]
 )
 
@@ -2453,6 +2557,9 @@ export const venueEdgeConfigRevisions = pgTable(
     locationId: uuid("location_id")
       .notNull()
       .references(() => locations.id, { onDelete: "restrict" }),
+    commissioningInstallationId: uuid("commissioning_installation_id"),
+    sourceReportVersion: integer("source_report_version"),
+    sourceReportChecksumSha256: text("source_report_checksum_sha256"),
     version: integer("version").notNull(),
     status: venueEdgeConfigRevisionStatusEnum("status")
       .default("draft")
@@ -2491,6 +2598,25 @@ export const venueEdgeConfigRevisions = pgTable(
       table.locationId,
       table.status
     ),
+    index("venue_edge_config_revisions_commissioning_lineage_idx").on(
+      table.tenantId,
+      table.locationId,
+      table.commissioningInstallationId,
+      table.sourceReportVersion
+    ),
+    foreignKey({
+      columns: [
+        table.tenantId,
+        table.locationId,
+        table.commissioningInstallationId,
+      ],
+      foreignColumns: [
+        venueEdgeInstallations.tenantId,
+        venueEdgeInstallations.locationId,
+        venueEdgeInstallations.id,
+      ],
+      name: "venue_edge_config_revisions_commissioning_installation_fk",
+    }).onDelete("restrict"),
     foreignKey({
       columns: [table.tenantId, table.locationId],
       foreignColumns: [locations.tenantId, locations.id],
@@ -2503,6 +2629,10 @@ export const venueEdgeConfigRevisions = pgTable(
     check(
       "venue_edge_config_revisions_checksum_present",
       sql`length(${table.checksumSha256}) > 0`
+    ),
+    check(
+      "venue_edge_config_revisions_report_lineage_consistent",
+      sql`(${table.commissioningInstallationId} is null and ${table.sourceReportVersion} is null and ${table.sourceReportChecksumSha256} is null) or (${table.commissioningInstallationId} is not null and ${table.sourceReportVersion} > 0 and coalesce(length(${table.sourceReportChecksumSha256}), 0) > 0)`
     ),
   ]
 )
@@ -4702,6 +4832,10 @@ export const replayRecorderRelations = relations(
       fields: [replayRecorders.locationId],
       references: [locations.id],
     }),
+    installation: one(venueEdgeInstallations, {
+      fields: [replayRecorders.installationId],
+      references: [venueEdgeInstallations.id],
+    }),
     cameraSources: many(replayCameraSources),
     secretRefs: many(venueEdgeSecretRefs),
     health: many(replaySourceHealth),
@@ -4719,6 +4853,10 @@ export const replayCameraSourceRelations = relations(
     location: one(locations, {
       fields: [replayCameraSources.locationId],
       references: [locations.id],
+    }),
+    installation: one(venueEdgeInstallations, {
+      fields: [replayCameraSources.installationId],
+      references: [venueEdgeInstallations.id],
     }),
     recorder: one(replayRecorders, {
       fields: [replayCameraSources.recorderId],
@@ -4746,6 +4884,10 @@ export const replaySourceRouteRelations = relations(
       fields: [replaySourceRoutes.locationId],
       references: [locations.id],
     }),
+    installation: one(venueEdgeInstallations, {
+      fields: [replaySourceRoutes.installationId],
+      references: [venueEdgeInstallations.id],
+    }),
     resource: one(resources, {
       fields: [replaySourceRoutes.resourceId],
       references: [resources.id],
@@ -4768,6 +4910,10 @@ export const replaySourcePolicyRelations = relations(
     location: one(locations, {
       fields: [replaySourcePolicies.locationId],
       references: [locations.id],
+    }),
+    installation: one(venueEdgeInstallations, {
+      fields: [replaySourcePolicies.installationId],
+      references: [venueEdgeInstallations.id],
     }),
     resource: one(resources, {
       fields: [replaySourcePolicies.resourceId],
@@ -4818,6 +4964,11 @@ export const venueEdgeInstallationRelations = relations(
       references: [devices.id],
     }),
     pairingSessions: many(venueEdgePairingSessions),
+    recorders: many(replayRecorders),
+    cameraSources: many(replayCameraSources),
+    sourceRoutes: many(replaySourceRoutes),
+    sourcePolicies: many(replaySourcePolicies),
+    configRevisions: many(venueEdgeConfigRevisions),
   })
 )
 
@@ -4853,6 +5004,10 @@ export const venueEdgeConfigRevisionRelations = relations(
     location: one(locations, {
       fields: [venueEdgeConfigRevisions.locationId],
       references: [locations.id],
+    }),
+    commissioningInstallation: one(venueEdgeInstallations, {
+      fields: [venueEdgeConfigRevisions.commissioningInstallationId],
+      references: [venueEdgeInstallations.id],
     }),
     applications: many(venueEdgeConfigApplications),
     replayRequests: many(replayRequests),

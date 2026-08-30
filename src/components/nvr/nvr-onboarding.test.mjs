@@ -33,6 +33,7 @@ test("nvr onboarding page and installer metadata exist", () => {
   assert.match(panel, /pairingCode/)
   assert.match(fleetPanel, /installations/)
   assert.match(fleetPanel, /Refresh/)
+  assert.match(fleetPanel, /handleDeleteInstallation/)
   assert.doesNotMatch(panel, /deviceId|credentialVersion/)
   assert.match(metadata, /placeholder: true/)
   assert.match(sidebar, /\/nvr/)

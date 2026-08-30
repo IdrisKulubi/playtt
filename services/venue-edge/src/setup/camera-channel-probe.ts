@@ -4,6 +4,7 @@ import type { LocalCameraCodec } from "../local-storage/local-camera-types"
 export interface CameraChannelProbeResult {
   live: boolean
   codec: LocalCameraCodec
+  code?: "source_auth_failed" | "source_unavailable" | "probe_timed_out"
 }
 
 export interface CameraChannelProbeInput {
@@ -33,8 +34,28 @@ export class DefaultCameraChannelProbeRunner implements CameraChannelProbeRunner
     const codecProbe = await probeCodec(input.liveRtspUrl)
     const combined = codecProbe.raw
 
-    if (authFailed(combined) || combined.length === 0) {
-      return { live: false, codec: "unknown" }
+    if (authFailed(combined)) {
+      return {
+        live: false,
+        codec: "unknown",
+        code: "source_auth_failed",
+      }
+    }
+
+    if (codecProbe.timedOut || codecProbe.cancelled) {
+      return {
+        live: false,
+        codec: "unknown",
+        code: "probe_timed_out",
+      }
+    }
+
+    if (codecProbe.exitCode !== 0 || !codecProbe.codec) {
+      return {
+        live: false,
+        codec: "unknown",
+        code: "source_unavailable",
+      }
     }
 
     return {

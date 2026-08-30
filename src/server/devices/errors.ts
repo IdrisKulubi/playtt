@@ -13,6 +13,8 @@ export type DeviceErrorCode =
   | "CONFIG_VERSION_INVALID"
   | "CONFIG_NOT_READY"
   | "CONFIG_INVALID"
+  | "CONFIG_CHECKSUM_MISMATCH"
+  | "CONFIG_STALE"
   | "AGENT_VERSION_REQUIRED"
   | "AGENT_UPGRADE_REQUIRED"
   | "COMMAND_NOT_FOUND"
@@ -26,6 +28,7 @@ export type DeviceErrorCode =
   | "PAIRING_SESSION_INVALID"
   | "PAIRING_RATE_LIMITED"
   | "PAIRING_HEARTBEAT_REQUIRED"
+  | "DEVICE_IN_USE"
   | "VALIDATION_ERROR"
 
 export class DeviceError extends Error {

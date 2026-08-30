@@ -31,6 +31,39 @@ export type VenueEdgeFleetConnectivity =
   | "pending_setup"
   | "waiting_for_install"
 
+export type VenueEdgeLifecycleStage =
+  | "pair_device"
+  | "add_nvr"
+  | "review_cameras"
+  | "map_tables"
+  | "publish_config"
+  | "complete_commissioning"
+
+export interface VenueEdgeChecklistBlocker {
+  code: string
+  label: string
+  detail: string
+  stage: VenueEdgeLifecycleStage
+}
+
+export interface VenueEdgeTopologyState {
+  topology: TopologyCounts
+  observedAt: string | null
+  revisionId: string | null
+  revisionVersion: number | null
+  checksum: string | null
+}
+
+export interface VenueEdgeConfigDiagnostic {
+  code: string | null
+  staleReason: "version_not_newer" | "installation_mismatch" | null
+  localVersion: number | null
+  receivedVersion: number | null
+  localInstallationId: string | null
+  receivedInstallationId: string | null
+  remediation: string | null
+}
+
 export interface VenueEdgeInstallationFleetView {
   id: string
   locationId: string
@@ -59,6 +92,18 @@ export interface VenueEdgeInstallationFleetView {
   publishedConfigVersion: number | null
   configApplicationStatus: string | null
   reauthRequiredCount: number
+  lifecycleStage: VenueEdgeLifecycleStage
+  readiness: "ready" | "action_required"
+  nextAction: { label: string; detail: string; href: string }
+  checklistBlockers: VenueEdgeChecklistBlocker[]
+  reportedTopology: VenueEdgeTopologyState
+  desiredTopology: VenueEdgeTopologyState
+  appliedTopology: VenueEdgeTopologyState
+  topologyDrift: {
+    hasDrift: boolean
+    summary: string
+  }
+  configDiagnostic: VenueEdgeConfigDiagnostic | null
 }
 
 export interface VenueEdgeInstallationDetailView
@@ -80,6 +125,7 @@ export interface VenueEdgeInstallationDetailView
     attemptedAt: string
     appliedAt: string | null
     errorCode: string | null
+    diagnostic: VenueEdgeConfigDiagnostic | null
   } | null
   secretRefs: Array<{
     recorderId: string
@@ -95,6 +141,141 @@ export interface VenueEdgeInstallationDetailView
     status: string
     createdAt: string
   }>
+  recentConfigApplications: Array<{
+    id: string
+    revisionVersion: number
+    status: string
+    attemptedAt: string
+    appliedAt: string | null
+    errorCode: string | null
+  }>
+}
+
+function readSafeString(details: Record<string, unknown> | null, keys: string[]) {
+  for (const key of keys) {
+    const value = details?.[key]
+    if (typeof value === "string" && value.trim()) return value.trim()
+  }
+  return null
+}
+
+function readSafeNumber(details: Record<string, unknown> | null, keys: string[]) {
+  for (const key of keys) {
+    const value = details?.[key]
+    if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) {
+      return value
+    }
+  }
+  return null
+}
+
+function safeConfigDiagnostic(
+  errorCode: string | null,
+  errorDetails: Record<string, unknown> | null,
+): VenueEdgeConfigDiagnostic | null {
+  if (!errorCode) return null
+  const reason = readSafeString(errorDetails, ["reason", "staleReason"])
+  const staleReason =
+    reason === "version_not_newer" || reason === "installation_mismatch"
+      ? reason
+      : null
+  return {
+    code: errorCode,
+    staleReason,
+    localVersion: readSafeNumber(errorDetails, ["localVersion", "appliedVersion"]),
+    receivedVersion: readSafeNumber(errorDetails, ["receivedVersion", "revisionVersion"]),
+    localInstallationId: readSafeString(errorDetails, ["localInstallationId"]),
+    receivedInstallationId: readSafeString(errorDetails, ["receivedInstallationId"]),
+    remediation:
+      staleReason === "installation_mismatch"
+        ? "Reset the local installation cache or use Replace PC before publishing again."
+        : staleReason === "version_not_newer"
+          ? "Publish a revision newer than the version already stored on the venue PC."
+          : "Review the local VenueEdge logs, then retry configuration delivery.",
+  }
+}
+
+function countPublishedTopology(snapshot: Record<string, unknown> | null): TopologyCounts {
+  const recorders = Array.isArray(snapshot?.recorders) ? snapshot.recorders : []
+  const sources = Array.isArray(snapshot?.sources) ? snapshot.sources : []
+  return {
+    nvrCount: recorders.length,
+    cameraCount: sources.length,
+    enabledCameraCount: sources.filter(
+      (source) => source && typeof source === "object" && (source as { enabled?: unknown }).enabled === true,
+    ).length,
+  }
+}
+
+function deriveWorkflow(input: {
+  installationId: string
+  connectivity: VenueEdgeFleetConnectivity
+  commissioned: boolean
+  reported: VenueEdgeTopologyState
+  desired: VenueEdgeTopologyState
+  applied: VenueEdgeTopologyState
+  routeCount: number
+  sourceHealth: SourceHealthCounts
+  reauthRequiredCount: number
+  hostSleepRisk: boolean
+  configStatus: string | null
+  diagnostic: VenueEdgeConfigDiagnostic | null
+}) {
+  const blockers: VenueEdgeChecklistBlocker[] = []
+  if (input.connectivity === "pending_setup" || input.connectivity === "waiting_for_install") {
+    blockers.push({ code: "PAIR_DEVICE", label: "Pair the venue PC", detail: "Finish pairing before adding recorder details.", stage: "pair_device" })
+  }
+  if (input.reported.topology.nvrCount === 0) {
+    blockers.push({ code: "ADD_NVR", label: "Add an NVR", detail: "Open the local setup wizard and connect the venue recorder.", stage: "add_nvr" })
+  }
+  if (input.reported.topology.enabledCameraCount === 0) {
+    blockers.push({ code: "REVIEW_CAMERAS", label: "Review camera channels", detail: "Test and enable at least one real camera channel locally.", stage: "review_cameras" })
+  }
+  if (input.routeCount === 0) {
+    blockers.push({ code: "MAP_TABLES", label: "Map cameras to tables", detail: "Every replay table needs a primary camera route.", stage: "map_tables" })
+  }
+  const configReady =
+    input.desired.revisionVersion !== null &&
+    input.desired.revisionVersion === input.applied.revisionVersion &&
+    input.configStatus === "applied"
+  if (!configReady) {
+    blockers.push({
+      code: input.diagnostic?.code ?? "PUBLISH_CONFIG",
+      label: input.diagnostic?.staleReason ? "Recover configuration delivery" : "Publish and apply configuration",
+      detail: input.diagnostic?.remediation ?? "Publish the reviewed topology and wait for the venue PC to apply it.",
+      stage: "publish_config",
+    })
+  }
+  if (!input.commissioned) {
+    blockers.push({ code: "COMPLETE_COMMISSIONING", label: "Complete commissioning", detail: "Finish the local checks after configuration is applied.", stage: "complete_commissioning" })
+  }
+  if (input.reauthRequiredCount > 0) {
+    blockers.push({ code: "REENTER_CREDENTIALS", label: "Re-enter NVR credentials", detail: "Credentials are entered only in the local setup wizard.", stage: "add_nvr" })
+  }
+  if (input.hostSleepRisk) {
+    blockers.push({ code: "HOST_SLEEP_RISK", label: "Disable sleep on the venue PC", detail: "Sleep can interrupt replay capture and commissioning checks.", stage: "complete_commissioning" })
+  }
+
+  const next = blockers[0]
+  const lifecycleStage = next?.stage ?? "complete_commissioning"
+  return {
+    lifecycleStage,
+    readiness: blockers.length === 0 ? ("ready" as const) : ("action_required" as const),
+    checklistBlockers: blockers,
+    nextAction: {
+      label: next ? "Continue setup" : "View installation",
+      detail: next?.label ?? "VenueEdge is ready for replay capture.",
+      href: `/nvr/${input.installationId}#${lifecycleStage}`,
+    },
+    topologyDrift: {
+      hasDrift:
+        input.desired.revisionVersion !== input.applied.revisionVersion ||
+        JSON.stringify(input.reported.topology) !== JSON.stringify(input.desired.topology),
+      summary: configReady
+        ? "Desired configuration is applied on the venue PC."
+        : input.diagnostic?.remediation ?? "Local, desired, and applied topology are not yet aligned.",
+    },
+  }
 }
 
 function deriveConnectivity(input: {
@@ -184,6 +365,7 @@ async function loadPublishedConfigSummary(
       id: venueEdgeConfigRevisions.id,
       version: venueEdgeConfigRevisions.version,
       checksumSha256: venueEdgeConfigRevisions.checksumSha256,
+      snapshot: venueEdgeConfigRevisions.snapshot,
       publishedAt: venueEdgeConfigRevisions.publishedAt,
     })
     .from(venueEdgeConfigRevisions)
@@ -210,6 +392,8 @@ async function loadLastAppliedConfigRevision(
       revisionId: venueEdgeConfigApplications.configRevisionId,
       appliedAt: venueEdgeConfigApplications.appliedAt,
       version: venueEdgeConfigRevisions.version,
+      checksum: venueEdgeConfigRevisions.checksumSha256,
+      snapshot: venueEdgeConfigRevisions.snapshot,
     })
     .from(venueEdgeConfigApplications)
     .innerJoin(
@@ -243,6 +427,8 @@ async function loadLastAppliedConfigRevision(
   return {
     id: application.revisionId,
     version: application.version,
+    checksum: application.checksum,
+    snapshot: application.snapshot,
     appliedAt: application.appliedAt.toISOString(),
   }
 }
@@ -258,6 +444,7 @@ async function loadLatestConfigApplication(
       attemptedAt: venueEdgeConfigApplications.attemptedAt,
       appliedAt: venueEdgeConfigApplications.appliedAt,
       errorCode: venueEdgeConfigApplications.errorCode,
+      errorDetails: venueEdgeConfigApplications.errorDetails,
     })
     .from(venueEdgeConfigApplications)
     .where(
@@ -330,6 +517,11 @@ export async function listVenueEdgeInstallations(
       locationId,
       row.installation.edgeDeviceId,
     )
+    const lastAppliedRevision = await loadLastAppliedConfigRevision(
+      context.tenantId,
+      locationId,
+      row.installation.edgeDeviceId,
+    )
 
     const secretRefs = await db
       .select({ status: venueEdgeSecretRefs.status })
@@ -341,6 +533,49 @@ export async function listVenueEdgeInstallations(
           eq(venueEdgeSecretRefs.edgeDeviceId, row.installation.edgeDeviceId),
         ),
       )
+
+    const reportedTopology: VenueEdgeTopologyState = {
+      topology,
+      observedAt: commissioningSnapshot?.publishedAt ?? row.installation.updatedAt.toISOString(),
+      revisionId: null,
+      revisionVersion: null,
+      checksum: null,
+    }
+    const desiredTopology: VenueEdgeTopologyState = {
+      topology: countPublishedTopology(publishedRevision?.snapshot ?? null),
+      observedAt: publishedRevision?.publishedAt?.toISOString() ?? null,
+      revisionId: publishedRevision?.id ?? null,
+      revisionVersion: publishedRevision?.version ?? null,
+      checksum: publishedRevision?.checksumSha256 ?? null,
+    }
+    const appliedTopology: VenueEdgeTopologyState = {
+      topology: countPublishedTopology(lastAppliedRevision?.snapshot ?? null),
+      observedAt: lastAppliedRevision?.appliedAt ?? null,
+      revisionId: lastAppliedRevision?.id ?? null,
+      revisionVersion: lastAppliedRevision?.version ?? null,
+      checksum: lastAppliedRevision?.checksum ?? null,
+    }
+    const routeCount = commissioningSnapshot?.resourceRoutes?.filter(
+      (route) => route.enabled !== false,
+    ).length ?? 0
+    const configDiagnostic = safeConfigDiagnostic(
+      configApplication?.errorCode ?? null,
+      configApplication?.errorDetails ?? null,
+    )
+    const workflow = deriveWorkflow({
+      installationId: row.installation.id,
+      connectivity: deriveConnectivity({ deviceStatus: row.device.status, lastHeartbeatAt: row.device.lastHeartbeatAt }),
+      commissioned: Boolean(row.installation.commissionedAt),
+      reported: reportedTopology,
+      desired: desiredTopology,
+      applied: appliedTopology,
+      routeCount,
+      sourceHealth,
+      reauthRequiredCount: secretRefs.filter((ref) => ref.status === "reauth_required").length,
+      hostSleepRisk: sleepRisk.hostSleepRisk,
+      configStatus: configApplication?.status ?? null,
+      diagnostic: configDiagnostic,
+    })
 
     const view: VenueEdgeInstallationFleetView = {
       id: row.installation.id,
@@ -378,6 +613,11 @@ export async function listVenueEdgeInstallations(
       reauthRequiredCount: secretRefs.filter(
         (ref) => ref.status === "reauth_required",
       ).length,
+      ...workflow,
+      reportedTopology,
+      desiredTopology,
+      appliedTopology,
+      configDiagnostic,
     }
 
     installations.push(view)
@@ -509,6 +749,33 @@ export async function getVenueEdgeInstallationDetail(
     .orderBy(desc(replayCaptureAttempts.createdAt))
     .limit(20)
 
+  const recentApplications = await db
+    .select({
+      id: venueEdgeConfigApplications.id,
+      revisionVersion: venueEdgeConfigRevisions.version,
+      status: venueEdgeConfigApplications.status,
+      attemptedAt: venueEdgeConfigApplications.attemptedAt,
+      appliedAt: venueEdgeConfigApplications.appliedAt,
+      errorCode: venueEdgeConfigApplications.errorCode,
+    })
+    .from(venueEdgeConfigApplications)
+    .innerJoin(
+      venueEdgeConfigRevisions,
+      and(
+        eq(venueEdgeConfigRevisions.tenantId, venueEdgeConfigApplications.tenantId),
+        eq(venueEdgeConfigRevisions.id, venueEdgeConfigApplications.configRevisionId),
+      ),
+    )
+    .where(
+      and(
+        eq(venueEdgeConfigApplications.tenantId, context.tenantId),
+        eq(venueEdgeConfigApplications.locationId, row.installation.locationId),
+        eq(venueEdgeConfigApplications.edgeDeviceId, row.installation.edgeDeviceId),
+      ),
+    )
+    .orderBy(desc(venueEdgeConfigApplications.attemptedAt))
+    .limit(12)
+
   return {
     ...summary,
     commissioningSnapshot,
@@ -526,6 +793,10 @@ export async function getVenueEdgeInstallationDetail(
           attemptedAt: configApplication.attemptedAt.toISOString(),
           appliedAt: configApplication.appliedAt?.toISOString() ?? null,
           errorCode: configApplication.errorCode ?? null,
+          diagnostic: safeConfigDiagnostic(
+            configApplication.errorCode ?? null,
+            configApplication.errorDetails ?? null,
+          ),
         }
       : null,
     lastAppliedConfigRevision: lastAppliedRevision,
@@ -537,6 +808,14 @@ export async function getVenueEdgeInstallationDetail(
       captureMode: attempt.captureMode,
       status: attempt.status,
       createdAt: attempt.createdAt.toISOString(),
+    })),
+    recentConfigApplications: recentApplications.map((application) => ({
+      id: application.id,
+      revisionVersion: application.revisionVersion,
+      status: application.status,
+      attemptedAt: application.attemptedAt.toISOString(),
+      appliedAt: application.appliedAt?.toISOString() ?? null,
+      errorCode: application.errorCode ?? null,
     })),
   }
 }

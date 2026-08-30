@@ -10,6 +10,7 @@ import {
   devices,
   venueEdgeInstallations,
   venueEdgePairingSessions,
+  venueEdgeSecretRefs,
 } from "@/db/schema"
 import type { AuthenticatedDevice } from "@/server/devices/auth"
 import {
@@ -237,20 +238,83 @@ export async function exchangeVenueEdgeEnrollment(input: {
       configVersion: 1,
     })
 
-    const [installation] = await tx
-      .insert(venueEdgeInstallations)
-      .values({
-        tenantId: session.tenantId,
-        locationId: session.locationId,
-        edgeDeviceId: deviceId,
-        installationUid: input.installationUid,
-        displayName,
-        platform: input.platform,
-        architecture: input.architecture,
-        currentAgentVersion: input.agentVersion,
-        installedAt: now,
-      })
-      .returning({ id: venueEdgeInstallations.id })
+    const [replacementTarget] = session.replaceInstallationId
+      ? await tx
+          .select({ edgeDeviceId: venueEdgeInstallations.edgeDeviceId })
+          .from(venueEdgeInstallations)
+          .where(
+            and(
+              eq(venueEdgeInstallations.id, session.replaceInstallationId),
+              eq(venueEdgeInstallations.tenantId, session.tenantId),
+              eq(venueEdgeInstallations.locationId, session.locationId),
+            ),
+          )
+          .limit(1)
+      : []
+
+    const [installation] = session.replaceInstallationId
+      ? await tx
+          .update(venueEdgeInstallations)
+          .set({
+            edgeDeviceId: deviceId,
+            installationUid: input.installationUid,
+            platform: input.platform,
+            architecture: input.architecture,
+            currentAgentVersion: input.agentVersion,
+            installedAt: now,
+            commissionedAt: null,
+            lastConfigAppliedAt: null,
+            commissioningSnapshotJson: null,
+            lastReportVersion: null,
+            lastReportChecksumSha256: null,
+            lastReportedAt: null,
+            retiredAt: null,
+            updatedAt: now,
+          })
+          .where(
+            and(
+              eq(venueEdgeInstallations.id, session.replaceInstallationId),
+              eq(venueEdgeInstallations.tenantId, session.tenantId),
+              eq(venueEdgeInstallations.locationId, session.locationId),
+            ),
+          )
+          .returning({ id: venueEdgeInstallations.id })
+      : await tx
+          .insert(venueEdgeInstallations)
+          .values({
+            tenantId: session.tenantId,
+            locationId: session.locationId,
+            edgeDeviceId: deviceId,
+            installationUid: input.installationUid,
+            displayName,
+            platform: input.platform,
+            architecture: input.architecture,
+            currentAgentVersion: input.agentVersion,
+            installedAt: now,
+          })
+          .returning({ id: venueEdgeInstallations.id })
+
+    if (!installation) {
+      throw new DeviceError("CONFIG_NOT_READY", "The replacement installation is no longer available.", 409)
+    }
+
+    if (session.replaceInstallationId) {
+      if (replacementTarget?.edgeDeviceId) {
+        await tx
+          .update(venueEdgeSecretRefs)
+          .set({ status: "revoked", revokedAt: now, updatedAt: now })
+          .where(
+            and(
+              eq(venueEdgeSecretRefs.tenantId, session.tenantId),
+              eq(venueEdgeSecretRefs.edgeDeviceId, replacementTarget.edgeDeviceId),
+              eq(venueEdgeSecretRefs.status, "active"),
+            ),
+          )
+        if (replacementTarget.edgeDeviceId !== deviceId) {
+          await revokeDeviceInTransaction(tx, session.tenantId, replacementTarget.edgeDeviceId, now)
+        }
+      }
+    }
 
     installationId = installation.id
 

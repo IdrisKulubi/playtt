@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { existsSync, mkdirSync } from "node:fs"
 import { dirname } from "node:path"
 
@@ -165,6 +166,11 @@ export class CommissioningManager {
     }
 
     const baseConfig = this.getEdgeConfigV2()
+    const configApplied = Boolean(
+      baseConfig &&
+        state.publishedAt &&
+        Date.parse(baseConfig.configRevision.publishedAt) >= Date.parse(state.publishedAt),
+    )
     if (baseConfig) {
       for (const resource of baseConfig.resources.filter((r) => r.enabled)) {
         const routes = this.repositories.listLocalResourceRoutes(
@@ -180,6 +186,8 @@ export class CommissioningManager {
       blockingReasons.push("Pair VenueEdge with PlayTT before commissioning.")
     } else if (!state.publishedAt) {
       blockingReasons.push("Publish commissioning snapshot to PlayTT.")
+    } else if (!configApplied) {
+      blockingReasons.push("Wait for the published cloud configuration to be applied locally.")
     }
 
     const canComplete =
@@ -192,6 +200,7 @@ export class CommissioningManager {
       allEnabledCamerasPreviewed,
       failoverReady: state.failoverReady,
       published: Boolean(state.publishedAt),
+      configApplied,
       completed: state.completed,
       canComplete,
       blockingReasons,
@@ -507,7 +516,10 @@ export class CommissioningManager {
     this.repositories.updateCommissioningState({ failoverReady: allReady })
   }
 
-  buildRedactedPublishPayload(commissioned: boolean): Record<string, unknown> {
+  buildRedactedPublishPayload(
+    commissioned: boolean,
+    reportVersion = this.repositories.getCommissioningState().reportVersion + 1,
+  ): Record<string, unknown> {
     const nvrs = this.repositories.listLocalNvrs().map((nvr) => ({
       id: nvr.id,
       label: nvr.label,
@@ -540,9 +552,10 @@ export class CommissioningManager {
     const resourceRoutes = this.repositories.listAllLocalResourceRoutes()
     const sourceHealth = this.repositories.listAllSourceHealth()
 
-    const payload = {
+    const report = {
       commissioned,
       publishedAt: new Date().toISOString(),
+      reportVersion,
       nvrs,
       cameras,
       resourcePolicies,
@@ -561,6 +574,13 @@ export class CommissioningManager {
         reasonCode: row.reasonCode,
         observedAt: row.observedAt,
       })),
+    }
+
+    const payload = {
+      ...report,
+      reportChecksumSha256: createHash("sha256")
+        .update(JSON.stringify(report))
+        .digest("hex"),
     }
 
     scanForSecrets(payload)
@@ -582,11 +602,12 @@ export class CommissioningManager {
       )
     }
 
-    const payload = this.buildRedactedPublishPayload(false)
+    const reportVersion = this.repositories.getCommissioningState().reportVersion + 1
+    const payload = this.buildRedactedPublishPayload(false, reportVersion)
     await this.client.publishCommissioning(payload)
 
     const publishedAt = new Date().toISOString()
-    this.repositories.updateCommissioningState({ publishedAt })
+    this.repositories.updateCommissioningState({ publishedAt, reportVersion })
     return { publishedAt }
   }
 
@@ -606,7 +627,8 @@ export class CommissioningManager {
       )
     }
 
-    const payload = this.buildRedactedPublishPayload(true)
+    const reportVersion = this.repositories.getCommissioningState().reportVersion + 1
+    const payload = this.buildRedactedPublishPayload(true, reportVersion)
     await this.client.publishCommissioning(payload)
 
     const completedAt = new Date().toISOString()
@@ -614,6 +636,7 @@ export class CommissioningManager {
       completed: true,
       completedAt,
       publishedAt: completedAt,
+      reportVersion,
       lastError: null,
     })
   }

@@ -4,13 +4,25 @@ import { and, asc, desc, eq, gt, inArray, isNull, lt, lte, or } from "drizzle-or
 
 import db from "@/db/drizzle"
 import {
+  accessCredentials,
   deviceAssignments,
+  deviceCommandAcks,
+  deviceCommands,
   deviceCredentials,
   deviceEnrollments,
+  deviceHeartbeats,
   devices,
   locations,
+  relayChannels,
+  replayCameraSources,
+  replayRequests,
   resourceCapabilities,
   resources,
+  scoreEvents,
+  ttlockGateways,
+  ttlockLocks,
+  venueEdgeInstallations,
+  venueEdgePairingSessions,
 } from "@/db/schema"
 import type {
   deviceAssignmentRoleEnum,
@@ -664,6 +676,301 @@ export async function revokeDevice(
     )
 
   return mapDevice(device)
+}
+
+export async function deleteDevice(
+  context: TenantContext,
+  deviceId: string
+): Promise<{ id: string; hardwareUid: string }> {
+  return db.transaction(async (tx) => {
+    const [device] = await tx
+      .select({
+        id: devices.id,
+        hardwareUid: devices.hardwareUid,
+      })
+      .from(devices)
+      .where(
+        and(eq(devices.tenantId, context.tenantId), eq(devices.id, deviceId))
+      )
+      .limit(1)
+
+    if (!device) {
+      throw new DeviceError("DEVICE_NOT_FOUND", "Device not found.", 404)
+    }
+
+    const [scoreEvent] = await tx
+      .select({ id: scoreEvents.id })
+      .from(scoreEvents)
+      .where(eq(scoreEvents.deviceId, deviceId))
+      .limit(1)
+
+    if (scoreEvent) {
+      throw new DeviceError(
+        "DEVICE_IN_USE",
+        "This device recorded score events and cannot be deleted.",
+        409
+      )
+    }
+
+    const [credential] = await tx
+      .select({ id: accessCredentials.id })
+      .from(accessCredentials)
+      .where(eq(accessCredentials.lockDeviceId, deviceId))
+      .limit(1)
+
+    if (credential) {
+      throw new DeviceError(
+        "DEVICE_IN_USE",
+        "This lock still has access credentials and cannot be deleted.",
+        409
+      )
+    }
+
+    const [relay] = await tx
+      .select({ id: relayChannels.id })
+      .from(relayChannels)
+      .where(
+        and(
+          eq(relayChannels.tenantId, context.tenantId),
+          eq(relayChannels.deviceId, deviceId)
+        )
+      )
+      .limit(1)
+
+    if (relay) {
+      throw new DeviceError(
+        "DEVICE_IN_USE",
+        "This device still has relay channels and cannot be deleted.",
+        409
+      )
+    }
+
+    await tx
+      .update(deviceEnrollments)
+      .set({ consumedDeviceId: null })
+      .where(
+        and(
+          eq(deviceEnrollments.tenantId, context.tenantId),
+          eq(deviceEnrollments.consumedDeviceId, deviceId)
+        )
+      )
+
+    await tx
+      .update(replayCameraSources)
+      .set({ cameraDeviceId: null })
+      .where(
+        and(
+          eq(replayCameraSources.tenantId, context.tenantId),
+          eq(replayCameraSources.cameraDeviceId, deviceId)
+        )
+      )
+
+    await tx
+      .update(replayRequests)
+      .set({ venueEdgeDeviceId: null })
+      .where(
+        and(
+          eq(replayRequests.tenantId, context.tenantId),
+          eq(replayRequests.venueEdgeDeviceId, deviceId)
+        )
+      )
+
+    await tx
+      .update(replayRequests)
+      .set({ cameraDeviceId: null })
+      .where(
+        and(
+          eq(replayRequests.tenantId, context.tenantId),
+          eq(replayRequests.cameraDeviceId, deviceId)
+        )
+      )
+
+    const assignmentRows = await tx
+      .select({ id: deviceAssignments.id })
+      .from(deviceAssignments)
+      .where(
+        and(
+          eq(deviceAssignments.tenantId, context.tenantId),
+          eq(deviceAssignments.deviceId, deviceId)
+        )
+      )
+
+    if (assignmentRows.length > 0) {
+      await tx
+        .update(replayRequests)
+        .set({ assignmentId: null })
+        .where(
+          and(
+            eq(replayRequests.tenantId, context.tenantId),
+            inArray(
+              replayRequests.assignmentId,
+              assignmentRows.map((row) => row.id)
+            )
+          )
+        )
+    }
+
+    const commandRows = await tx
+      .select({ id: deviceCommands.id })
+      .from(deviceCommands)
+      .where(
+        and(
+          eq(deviceCommands.tenantId, context.tenantId),
+          eq(deviceCommands.deviceId, deviceId)
+        )
+      )
+
+    if (commandRows.length > 0) {
+      await tx
+        .update(replayRequests)
+        .set({ deviceCommandId: null })
+        .where(
+          and(
+            eq(replayRequests.tenantId, context.tenantId),
+            inArray(
+              replayRequests.deviceCommandId,
+              commandRows.map((row) => row.id)
+            )
+          )
+        )
+    }
+
+    const installationRows = await tx
+      .select({ id: venueEdgeInstallations.id })
+      .from(venueEdgeInstallations)
+      .where(
+        and(
+          eq(venueEdgeInstallations.tenantId, context.tenantId),
+          eq(venueEdgeInstallations.edgeDeviceId, deviceId)
+        )
+      )
+
+    if (installationRows.length > 0) {
+      await tx
+        .update(venueEdgePairingSessions)
+        .set({ replaceInstallationId: null })
+        .where(
+          and(
+            eq(venueEdgePairingSessions.tenantId, context.tenantId),
+            inArray(
+              venueEdgePairingSessions.replaceInstallationId,
+              installationRows.map((row) => row.id)
+            )
+          )
+        )
+    }
+
+    await tx
+      .update(ttlockGateways)
+      .set({ deviceId: null })
+      .where(
+        and(
+          eq(ttlockGateways.tenantId, context.tenantId),
+          eq(ttlockGateways.deviceId, deviceId)
+        )
+      )
+
+    await tx
+      .update(ttlockLocks)
+      .set({ deviceId: null })
+      .where(
+        and(
+          eq(ttlockLocks.tenantId, context.tenantId),
+          eq(ttlockLocks.deviceId, deviceId)
+        )
+      )
+
+    await tx
+      .delete(venueEdgePairingSessions)
+      .where(
+        and(
+          eq(venueEdgePairingSessions.tenantId, context.tenantId),
+          eq(venueEdgePairingSessions.consumedDeviceId, deviceId)
+        )
+      )
+
+    await tx
+      .delete(deviceCommandAcks)
+      .where(
+        and(
+          eq(deviceCommandAcks.tenantId, context.tenantId),
+          eq(deviceCommandAcks.deviceId, deviceId)
+        )
+      )
+
+    await tx
+      .delete(deviceCommands)
+      .where(
+        and(
+          eq(deviceCommands.tenantId, context.tenantId),
+          eq(deviceCommands.deviceId, deviceId)
+        )
+      )
+
+    await tx
+      .delete(deviceHeartbeats)
+      .where(
+        and(
+          eq(deviceHeartbeats.tenantId, context.tenantId),
+          eq(deviceHeartbeats.deviceId, deviceId)
+        )
+      )
+
+    await tx
+      .delete(deviceCredentials)
+      .where(
+        and(
+          eq(deviceCredentials.tenantId, context.tenantId),
+          eq(deviceCredentials.deviceId, deviceId)
+        )
+      )
+
+    await tx
+      .delete(deviceAssignments)
+      .where(
+        and(
+          eq(deviceAssignments.tenantId, context.tenantId),
+          eq(deviceAssignments.deviceId, deviceId)
+        )
+      )
+
+    try {
+      await tx
+        .delete(devices)
+        .where(
+          and(eq(devices.tenantId, context.tenantId), eq(devices.id, deviceId))
+        )
+    } catch (error) {
+      if (isForeignKeyViolation(error)) {
+        throw new DeviceError(
+          "DEVICE_IN_USE",
+          "This device still has related records and cannot be deleted.",
+          409
+        )
+      }
+      throw error
+    }
+
+    return { id: device.id, hardwareUid: device.hardwareUid }
+  })
+}
+
+function isForeignKeyViolation(error: unknown): boolean {
+  let current = error
+  for (let depth = 0; depth < 6; depth += 1) {
+    if (!current || typeof current !== "object") {
+      return false
+    }
+
+    const record = current as { code?: unknown; cause?: unknown }
+    if (record.code === "23503") {
+      return true
+    }
+
+    current = record.cause
+  }
+
+  return false
 }
 
 async function assertAssignmentVenue(

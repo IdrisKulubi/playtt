@@ -6,6 +6,7 @@ import {
   issueProvisionedDeviceForOperator,
   listDevicesForOperator,
   revokeDeviceForOperator,
+  deleteDeviceForOperator,
   rotateDeviceCredentialForOperator,
 } from "@/server/devices/devices-service"
 import {
@@ -106,6 +107,15 @@ export async function PATCH(req: NextRequest) {
         input.deviceId,
       )
       return operatorJson({ device })
+    }
+
+    if (action === "delete") {
+      const input = revokeSchema.parse(body)
+      const deleted = await deleteDeviceForOperator(
+        resolved.context,
+        input.deviceId,
+      )
+      return operatorJson({ deleted })
     }
 
     if (action === "rotate") {

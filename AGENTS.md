@@ -1,6 +1,6 @@
 # PlayTT Agent Guide
 
-This repo contains two independent apps. Read the skills below before making changes.
+This repo contains three independent apps. Read the skills below before making changes.
 
 ## Monorepo map
 
@@ -40,6 +40,9 @@ pnpm install && pnpm dev
 
 # Mobile (terminal 2, optional)
 cd playtt-mobile && npm install && npm start
+
+# VenueEdge (terminal 3, optional)
+cd services/venue-edge && pnpm install && pnpm start
 ```
 
 See `.cursor/skills/run-project/SKILL.md` for full commands and environment setup.

@@ -56,12 +56,31 @@ test("venue-edge fleet server module and APIs exist", () => {
   assert.match(fleet, /getVenueEdgeInstallationDetail/)
   assert.match(fleet, /lastAppliedConfigRevision/)
   assert.match(fleet, /configRevisionId/)
+  assert.match(fleet, /reportedTopology/)
+  assert.match(fleet, /desiredTopology/)
+  assert.match(fleet, /appliedTopology/)
+  assert.match(fleet, /lifecycleStage/)
+  assert.match(fleet, /installation_mismatch/)
+  assert.match(fleet, /version_not_newer/)
   assert.doesNotMatch(fleet, /venueEdgeConfigApplications\.revisionId/)
   assert.match(operatorActions, /syncVenueEdgeCommissioning/)
+  assert.match(operatorActions, /reconcileVenueEdgeSnapshot/)
+  assert.match(operatorActions, /publishVenueEdgeInstallationConfig/)
+  assert.match(operatorActions, /recoverVenueEdgeStaleConfig/)
   assert.match(operatorActions, /rollbackVenueEdgeInstallationConfig/)
   assert.match(listRoute, /resolveOperatorDeviceReadContext/)
   assert.match(detailRoute, /renameVenueEdgeInstallation/)
   assert.match(actionsRoute, /revokeVenueEdgeInstallation/)
+  assert.match(actionsRoute, /reconcile_snapshot/)
+  assert.match(actionsRoute, /publish_config/)
+  assert.match(actionsRoute, /recover_config_stale/)
+
+  const topology = readFileSync(
+    join(repoRoot, "src/server/replays/venue-edge-topology.ts"),
+    "utf8",
+  )
+  assert.match(topology, /normalizeTopologyReportLineage/)
+  assert.doesNotMatch(topology, /lastReportVersion \?\? 0/)
 })
 
 test("fleet UI surfaces do not embed device or NVR secrets", () => {

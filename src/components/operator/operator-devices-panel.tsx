@@ -190,6 +190,32 @@ export function OperatorDevicesPanel({
     startTransition(() => router.refresh())
   }
 
+  async function handleDeleteDevice(deviceId: string, label: string) {
+    if (
+      !window.confirm(
+        `Delete ${label}? This removes the device from this venue permanently.`,
+      )
+    ) {
+      return
+    }
+
+    setMessage(null)
+
+    const response = await fetch("/api/operator/devices", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "delete", deviceId }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      setMessage(error.message ?? "Could not delete device.")
+      return
+    }
+
+    startTransition(() => router.refresh())
+  }
+
   return (
     <div className="space-y-6">
       {canManage ? (
@@ -453,6 +479,18 @@ export function OperatorDevicesPanel({
                       onClick={() => void handleRevokeDevice(device.id)}
                     >
                       Revoke
+                    </Button>
+                  ) : null}
+                  {canManage ? (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={isPending}
+                      onClick={() =>
+                        void handleDeleteDevice(device.id, device.hardwareUid)
+                      }
+                    >
+                      Delete
                     </Button>
                   ) : null}
                 </div>

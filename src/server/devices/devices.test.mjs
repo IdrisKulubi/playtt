@@ -177,6 +177,20 @@ test("operator device writes require venue.manage", () => {
   assert.match(assignmentRoute, /venue_edge/)
   assert.match(devicesPanel, /Issue device credentials/)
   assert.match(devicesPanel, /Venue edge/)
+  assert.match(devicesPanel, /handleDeleteDevice/)
+  assert.match(operatorRoute, /action === "delete"/)
+  assert.match(service, /deleteDeviceForOperator/)
+})
+
+test("device delete detaches composite foreign keys before removing the row", () => {
+  const source = readFileSync(join(devicesRoot, "devices.ts"), "utf8")
+  assert.match(source, /deleteDevice/)
+  assert.match(source, /replayRequests/)
+  assert.match(source, /replayCameraSources/)
+  assert.match(source, /deviceHeartbeats/)
+  assert.match(source, /deviceCommandAcks/)
+  assert.match(source, /replaceInstallationId/)
+  assert.match(source, /DEVICE_IN_USE/)
 })
 
 test("device v1 routes use dedicated device auth", () => {
@@ -489,6 +503,10 @@ test("heartbeat and command lifecycle works when database is available", async (
   )
 
   await expireStaleDeviceCommands(new Date("2099-01-01T00:00:00.000Z"))
+
+  const { deleteDevice } = await import("./devices.ts")
+  const deleted = await deleteDevice(operatorContext, provisioned.deviceId)
+  assert.equal(deleted.id, provisioned.deviceId)
 })
 
 test("credential rotation overlap supports rollback before acknowledgement", async (t) => {

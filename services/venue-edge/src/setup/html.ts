@@ -27,151 +27,278 @@ export function renderSetupPage(input: {
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>VenueEdge setup</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>PlayTT VenueEdge setup</title>
     <style>
       :root {
-        color-scheme: light dark;
-        font-family: system-ui, sans-serif;
+        color-scheme: light;
+        font-family: "Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif;
         line-height: 1.5;
+        --bg: #f5f8fc; --surface: #ffffff; --surface-soft: #eef4fa;
+        --ink: #0f172a; --muted: #53657d; --border: #d9e3ee;
+        --primary: #00b7ff; --primary-ink: #041019;
+        --success: #138a4b; --warning: #a86500; --danger: #c92a2a;
+        --space-2xs: .25rem; --space-xs: .5rem; --space-sm: .75rem;
+        --space-md: 1rem; --space-lg: 1.5rem; --space-xl: 2rem; --space-2xl: 3rem;
+        --radius-sm: .375rem; --radius-md: .625rem; --radius-lg: .875rem;
+        --motion: 220ms cubic-bezier(.22,1,.36,1);
       }
-      body {
-        margin: 2rem auto;
-        max-width: 48rem;
-        padding: 0 1rem;
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink); }
+      button, input, select { font: inherit; }
+      button, input, select, summary { min-height: 2.75rem; }
+      button { border: 0; border-radius: 999px; padding: .7rem 1rem; font-weight: 650; cursor: pointer; }
+      button:not(.secondary):not(.quiet) { background: var(--primary); color: var(--primary-ink); }
+      button.secondary { border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+      button.quiet { background: transparent; color: var(--muted); }
+      button:disabled { cursor: not-allowed; opacity: .5; }
+      button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
+        outline: 3px solid color-mix(in srgb, var(--primary) 45%, transparent); outline-offset: 2px;
       }
-      h1 { margin-bottom: 0.25rem; }
-      h2 { margin-top: 0; font-size: 1.1rem; }
-      .muted { color: #666; }
-      .card {
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        padding: 1rem;
-        margin-top: 1rem;
+      h1, h2, h3, p { margin-top: 0; }
+      h1 { margin-bottom: var(--space-2xs); font-size: 1.35rem; letter-spacing: -.02em; }
+      h2 { margin-bottom: var(--space-xs); font-size: 1.75rem; line-height: 1.2; letter-spacing: -.025em; text-wrap: balance; }
+      h3 { margin-bottom: var(--space-xs); font-size: 1rem; }
+      .muted { color: var(--muted); }
+      .shell { min-height: 100vh; display: grid; grid-template-columns: 17rem minmax(0, 1fr); }
+      .rail { background: var(--surface); border-right: 1px solid var(--border); padding: var(--space-xl) var(--space-lg); }
+      .brand { display: flex; align-items: baseline; gap: var(--space-xs); margin-bottom: var(--space-2xl); }
+      .brand strong { color: #007fb3; font-size: 1.4rem; }
+      .steps { display: grid; gap: var(--space-xs); list-style: none; padding: 0; margin: 0; }
+      .step { display: grid; grid-template-columns: 2rem 1fr; gap: var(--space-sm); align-items: center; padding: var(--space-sm); border-radius: var(--radius-md); color: var(--muted); }
+      .step-dot { width: 2rem; height: 2rem; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 50%; font-weight: 650; }
+      .step[data-state="current"] { background: #e8f7ff; color: #006d99; }
+      .step[data-state="current"] .step-dot { border-color: var(--primary); background: var(--primary); color: var(--primary-ink); }
+      .step[data-state="complete"] { color: var(--ink); }
+      .step[data-state="complete"] .step-dot { border-color: var(--success); background: var(--success); color: white; }
+      .step small { display: block; color: var(--muted); }
+      .rail-footer { margin-top: var(--space-2xl); padding-top: var(--space-lg); border-top: 1px solid var(--border); }
+      .workspace { min-width: 0; display: flex; flex-direction: column; }
+      .topbar { display: flex; justify-content: space-between; gap: var(--space-lg); padding: var(--space-lg) var(--space-xl); border-bottom: 1px solid var(--border); background: var(--surface); }
+      .topbar p { margin: 0; }
+      .status { display: inline-flex; align-items: center; gap: var(--space-xs); font-size: .875rem; font-weight: 650; }
+      .status::before { content: ""; width: .55rem; height: .55rem; border-radius: 50%; background: var(--success); }
+      main { width: min(100%, 68rem); margin: 0 auto; padding: var(--space-2xl) var(--space-xl) 7rem; }
+      .stage { animation: stage-in var(--motion); }
+      .stage[hidden] { display: none; }
+      .stage-intro { max-width: 68ch; margin-bottom: var(--space-xl); }
+      .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--space-lg); }
+      .panel + .panel, form + .panel, .panel + form { margin-top: var(--space-lg); }
+      .row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); }
+      label { display: block; margin-top: var(--space-sm); font-size: .875rem; font-weight: 650; }
+      input, select { width: 100%; margin-top: var(--space-2xs); padding: .7rem .8rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); }
+      input[type="checkbox"] { width: auto; min-height: auto; }
+      .actions { display: flex; flex-wrap: wrap; gap: var(--space-xs); margin-top: var(--space-md); }
+      button.inline { margin: 0; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+      .nvr-item, .camera-item, .resource-item { padding: var(--space-md) 0; border-top: 1px solid var(--border); }
+      .badge { display: inline-flex; border-radius: 999px; padding: .15rem .5rem; background: var(--surface-soft); color: var(--muted); font-size: .8rem; }
+      pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+      details { margin-top: var(--space-lg); border-top: 1px solid var(--border); padding-top: var(--space-md); }
+      summary { cursor: pointer; display: flex; align-items: center; font-weight: 650; }
+      .review { margin: var(--space-lg) 0; padding: var(--space-lg); border: 1px solid #e3b35d; border-radius: var(--radius-lg); background: #fff9ed; }
+      .review[data-empty="true"] { border-color: #bfe4cf; background: #f1fbf5; }
+      .review-list { margin: var(--space-md) 0 0; padding-left: 1.25rem; }
+      .footer-actions { position: fixed; right: 0; bottom: 0; left: 17rem; display: flex; justify-content: space-between; gap: var(--space-md); padding: var(--space-md) var(--space-xl) max(var(--space-md), env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 96%, transparent); }
+      video { display: none; width: min(100%, 42rem); margin-top: var(--space-lg); border-radius: var(--radius-md); background: var(--ink); }
+      @keyframes stage-in { from { opacity: .55; transform: translateY(.35rem); } to { opacity: 1; transform: none; } }
+      @media (max-width: 800px) {
+        .shell { display: block; }
+        .rail { position: sticky; top: 0; z-index: 20; border-right: 0; border-bottom: 1px solid var(--border); padding: var(--space-sm) var(--space-md); }
+        .brand, .rail-footer, .step span { display: none; }
+        .steps { display: flex; justify-content: space-between; gap: var(--space-2xs); }
+        .step { display: block; padding: var(--space-2xs); background: transparent !important; }
+        .topbar { padding: var(--space-md); }
+        main { padding: var(--space-xl) var(--space-md) 7rem; }
+        .footer-actions { left: 0; padding-inline: var(--space-md); }
       }
-      label { display: block; margin-top: 0.5rem; font-size: 0.9rem; }
-      input, select {
-        width: 100%;
-        box-sizing: border-box;
-        padding: 0.4rem;
-        margin-top: 0.25rem;
-      }
-      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-      button {
-        margin-top: 0.75rem;
-        padding: 0.5rem 1rem;
-        cursor: pointer;
-      }
-      button.inline { margin-top: 0; margin-right: 0.5rem; }
-      #message, #nvr-message, #camera-message, #mapping-message, #commissioning-message { margin-top: 0.75rem; }
-      .nvr-item, .camera-item, .resource-item {
-        border-top: 1px solid #ddd;
-        padding-top: 0.75rem;
-        margin-top: 0.75rem;
-      }
-      .badge { font-size: 0.85rem; }
+      @media (max-width: 560px) { .row { grid-template-columns: 1fr; } h2 { font-size: 1.45rem; } }
+      @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
     </style>
   </head>
   <body>
-    <h1>VenueEdge setup</h1>
-    <p class="muted">Local loopback wizard for venue-edge commissioning.</p>
-    <div class="card">
-      <p><strong>Enrollment:</strong> ${statusLabel}</p>
-      <p>${lockState}</p>
-      <p class="muted">${expiresCopy}</p>
-      <button id="lock-btn" type="button" ${disabledAttr}>
-        Lock setup and close wizard
-      </button>
-      <p id="message" class="muted"></p>
-    </div>
+    <div class="shell">
+      <aside class="rail" aria-label="Setup progress">
+        <div class="brand"><strong>PlayTT</strong><span>VenueEdge</span></div>
+        <ol class="steps">
+          ${["Pair device", "Add NVR", "Review cameras", "Map tables", "Publish config", "Commission"].map((label, index) => `<li class="step" data-step-item="${index + 1}" data-state="upcoming"><span class="step-dot">${index + 1}</span><span>${label}<small>Not started</small></span></li>`).join("")}
+        </ol>
+        <div class="rail-footer"><p class="muted">Setup stays local. NVR passwords never leave this PC.</p></div>
+      </aside>
+      <div class="workspace">
+        <header class="topbar">
+          <div><h1>VenueEdge setup</h1><p class="muted">${lockState} ${expiresCopy}</p></div>
+          <span class="status">${statusLabel}</span>
+        </header>
+        <main>
+          <section class="stage" data-stage="1">
+            <div class="stage-intro"><h2>Pair this venue PC</h2><p class="muted">Connect VenueEdge to the correct PlayTT venue before adding equipment.</p></div>
+            <div class="panel">
+              ${input.enrollmentStatus === "enrolled" ? `<h3>Paired with PlayTT</h3><p class="muted">This PC has protected device credentials and is ready for equipment setup.</p>` : `<form id="enrollment-form"><label>One-time pairing code<input name="pairingCode" autocomplete="one-time-code" required maxlength="32" ${disabledAttr} /></label><div class="actions"><button type="submit" ${disabledAttr}>Pair this VenueEdge</button></div></form>`}
+              <p id="enrollment-message" class="muted" aria-live="polite"></p>
+            </div>
+          </section>
 
-    ${input.enrollmentStatus === "enrolled" ? "" : `
-    <div class="card">
-      <h2>Connect to PlayTT</h2>
-      <p class="muted">Create a one-time pairing code at PlayTT /nvr, then enter it here. Long-lived device credentials stay in protected local storage.</p>
-      <form id="enrollment-form">
-        <label>Pairing code<input name="pairingCode" autocomplete="one-time-code" required maxlength="32" ${disabledAttr} /></label>
-        <button type="submit" ${disabledAttr}>Pair this VenueEdge</button>
-      </form>
-      <p id="enrollment-message" class="muted"></p>
-    </div>`}
+          <section class="stage" data-stage="2" hidden>
+            <div class="stage-intro"><h2>Add the venue NVR</h2><p class="muted">Enter the recorder on this venue network. We prevent the same host and RTSP port from being added twice.</p></div>
+            <form id="nvr-form" class="panel">
+              <label>Recorder name<input name="label" placeholder="Main NVR" required ${disabledAttr} /></label>
+              <div class="row"><label>Host or IP address<input name="host" placeholder="192.168.0.240" required ${disabledAttr} /></label><label>RTSP port<input name="rtspPort" type="number" value="554" required ${disabledAttr} /></label></div>
+              <div class="row"><label>Username<input name="username" required ${disabledAttr} /></label><label>Password<input name="password" type="password" required ${disabledAttr} /></label></div>
+              <details><summary>Technician details</summary><div class="row"><label>Test channel<input name="testChannelKey" value="1" ${disabledAttr} /></label><label>Vendor<select name="vendor" ${disabledAttr}><option value="vigi">VIGI</option></select></label></div></details>
+              <div class="actions"><button type="submit" ${disabledAttr}>Add NVR</button><button type="button" id="discover-btn" class="secondary" ${disabledAttr}>Test reachability</button></div>
+              <p id="nvr-message" class="muted" aria-live="polite"></p>
+              <div id="nvr-list"></div>
+            </form>
+          </section>
 
-    <div class="card">
-      <h2>NVR connections</h2>
-      <p class="muted">Add VIGI NVRs on the venue LAN. Passwords stay in protected local storage.</p>
+          <section class="stage" data-stage="3" hidden>
+            <div class="stage-intro"><h2>Review cameras</h2><p class="muted">Scan every channel, keep valid video sources, and review duplicates before anything is removed.</p></div>
+            <div id="topology-review" class="review" aria-live="polite"><strong>Checking topology…</strong></div>
+            <form id="camera-form" class="panel">
+              <h3>Add a channel manually</h3>
+              <div class="row"><label>NVR<select name="nvrId" id="camera-nvr-select" required ${disabledAttr}></select></label><label>Channel<input name="channelKey" placeholder="1" required ${disabledAttr} /></label></div>
+              <div class="row"><label>Camera name<input name="label" placeholder="Table 1 main" ${disabledAttr} /></label><label>Stream<select name="streamProfile" ${disabledAttr}><option value="main">Main</option><option value="sub">Sub</option></select></label></div>
+              <div class="actions"><button type="submit" class="secondary" ${disabledAttr}>Add camera manually</button></div>
+              <p id="camera-message" class="muted" aria-live="polite"></p><div id="camera-list"></div>
+            </form>
+          </section>
 
-      <form id="nvr-form">
-        <label>Label<input name="label" required ${disabledAttr} /></label>
-        <div class="row">
-          <label>Host<input name="host" placeholder="192.168.0.240" required ${disabledAttr} /></label>
-          <label>RTSP port<input name="rtspPort" type="number" value="554" required ${disabledAttr} /></label>
-        </div>
-        <div class="row">
-          <label>Username<input name="username" required ${disabledAttr} /></label>
-          <label>Password<input name="password" type="password" required ${disabledAttr} /></label>
-        </div>
-        <div class="row">
-          <label>Test channel<input name="testChannelKey" value="1" ${disabledAttr} /></label>
-          <label>Vendor<select name="vendor" ${disabledAttr}><option value="vigi">VIGI</option></select></label>
-        </div>
-        <button type="submit" ${disabledAttr}>Add NVR</button>
-        <button type="button" id="discover-btn" class="inline" ${disabledAttr}>Test reachability</button>
-      </form>
-      <p id="nvr-message" class="muted"></p>
-      <div id="nvr-list"></div>
-    </div>
+          <section class="stage" data-stage="4" hidden>
+            <div class="stage-intro"><h2>Map cameras to tables</h2><p class="muted">Choose the primary and fallback camera for each PlayTT table, then verify failover.</p></div>
+            <div class="panel"><p id="mapping-config-hint" class="muted"></p><div id="resource-list"></div><p id="mapping-message" class="muted" aria-live="polite"></p></div>
+          </section>
 
-    <div class="card">
-      <h2>Cameras</h2>
-      <p class="muted">Enumerate or manually add channels per NVR. Enable capture only for selected cameras.</p>
+          <section class="stage" data-stage="5" hidden>
+            <div class="stage-intro"><h2>Publish configuration</h2><p class="muted">Test enabled cameras, capture previews, and send a credential-free topology snapshot to PlayTT.</p></div>
+            <div class="panel"><pre id="commissioning-checklist" class="muted"></pre><div class="actions"><button type="button" id="commissioning-test-all" class="secondary" ${disabledAttr}>Test enabled cameras</button><button type="button" id="commissioning-publish" ${disabledAttr}>Publish snapshot</button></div><video id="commissioning-preview" controls></video><p id="commissioning-message" class="muted" aria-live="polite"></p></div>
+          </section>
 
-      <form id="camera-form">
-        <div class="row">
-          <label>NVR<select name="nvrId" id="camera-nvr-select" required ${disabledAttr}></select></label>
-          <label>Channel<input name="channelKey" placeholder="1" required ${disabledAttr} /></label>
-        </div>
-        <div class="row">
-          <label>Label<input name="label" placeholder="Court 1 main" ${disabledAttr} /></label>
-          <label>Stream<select name="streamProfile" ${disabledAttr}>
-            <option value="main">main</option>
-            <option value="sub">sub</option>
-          </select></label>
-        </div>
-        <button type="submit" ${disabledAttr}>Add camera manually</button>
-      </form>
-      <p id="camera-message" class="muted"></p>
-      <div id="camera-list"></div>
-    </div>
-
-    <div class="card">
-      <h2>Resource mapping</h2>
-      <p class="muted">Map enabled cameras to PlayTT tables. Disabled tables are not live for replay yet — map them here, then publish a snapshot and sync on /nvr.</p>
-      <p id="mapping-config-hint" class="muted"></p>
-      <div id="resource-list"></div>
-      <p id="mapping-message" class="muted"></p>
-    </div>
-
-    <div class="card">
-      <h2>Commissioning</h2>
-      <p class="muted">
-        Test every enabled camera, capture a 15-second local preview, run failover drills,
-        then publish a redacted snapshot and complete commissioning before production capture.
-      </p>
-      <p class="muted">
-        <strong>Clock skew:</strong> sync NTP on the NVR.
-        <strong>Wave test:</strong> wave at the camera during the 15-second preview clip to confirm live video.
-      </p>
-      <pre id="commissioning-checklist" class="muted"></pre>
-      <button type="button" id="commissioning-test-all" ${disabledAttr}>Test all enabled cameras</button>
-      <button type="button" id="commissioning-publish" class="inline" ${disabledAttr}>Publish snapshot</button>
-      <button type="button" id="commissioning-complete" class="inline" ${disabledAttr}>Complete commissioning</button>
-      <video id="commissioning-preview" controls style="max-width:100%; margin-top:1rem; display:none;"></video>
-      <p id="commissioning-message" class="muted"></p>
+          <section class="stage" data-stage="6" hidden>
+            <div class="stage-intro"><h2>Complete commissioning</h2><p class="muted">Finish only after every required camera, preview, mapping, and failover check passes.</p></div>
+            <div class="panel"><h3>Final readiness check</h3><pre id="commissioning-final-checklist" class="muted"></pre><div class="actions"><button type="button" id="commissioning-complete" ${disabledAttr}>Complete commissioning</button><button type="button" id="lock-btn" class="secondary" ${disabledAttr}>Lock setup and close</button></div><p id="message" class="muted" aria-live="polite"></p></div>
+          </section>
+        </main>
+        <nav class="footer-actions" aria-label="Stage navigation"><button id="stage-back" type="button" class="secondary">Back</button><button id="stage-next" type="button">Continue</button></nav>
+      </div>
     </div>
 
     <script>
       const token = ${JSON.stringify(input.setupToken)};
       const setupLocked = ${JSON.stringify(input.setupLocked)};
+      const workflow = {
+        enrolled: ${JSON.stringify(input.enrollmentStatus === "enrolled")},
+        nvrCount: 0,
+        cameraCount: 0,
+        topologyClean: false,
+        failoverReady: false,
+        published: false,
+        completed: false,
+      };
+      let currentStage = Math.min(6, Math.max(1, Number(sessionStorage.getItem("venue-edge-stage") || (workflow.enrolled ? 2 : 1))));
+      let topologyProposal = null;
+
+      function stageComplete(stage) {
+        if (stage === 1) return workflow.enrolled;
+        if (stage === 2) return workflow.nvrCount > 0;
+        if (stage === 3) return workflow.cameraCount > 0 && workflow.topologyClean;
+        if (stage === 4) return workflow.failoverReady;
+        if (stage === 5) return workflow.published;
+        return workflow.completed;
+      }
+
+      function renderStages() {
+        document.querySelectorAll("[data-stage]").forEach((section) => {
+          section.hidden = Number(section.dataset.stage) !== currentStage;
+        });
+        document.querySelectorAll("[data-step-item]").forEach((item) => {
+          const step = Number(item.dataset.stepItem);
+          const state = step === currentStage ? "current" : stageComplete(step) ? "complete" : "upcoming";
+          item.dataset.state = state;
+          const dot = item.querySelector(".step-dot");
+          const detail = item.querySelector("small");
+          if (dot) dot.textContent = state === "complete" ? "✓" : String(step);
+          if (detail) detail.textContent = state === "complete" ? "Completed" : state === "current" ? "Current step" : "Not started";
+        });
+        const back = document.getElementById("stage-back");
+        const next = document.getElementById("stage-next");
+        back.disabled = currentStage === 1;
+        next.hidden = currentStage === 6;
+        next.textContent = stageComplete(currentStage) ? "Continue" : "Review requirements";
+        sessionStorage.setItem("venue-edge-stage", String(currentStage));
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      document.getElementById("stage-back")?.addEventListener("click", () => {
+        currentStage = Math.max(1, currentStage - 1);
+        renderStages();
+      });
+      document.getElementById("stage-next")?.addEventListener("click", () => {
+        if (!stageComplete(currentStage)) {
+          const messageId = currentStage === 2 ? "nvr-message" : currentStage === 3 ? "camera-message" : currentStage === 4 ? "mapping-message" : "commissioning-message";
+          const message = document.getElementById(messageId);
+          if (message) message.textContent = "Finish the requirements in this step before continuing.";
+          return;
+        }
+        currentStage = Math.min(6, currentStage + 1);
+        renderStages();
+      });
+
+      async function loadTopologyReview() {
+        const data = await api("/api/setup/topology/review");
+        topologyProposal = data.proposal;
+        const review = document.getElementById("topology-review");
+        workflow.topologyClean = topologyProposal.issues.length === 0;
+        review.dataset.empty = String(workflow.topologyClean);
+        if (workflow.topologyClean) {
+          review.innerHTML = "<strong>Topology looks good</strong><p>No duplicate recorders or suspicious camera channels need review.</p>";
+          renderStages();
+          return;
+        }
+
+        const selectedCount = topologyProposal.deleteNvrIds.length + topologyProposal.deleteCameraIds.length + topologyProposal.renames.length;
+        review.innerHTML =
+          "<strong>We found setup issues</strong>" +
+          "<p>Review the proposed changes. Nothing is removed until you confirm.</p>" +
+          "<ul class='review-list'>" +
+          topologyProposal.issues.map((issue) => "<li>" + issue.message + "</li>").join("") +
+          "</ul>" +
+          (selectedCount > 0
+            ? "<div class='actions'><button type='button' id='apply-topology-review'>Review " + selectedCount + " changes</button></div>"
+            : "<p><strong>Manual review required.</strong> Resolve enabled or mapped conflicts before cleanup.</p>");
+
+        document.getElementById("apply-topology-review")?.addEventListener("click", async (event) => {
+          const button = event.currentTarget;
+          if (button.dataset.confirmed !== "true") {
+            button.dataset.confirmed = "true";
+            button.textContent = "Confirm reviewed cleanup";
+            return;
+          }
+          button.disabled = true;
+          button.textContent = "Applying cleanup…";
+          try {
+            const result = await api("/api/setup/topology/review/apply", {
+              method: "POST",
+              body: JSON.stringify({
+                fingerprint: topologyProposal.fingerprint,
+                deleteNvrIds: topologyProposal.deleteNvrIds,
+                deleteCameraIds: topologyProposal.deleteCameraIds,
+                renames: topologyProposal.renames,
+              }),
+            });
+            topologyProposal = result.proposal;
+            await loadNvrs();
+            document.getElementById("camera-message").textContent = "Reviewed cleanup applied. Publish a new snapshot when the remaining cameras are ready.";
+          } catch (error) {
+            button.disabled = false;
+            button.dataset.confirmed = "false";
+            button.textContent = "Review changes again";
+            document.getElementById("camera-message").textContent = error.message;
+          }
+        });
+        renderStages();
+      }
+
+      renderStages();
 
       async function api(path, options = {}) {
         const headers = {
@@ -217,6 +344,7 @@ export function renderSetupPage(input: {
 
       async function loadNvrs() {
         const data = await api("/api/setup/nvrs");
+        workflow.nvrCount = data.nvrs.length;
         const list = document.getElementById("nvr-list");
         list.innerHTML = "";
         const nvrSelect = document.getElementById("camera-nvr-select");
@@ -261,6 +389,7 @@ export function renderSetupPage(input: {
           list.appendChild(item);
         }
         await loadCameras();
+        renderStages();
       }
 
       async function testNvr(id) {
@@ -291,11 +420,14 @@ export function renderSetupPage(input: {
         });
         await loadCameras();
         document.getElementById("camera-message").textContent =
-          "Enumeration finished. Created " + result.created.length + " camera(s).";
+          "Scan finished. Probed " + result.probed + " channel(s): " +
+          result.created.length + " added, " + result.updated.length + " refreshed, " +
+          result.unavailable.length + " unavailable.";
       }
 
       async function loadCameras() {
         const data = await api("/api/setup/cameras");
+        workflow.cameraCount = data.cameras.length;
         const list = document.getElementById("camera-list");
         list.innerHTML = "";
         for (const camera of data.cameras) {
@@ -329,6 +461,8 @@ export function renderSetupPage(input: {
           }
           list.appendChild(item);
         }
+        await loadTopologyReview();
+        renderStages();
       }
 
       async function testCamera(id) {
@@ -359,14 +493,21 @@ export function renderSetupPage(input: {
           (checklist.failoverReady ? "✓" : "○") + " Failover drills complete",
           (checklist.enrolled ? "✓" : "○") + " Paired with PlayTT",
           (checklist.published ? "✓" : "○") + " Snapshot published",
+          (checklist.configApplied ? "✓" : "○") + " Cloud configuration applied locally",
           (checklist.completed ? "✓" : "○") + " Commissioning complete",
         ];
         if (checklist.blockingReasons.length > 0) {
           lines.push("Blocking:\\n" + checklist.blockingReasons.join("\\n"));
         }
+        workflow.enrolled = checklist.enrolled;
+        workflow.failoverReady = checklist.failoverReady;
+        workflow.published = checklist.published && checklist.configApplied;
+        workflow.completed = checklist.completed;
         document.getElementById("commissioning-checklist").textContent = lines.join("\\n");
+        document.getElementById("commissioning-final-checklist").textContent = lines.join("\\n");
         document.getElementById("commissioning-complete").disabled =
           setupLocked || !checklist.canComplete;
+        renderStages();
       }
 
       async function runFailoverDrill(resourceId) {

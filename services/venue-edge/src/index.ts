@@ -33,6 +33,7 @@ import { safeLog } from "./health/metrics"
 import { startSetupHost, type SetupHostHandle } from "./setup/host"
 import { LocalNvrManager } from "./setup/local-nvr-manager"
 import { LocalCameraManager } from "./setup/local-camera-manager"
+import { TopologyReviewManager } from "./setup/topology-review-manager"
 import { LocalResourceMappingManager } from "./setup/local-resource-mapping-manager"
 import { CommissioningManager } from "./setup/commissioning-manager"
 import { resolveRuntimeEdgeConfigV2 } from "./setup/local-config-overlay"
@@ -119,6 +120,11 @@ export async function startVenueEdge(
     repositories,
     nvrPasswordStore,
     localNvrManager,
+  )
+  const topologyReviewManager = new TopologyReviewManager(
+    repositories,
+    localNvrManager,
+    localCameraManager,
   )
 
   const credentialManager = CredentialManager.fromEnv({
@@ -420,8 +426,12 @@ export async function startVenueEdge(
       dataDir: env.dataDir,
       localNvrManager,
       localCameraManager,
+      topologyReviewManager,
       localResourceMappingManager,
       commissioningManager,
+      resetConfigCache: async () => {
+        configManager.resetLocalConfigCache()
+      },
       onConfigurationChanged: async () => {
         await activateRuntimeConfig(configManager.getState().edgeConfigV2)
         await refreshRuntimeSourceRtspUrls()
@@ -482,6 +492,11 @@ async function runSetupOnly(): Promise<void> {
     nvrPasswordStore,
     localNvrManager,
   )
+  const topologyReviewManager = new TopologyReviewManager(
+    repositories,
+    localNvrManager,
+    localCameraManager,
+  )
 
   const loadEdgeConfigV2 = () => {
     const current = repositories.getCurrentConfig()
@@ -519,8 +534,10 @@ async function runSetupOnly(): Promise<void> {
     dataDir: env.dataDir,
     localNvrManager,
     localCameraManager,
+    topologyReviewManager,
     localResourceMappingManager,
     commissioningManager,
+    resetConfigCache: () => repositories.clearConfigSnapshots(),
     enroll: async (pairingCode) =>
       enrollVenueEdge({
         pairingCode,

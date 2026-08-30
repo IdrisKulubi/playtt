@@ -2,6 +2,7 @@ export interface CommissioningStateRow {
   completed: boolean
   completedAt: string | null
   publishedAt: string | null
+  reportVersion: number
   failoverReady: boolean
   lastError: string | null
   drillResults: Record<string, CommissioningDrillResult>
@@ -24,6 +25,7 @@ export interface CommissioningChecklist {
   allEnabledCamerasPreviewed: boolean
   failoverReady: boolean
   published: boolean
+  configApplied: boolean
   completed: boolean
   canComplete: boolean
   blockingReasons: string[]

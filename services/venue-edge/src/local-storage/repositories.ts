@@ -471,6 +471,10 @@ export class EdgeRepositories {
     return this.getCurrentConfig()
   }
 
+  clearConfigSnapshots(): void {
+    this.db.prepare(`DELETE FROM edge_config_snapshots`).run()
+  }
+
   upsertSourceHealth(row: SourceHealthRow): SourceHealthRow {
     const timestamp = nowIso()
     const sourceId = row.sourceId ?? ""
@@ -721,6 +725,30 @@ export class EdgeRepositories {
     const row = this.db
       .prepare(`SELECT * FROM edge_local_nvrs WHERE local_connection_key = ?`)
       .get(localConnectionKey) as Record<string, unknown> | undefined
+
+    return row ? mapLocalNvrRow(row) : null
+  }
+
+  findLocalNvrByEndpoint(
+    host: string,
+    rtspPort: number,
+    excludeId?: string,
+  ): LocalNvrRow | null {
+    const row = excludeId
+      ? (this.db
+          .prepare(
+            `SELECT * FROM edge_local_nvrs
+             WHERE lower(host) = lower(?) AND rtsp_port = ? AND id <> ?
+             LIMIT 1`,
+          )
+          .get(host, rtspPort, excludeId) as Record<string, unknown> | undefined)
+      : (this.db
+          .prepare(
+            `SELECT * FROM edge_local_nvrs
+             WHERE lower(host) = lower(?) AND rtsp_port = ?
+             LIMIT 1`,
+          )
+          .get(host, rtspPort) as Record<string, unknown> | undefined)
 
     return row ? mapLocalNvrRow(row) : null
   }
@@ -1162,6 +1190,7 @@ export class EdgeRepositories {
         completed: false,
         completedAt: null,
         publishedAt: null,
+        reportVersion: 0,
         failoverReady: false,
         lastError: null,
         drillResults: {},
@@ -1177,6 +1206,7 @@ export class EdgeRepositories {
       completed?: boolean
       completedAt?: string | null
       publishedAt?: string | null
+      reportVersion?: number
       failoverReady?: boolean
       lastError?: string | null
       drillResults?: Record<string, CommissioningDrillResult>
@@ -1196,6 +1226,10 @@ export class EdgeRepositories {
     if (patch.publishedAt !== undefined) {
       fields.push("published_at = ?")
       values.push(patch.publishedAt)
+    }
+    if (patch.reportVersion !== undefined) {
+      fields.push("report_version = ?")
+      values.push(patch.reportVersion)
     }
     if (patch.failoverReady !== undefined) {
       fields.push("failover_ready = ?")
@@ -1411,6 +1445,7 @@ function mapCommissioningStateRow(
     completed: Boolean(row.completed),
     completedAt: row.completed_at ? String(row.completed_at) : null,
     publishedAt: row.published_at ? String(row.published_at) : null,
+    reportVersion: Number(row.report_version ?? 0),
     failoverReady: Boolean(row.failover_ready),
     lastError: row.last_error ? String(row.last_error) : null,
     drillResults: row.drill_results_json
