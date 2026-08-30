@@ -173,6 +173,16 @@ if (-not $SkipSetupExe) {
     & (Join-Path $packagingRoot "sign.ps1") -ArtifactPath $setupExe -AllowUnsignedDevelopment:$AllowUnsignedDevelopment
     $setupHash = Get-FileSha256Hex -Path $setupExe
     "$setupHash  PlayTTVenueEdge-Setup-$version.exe" | Add-Content (Join-Path $artifactRoot "SHA256SUMS")
+    & node `
+      (Join-Path $serviceRoot "scripts\generate-update-manifest.mjs") `
+      $pinsPath `
+      $artifactRoot `
+      $setupHash `
+      "PlayTTVenueEdge-Setup-$version.exe" `
+      $builtAt
+    if ($LASTEXITCODE -ne 0) {
+      throw "Update manifest generation failed"
+    }
   } else {
     throw "Inno Setup compiler not found. Set INNO_SETUP_COMPILER or use -SkipSetupExe for an explicit bundle-only build."
   }

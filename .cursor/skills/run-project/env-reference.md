@@ -122,6 +122,10 @@ commit authenticated RTSP URLs.
 | `VENUE_EDGE_MAX_CPU_PERCENT` | `85` | Windows system CPU ceiling before starting another buffer |
 | `VENUE_EDGE_MAX_NETWORK_MBPS` | `100` | Aggregate estimated ingress ceiling |
 | `VENUE_EDGE_ESTIMATED_SOURCE_NETWORK_MBPS` | `8` | Estimated ingress reserved for each active source |
+| `VENUE_EDGE_UPDATE_PUBLIC_KEY` | — | Ed25519 SPKI PEM used by the agent to verify signed OTA manifests |
+| `VENUE_EDGE_UPDATE_PRIVATE_KEY` | — | Ed25519 PKCS8 PEM used by cloud/packaging to sign OTA manifests (never ship to agents) |
+| `VENUE_EDGE_UPDATE_ARTIFACT_URL` | — | HTTPS URL embedded in generated `update-manifest.json` during packaging |
+| `VENUE_EDGE_UPDATE_CHANNEL` | `development` | Release channel stamped into generated update manifests |
 
 The installer will move source RTSP mappings into OS-protected local connection
 storage in the pairing/NVR setup phases. Cloud config contains only source IDs

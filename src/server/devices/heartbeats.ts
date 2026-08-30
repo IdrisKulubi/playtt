@@ -1,7 +1,7 @@
 import { and, desc, eq, gt, inArray, isNull, lte, or } from "drizzle-orm"
 
 import db from "@/db/drizzle"
-import { deviceAssignments, deviceHeartbeats, devices } from "@/db/schema"
+import { deviceAssignments, deviceHeartbeats, devices, venueEdgeInstallations } from "@/db/schema"
 import { DeviceError } from "@/server/devices/errors"
 import {
   deriveDeviceHealth,
@@ -216,6 +216,21 @@ export async function recordDeviceHeartbeat(
             eq(deviceAssignments.tenantId, input.tenantId),
             eq(deviceAssignments.id, configAck.assignmentId)
           )
+        )
+    }
+
+    if (input.firmwareVersion) {
+      await tx
+        .update(venueEdgeInstallations)
+        .set({
+          currentAgentVersion: input.firmwareVersion,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(venueEdgeInstallations.tenantId, input.tenantId),
+            eq(venueEdgeInstallations.edgeDeviceId, input.deviceId),
+          ),
         )
     }
 

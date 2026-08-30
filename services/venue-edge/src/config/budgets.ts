@@ -139,3 +139,48 @@ export async function evaluateDiskBudget(
 
   return { allowed: true }
 }
+
+export interface HostResourceMetrics {
+  cpuPercent: number | null
+  freeMemoryBytes: number
+  diskUsageBytes: number | null
+  reservedFreeDiskBytes: number
+  diskPressure: boolean
+}
+
+export async function readHostResourceMetrics(
+  env: VenueEdgeEnv,
+  windowsCpuReader: () => Promise<number> = readWindowsSystemCpuPercent,
+): Promise<HostResourceMetrics> {
+  let cpuPercent: number | null = null
+  if (process.platform === "win32") {
+    try {
+      cpuPercent = await windowsCpuReader()
+    } catch {
+      cpuPercent = null
+    }
+  } else {
+    const [load] = loadavg()
+    cpuPercent = Number.isFinite(load) ? Math.round(load * 100) : null
+  }
+
+  let diskUsageBytes: number | null = null
+  let diskPressure = false
+  try {
+    const stats = await statfsAsync(env.dataDir)
+    const freeBytes = Number(stats.bfree) * Number(stats.bsize)
+    const totalBytes = Number(stats.blocks) * Number(stats.bsize)
+    diskUsageBytes = Math.max(0, totalBytes - freeBytes)
+    diskPressure = freeBytes < env.reservedFreeDiskBytes
+  } catch {
+    diskUsageBytes = null
+  }
+
+  return {
+    cpuPercent,
+    freeMemoryBytes: freemem(),
+    diskUsageBytes,
+    reservedFreeDiskBytes: env.reservedFreeDiskBytes,
+    diskPressure,
+  }
+}

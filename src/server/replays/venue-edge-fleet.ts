@@ -75,6 +75,11 @@ export interface VenueEdgeInstallationFleetView {
   currentAgentVersion: string
   desiredAgentVersion: string | null
   updateChannel: string
+  updateStatus: string
+  pinnedVersion: string | null
+  lastUpdateAt: string | null
+  lastUpdateErrorCode: string | null
+  activeUpdateAttemptId: string | null
   installedAt: string
   lastConfigAppliedAt: string | null
   commissionedAt: string | null
@@ -588,6 +593,11 @@ export async function listVenueEdgeInstallations(
       currentAgentVersion: row.installation.currentAgentVersion,
       desiredAgentVersion: row.installation.desiredAgentVersion,
       updateChannel: row.installation.updateChannel,
+      updateStatus: row.installation.updateStatus,
+      pinnedVersion: row.installation.pinnedVersion,
+      lastUpdateAt: row.installation.lastUpdateAt?.toISOString() ?? null,
+      lastUpdateErrorCode: row.installation.lastUpdateErrorCode,
+      activeUpdateAttemptId: row.installation.activeUpdateAttemptId,
       installedAt: row.installation.installedAt.toISOString(),
       lastConfigAppliedAt:
         row.installation.lastConfigAppliedAt?.toISOString() ?? null,

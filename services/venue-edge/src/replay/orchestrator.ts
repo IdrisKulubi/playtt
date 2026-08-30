@@ -95,18 +95,27 @@ export class ReplayOrchestrator {
   async processCaptureReplay(
     commandId: string,
     payload: Parameters<ReplayOrchestrator["handleCapture"]>[1],
-    options: { resumeFrom?: string } = {}
+    options: { resumeFrom?: string; correlationId?: string } = {}
   ): Promise<void> {
     return this.limiter.run(() =>
       this.handleCapture(commandId, payload, options)
     )
   }
 
+  private clientForCorrelation(correlationId?: string): EdgeV1Client {
+    if (!correlationId) {
+      return this.deps.client
+    }
+
+    return this.deps.client.withCorrelationId(correlationId)
+  }
+
   private async handleCapture(
     commandId: string,
     payload: import("../cloud/client.ts").CaptureReplayPayload,
-    options: { resumeFrom?: string }
+    options: { resumeFrom?: string; correlationId?: string }
   ): Promise<void> {
+    const correlationId = options.correlationId
     const edgeConfig = this.deps.getEdgeConfig()
     const edgeConfigV2 = this.deps.getEdgeConfigV2?.() ?? null
     const existingJob = this.deps.repositories.getReplayJob(
@@ -182,7 +191,7 @@ export class ReplayOrchestrator {
         index += 1
       ) {
         const status = PROGRESS_SEQUENCE[index]!
-        await this.advance(payload, status, commandId)
+        await this.advance(payload, status, commandId, correlationId)
       }
 
       const ackExtras = this.buildSelectionAckExtras(payload.replayRequestId)
@@ -240,7 +249,8 @@ export class ReplayOrchestrator {
       )
 
       try {
-        await this.deps.client.reportReplayProgress(payload.replayRequestId, {
+        const client = this.clientForCorrelation(correlationId)
+        await client.reportReplayProgress(payload.replayRequestId, {
           status: terminalStatus,
           failureReason,
         })
@@ -254,7 +264,8 @@ export class ReplayOrchestrator {
         })
 
         try {
-          await this.deps.client.reportReplayProgress(payload.replayRequestId, {
+          const client = this.clientForCorrelation(correlationId)
+          await client.reportReplayProgress(payload.replayRequestId, {
             status: "failed",
             failureReason,
           })
@@ -372,7 +383,8 @@ export class ReplayOrchestrator {
   private async advance(
     payload: import("../cloud/client.ts").CaptureReplayPayload,
     status: (typeof PROGRESS_SEQUENCE)[number],
-    commandId: string
+    commandId: string,
+    correlationId?: string,
   ): Promise<void> {
     const uploadResult = this.uploadResults.get(payload.replayRequestId)
 
@@ -385,7 +397,7 @@ export class ReplayOrchestrator {
         status === "verifying" || status === "ready"
           ? uploadResult?.bytesUploaded
           : undefined,
-    })
+    }, correlationId)
 
     this.deps.repositories.updateReplayJob(payload.replayRequestId, {
       status: status as never,
@@ -407,10 +419,12 @@ export class ReplayOrchestrator {
   private async reportProgress(
     replayRequestId: string,
     status: (typeof PROGRESS_SEQUENCE)[number],
-    extras?: { checksumSha256?: string; sizeBytes?: number }
+    extras?: { checksumSha256?: string; sizeBytes?: number },
+    correlationId?: string,
   ): Promise<void> {
+    const client = this.clientForCorrelation(correlationId)
     try {
-      await this.deps.client.reportReplayProgress(replayRequestId, {
+      await client.reportReplayProgress(replayRequestId, {
         status,
         ...(extras?.checksumSha256
           ? { checksumSha256: extras.checksumSha256 }

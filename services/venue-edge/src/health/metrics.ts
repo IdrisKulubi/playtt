@@ -97,14 +97,19 @@ export interface EdgeMetrics {
 
 export function createMetricsSnapshot(input: {
   bufferAgeSeconds?: number | null
-  diskUsageBytes?: number
+  diskUsageBytes?: number | null
   ffmpegRunning?: boolean
   uploadQueueDepth?: number
   activeReplayJobs?: number
   maxConcurrentReplays?: number
   bufferingSourceCount?: number
   ffmpegProcessCount?: number
-}): EdgeMetrics {
+  cpuPercent?: number | null
+  freeMemoryBytes?: number
+  reservedFreeDiskBytes?: number
+  diskPressure?: boolean
+  uploadHealth?: string
+}): EdgeMetrics & Record<string, unknown> {
   return {
     bufferAgeSeconds: input.bufferAgeSeconds ?? null,
     diskUsageBytes: input.diskUsageBytes ?? 0,
@@ -114,5 +119,10 @@ export function createMetricsSnapshot(input: {
     maxConcurrentReplays: input.maxConcurrentReplays ?? 0,
     bufferingSourceCount: input.bufferingSourceCount ?? 0,
     ffmpegProcessCount: input.ffmpegProcessCount ?? 0,
+    cpuPercent: input.cpuPercent ?? null,
+    freeMemoryBytes: input.freeMemoryBytes ?? 0,
+    reservedFreeDiskBytes: input.reservedFreeDiskBytes ?? 0,
+    diskPressure: input.diskPressure ?? false,
+    uploadHealth: input.uploadHealth ?? "unknown",
   }
 }

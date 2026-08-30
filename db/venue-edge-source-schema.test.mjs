@@ -11,6 +11,10 @@ const pairingMigration = readFileSync(
   new URL("../drizzle/0026_venue_edge_pairing_sessions.sql", import.meta.url),
   "utf8"
 )
+const updateMigration = readFileSync(
+  new URL("../drizzle/0032_venue_edge_updates.sql", import.meta.url),
+  "utf8"
+)
 const provenanceMigration = readFileSync(
   new URL("../drizzle/0031_powerful_bloodscream.sql", import.meta.url),
   "utf8"
@@ -275,4 +279,13 @@ test("new recorder and camera schema stores local references, not raw secrets or
   assert.match(tableSql, /"local_key" text NOT NULL/)
   assert.match(migration, /replay_recorders_host_not_credentialized/)
   assert.match(migration, /replay_camera_sources_live_path_relative/)
+})
+
+test("venue-edge update migration is additive", () => {
+  assert.match(updateMigration, /CREATE TABLE "venue_edge_releases"/)
+  assert.match(updateMigration, /CREATE TABLE "venue_edge_update_attempts"/)
+  assert.match(updateMigration, /ADD COLUMN "update_status"/)
+  assert.match(schema, /venueEdgeReleases/)
+  assert.match(schema, /venueEdgeUpdateAttempts/)
+  assert.doesNotMatch(updateMigration, /DROP (?:TABLE|COLUMN)/i)
 })

@@ -430,4 +430,52 @@ export class EdgeV1Client {
 
     return body.data
   }
+
+  async getUpdateManifest(): Promise<{
+    manifest: Record<string, unknown> | null
+    desiredVersion: string | null
+    currentVersion: string
+    updateStatus: string
+    attemptId: string | null
+  }> {
+    const body = (await this.request("/api/edge/v1/updates/manifest")) as {
+      data: {
+        manifest: Record<string, unknown> | null
+        desiredVersion: string | null
+        currentVersion: string
+        updateStatus: string
+        attemptId: string | null
+      }
+    }
+
+    return body.data
+  }
+
+  async reportUpdateResult(input: {
+    attemptId: string
+    status: "started" | "succeeded" | "failed" | "rolled_back"
+    reasonCode?: string | null
+    appliedVersion?: string | null
+  }): Promise<{ accepted: true; updateStatus: string; currentVersion: string }> {
+    const body = (await this.request("/api/edge/v1/updates/result", {
+      method: "POST",
+      body: input,
+    })) as {
+      data: { accepted: true; updateStatus: string; currentVersion: string }
+    }
+
+    return body.data
+  }
+
+  withCorrelationId(correlationId: string): EdgeV1Client {
+    const cloned = new EdgeV1Client({
+      baseUrl: this.baseUrl,
+      deviceId: this.deviceId ?? undefined,
+      secret: this.secret ?? undefined,
+      correlationId,
+      agentVersion: this.agentVersion ?? undefined,
+      fetchImpl: this.fetchImpl,
+    })
+    return cloned
+  }
 }
