@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm"
 
 import db from "@/db/drizzle"
-import { deviceAssignments, playSessions, replays } from "@/db/schema"
+import { deviceAssignments, playSessions, replayRequests, replays } from "@/db/schema"
 import { getCurrentAssignmentForDevice } from "@/server/devices/devices"
 import {
   createPlaybackGrantForMediaAsset,
@@ -221,6 +221,7 @@ export async function getReplayDetailForUser(
 export async function getDisplayReplayPlaybackGrant(input: {
   resourceId: string
   replayId: string
+  correlationId?: string
 }) {
   const [scoped] = await db
     .select({
@@ -229,9 +230,18 @@ export async function getDisplayReplayPlaybackGrant(input: {
       mediaAssetId: replays.mediaAssetId,
       status: replays.status,
       resourceId: playSessions.resourceId,
+      playSessionCorrelationId: playSessions.correlationId,
+      replayRequestCorrelationId: replayRequests.correlationId,
     })
     .from(replays)
     .leftJoin(playSessions, eq(replays.playSessionId, playSessions.id))
+    .leftJoin(
+      replayRequests,
+      and(
+        eq(replayRequests.replayId, replays.id),
+        eq(replayRequests.tenantId, replays.tenantId),
+      ),
+    )
     .where(
       and(eq(replays.id, input.replayId), eq(playSessions.resourceId, input.resourceId)),
     )
@@ -245,10 +255,16 @@ export async function getDisplayReplayPlaybackGrant(input: {
     )
   }
 
+  const correlationId =
+    input.correlationId ??
+    scoped.replayRequestCorrelationId ??
+    scoped.playSessionCorrelationId ??
+    `display-playback:${scoped.id}`
+
   const context: TenantContext = {
     tenantId: scoped.tenantId,
     actor: { type: "service", id: "display-playback" },
-    correlationId: "display-playback",
+    correlationId,
   }
 
   const grant = await createPlaybackGrantForReadyMedia({

@@ -299,3 +299,37 @@ test("setup session helper tracks expiry and lock state", () => {
   const touched = touchSetupSession(expired, 60_000)
   assert.equal(isSetupSessionActive(touched), true)
 })
+
+test("setup host serves redacted diagnostics support bundle", async () => {
+  const credentialManager = await createCredentialManager()
+  const host = await startSetupHost({
+    port: 0,
+    sessionTtlMs: 60_000,
+    credentialManager,
+    diagnostics: {
+      env: {
+        dataDir: ".",
+        reservedFreeDiskBytes: 1_000_000,
+        firmwareVersion: "0.2.0",
+      },
+      currentVersion: "0.2.0",
+      platform: "win32",
+      architecture: "x64",
+      resolveInstallationId: async () => "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      getRecentFailureCodes: () => ["upload_failed"],
+    },
+  })
+
+  const fetchSetup = setupFetch(host.port, host.session.token)
+  const response = await fetchSetup("/api/setup/diagnostics/support-bundle")
+  assert.equal(response.status, 200)
+
+  const payload = await response.json()
+  assert.equal(
+    payload.bundle.installationId,
+    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  )
+  assert.ok(Array.isArray(payload.bundle.recentFailureCodes))
+
+  await stopSetupHost(host)
+})

@@ -9,6 +9,7 @@ import {
   venueEdgeConfigRevisions,
   venueEdgeInstallations,
   venueEdgeSecretRefs,
+  venueEdgeUpdateAttempts,
 } from "@/db/schema"
 import { DeviceError } from "@/server/devices/errors"
 import { deriveDeviceHealth } from "@/server/devices/health-policy"
@@ -16,8 +17,12 @@ import {
   countSourceHealthFromMetrics,
   countTopologyFromSnapshot,
   parseCommissioningSnapshot,
+  parseHeartbeatMetrics,
+  parseSourceHealthRows,
   readHostSleepRisk,
   type CommissioningSnapshot,
+  type ParsedHeartbeatMetrics,
+  type ParsedSourceHealthRow,
   type SourceHealthCounts,
   type TopologyCounts,
 } from "@/server/replays/venue-edge-topology"
@@ -79,6 +84,8 @@ export interface VenueEdgeInstallationFleetView {
   pinnedVersion: string | null
   lastUpdateAt: string | null
   lastUpdateErrorCode: string | null
+  lastUpdateOutcome: string | null
+  lastSuccessfulVersion: string | null
   activeUpdateAttemptId: string | null
   installedAt: string
   lastConfigAppliedAt: string | null
@@ -89,6 +96,8 @@ export interface VenueEdgeInstallationFleetView {
   lastHeartbeatAt: string | null
   topology: TopologyCounts
   sourceHealth: SourceHealthCounts
+  sourceHealthRows: ParsedSourceHealthRow[]
+  heartbeatMetrics: ParsedHeartbeatMetrics | null
   hasManualOverride: boolean
   hostSleepRisk: boolean
   hostSleepRiskReason: string | null
@@ -307,12 +316,19 @@ function deriveConnectivity(input: {
   return "unknown"
 }
 
-async function loadLatestHeartbeatMetrics(
+async function loadLatestHeartbeatSnapshot(
   tenantId: string,
   deviceId: string,
-): Promise<Record<string, unknown> | null> {
+): Promise<{
+  metrics: Record<string, unknown> | null
+  uptimeMs: number | null
+  appliedConfigVersion: number | null
+}> {
   const [heartbeat] = await db
-    .select({ metrics: deviceHeartbeats.metrics })
+    .select({
+      metrics: deviceHeartbeats.metrics,
+      uptimeMs: deviceHeartbeats.uptimeMs,
+    })
     .from(deviceHeartbeats)
     .where(
       and(
@@ -323,11 +339,27 @@ async function loadLatestHeartbeatMetrics(
     .orderBy(desc(deviceHeartbeats.observedAt))
     .limit(1)
 
-  if (!heartbeat?.metrics || typeof heartbeat.metrics !== "object") {
-    return null
+  if (!heartbeat) {
+    return {
+      metrics: null,
+      uptimeMs: null,
+      appliedConfigVersion: null,
+    }
   }
 
-  return heartbeat.metrics as Record<string, unknown>
+  const metrics =
+    heartbeat.metrics && typeof heartbeat.metrics === "object"
+      ? (heartbeat.metrics as Record<string, unknown>)
+      : null
+
+  return {
+    metrics,
+    uptimeMs: heartbeat.uptimeMs,
+    appliedConfigVersion:
+      typeof metrics?.appliedConfigVersion === "number"
+        ? metrics.appliedConfigVersion
+        : null,
+  }
 }
 
 function hasManualOverride(snapshot: CommissioningSnapshot | null): boolean {
@@ -465,6 +497,45 @@ async function loadLatestConfigApplication(
   return application
 }
 
+async function loadUpdateAttemptSummary(
+  tenantId: string,
+  installationId: string,
+) {
+  const [lastAttempt] = await db
+    .select({
+      status: venueEdgeUpdateAttempts.status,
+    })
+    .from(venueEdgeUpdateAttempts)
+    .where(
+      and(
+        eq(venueEdgeUpdateAttempts.tenantId, tenantId),
+        eq(venueEdgeUpdateAttempts.installationId, installationId),
+      ),
+    )
+    .orderBy(desc(venueEdgeUpdateAttempts.startedAt))
+    .limit(1)
+
+  const [lastSuccess] = await db
+    .select({
+      targetVersion: venueEdgeUpdateAttempts.targetVersion,
+    })
+    .from(venueEdgeUpdateAttempts)
+    .where(
+      and(
+        eq(venueEdgeUpdateAttempts.tenantId, tenantId),
+        eq(venueEdgeUpdateAttempts.installationId, installationId),
+        eq(venueEdgeUpdateAttempts.status, "succeeded"),
+      ),
+    )
+    .orderBy(desc(venueEdgeUpdateAttempts.finishedAt))
+    .limit(1)
+
+  return {
+    lastUpdateOutcome: lastAttempt?.status ?? null,
+    lastSuccessfulVersion: lastSuccess?.targetVersion ?? null,
+  }
+}
+
 export async function listVenueEdgeInstallations(
   context: TenantContext,
   locationId: string,
@@ -504,10 +575,13 @@ export async function listVenueEdgeInstallations(
   const installations: VenueEdgeInstallationFleetView[] = []
 
   for (const row of rows) {
-    const metrics = await loadLatestHeartbeatMetrics(
+    const heartbeat = await loadLatestHeartbeatSnapshot(
       context.tenantId,
       row.installation.edgeDeviceId,
     )
+    const metrics = heartbeat.metrics
+    const heartbeatMetrics = parseHeartbeatMetrics(metrics, heartbeat)
+    const sourceHealthRows = parseSourceHealthRows(metrics)
     const commissioningSnapshot = parseCommissioningSnapshot(
       row.installation.commissioningSnapshotJson,
     )
@@ -567,6 +641,10 @@ export async function listVenueEdgeInstallations(
       configApplication?.errorCode ?? null,
       configApplication?.errorDetails ?? null,
     )
+    const updateAttemptSummary = await loadUpdateAttemptSummary(
+      context.tenantId,
+      row.installation.id,
+    )
     const workflow = deriveWorkflow({
       installationId: row.installation.id,
       connectivity: deriveConnectivity({ deviceStatus: row.device.status, lastHeartbeatAt: row.device.lastHeartbeatAt }),
@@ -597,6 +675,8 @@ export async function listVenueEdgeInstallations(
       pinnedVersion: row.installation.pinnedVersion,
       lastUpdateAt: row.installation.lastUpdateAt?.toISOString() ?? null,
       lastUpdateErrorCode: row.installation.lastUpdateErrorCode,
+      lastUpdateOutcome: updateAttemptSummary.lastUpdateOutcome,
+      lastSuccessfulVersion: updateAttemptSummary.lastSuccessfulVersion,
       activeUpdateAttemptId: row.installation.activeUpdateAttemptId,
       installedAt: row.installation.installedAt.toISOString(),
       lastConfigAppliedAt:
@@ -613,6 +693,8 @@ export async function listVenueEdgeInstallations(
       lastHeartbeatAt: row.device.lastHeartbeatAt?.toISOString() ?? null,
       topology,
       sourceHealth,
+      sourceHealthRows,
+      heartbeatMetrics,
       hasManualOverride: hasManualOverride(commissioningSnapshot),
       hostSleepRisk: sleepRisk.hostSleepRisk,
       hostSleepRiskReason: sleepRisk.hostSleepRiskReason,

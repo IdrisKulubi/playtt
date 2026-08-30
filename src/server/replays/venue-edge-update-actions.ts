@@ -1,7 +1,7 @@
-import { and, eq } from "drizzle-orm"
+import { and, desc, eq } from "drizzle-orm"
 
 import db from "@/db/drizzle"
-import { venueEdgeInstallations } from "@/db/schema"
+import { venueEdgeInstallations, venueEdgeUpdateAttempts } from "@/db/schema"
 import { DeviceError } from "@/server/devices/errors"
 import { VENUE_EDGE_AUDIT_ACTIONS } from "@/server/replays/venue-edge-audit-actions"
 import {
@@ -160,6 +160,71 @@ export async function requestVenueEdgeUpdateRetry(
   })
 
   return { id: installationId, updateStatus: "idle" }
+}
+
+export async function requestVenueEdgeUpdateRollback(
+  context: TenantContext,
+  installationId: string,
+  reason?: string,
+) {
+  const auditReason = requireReason(reason)
+  const installation = await getInstallationForTenant(
+    context.tenantId,
+    installationId,
+  )
+
+  const [lastSuccess] = await db
+    .select({
+      targetVersion: venueEdgeUpdateAttempts.targetVersion,
+    })
+    .from(venueEdgeUpdateAttempts)
+    .where(
+      and(
+        eq(venueEdgeUpdateAttempts.tenantId, context.tenantId),
+        eq(venueEdgeUpdateAttempts.installationId, installationId),
+        eq(venueEdgeUpdateAttempts.status, "succeeded"),
+      ),
+    )
+    .orderBy(desc(venueEdgeUpdateAttempts.finishedAt))
+    .limit(1)
+
+  const rollbackVersion =
+    lastSuccess?.targetVersion ?? installation.currentAgentVersion
+
+  await db
+    .update(venueEdgeInstallations)
+    .set({
+      pinnedVersion: rollbackVersion,
+      desiredAgentVersion: rollbackVersion,
+      updateStatus: "rolled_back",
+      activeUpdateAttemptId: null,
+      lastUpdateErrorCode: null,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(venueEdgeInstallations.tenantId, context.tenantId),
+        eq(venueEdgeInstallations.id, installationId),
+      ),
+    )
+
+  await writeAuditLog(context, {
+    action: VENUE_EDGE_AUDIT_ACTIONS.updateRolledBack,
+    targetType: "venue_edge_installation",
+    targetId: installationId,
+    metadata: {
+      reason: auditReason,
+      rollbackVersion,
+      previousPinnedVersion: installation.pinnedVersion,
+      previousDesiredVersion: installation.desiredAgentVersion,
+    },
+  })
+
+  return {
+    id: installationId,
+    pinnedVersion: rollbackVersion,
+    updateStatus: "rolled_back",
+  }
 }
 
 export async function publishVenueEdgeReleaseForOperator(

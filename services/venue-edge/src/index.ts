@@ -2,6 +2,7 @@ import { mkdir } from "node:fs/promises"
 import { pathToFileURL } from "node:url"
 
 import { CredentialManager } from "./auth/credential-manager"
+import type { VenueEdgeEnv } from "./config/env"
 import { createNvrPasswordStore } from "./auth/nvr-secret-store"
 import { isDeviceRevokedCloudError } from "./auth/cloud-errors"
 import {
@@ -30,7 +31,7 @@ import {
 import { loadSimulatorScenario } from "./simulator/load-scenario"
 import { initDatabase } from "./state/sqlite"
 import { safeLog } from "./health/metrics"
-import { startSetupHost, type SetupHostHandle } from "./setup/host"
+import { startSetupHost, type SetupHostDiagnosticsContext, type SetupHostHandle } from "./setup/host"
 import { LocalNvrManager } from "./setup/local-nvr-manager"
 import { LocalCameraManager } from "./setup/local-camera-manager"
 import { TopologyReviewManager } from "./setup/topology-review-manager"
@@ -38,6 +39,10 @@ import { LocalResourceMappingManager } from "./setup/local-resource-mapping-mana
 import { CommissioningManager } from "./setup/commissioning-manager"
 import { resolveRuntimeEdgeConfigV2 } from "./setup/local-config-overlay"
 import { VenueEdgeUpdater } from "./update/updater"
+import {
+  probeVenueEdgeHealth,
+  restartInstalledVenueEdgeService,
+} from "./update/service-control"
 
 export interface VenueEdgeRuntime {
   stop(): Promise<void>
@@ -87,6 +92,31 @@ function isProductionCaptureAllowed(
   }
 
   return commissioned
+}
+
+function buildSetupHostDiagnostics(input: {
+  env: VenueEdgeEnv
+  credentialManager: CredentialManager
+  healthEngine?: SourceHealthEngine | null
+  getRecentFailureCodes?: () => string[]
+}): SetupHostDiagnosticsContext {
+  return {
+    env: input.env,
+    currentVersion: input.env.firmwareVersion,
+    platform: process.platform,
+    architecture: process.arch,
+    healthEngine: input.healthEngine ?? null,
+    getRecentFailureCodes: input.getRecentFailureCodes,
+    resolveInstallationId: async () => {
+      const metadata = await input.credentialManager.loadInstallationMetadata()
+      if (metadata?.installationUid) {
+        return metadata.installationUid
+      }
+
+      const credentials = await input.credentialManager.loadCredentials()
+      return credentials?.deviceId ?? null
+    },
+  }
 }
 
 export async function startVenueEdge(
@@ -382,6 +412,8 @@ export async function startVenueEdge(
     platform: process.platform,
     architecture: process.arch,
     publicKeyPem: process.env.VENUE_EDGE_UPDATE_PUBLIC_KEY?.trim() ?? null,
+    restartService: restartInstalledVenueEdgeService,
+    healthCheck: probeVenueEdgeHealth,
   })
 
   const heartbeatLoop = new HeartbeatLoop({
@@ -440,6 +472,11 @@ export async function startVenueEdge(
       topologyReviewManager,
       localResourceMappingManager,
       commissioningManager,
+      diagnostics: buildSetupHostDiagnostics({
+        env,
+        credentialManager,
+        healthEngine,
+      }),
       resetConfigCache: async () => {
         configManager.resetLocalConfigCache()
       },
@@ -549,6 +586,10 @@ async function runSetupOnly(): Promise<void> {
     topologyReviewManager,
     localResourceMappingManager,
     commissioningManager,
+    diagnostics: buildSetupHostDiagnostics({
+      env,
+      credentialManager,
+    }),
     resetConfigCache: () => repositories.clearConfigSnapshots(),
     enroll: async (pairingCode) => {
       const enrolled = await enrollVenueEdge({

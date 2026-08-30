@@ -55,6 +55,76 @@ test("edge update manifest verifier rejects unsigned manifest", () => {
   assert.equal(validation.code, "UPDATE_MANIFEST_UNSIGNED")
 })
 
+test("edge update manifest verifier rejects tampered manifest", () => {
+  const signed = signUpdateManifest(payload, privateKeyPem)
+  const validation = validateUpdateManifest({
+    manifest: { ...signed, version: "9.9.9" },
+    currentVersion: "0.1.0",
+    platform: "win32",
+    architecture: "x64",
+    publicKeyPem,
+  })
+
+  assert.equal(validation.valid, false)
+  assert.equal(validation.code, "UPDATE_MANIFEST_TAMPERED")
+})
+
+test("edge update manifest verifier rejects wrong platform and architecture", () => {
+  const signed = signUpdateManifest(payload, privateKeyPem)
+
+  assert.equal(
+    validateUpdateManifest({
+      manifest: signed,
+      currentVersion: "0.1.0",
+      platform: "linux",
+      architecture: "x64",
+      publicKeyPem,
+    }).code,
+    "UPDATE_MANIFEST_WRONG_PLATFORM",
+  )
+
+  assert.equal(
+    validateUpdateManifest({
+      manifest: signed,
+      currentVersion: "0.1.0",
+      platform: "win32",
+      architecture: "arm64",
+      publicKeyPem,
+    }).code,
+    "UPDATE_MANIFEST_WRONG_ARCHITECTURE",
+  )
+})
+
+test("edge update manifest verifier rejects expired and downgrade manifests", () => {
+  const signed = signUpdateManifest(payload, privateKeyPem)
+
+  assert.equal(
+    validateUpdateManifest({
+      manifest: signed,
+      currentVersion: "0.1.0",
+      platform: "win32",
+      architecture: "x64",
+      publicKeyPem,
+      now: new Date(Date.now() + 120_000),
+    }).code,
+    "UPDATE_MANIFEST_EXPIRED",
+  )
+
+  assert.equal(
+    validateUpdateManifest({
+      manifest: signUpdateManifest(
+        { ...payload, version: "0.0.1", channel: "stable" },
+        privateKeyPem,
+      ),
+      currentVersion: "0.2.0",
+      platform: "win32",
+      architecture: "x64",
+      publicKeyPem,
+    }).code,
+    "UPDATE_MANIFEST_DOWNGRADE",
+  )
+})
+
 test("canonical update manifest payload is stable", () => {
   const first = canonicalizeUpdateManifestPayload(payload)
   const second = canonicalizeUpdateManifestPayload({

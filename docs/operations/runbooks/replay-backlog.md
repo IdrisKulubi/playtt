@@ -4,7 +4,7 @@ Use when many replay requests are in flight and queue pressure is elevated.
 
 ## Check
 
-1. Open the venue detail page and inspect edge capacity metrics.
+1. Open the venue detail page at [/nvr](/nvr) and inspect edge capacity metrics (`uploadQueueDepth`, `activeReplayJobs`, `ffmpegProcessCount`, and `bufferAgeSeconds`).
 2. Count in-flight replay requests and active FFmpeg jobs.
 
 ## Diagnose
@@ -12,6 +12,7 @@ Use when many replay requests are in flight and queue pressure is elevated.
 - Burst of replay requests during peak play.
 - Edge concurrency limit reached.
 - Slow uploads to R2 extending queue time.
+- See also [VenueEdge disk pressure](./venue-edge-disk-pressure.md) when queue depth stays high with `diskPressure` true.
 
 ## Recover
 

@@ -8,6 +8,7 @@ import {
   countAlertsBySeverity,
   sortOperationalAlerts,
 } from "./alert-types.ts"
+import { extractEdgeSourceHealthIssues } from "./health-status.ts"
 
 const operationsRoot = join(import.meta.dirname)
 const repoRoot = join(import.meta.dirname, "..", "..", "..")
@@ -118,6 +119,54 @@ test("alert catalog covers implemented venue and tenant health dimensions", () =
   assert.ok(tenantKeys.has("database"))
   assert.ok(tenantKeys.has("redis"))
   assert.ok(tenantKeys.has("storage"))
+  assert.ok(ALERT_CATALOG.some((entry) => entry.code === "clock_skew"))
+  assert.ok(ALERT_CATALOG.some((entry) => entry.code === "stale_buffer"))
+  assert.ok(ALERT_CATALOG.some((entry) => entry.code === "repeated_failover"))
+})
+
+test("deriveOperationalAlerts emits source-scoped edge alerts with installation links", () => {
+  const issues = extractEdgeSourceHealthIssues({
+    installationId: "installation-1",
+    sourceHealth: [
+      {
+        sourceId: "camera-1",
+        recorderId: "recorder-1",
+        reasonCode: "clock_skew",
+      },
+    ],
+  })
+
+  const alerts = deriveOperationalAlerts({
+    status: "degraded",
+    generatedAt: "2026-01-01T10:00:00.000Z",
+    tenantDimensions: [],
+    venues: [
+      {
+        venueId: "venue-1",
+        venueName: "Hurlingham",
+        status: "degraded",
+        edgeInstallationId: "installation-1",
+        edgeSourceIssues: issues,
+        dimensions: [
+          {
+            key: "edge",
+            label: "Venue edge",
+            status: "degraded",
+            count: 1,
+            summary: "Venue edge clock skew (1)",
+            href: "/nvr/installation-1",
+          },
+        ],
+      },
+    ],
+  })
+
+  const clockSkew = alerts.find((alert) => alert.code === "clock_skew")
+  assert.ok(clockSkew)
+  assert.equal(clockSkew.installationId, "installation-1")
+  assert.equal(clockSkew.cameraSourceId, "camera-1")
+  assert.equal(clockSkew.recorderId, "recorder-1")
+  assert.equal(clockSkew.href, "/nvr/installation-1")
 })
 
 test("deriveOperationalAlerts maps degraded and down health to warning and critical", () => {
@@ -155,6 +204,10 @@ test("sortOperationalAlerts orders critical before warning", () => {
       summary: "12 jobs in backlog",
       venueId: null,
       venueName: null,
+      installationId: null,
+      recorderId: null,
+      cameraSourceId: null,
+      resourceId: null,
       owner: "platform-ops",
       escalation: "On-call operator",
       runbookPath: "docs/operations/runbooks/worker-backlog.md",
@@ -170,6 +223,10 @@ test("sortOperationalAlerts orders critical before warning", () => {
       summary: "2 dead-letter jobs",
       venueId: null,
       venueName: null,
+      installationId: null,
+      recorderId: null,
+      cameraSourceId: null,
+      resourceId: null,
       owner: "platform-ops",
       escalation: "On-call operator",
       runbookPath: "docs/operations/runbooks/worker-dead-letter.md",

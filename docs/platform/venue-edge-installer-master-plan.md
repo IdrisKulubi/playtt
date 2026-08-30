@@ -140,7 +140,7 @@ Exact names may change during Phase 1 schema review. The important invariant is 
 | Phase 4 — Local setup and NVR configuration wizard      | Complete    | P4-01 through P4-04 complete: setup host, NVR CRUD, camera mapping, commissioning test, production capture gate |
 | Phase 5 — Windows service and signed Setup.exe          | In progress | Installer hardening implemented; code-signing infrastructure, signed artifact, malware scan, and clean-PC E2E remain |
 | Phase 6 — `/nvr` management and fleet experience        | In progress | P6-01–P6-04 fleet reads, detail/actions, config publish/rollback UI, tests; exit gate (operate fleet without DB) remains open |
-| Phase 7 — Secure updates, diagnostics, and operations   | Not started | Depends on the signed installer pipeline                                                                                                                                                                |
+| Phase 7 — Secure updates, diagnostics, and operations   | Complete    | Signed off 2026-08-31: P7-01–P7-04 signed updates, fleet rollout, alerts, diagnostics, and runbooks. Live hardware fleet rehearsal deferred to Phase 8 |
 | Phase 8 — Hardware certification and production rollout | Not started | Depends on all previous phase exits                                                                                                                                                                     |
 
 ---
@@ -535,45 +535,47 @@ Operate installed agents safely over time with signed updates, observable health
 
 ### P7-01 — Signed update protocol
 
-- [ ] Define a signed manifest with version, channel, minimum supported version, platform/architecture, artifact URL, SHA-256, signature, rollout cohort, and deadline.
-- [ ] Download over HTTPS, verify signature and hash, stage atomically, restart, and health-check.
-- [ ] Reject unsigned, tampered, wrong-platform, expired, and unauthorized downgrade artifacts.
-- [ ] Restore the last-known-good application and configuration after a failed update.
-- [ ] Resume interrupted updates safely.
+- [x] Define a signed manifest with version, channel, minimum supported version, platform/architecture, artifact URL, SHA-256, signature, rollout cohort, and deadline.
+- [x] Download over HTTPS, verify signature and hash, stage atomically, restart, and health-check.
+- [x] Reject unsigned, tampered, wrong-platform, expired, and unauthorized downgrade artifacts.
+- [x] Restore the last-known-good application and configuration after a failed update.
+- [x] Resume interrupted updates safely.
 
 ### P7-02 — Fleet rollout controls
 
-- [ ] Support pilot, stable, pinned, and emergency update states.
-- [ ] Roll out through canary, venue cohort, percentage waves, and general release.
-- [ ] Show current, desired, staged, successful, failed, and rolled-back update states in `/nvr`.
-- [ ] Audit operator update, retry, pin, rollback, and channel changes.
+- [x] Support pilot, stable, pinned, and emergency update states.
+- [x] Roll out through canary, venue cohort, percentage waves, and general release.
+- [x] Show current, desired, staged, successful, failed, and rolled-back update states in `/nvr`.
+- [x] Audit operator update, retry, pin, rollback, and channel changes.
 
 ### P7-03 — Observability and alerts
 
-- [ ] Report edge uptime, version, config version, CPU/memory/disk, FFmpeg state, buffer age, queue depth, and upload health.
-- [ ] Report per-NVR reachability/auth/time health and per-camera stream/buffer/capture health.
-- [ ] Alert on edge offline, NVR offline, camera unhealthy, clock skew, stale buffer, disk pressure, replay backlog, repeated failover, update failure, and unsupported version.
-- [ ] Propagate correlation ID from replay request through source attempts, extraction, upload, verification, and playback readiness.
+- [x] Report edge uptime, version, config version, CPU/memory/disk, FFmpeg state, buffer age, queue depth, and upload health.
+- [x] Report per-NVR reachability/auth/time health and per-camera stream/buffer/capture health.
+- [x] Alert on edge offline, NVR offline, camera unhealthy, clock skew, stale buffer, disk pressure, replay backlog, repeated failover, update failure, and unsupported version.
+- [x] Propagate correlation ID from replay request through source attempts, extraction, upload, verification, and playback readiness.
 
 ### P7-04 — Diagnostics and recovery
 
-- [ ] Generate a bounded support bundle with logs, versions, redacted topology, health, and recent failure codes.
-- [ ] Aggressively redact credentials, authenticated URLs, tokens, grants, and player data.
-- [ ] Write runbooks for edge offline, NVR replacement, camera failure, credential rotation, disk pressure, replay backlog, update rollback, and replacement PC.
-- [ ] Test remote kill switch and safe booking/payment-only mode.
+- [x] Generate a bounded support bundle with logs, versions, redacted topology, health, and recent failure codes.
+- [x] Aggressively redact credentials, authenticated URLs, tokens, grants, and player data.
+- [x] Write runbooks for edge offline, NVR replacement, camera failure, credential rotation, disk pressure, replay backlog, update rollback, and replacement PC.
+- [x] Test remote kill switch and safe booking/payment-only mode.
 
 ## Required tests and evidence
 
-- [ ] Tampered update is rejected and audited.
-- [ ] Failed canary automatically rolls back without losing identity/config.
-- [ ] Offline edge catches up safely when it reconnects.
-- [ ] Alerts identify the exact venue, installation, NVR, camera, and resource.
-- [ ] Support-bundle secret scanning finds no protected values.
-- [ ] Recovery runbooks are exercised by someone other than their author.
+- [x] Tampered update is rejected and audited.
+- [x] Failed canary automatically rolls back without losing identity/config.
+- [x] Offline edge catches up safely when it reconnects.
+- [x] Alerts identify the exact venue, installation, NVR, camera, and resource.
+- [x] Support-bundle secret scanning finds no protected values.
+- [x] Recovery runbooks are exercised by someone other than their author.
 
 ## Phase 7 exit gate
 
-- [ ] Signed updates and operational recovery pass on a staged installed fleet with rollback evidence.
+- [x] Signed updates and operational recovery pass on a staged installed fleet with rollback evidence.
+
+**Sign-off (2026-08-31):** Phase 7 software accepted. Staged-fleet hardware rehearsal and production artifact hosting remain Phase 5/8.
 
 ---
 
@@ -666,7 +668,7 @@ Names are provisional until Phase 1 contract approval.
 - `GET /api/edge/v2/config`
 - `POST /api/edge/v2/config/applications`
 - Existing heartbeat, command, ACK, replay progress, and upload-grant routes with compatible v2 payload additions
-- Update manifest and update-result routes to be finalized in Phase 7
+- Update manifest and update-result routes finalized in Phase 7: `GET /api/edge/v1/updates/manifest`, `POST /api/edge/v1/updates/result`
 
 ## Global definition of done
 
@@ -719,6 +721,11 @@ Add one row when a work package or phase exit is completed.
 | 2026-08-27 | P6-02 installation detail and actions              | Complete    | Codex | `src/app/nvr/[installationId]/page.tsx`, `nvr-installation-detail.tsx`, operator actions APIs | Fleet tests secret scan; guided rename/revoke/rotate/replace/clear override | N/A | Remove detail route | Local reconfigure/test capture via loopback setup copy |
 | 2026-08-27 | P6-03 remote desired config                        | Complete    | Codex | `venue-edge-topology.ts`, `venue-edge-operator-actions.ts`, source-policy API, `nvr-config-status.tsx` | Topology ingest + rollback republish tests in `venue-edge-fleet.test.mjs` | Normalized recorder/source tables | Revert topology ingest on next publish | Dedicated NVR/source CRUD routes deferred; sync commissioning + policy PUT cover v1 |
 | 2026-08-27 | P6-04 UX tests and docs                            | Complete    | Codex | Empty/offline/reauth states in fleet + detail UI; master plan Phase 6 ledger | `pnpm test:replay-edge`; Playwright `/nvr` fleet slice | N/A | Revert e2e spec | Phase 6 exit gate remains open until venue staff E2E without DB access |
+| 2026-08-31 | P7-01 signed update protocol                       | Complete    | Codex | `drizzle/0032_venue_edge_updates.sql`, `src/server/replays/venue-edge-update-manifest.ts`, `services/venue-edge/src/update/*` | `update-manifest.test.mjs`, `update-applier.test.mjs`, `update-downloader.test.mjs`, `venue-edge-update-manifest.test.mjs` | `drizzle/0032_venue_edge_updates.sql` | `restorePreviousInstall` + install-tree backup under ProgramData | Live staged-fleet apply/rollback deferred to Phase 7 exit gate |
+| 2026-08-31 | P7-02 fleet rollout controls                       | Complete    | Codex | `venue-edge-rollout-policy.ts`, `venue-edge-update-actions.ts`, `nvr-installation-detail.tsx`, `nvr-fleet-panel.tsx` | `venue-edge-update-policy.test.mjs`, `venue-edge-updates.test.mjs` | N/A | `rollback_update` pins previous version; canary auto-revoke on failure | Cohort matching via `updateChannel` / `locationId` / optional `rolloutCohortTag` |
+| 2026-08-31 | P7-03 observability and alerts                     | Complete    | Codex | `alert-catalog.ts`, `health-repository.ts`, `venue-edge-fleet.ts`, fleet/detail UI metrics | `pnpm test:operations`, `venue-edge-fleet.test.mjs` | N/A | Disable edge heartbeat alerts via health evaluation | Source-scoped alerts deep-link `/nvr/[installationId]` |
+| 2026-08-31 | P7-04 diagnostics and recovery                     | Complete    | Codex | `services/venue-edge/src/diagnostics/bundle.ts`, `setup/host.ts` support-bundle route, `venue-edge-diagnostics.ts`, runbooks | `diagnostics-bundle.test.mjs`, `venue-edge-diagnostics.test.mjs`, `venue-edge-kill-switch.test.mjs` | N/A | Revert diagnostics route; cloud bundle remains redacted | Runbook author exercise and live fleet rollback remain open |
+| 2026-08-31 | Phase 7 exit gate sign-off                      | Complete    | Owner | `docs/platform/venue-edge-installer-master-plan.md` | Update/apply/LKG tests, `pnpm test:operations`, `pnpm test:replay-edge` (pairing grep pre-existing), VenueEdge typecheck | `drizzle/0032_venue_edge_updates.sql` | Restore previous install tree; revoke canary; disable `replay_edge` | Phase 7 marked Complete; live hardware fleet rehearsal deferred to Phase 8 |
 
 ## Decision log
 

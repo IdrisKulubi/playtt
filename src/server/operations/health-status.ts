@@ -25,11 +25,37 @@ export interface HealthDimension extends HealthDimensionEvaluation {
   href: string | null
 }
 
+export type EdgeSourceAlertCode =
+  | "clock_skew"
+  | "stale_buffer"
+  | "repeated_failover"
+
+export interface EdgeSourceHealthEntry {
+  sourceId?: string | null
+  recorderId?: string | null
+  resourceId?: string | null
+  status?: string | null
+  reasonCode?: string | null
+  details?: Record<string, unknown>
+}
+
+export interface EdgeSourceHealthIssue {
+  code: EdgeSourceAlertCode
+  reasonCode: string
+  installationId: string
+  recorderId: string | null
+  cameraSourceId: string | null
+  resourceId: string | null
+  summary: string
+}
+
 export interface VenueHealthSnapshot {
   venueId: string
   venueName: string
   status: HealthStatus
   dimensions: HealthDimension[]
+  edgeInstallationId?: string | null
+  edgeSourceIssues?: EdgeSourceHealthIssue[]
 }
 
 export interface TenantHealthOverview {
@@ -136,6 +162,94 @@ export function evaluateDeviceDimension(
   }
 }
 
+const EDGE_SOURCE_ALERT_REASON_CODES: Record<
+  EdgeSourceAlertCode,
+  readonly string[]
+> = {
+  clock_skew: ["clock_skew"],
+  stale_buffer: ["buffer_stale"],
+  repeated_failover: ["repeated_failover"],
+}
+
+function summarizeEdgeSourceIssue(
+  code: EdgeSourceAlertCode,
+  input: {
+    recorderId: string | null
+    cameraSourceId: string | null
+    resourceId: string | null
+  },
+): string {
+  const target = input.resourceId
+    ? `resource ${input.resourceId}`
+    : input.cameraSourceId
+      ? `camera ${input.cameraSourceId}`
+      : input.recorderId
+        ? `NVR ${input.recorderId}`
+        : "edge source"
+
+  switch (code) {
+    case "clock_skew":
+      return `Venue edge clock skew on ${target}`
+    case "stale_buffer":
+      return `Venue edge stale buffer on ${target}`
+    case "repeated_failover":
+      return `Venue edge repeated failover on ${target}`
+  }
+}
+
+export function extractEdgeSourceHealthIssues(input: {
+  installationId: string
+  sourceHealth: EdgeSourceHealthEntry[]
+}): EdgeSourceHealthIssue[] {
+  const issues: EdgeSourceHealthIssue[] = []
+
+  for (const entry of input.sourceHealth) {
+    const reasonCode =
+      typeof entry.reasonCode === "string" ? entry.reasonCode : null
+
+    if (!reasonCode) {
+      continue
+    }
+
+    const alertCode = (
+      Object.entries(EDGE_SOURCE_ALERT_REASON_CODES) as Array<
+        [EdgeSourceAlertCode, readonly string[]]
+      >
+    ).find(([, reasonCodes]) => reasonCodes.includes(reasonCode))?.[0]
+
+    if (!alertCode) {
+      continue
+    }
+
+    const cameraSourceId =
+      typeof entry.sourceId === "string" ? entry.sourceId : null
+    const recorderId =
+      typeof entry.recorderId === "string" ? entry.recorderId : null
+    const resourceId =
+      typeof entry.resourceId === "string"
+        ? entry.resourceId
+        : typeof entry.details?.resourceId === "string"
+          ? entry.details.resourceId
+          : null
+
+    issues.push({
+      code: alertCode,
+      reasonCode,
+      installationId: input.installationId,
+      recorderId,
+      cameraSourceId,
+      resourceId,
+      summary: summarizeEdgeSourceIssue(alertCode, {
+        recorderId,
+        cameraSourceId,
+        resourceId,
+      }),
+    })
+  }
+
+  return issues
+}
+
 export function evaluateEdgeDimension(
   edge:
     | {
@@ -148,6 +262,9 @@ export function evaluateEdgeDimension(
         unsupportedVersion?: boolean
         unhealthyCameraCount?: number
         nvrOfflineCount?: number
+        clockSkewCount?: number
+        staleBufferCount?: number
+        repeatedFailoverCount?: number
       }
     | null,
 ): HealthDimensionEvaluation {
@@ -196,6 +313,30 @@ export function evaluateEdgeDimension(
       status: "degraded",
       count: edge.unhealthyCameraCount,
       summary: `Venue edge camera unhealthy (${edge.unhealthyCameraCount})`,
+    }
+  }
+
+  if (edge.repeatedFailoverCount && edge.repeatedFailoverCount > 0) {
+    return {
+      status: "degraded",
+      count: edge.repeatedFailoverCount,
+      summary: `Venue edge repeated failover (${edge.repeatedFailoverCount})`,
+    }
+  }
+
+  if (edge.clockSkewCount && edge.clockSkewCount > 0) {
+    return {
+      status: "degraded",
+      count: edge.clockSkewCount,
+      summary: `Venue edge clock skew (${edge.clockSkewCount})`,
+    }
+  }
+
+  if (edge.staleBufferCount && edge.staleBufferCount > 0) {
+    return {
+      status: "degraded",
+      count: edge.staleBufferCount,
+      summary: `Venue edge stale buffer (${edge.staleBufferCount})`,
     }
   }
 

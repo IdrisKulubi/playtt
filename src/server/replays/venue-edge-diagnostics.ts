@@ -8,19 +8,7 @@ import {
 } from "@/db/schema"
 import { DeviceError } from "@/server/devices/errors"
 import type { TenantContext } from "@/server/tenancy/types"
-
-function redactDiagnostics(
-  input: Record<string, unknown>,
-): Record<string, unknown> {
-  return JSON.parse(
-    JSON.stringify(input, (_key, value) => {
-      if (typeof value === "string" && /password|secret|rtsp:\/\//i.test(value)) {
-        return "[redacted]"
-      }
-      return value
-    }),
-  ) as Record<string, unknown>
-}
+import { redactVenueEdgeSecrets } from "@/server/replays/venue-edge-redaction"
 
 export async function buildVenueEdgeInstallationDiagnostics(
   context: TenantContext,
@@ -76,7 +64,7 @@ export async function buildVenueEdgeInstallationDiagnostics(
     .orderBy(desc(venueEdgeUpdateAttempts.startedAt))
     .limit(10)
 
-  const bundle = redactDiagnostics({
+  const bundle = redactVenueEdgeSecrets({
     generatedAt: new Date().toISOString(),
     installation: {
       id: installation.id,
@@ -107,7 +95,7 @@ export async function buildVenueEdgeInstallationDiagnostics(
       startedAt: attempt.startedAt.toISOString(),
       finishedAt: attempt.finishedAt?.toISOString() ?? null,
     })),
-  })
+  }) as Record<string, unknown>
 
   return {
     installationId,

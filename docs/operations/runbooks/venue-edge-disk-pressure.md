@@ -4,7 +4,10 @@ Use when heartbeat metrics report disk pressure or replay extraction fails with 
 
 ## Check
 
-1. Open `/nvr` and review disk usage metrics on the installation.
+1. Open [VenueEdge fleet](/nvr) and select the installation. Review heartbeat metrics surfaced on the fleet row and installation detail:
+   - `diskPressure` badge on the fleet list
+   - `diskUsageBytes`, `reservedFreeDiskBytes`, and `freeMemoryBytes` from the latest heartbeat
+   - `bufferAgeSeconds`, `uploadQueueDepth`, and `ffmpegProcessCount` when replay capture is active
 2. Confirm replay queue depth and failed replay requests at the venue.
 
 ## Recover
@@ -15,5 +18,5 @@ Use when heartbeat metrics report disk pressure or replay extraction fails with 
 
 ## Verify
 
-- Heartbeat `diskPressure` is false.
+- Heartbeat `diskPressure` is false on `/nvr`.
 - New replay requests reach `ready`.

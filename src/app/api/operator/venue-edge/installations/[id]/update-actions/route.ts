@@ -11,6 +11,7 @@ import {
   pinVenueEdgeInstallationVersion,
   publishVenueEdgeReleaseForOperator,
   requestVenueEdgeUpdateRetry,
+  requestVenueEdgeUpdateRollback,
   revokeVenueEdgeReleaseForOperator,
 } from "@/server/replays/venue-edge-update-actions"
 
@@ -27,6 +28,10 @@ const actionSchema = z.discriminatedUnion("action", [
   }),
   z.object({
     action: z.literal("retry_update"),
+    reason: z.string().trim().min(4).max(256),
+  }),
+  z.object({
+    action: z.literal("rollback_update"),
     reason: z.string().trim().min(4).max(256),
   }),
   z.object({
@@ -76,6 +81,15 @@ export async function POST(
 
     if (body.action === "retry_update") {
       const result = await requestVenueEdgeUpdateRetry(
+        resolved.context,
+        id,
+        body.reason,
+      )
+      return operatorJson({ result })
+    }
+
+    if (body.action === "rollback_update") {
+      const result = await requestVenueEdgeUpdateRollback(
         resolved.context,
         id,
         body.reason,
