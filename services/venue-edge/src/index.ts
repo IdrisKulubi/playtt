@@ -444,6 +444,7 @@ export async function startVenueEdge(
           agentVersion: env.firmwareVersion,
           bootId: env.bootId,
         })
+        configManager.resetLocalConfigCache()
         credentials = await credentialManager.loadCredentials()
         heartbeatLoop.start()
         await refreshConfig()
@@ -538,14 +539,17 @@ async function runSetupOnly(): Promise<void> {
     localResourceMappingManager,
     commissioningManager,
     resetConfigCache: () => repositories.clearConfigSnapshots(),
-    enroll: async (pairingCode) =>
-      enrollVenueEdge({
+    enroll: async (pairingCode) => {
+      const enrolled = await enrollVenueEdge({
         pairingCode,
         credentialManager,
         client,
         agentVersion: env.firmwareVersion,
         bootId: env.bootId,
-      }),
+      })
+      repositories.clearConfigSnapshots()
+      return enrolled
+    },
   })
 
   console.log(`VenueEdge setup: open ${setupHost.setupUrl}`)

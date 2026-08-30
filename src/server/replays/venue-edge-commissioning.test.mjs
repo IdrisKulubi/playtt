@@ -27,6 +27,7 @@ test("commissioning route is device-authenticated", () => {
   assert.match(route, /\.max\(256\)/)
   assert.match(route, /\.max\(1_024\)/)
   assert.match(route, /reportVersion/)
+  assert.match(route, /assertCommissioningReportChecksum/)
   assert.match(route, /reportChecksumSha256/)
   assert.doesNotMatch(route, /\.passthrough\(\)/)
 })
@@ -51,8 +52,9 @@ test("commissioning service scans secrets and persists installation snapshot", (
     /writeAuditLogInTransaction\(tx, input\.auditContext, \{/,
   )
   assert.doesNotMatch(service, /passwordStore/)
-  assert.match(service, /computedChecksum/)
-  assert.match(service, /lastReportChecksumSha256: receivedChecksum \?\? computedChecksum/)
+  assert.match(service, /hashCommissioningReport/)
+  assert.match(service, /assertCommissioningReportChecksum/)
+  assert.match(service, /lastReportChecksumSha256: reportChecksumSha256/)
 })
 
 test("commissioning migration adds durable installation fields", () => {
@@ -66,4 +68,31 @@ test("commissioning migration adds durable installation fields", () => {
   assert.match(migration, /commissioning_snapshot_json/)
   assert.match(schema, /commissionedAt/)
   assert.match(schema, /commissioningSnapshotJson/)
+})
+
+test("commissioning checksum is verified on the raw body before schema parse", () => {
+  const route = readFileSync(
+    join(
+      repoRoot,
+      "src",
+      "app",
+      "api",
+      "edge",
+      "v1",
+      "commissioning",
+      "route.ts",
+    ),
+    "utf8",
+  )
+  const service = readFileSync(
+    join(repoRoot, "src", "server", "replays", "venue-edge-commissioning.ts"),
+    "utf8",
+  )
+
+  const checksumIndex = route.indexOf("assertCommissioningReportChecksum")
+  const parseIndex = route.indexOf("commissioningSchema.parse")
+  assert.ok(checksumIndex > 0)
+  assert.ok(parseIndex > checksumIndex)
+  assert.match(service, /hashCommissioningReport/)
+  assert.match(route, /const rawPayload/)
 })

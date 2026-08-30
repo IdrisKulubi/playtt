@@ -28,9 +28,11 @@ export function mapDeviceError(error: unknown) {
   }
 
   if (error instanceof ZodError) {
+    const issue = error.issues[0]
+    const path = issue?.path?.length ? `${issue.path.join(".")}: ` : ""
     return deviceError({
       code: "VALIDATION_ERROR",
-      message: error.issues[0]?.message ?? "Invalid device request.",
+      message: `${path}${issue?.message ?? "Invalid device request."}`,
       status: 400,
     })
   }

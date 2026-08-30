@@ -7,6 +7,7 @@ import { join } from "node:path"
 import test from "node:test"
 
 import { CredentialManager } from "../src/auth/credential-manager.ts"
+import { EdgeProtocolError } from "../src/cloud/client.ts"
 import { startSetupHost, stopSetupHost } from "../src/setup/host.ts"
 import {
   createSetupSession,
@@ -113,6 +114,34 @@ test("setup wizard pairs through its protected local endpoint", async () => {
 
   assert.equal(response.status, 200)
   assert.deepEqual(receivedCodes, ["ABCD-EFGHJK"])
+  await stopSetupHost(host)
+})
+
+test("enroll surfaces cloud pairing errors instead of a generic 500", async () => {
+  const credentialManager = await createCredentialManager()
+  const host = await startSetupHost({
+    port: 0,
+    sessionTtlMs: 60_000,
+    credentialManager,
+    enroll: async () => {
+      throw new EdgeProtocolError(
+        "VALIDATION_ERROR",
+        "Installation ID has already enrolled.",
+        409,
+      )
+    },
+  })
+  const response = await setupFetch(host.port, host.session.token)(
+    "/api/setup/enroll",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pairingCode: "9NJ8-ZQNM85" }),
+    },
+  )
+  assert.equal(response.status, 409)
+  const body = await response.json()
+  assert.equal(body.error, "Installation ID has already enrolled.")
   await stopSetupHost(host)
 })
 

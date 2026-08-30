@@ -37,7 +37,7 @@ Default paths under `{VENUE_EDGE_DATA_DIR}`:
 - `credentials.dpapi` — DPAPI-protected blob containing only the device secret
 - `installation.json` — `deviceId`, `credentialVersion`, optional `installationUid` (no secret)
 
-Set `VENUE_EDGE_SECRET_STORE=memory` only for explicit non-production test runs. Production mode fails closed if DPAPI is unavailable.
+Set `VENUE_EDGE_SECRET_STORE=dpapi` to persist pairing on Windows. Simulate and buffer default to in-memory secrets so `pnpm start` works without extra env. Production mode uses DPAPI and fails closed if it is unavailable.
 
 Never commit credential files. Never log pairing codes, `secret`, RTSP passwords, or presigned upload URLs.
 

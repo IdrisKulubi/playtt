@@ -52,6 +52,14 @@ export function renderSetupPage(input: {
       button.secondary { border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
       button.quiet { background: transparent; color: var(--muted); }
       button:disabled { cursor: not-allowed; opacity: .5; }
+      @keyframes ve-spin { to { transform: rotate(360deg); } }
+      .busy-row { display: flex; align-items: flex-start; gap: var(--space-sm); }
+      .spinner {
+        width: 1rem; height: 1rem; margin-top: .2rem; border-radius: 50%;
+        border: 2px solid var(--border); border-top-color: var(--primary);
+        animation: ve-spin .7s linear infinite; flex: 0 0 auto;
+      }
+      .spinner[hidden] { display: none; }
       button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
         outline: 3px solid color-mix(in srgb, var(--primary) 45%, transparent); outline-offset: 2px;
       }
@@ -169,13 +177,13 @@ export function renderSetupPage(input: {
           </section>
 
           <section class="stage" data-stage="5" hidden>
-            <div class="stage-intro"><h2>Publish configuration</h2><p class="muted">Test enabled cameras, capture previews, and send a credential-free topology snapshot to PlayTT.</p></div>
+            <div class="stage-intro"><h2>Publish configuration</h2><p class="muted">Test enabled cameras and send a credential-free topology snapshot to PlayTT. 15-second previews are recommended, not required to continue.</p></div>
             <div class="panel"><pre id="commissioning-checklist" class="muted"></pre><div class="actions"><button type="button" id="commissioning-test-all" class="secondary" ${disabledAttr}>Test enabled cameras</button><button type="button" id="commissioning-publish" ${disabledAttr}>Publish snapshot</button></div><video id="commissioning-preview" controls></video><p id="commissioning-message" class="muted" aria-live="polite"></p></div>
           </section>
 
           <section class="stage" data-stage="6" hidden>
-            <div class="stage-intro"><h2>Complete commissioning</h2><p class="muted">Finish only after every required camera, preview, mapping, and failover check passes.</p></div>
-            <div class="panel"><h3>Final readiness check</h3><pre id="commissioning-final-checklist" class="muted"></pre><div class="actions"><button type="button" id="commissioning-complete" ${disabledAttr}>Complete commissioning</button><button type="button" id="lock-btn" class="secondary" ${disabledAttr}>Lock setup and close</button></div><p id="message" class="muted" aria-live="polite"></p></div>
+            <div class="stage-intro"><h2>Complete commissioning</h2><p class="muted">Finish after cameras are tested and the snapshot is published. Cloud configuration can apply later in the background.</p></div>
+            <div class="panel"><h3>Final readiness check</h3><pre id="commissioning-final-checklist" class="muted"></pre><div class="actions"><button type="button" id="commissioning-complete" ${disabledAttr}>Complete commissioning</button><button type="button" id="lock-btn" class="secondary" ${disabledAttr}>Lock setup and close</button></div><p class="muted busy-row" aria-live="polite"><span id="complete-spinner" class="spinner" hidden></span><span id="complete-status"></span></p></div>
           </section>
         </main>
         <nav class="footer-actions" aria-label="Stage navigation"><button id="stage-back" type="button" class="secondary">Back</button><button id="stage-next" type="button">Continue</button></nav>
@@ -196,6 +204,13 @@ export function renderSetupPage(input: {
       };
       let currentStage = Math.min(6, Math.max(1, Number(sessionStorage.getItem("venue-edge-stage") || (workflow.enrolled ? 2 : 1))));
       let topologyProposal = null;
+
+      function setCompleteStatus(text, spinning) {
+        const status = document.getElementById("complete-status");
+        const spinner = document.getElementById("complete-spinner");
+        if (status) status.textContent = text;
+        if (spinner) spinner.hidden = !spinning;
+      }
 
       function stageComplete(stage) {
         if (stage === 1) return workflow.enrolled;
@@ -234,7 +249,7 @@ export function renderSetupPage(input: {
       });
       document.getElementById("stage-next")?.addEventListener("click", () => {
         if (!stageComplete(currentStage)) {
-          const messageId = currentStage === 2 ? "nvr-message" : currentStage === 3 ? "camera-message" : currentStage === 4 ? "mapping-message" : "commissioning-message";
+          const messageId = currentStage === 2 ? "nvr-message" : currentStage === 3 ? "camera-message" : currentStage === 4 ? "mapping-message" : currentStage === 6 ? "complete-status" : "commissioning-message";
           const message = document.getElementById(messageId);
           if (message) message.textContent = "Finish the requirements in this step before continuing.";
           return;
@@ -310,7 +325,7 @@ export function renderSetupPage(input: {
         const text = await response.text();
         const body = text ? JSON.parse(text) : null;
         if (!response.ok) {
-          throw new Error(body?.error || "Request failed (" + response.status + ")");
+          throw new Error(body?.error || body?.message || "Request failed (" + response.status + ")");
         }
         return body;
       }
@@ -497,16 +512,27 @@ export function renderSetupPage(input: {
           (checklist.completed ? "✓" : "○") + " Commissioning complete",
         ];
         if (checklist.blockingReasons.length > 0) {
-          lines.push("Blocking:\\n" + checklist.blockingReasons.join("\\n"));
+          lines.push("Required:\\n" + checklist.blockingReasons.join("\\n"));
+        }
+        if (checklist.recommendedReasons && checklist.recommendedReasons.length > 0) {
+          lines.push("Recommended:\\n" + checklist.recommendedReasons.join("\\n"));
         }
         workflow.enrolled = checklist.enrolled;
         workflow.failoverReady = checklist.failoverReady;
-        workflow.published = checklist.published && checklist.configApplied;
+        workflow.published = checklist.published;
         workflow.completed = checklist.completed;
         document.getElementById("commissioning-checklist").textContent = lines.join("\\n");
         document.getElementById("commissioning-final-checklist").textContent = lines.join("\\n");
         document.getElementById("commissioning-complete").disabled =
           setupLocked || !checklist.canComplete;
+        if (checklist.completed) {
+          setCompleteStatus(
+            checklist.configApplied
+              ? "Commissioning complete. Cloud configuration is applied locally."
+              : "Commissioning complete. Cloud configuration will apply when PlayTT publishes it — you can lock setup now.",
+            false,
+          );
+        }
         renderStages();
       }
 
@@ -541,14 +567,19 @@ export function renderSetupPage(input: {
       });
 
       document.getElementById("commissioning-complete")?.addEventListener("click", async () => {
-        document.getElementById("commissioning-message").textContent = "Completing commissioning…";
+        const completeBtn = document.getElementById("commissioning-complete");
+        completeBtn.disabled = true;
+        completeBtn.dataset.busy = "true";
+        setCompleteStatus("Publishing final snapshot to PlayTT…", true);
         try {
           await api("/api/setup/commissioning/complete", { method: "POST", body: "{}" });
+          setCompleteStatus("Snapshot accepted. Refreshing local checklist…", true);
           await loadCommissioning();
-          document.getElementById("commissioning-message").textContent =
-            "Commissioning complete. Production capture is enabled.";
         } catch (error) {
-          document.getElementById("commissioning-message").textContent = error.message;
+          setCompleteStatus(error.message, false);
+          completeBtn.disabled = setupLocked;
+        } finally {
+          completeBtn.dataset.busy = "false";
         }
       });
 
@@ -884,12 +915,16 @@ export function renderSetupPage(input: {
       });
 
       document.getElementById("lock-btn")?.addEventListener("click", async () => {
-        const message = document.getElementById("message");
-        message.textContent = "Locking setup…";
-        await api("/api/setup/lock", { method: "POST", body: "{}" });
-        message.textContent =
-          "Setup locked. You can close this tab. VenueEdge keeps running.";
-        document.getElementById("lock-btn").disabled = true;
+        const lockBtn = document.getElementById("lock-btn");
+        lockBtn.disabled = true;
+        setCompleteStatus("Locking setup…", true);
+        try {
+          await api("/api/setup/lock", { method: "POST", body: "{}" });
+          setCompleteStatus("Setup locked. You can close this tab. VenueEdge keeps running.", false);
+        } catch (error) {
+          setCompleteStatus(error.message, false);
+          lockBtn.disabled = setupLocked;
+        }
       });
 
       if (!setupLocked) {

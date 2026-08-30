@@ -8,12 +8,24 @@ import { rotateDeviceCredentialsWithOverlap } from "../src/auth/credential-rotat
 import { CredentialManager } from "../src/auth/credential-manager.ts"
 import {
   MemorySecretStore,
+  resolveSecretStoreMode,
 } from "../src/auth/secret-store.ts"
 import {
   collectRedactedDiagnostics,
   diagnosticsContainForbiddenMaterial,
 } from "../src/health/diagnostics.ts"
 import { redactSecrets } from "../src/health/metrics.ts"
+
+test("unset secret store defaults to memory outside production", () => {
+  assert.equal(resolveSecretStoreMode("simulate"), "memory")
+  assert.equal(resolveSecretStoreMode("buffer"), "memory")
+  assert.equal(resolveSecretStoreMode("production"), "dpapi")
+  assert.equal(resolveSecretStoreMode("simulate", "dpapi"), "dpapi")
+  assert.throws(
+    () => resolveSecretStoreMode("simulate", "vault"),
+    /Unknown VENUE_EDGE_SECRET_STORE/,
+  )
+})
 
 test("memory secret store round-trips without plaintext secret files", async () => {
   const dir = await mkdtemp(join(tmpdir(), "venue-edge-secret-"))

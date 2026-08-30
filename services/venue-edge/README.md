@@ -8,7 +8,7 @@ One TypeScript Node.js process per venue. Talks to the PlayTT cloud over `/api/e
 
 | `VENUE_EDGE_MODE` | Behavior |
 | --- | --- |
-| `simulate` | No FFmpeg. Deterministic fixture MP4, SQLite persistence, full progress protocol. |
+| `simulate` | No FFmpeg. Deterministic fixture MP4, SQLite persistence, full progress protocol. Still PUTs the fixture to the cloud upload grant so verification can succeed. |
 | `buffer` | FFmpeg rolling buffers from per-source RTSP mappings; 12+3 extraction. |
 | `production` | Same as buffer; VIGI NVR fallback only when buffer missing and pilot flag set. |
 
@@ -21,16 +21,13 @@ pnpm install
 # Simulator (no cloud credentials required for local unit tests)
 pnpm simulate
 
-# Production-style start (requires credentials + cloud)
-VENUE_EDGE_CLOUD_BASE_URL=http://localhost:3000 \
-VENUE_EDGE_DATA_DIR=.venue-edge-data \
-VENUE_EDGE_SECRET_STORE=memory \
+# Local wizard (default mode is simulate). Create a code at PlayTT /nvr, then pair in the setup UI.
 pnpm start
 
-# Guided local setup (loopback-only; also starts with `pnpm start` by default).
-# Create a code at PlayTT /nvr, then enter it in this wizard; no credential file editing.
-VENUE_EDGE_CLOUD_BASE_URL=http://localhost:3000 \
-VENUE_EDGE_SECRET_STORE=memory \
+# Persist pairing across restarts on Windows:
+# VENUE_EDGE_SECRET_STORE=dpapi pnpm start
+
+# Guided local setup only (loopback wizard; also starts with `pnpm start` by default).
 pnpm setup
 
 # Development fallback: pair directly from the command line.
@@ -49,7 +46,7 @@ pnpm enroll -- ABCD-EFGHJK
 | `VENUE_EDGE_CREDENTIALS_PATH` | `{dataDir}/credentials.json` | Legacy plaintext path (removed on startup) |
 | `VENUE_EDGE_INSTALLATION_PATH` | `{dataDir}/installation.json` | Non-secret installation metadata |
 | `VENUE_EDGE_SECRET_BLOB_PATH` | `{dataDir}/credentials.dpapi` | DPAPI-protected device secret blob |
-| `VENUE_EDGE_SECRET_STORE` | unset | `memory` for explicit test runs; production uses DPAPI |
+| `VENUE_EDGE_SECRET_STORE` | `memory` in simulate/buffer; `dpapi` in production | Override with `memory` or `dpapi` |
 | `VENUE_EDGE_PAIRING_CODE` | — | One-time `/nvr` pairing code for first-boot enrollment |
 | `VENUE_EDGE_SETUP_PORT` | `18764` | Loopback setup wizard HTTP port |
 | `VENUE_EDGE_SETUP_SESSION_TTL_MS` | `14400000` | Setup session token TTL (4 hours). Each successful wizard request refreshes the timer. |

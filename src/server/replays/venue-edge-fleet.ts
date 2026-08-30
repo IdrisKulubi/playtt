@@ -188,7 +188,7 @@ function safeConfigDiagnostic(
     receivedInstallationId: readSafeString(errorDetails, ["receivedInstallationId"]),
     remediation:
       staleReason === "installation_mismatch"
-        ? "Reset the local installation cache or use Replace PC before publishing again."
+        ? "This venue PC still has configuration from a previous pairing. Use Replace PC on this page, or stop VenueEdge and reset its local config cache, then publish again."
         : staleReason === "version_not_newer"
           ? "Publish a revision newer than the version already stored on the venue PC."
           : "Review the local VenueEdge logs, then retry configuration delivery.",
