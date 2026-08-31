@@ -5,6 +5,8 @@ import {
   PHASE5_SOFTWARE_GATES,
   PHASE7_HARDWARE_GATES,
   PHASE7_SOFTWARE_GATES,
+  PHASE8_HARDWARE_GATES,
+  PHASE8_SOFTWARE_GATES,
 } from "./certification-catalog.ts"
 import { evaluateEnvironmentIsolation } from "./environment-isolation.ts"
 import type { PhaseCertificationReport } from "./certification-types.ts"
@@ -12,6 +14,11 @@ import type { PhaseCertificationReport } from "./certification-types.ts"
 export async function getPhase7CertificationReport(context: TenantContext) {
   authorize(context, "venue.read")
   return buildPhase7CertificationReport()
+}
+
+export async function getPhase8CertificationReport(context: TenantContext) {
+  authorize(context, "venue.read")
+  return buildPhase8CertificationReport()
 }
 
 export async function getPhase5CertificationReport(context: TenantContext) {
@@ -77,6 +84,30 @@ export function buildPhase7CertificationReport(): PhaseCertificationReport {
   return {
     generatedAt: new Date().toISOString(),
     phase: "P7",
+    status,
+    softwarePassCount,
+    softwareTotal: softwareGates.length,
+    hardwareManualCount,
+    gates,
+  }
+}
+
+export function buildPhase8CertificationReport(): PhaseCertificationReport {
+  const gates = [...PHASE8_SOFTWARE_GATES, ...PHASE8_HARDWARE_GATES]
+  const softwareGates = gates.filter((gate) => gate.kind === "software")
+  const softwarePassCount = softwareGates.filter(
+    (gate) => gate.status === "pass",
+  ).length
+  const hardwareManualCount = gates.filter(
+    (gate) => gate.kind === "hardware" || gate.kind === "process",
+  ).length
+
+  const status =
+    softwarePassCount === softwareGates.length ? "in_progress" : "blocked"
+
+  return {
+    generatedAt: new Date().toISOString(),
+    phase: "P8",
     status,
     softwarePassCount,
     softwareTotal: softwareGates.length,

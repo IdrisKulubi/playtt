@@ -64,7 +64,12 @@ export function AdminCertificationPanel({
   const hardwareGates = report.gates.filter(
     (gate) => gate.kind === "hardware" || gate.kind === "process",
   )
-  const phaseLabel = report.phase === "P5" ? "Phase 5" : "Phase 7"
+  const phaseLabel =
+    report.phase === "P5"
+      ? "Phase 5"
+      : report.phase === "P7"
+        ? "Phase 7"
+        : "Phase 8"
 
   return (
     <div className="space-y-6">

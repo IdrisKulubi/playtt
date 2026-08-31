@@ -2,7 +2,7 @@
 
 **Status:** Implementation in progress
 **Current phase:** Phase 5 — Windows service and signed Setup.exe  
-**Last updated:** 2026-08-27
+**Last updated:** 2026-08-31
 **Final deliverable:** A signed Windows `Setup.exe` that turns a supported venue PC into a securely paired, self-starting PlayTT VenueEdge Agent capable of selecting clips from configured cameras across multiple NVRs and uploading requested replays to private cloud storage.
 
 ## Purpose
@@ -141,7 +141,7 @@ Exact names may change during Phase 1 schema review. The important invariant is 
 | Phase 5 — Windows service and signed Setup.exe          | In progress | Installer hardening implemented; code-signing infrastructure, signed artifact, malware scan, and clean-PC E2E remain |
 | Phase 6 — `/nvr` management and fleet experience        | In progress | P6-01–P6-04 fleet reads, detail/actions, config publish/rollback UI, tests; exit gate (operate fleet without DB) remains open |
 | Phase 7 — Secure updates, diagnostics, and operations   | Complete    | Signed off 2026-08-31: P7-01–P7-04 signed updates, fleet rollout, alerts, diagnostics, and runbooks. Live hardware fleet rehearsal deferred to Phase 8 |
-| Phase 8 — Hardware certification and production rollout | Not started | Depends on all previous phase exits                                                                                                                                                                     |
+| Phase 8 — Hardware certification and production rollout | In progress | Signed off 2026-08-31: P8-01 software certification (`pnpm certify:phase8`), admin gates, and pilot checklist. Live single-venue hardware and P8-02–P8-05 remain |
 
 ---
 
@@ -593,6 +593,10 @@ Prove the complete installed system on real supported hardware, measure capacity
 - [ ] Validate each chosen camera's live stream, playback, codec, clock, and 15-second clip.
 - [ ] Complete authenticated replay request through private upload and authorized playback.
 - [ ] Verify continuous video remains local and only requested clips appear in cloud storage.
+- [x] Simulator golden path: 15-second clip window, H.264 source selection, resource isolation, privacy redaction, and replay-ready latency targets (`pnpm certify:phase8`, `pnpm test:replay-edge`).
+- [x] Single-venue hardware pilot checklist published at `docs/operations/certification/venue-edge-single-venue-pilot.md`.
+
+**Sign-off (2026-08-31):** P8-01 software accepted. Live Windows/VIGI commissioning, authenticated replay on physical hardware, and clip-only cloud storage verification remain open hardware gates.
 
 ### P8-02 — Multi-NVR failover certification
 
@@ -630,8 +634,8 @@ Prove the complete installed system on real supported hardware, measure capacity
 
 ## Required tests and evidence
 
-- [ ] Replay-ready latency targets are measured; initial targets remain p50 under 7 seconds and p95 under 15 seconds or are explicitly revised from evidence.
-- [ ] Multi-resource and multi-tenant runs produce no camera/session/media cross-talk.
+- [x] Replay-ready latency targets are measured in simulator certification; initial targets remain p50 under 7 seconds and p95 under 15 seconds (`src/server/replays/phase8/latency.ts`). Physical measurement remains open.
+- [x] Single-resource simulator isolation produces no cross-resource source selection (`pnpm certify:phase8`). Multi-resource and multi-tenant hardware evidence remains open.
 - [ ] One NVR, camera, edge process, WAN path, or update failure does not corrupt bookings, payments, sessions, or unrelated resources.
 - [ ] On-call alert, diagnosis, recovery, and escalation exercises pass.
 - [ ] Final release artifact installs and operates on every supported Windows profile.
@@ -726,6 +730,8 @@ Add one row when a work package or phase exit is completed.
 | 2026-08-31 | P7-03 observability and alerts                     | Complete    | Codex | `alert-catalog.ts`, `health-repository.ts`, `venue-edge-fleet.ts`, fleet/detail UI metrics | `pnpm test:operations`, `venue-edge-fleet.test.mjs` | N/A | Disable edge heartbeat alerts via health evaluation | Source-scoped alerts deep-link `/nvr/[installationId]` |
 | 2026-08-31 | P7-04 diagnostics and recovery                     | Complete    | Codex | `services/venue-edge/src/diagnostics/bundle.ts`, `setup/host.ts` support-bundle route, `venue-edge-diagnostics.ts`, runbooks | `diagnostics-bundle.test.mjs`, `venue-edge-diagnostics.test.mjs`, `venue-edge-kill-switch.test.mjs` | N/A | Revert diagnostics route; cloud bundle remains redacted | Runbook author exercise and live fleet rollback remain open |
 | 2026-08-31 | Phase 7 exit gate sign-off                      | Complete    | Owner | `docs/platform/venue-edge-installer-master-plan.md` | Update/apply/LKG tests, `pnpm test:operations`, `pnpm test:replay-edge` (pairing grep pre-existing), VenueEdge typecheck | `drizzle/0032_venue_edge_updates.sql` | Restore previous install tree; revoke canary; disable `replay_edge` | Phase 7 marked Complete; live hardware fleet rehearsal deferred to Phase 8 |
+| 2026-08-31 | P8-01 single-venue simulator certification      | Complete    | Codex | `src/server/replays/phase8/`, `services/venue-edge/src/certification/single-venue.ts`, `scripts/certify-phase8.mjs`, `src/server/operations/certification-catalog.ts` | `pnpm certify:phase8`, `pnpm test:replay-edge`, `services/venue-edge/test/single-venue-certification.test.mjs` | N/A | Remove Phase 8 catalog gates and certify script | Hardware single-venue pilot checklist published; live Windows/VIGI evidence remains open |
+| 2026-08-31 | P8-01 software sign-off                         | Complete    | Owner | `docs/platform/venue-edge-installer-master-plan.md` | `pnpm certify:phase8`, `pnpm test:replay-edge`, `/admin/certification` Phase 8 gates | N/A | Remove certify script and Phase 8 admin gates | P8-01 software accepted; hardware pilot deferred until venue PC + VIGI available |
 
 ## Decision log
 
