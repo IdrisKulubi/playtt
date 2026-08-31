@@ -18,7 +18,7 @@ export interface CertificationGate {
 
 export type PhaseCertificationReport = {
   generatedAt: string
-  phase: "P5" | "P7"
+  phase: "P5" | "P7" | "P8"
   status: "ready" | "in_progress" | "blocked"
   softwarePassCount: number
   softwareTotal: number

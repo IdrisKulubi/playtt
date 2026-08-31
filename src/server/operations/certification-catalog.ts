@@ -140,6 +140,73 @@ export const PHASE7_SOFTWARE_GATES: CertificationGate[] = [
   },
 ]
 
+export const PHASE8_SOFTWARE_GATES: CertificationGate[] = [
+  {
+    id: "p8_simulator_certification",
+    title: "Single-venue simulator certification",
+    kind: "software",
+    status: "pass",
+    summary:
+      "Clip window, source selection, isolation, privacy, and latency targets pass in pnpm certify:phase8.",
+    evidencePath: "scripts/certify-phase8.mjs",
+    runbookPath: null,
+  },
+  {
+    id: "p8_replay_edge_suite",
+    title: "Replay edge certification tests",
+    kind: "software",
+    status: "pass",
+    summary:
+      "Phase 8 cloud tests run via pnpm test:replay-edge including phase8/certification.test.mjs.",
+    evidencePath: "src/server/replays/phase8/certification.test.mjs",
+    runbookPath: null,
+  },
+  {
+    id: "p8_venue_edge_helper",
+    title: "VenueEdge single-venue helper",
+    kind: "software",
+    status: "pass",
+    summary:
+      "Deterministic single-venue evidence from edge fixtures runs in pnpm test:venue-edge.",
+    evidencePath: "services/venue-edge/src/certification/single-venue.ts",
+    runbookPath: null,
+  },
+]
+
+export const PHASE8_HARDWARE_GATES: CertificationGate[] = [
+  {
+    id: "p8_single_venue_pilot",
+    title: "Single-venue hardware pilot",
+    kind: "hardware",
+    status: "manual",
+    summary:
+      "One Windows PC and validated VIGI NVR deliver authenticated replay through private upload.",
+    evidencePath: null,
+    runbookPath:
+      "docs/operations/certification/venue-edge-single-venue-pilot.md",
+  },
+  {
+    id: "p8_multi_nvr_failover",
+    title: "Multi-NVR failover certification",
+    kind: "hardware",
+    status: "manual",
+    summary:
+      "Three NVRs with approved cameras prove failover, failback, and cloud source evidence.",
+    evidencePath: null,
+    runbookPath: "docs/platform/venue-edge-installer-master-plan.md",
+  },
+  {
+    id: "p8_progressive_release",
+    title: "Progressive release and signed Setup.exe",
+    kind: "process",
+    status: "manual",
+    summary:
+      "Signed stable installer, hardware matrix, and rollout observation remain blocked on Phase 5 signing.",
+    evidencePath: null,
+    runbookPath: "docs/operations/rollout-checklist.md",
+  },
+]
+
 export const PHASE7_HARDWARE_GATES: CertificationGate[] = [
   {
     id: "p7_network_certification",
