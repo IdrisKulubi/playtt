@@ -164,8 +164,8 @@ export function AdminSidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 
 export const adminMobileNavItems = [
   { href: "/admin", label: "Overview", icon: GaugeIcon, exact: true as const },
+  { href: "/admin/health", label: "Health", icon: HeartbeatIcon, exact: false as const },
+  { href: "/admin/certification", label: "Certify", icon: MedalIcon, exact: false as const },
   { href: "/admin/bookings", label: "Bookings", icon: CalendarBlankIcon, exact: false as const },
   { href: "/admin/venues", label: "Venues", icon: BuildingsIcon, exact: false as const },
-  { href: "/admin/members", label: "Members", icon: UsersThreeIcon, exact: false as const },
-  { href: "/admin/devices", label: "More", icon: PlugsIcon, exact: false as const },
 ]
