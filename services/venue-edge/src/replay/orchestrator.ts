@@ -569,6 +569,12 @@ export class ReplayOrchestrator {
 
       try {
         if (simulate) {
+          safeLog("warn", "Replay capture is using simulator output", {
+            replayRequestId: payload.replayRequestId,
+            sourceId: attempt.sourceId,
+            captureMode: attempt.captureMode,
+            playable: false,
+          })
           if (
             shouldSimulatedExtractionFail(
               this.deps.getSimulatorScenario?.() ?? null,
@@ -627,7 +633,9 @@ export class ReplayOrchestrator {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         const reasonCode =
-          message === "buffer_missing" ? "extraction_failed" : message
+          message === "buffer_missing" || message === "clip_validation_failed"
+            ? "extraction_failed"
+            : message
 
         this.deps.repositories.updateCaptureAttempt(
           payload.replayRequestId,
@@ -688,6 +696,11 @@ export class ReplayOrchestrator {
     const simulate = this.deps.env.mode === "simulate"
 
     if (simulate) {
+      safeLog("warn", "Replay capture is using simulator output", {
+        replayRequestId: payload.replayRequestId,
+        captureMode: payload.sourceType,
+        playable: false,
+      })
       await runDeterministicSimulatorCapture({
         payload,
         paths: this.deps.paths,
@@ -737,7 +750,10 @@ export class ReplayOrchestrator {
           adapter: adapter.name,
           message: lastError.message.slice(0, 400),
         })
-        if (lastError.message === "buffer_missing") {
+        if (
+          lastError.message === "buffer_missing" ||
+          lastError.message === "clip_validation_failed"
+        ) {
           lastError = new Error("extraction_failed")
         }
       }

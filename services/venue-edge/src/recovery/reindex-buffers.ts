@@ -17,18 +17,9 @@ export async function reindexBufferSegmentsFromDisk(input: {
   let indexed = 0
 
   for (const sourceId of input.sourceIds) {
-    const existing = input.repositories.listBufferSegmentsForWindow(
-      sourceId,
-      new Date(0).toISOString(),
-      new Date().toISOString(),
-    )
-
-    if (existing.length > 0) {
-      continue
-    }
-
     const bufferDir = input.paths.bufferForCamera(sourceId)
     let files: string[] = []
+    let sourceIndexed = 0
 
     try {
       files = await readdir(bufferDir)
@@ -36,10 +27,12 @@ export async function reindexBufferSegmentsFromDisk(input: {
       continue
     }
 
-    for (const file of files) {
-      if (!SEGMENT_FILE_PATTERN.test(file)) {
-        continue
-      }
+    const closedSegmentFiles = files
+      .filter((file) => SEGMENT_FILE_PATTERN.test(file))
+      .sort()
+      .slice(0, -1)
+
+    for (const file of closedSegmentFiles) {
 
       const path = join(bufferDir, file)
 
@@ -49,9 +42,19 @@ export async function reindexBufferSegmentsFromDisk(input: {
           continue
         }
 
-        const endedAt = new Date(fileStat.mtimeMs)
-        const startedAt = new Date(
-          endedAt.getTime() - segmentSeconds * 1000,
+        const endedAtMs = fileStat.mtimeMs
+        const birthtimeLooksUsable =
+          Number.isFinite(fileStat.birthtimeMs) &&
+          fileStat.birthtimeMs > 0 &&
+          fileStat.birthtimeMs < endedAtMs - 250
+        const startedAtMs = birthtimeLooksUsable
+          ? fileStat.birthtimeMs
+          : endedAtMs - segmentSeconds * 1000
+        const endedAt = new Date(endedAtMs)
+        const startedAt = new Date(startedAtMs)
+        const measuredDurationSeconds = Math.max(
+          0.1,
+          (endedAtMs - startedAtMs) / 1000,
         )
 
         input.repositories.recordBufferSegment({
@@ -60,18 +63,19 @@ export async function reindexBufferSegmentsFromDisk(input: {
           path,
           startedAt: startedAt.toISOString(),
           endedAt: endedAt.toISOString(),
-          durationSeconds: segmentSeconds,
+          durationSeconds: measuredDurationSeconds,
         })
         indexed += 1
+        sourceIndexed += 1
       } catch {
         // File may be incomplete.
       }
     }
 
-    if (indexed > 0) {
+    if (sourceIndexed > 0) {
       safeLog("info", "Reindexed buffer segments from disk", {
         sourceId,
-        segmentCount: indexed,
+        segmentCount: sourceIndexed,
       })
     }
   }

@@ -2,6 +2,7 @@ import { mkdir } from "node:fs/promises"
 import { dirname, join, relative } from "node:path"
 
 import type { CameraSourceConfig } from "../cameras/source"
+import { assertReplayClip } from "../ffmpeg/media-probe"
 import { runFfmpeg } from "../ffmpeg/runner"
 import { safeLog } from "../health/metrics"
 import type { EdgeRepositories } from "../local-storage/repositories"
@@ -11,6 +12,24 @@ import type {
   VideoExtractionRequest,
   VideoExtractionResult,
 } from "./types"
+
+const COVERAGE_TOLERANCE_MS = 750
+const MAX_SEGMENT_CLOSE_DELAY_MS = 20_000
+
+function coversReplayWindow(
+  segments: Array<{ startedAt: string; endedAt: string }>,
+  windowStartMs: number,
+  windowEndMs: number,
+): boolean {
+  const first = segments.at(0)
+  const last = segments.at(-1)
+  return Boolean(
+    first &&
+      last &&
+      Date.parse(first.startedAt) <= windowStartMs + COVERAGE_TOLERANCE_MS &&
+      Date.parse(last.endedAt) >= windowEndMs - COVERAGE_TOLERANCE_MS,
+  )
+}
 
 export class RollingBufferVideoAdapter implements VideoAdapter {
   readonly name = "rolling-buffer"
@@ -41,16 +60,58 @@ export class RollingBufferVideoAdapter implements VideoAdapter {
       captureAt + request.postRollSeconds * 1000,
     ).toISOString()
 
-    const segments = this.repositories.listBufferSegmentsForWindow(
+    const targetDuration = request.preRollSeconds + request.postRollSeconds
+    const windowStartMs = Date.parse(windowStart)
+    const windowEndMs = Date.parse(windowEnd)
+    const waitUntil = windowEndMs + MAX_SEGMENT_CLOSE_DELAY_MS
+    const waitStartedAt = Date.now()
+    let segments = this.repositories.listBufferSegmentsForWindow(
       this.camera.cameraId,
       windowStart,
       windowEnd,
     )
 
-    const closedSegments =
-      segments.length > 1 ? segments.slice(0, -1) : segments
+    while (
+      !this.options.simulate &&
+      Date.now() < waitUntil &&
+      (Date.now() < windowEndMs ||
+        !coversReplayWindow(segments, windowStartMs, windowEndMs))
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 250))
+      segments = this.repositories.listBufferSegmentsForWindow(
+        this.camera.cameraId,
+        windowStart,
+        new Date().toISOString(),
+      )
+    }
 
-    if (closedSegments.length === 0 && !this.options.simulate) {
+    const closedSegments = segments
+    const hasFullCoverage = coversReplayWindow(
+      closedSegments,
+      windowStartMs,
+      windowEndMs,
+    )
+
+    safeLog("info", "Replay buffer window selected", {
+      replayRequestId: request.replayRequestId,
+      sourceId: this.camera.cameraId,
+      targetDurationSeconds: targetDuration,
+      segmentCount: closedSegments.length,
+      firstSegmentStartedAt: closedSegments.at(0)?.startedAt ?? null,
+      lastSegmentEndedAt: closedSegments.at(-1)?.endedAt ?? null,
+      hasFullCoverage,
+      waitedMs: Date.now() - waitStartedAt,
+    })
+
+    if (!hasFullCoverage && !this.options.simulate) {
+      safeLog("warn", "Replay buffer does not fully cover requested window", {
+        replayRequestId: request.replayRequestId,
+        sourceId: this.camera.cameraId,
+        windowStart,
+        windowEnd,
+        firstSegmentStartedAt: closedSegments.at(0)?.startedAt ?? null,
+        lastSegmentEndedAt: closedSegments.at(-1)?.endedAt ?? null,
+      })
       throw new Error("buffer_missing")
     }
 
@@ -65,12 +126,22 @@ export class RollingBufferVideoAdapter implements VideoAdapter {
         writeFile(request.outputPath, fixture),
       )
 
+      safeLog("warn", "Simulator wrote a protocol-only replay fixture", {
+        replayRequestId: request.replayRequestId,
+        sizeBytes: fixture.length,
+        playable: false,
+      })
+
       return {
         outputPath: request.outputPath,
         source: "edge_buffer",
-        durationSeconds:
-          request.preRollSeconds + request.postRollSeconds,
+        durationSeconds: targetDuration,
       }
+    }
+
+    const firstClosedSegment = closedSegments[0]
+    if (!firstClosedSegment) {
+      throw new Error("buffer_missing")
     }
 
     const concatListPath = join(
@@ -100,21 +171,49 @@ export class RollingBufferVideoAdapter implements VideoAdapter {
       "0",
       "-i",
       concatListPath,
+      "-ss",
+      String(
+        Math.max(
+          0,
+          (windowStartMs - Date.parse(firstClosedSegment.startedAt)) / 1000,
+        ),
+      ),
+      "-t",
+      String(targetDuration),
       "-map",
       "0:v:0",
       "-map",
       "0:a:0?",
     ]
 
+    const copyOutputArgs = [
+      "-c:v",
+      "copy",
+      "-c:a",
+      "aac",
+      "-b:a",
+      "64k",
+    ]
+    const transcodeOutputArgs = [
+      "-c:v",
+      "libx264",
+      "-preset",
+      "veryfast",
+      "-crf",
+      "23",
+      "-c:a",
+      "aac",
+      "-b:a",
+      "64k",
+    ]
+    let extractionMethod =
+      closedSegments.length > 1 ? "transcode" : "stream_copy"
     let result = await runFfmpeg({
       args: [
         ...concatInput,
-        "-c:v",
-        "copy",
-        "-c:a",
-        "aac",
-        "-b:a",
-        "64k",
+        ...(extractionMethod === "transcode"
+          ? transcodeOutputArgs
+          : copyOutputArgs),
         "-movflags",
         "+faststart",
         "-y",
@@ -124,25 +223,25 @@ export class RollingBufferVideoAdapter implements VideoAdapter {
       logLevel: "warning",
     })
 
-    if (result.exitCode !== 0) {
+    if (result.exitCode === 0) {
+      try {
+        await assertReplayClip(request.outputPath, targetDuration)
+      } catch {
+        result = { ...result, exitCode: 1 }
+      }
+    }
+
+    if (result.exitCode !== 0 && extractionMethod === "stream_copy") {
       safeLog("warn", "Rolling buffer concat copy failed, retrying with transcode", {
         exitCode: result.exitCode,
         stderr: result.stderr.slice(-800),
       })
 
+      extractionMethod = "transcode"
       result = await runFfmpeg({
         args: [
           ...concatInput,
-          "-c:v",
-          "libx264",
-          "-preset",
-          "veryfast",
-          "-crf",
-          "23",
-          "-c:a",
-          "aac",
-          "-b:a",
-          "64k",
+          ...transcodeOutputArgs,
           "-movflags",
           "+faststart",
           "-y",
@@ -161,11 +260,22 @@ export class RollingBufferVideoAdapter implements VideoAdapter {
       throw new Error("extraction_failed")
     }
 
+    const validated = await assertReplayClip(request.outputPath, targetDuration)
+
+    safeLog("info", "Replay clip extracted and validated", {
+      replayRequestId: request.replayRequestId,
+      sourceId: this.camera.cameraId,
+      captureMode: "edge_buffer",
+      extractionMethod,
+      durationSeconds: validated.durationSeconds,
+      sizeBytes: validated.sizeBytes,
+      hasVideo: validated.hasVideo,
+    })
+
     return {
       outputPath: request.outputPath,
       source: "edge_buffer",
-      durationSeconds:
-        request.preRollSeconds + request.postRollSeconds,
+      durationSeconds: validated.durationSeconds ?? targetDuration,
     }
   }
 }

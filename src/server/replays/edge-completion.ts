@@ -354,6 +354,18 @@ export async function completeReplayFromEdge(
     )
   })
 
+  // The venue display is the first delivery target: signal it directly after
+  // the ready transaction commits. Email, push, and analysis remain durable
+  // outbox work and therefore cannot delay playback on the TV.
+  await publishReplayReadyRealtime({
+    tenantId: context.tenantId,
+    venueId: replayRequest.locationId,
+    resourceId: replayRequest.resourceId,
+    sessionId: replayRequest.playSessionId,
+    replayId: replay.id,
+    mediaId: asset.id,
+  })
+
   return {
     replayId: replay.id,
     replayRequestId: replayRequest.id,

@@ -68,11 +68,18 @@ export class RollingBufferSupervisor {
     await mkdir(outputDir, { recursive: true })
 
     const segmentSeconds = this.options.segmentSeconds ?? 4
+    const existingFiles = await readdir(outputDir)
+    const nextSegmentNumber =
+      existingFiles.reduce((highest, file) => {
+        const match = file.match(/^segment-(\d+)\.ts$/)
+        return match ? Math.max(highest, Number(match[1])) : highest
+      }, -1) + 1
     const pattern = join(outputDir, "segment-%09d.ts")
 
     safeLog("info", "Starting FFmpeg rolling buffer", {
       ...logContext,
       segmentSeconds,
+      nextSegmentNumber,
     })
 
     void runFfmpeg({
@@ -89,6 +96,8 @@ export class RollingBufferSupervisor {
         "mpegts",
         "-segment_time",
         String(segmentSeconds),
+        "-segment_start_number",
+        String(nextSegmentNumber),
         pattern,
       ],
       logLevel: "warning",
@@ -161,6 +170,7 @@ export class RollingBufferSupervisor {
     indexed: Set<string>
   ): Promise<void> {
     let files: string[] = []
+    let newlyIndexed = 0
 
     try {
       files = await readdir(outputDir)
@@ -168,8 +178,13 @@ export class RollingBufferSupervisor {
       return
     }
 
-    for (const file of files) {
-      if (!file.endsWith(".ts") || indexed.has(file)) {
+    const closedSegmentFiles = files
+      .filter((file) => file.endsWith(".ts"))
+      .sort()
+      .slice(0, -1)
+
+    for (const file of closedSegmentFiles) {
+      if (indexed.has(file)) {
         continue
       }
 
@@ -181,8 +196,20 @@ export class RollingBufferSupervisor {
           continue
         }
 
-        const endedAt = new Date(fileStat.mtimeMs)
-        const startedAt = new Date(endedAt.getTime() - segmentSeconds * 1000)
+        const endedAtMs = fileStat.mtimeMs
+        const birthtimeLooksUsable =
+          Number.isFinite(fileStat.birthtimeMs) &&
+          fileStat.birthtimeMs > 0 &&
+          fileStat.birthtimeMs < endedAtMs - 250
+        const startedAtMs = birthtimeLooksUsable
+          ? fileStat.birthtimeMs
+          : endedAtMs - segmentSeconds * 1000
+        const endedAt = new Date(endedAtMs)
+        const startedAt = new Date(startedAtMs)
+        const measuredDurationSeconds = Math.max(
+          0.1,
+          (endedAtMs - startedAtMs) / 1000,
+        )
 
         this.repositories.recordBufferSegment({
           id: `${this.camera.cameraId}-${file}`,
@@ -190,9 +217,10 @@ export class RollingBufferSupervisor {
           path,
           startedAt: startedAt.toISOString(),
           endedAt: endedAt.toISOString(),
-          durationSeconds: segmentSeconds,
+          durationSeconds: measuredDurationSeconds,
         })
         indexed.add(file)
+        newlyIndexed += 1
       } catch {
         // File may still be growing.
       }
@@ -207,11 +235,12 @@ export class RollingBufferSupervisor {
       new Date().toISOString()
     )
 
-    if (segments.length > 0) {
+    if (newlyIndexed > 0) {
       safeLog("info", "Live buffer segments indexed", {
         sourceId: this.camera.cameraId,
         resourceId: this.camera.resourceId ?? null,
-        segmentCount: segments.length,
+        newlyIndexed,
+        activeSegmentCount: segments.length,
       })
     }
   }

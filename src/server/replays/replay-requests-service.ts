@@ -509,6 +509,7 @@ export async function getKioskReplayStatus(resourceId: string) {
       playSession: null,
       remainingCredits: null,
       inFlightReplayRequestId: null,
+      inFlightReplay: null,
       latestReplay: null,
     }
   }
@@ -548,11 +549,20 @@ export async function getKioskReplayStatus(resourceId: string) {
     },
     remainingCredits,
     inFlightReplayRequestId: inFlight?.id ?? null,
+    inFlightReplay: inFlight
+      ? {
+          id: inFlight.id,
+          status: inFlight.status,
+          requestedAt: inFlight.createdAt.toISOString(),
+        }
+      : null,
     latestReplay: latest
       ? {
           id: latest.id,
+          replayId: latest.replayId,
           status: latest.status,
           failureReason: latest.failureReason,
+          readyAt: latest.readyAt?.toISOString() ?? null,
         }
       : null,
   }

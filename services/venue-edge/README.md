@@ -18,10 +18,10 @@ One TypeScript Node.js process per venue. Talks to the PlayTT cloud over `/api/e
 cd services/venue-edge
 pnpm install
 
-# Simulator (no cloud credentials required for local unit tests)
+# Protocol-only simulator for local tests (does not produce a playable camera replay)
 pnpm simulate
 
-# Local wizard (default mode is simulate). Create a code at PlayTT /nvr, then pair in the setup UI.
+# Local wizard plus real camera buffering. Create a code at PlayTT /nvr, then pair in the setup UI.
 pnpm start
 
 # Persist pairing across restarts on Windows:
@@ -38,7 +38,7 @@ pnpm enroll -- ABCD-EFGHJK
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `VENUE_EDGE_MODE` | `simulate` | `simulate`, `buffer`, or `production` |
+| `VENUE_EDGE_MODE` | `buffer` for `pnpm start` | `simulate`, `buffer`, or `production`. Use `pnpm simulate` for the deterministic simulator. |
 | `VENUE_EDGE_CLOUD_BASE_URL` | `http://localhost:3000` | PlayTT cloud base URL |
 | `VENUE_EDGE_DATA_DIR` | `.venue-edge-data` | SQLite + clip storage root |
 | `RTSP_URL` | — | Legacy single-source RTSP URL; accepted only when exactly one buffering source exists |

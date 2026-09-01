@@ -122,13 +122,21 @@ function buildSetupHostDiagnostics(input: {
 export async function startVenueEdge(
   modeOverride?: "start" | "simulate"
 ): Promise<VenueEdgeRuntime> {
+  const mode =
+    modeOverride === "simulate"
+      ? "simulate"
+      : modeOverride === "start" && !process.env.VENUE_EDGE_MODE
+        ? "buffer"
+        : undefined
   const env = loadEnv({
-    mode: modeOverride === "simulate" ? "simulate" : undefined,
+    mode,
   })
 
   if (modeOverride === "simulate") {
     env.mode = "simulate"
     process.env.VENUE_EDGE_MODE = "simulate"
+  } else if (modeOverride === "start" && mode === "buffer") {
+    process.env.VENUE_EDGE_MODE = "buffer"
   }
 
   const paths = createLocalStoragePaths(env)
@@ -140,6 +148,19 @@ export async function startVenueEdge(
 
   const database = initDatabase(env.sqlitePath)
   const repositories = new EdgeRepositories(database.db)
+
+  if (
+    env.mode === "simulate" &&
+    repositories.listLocalCameras().some((camera) => camera.enabled)
+  ) {
+    safeLog("warn", "Simulator mode is active; configured cameras will not be captured", {
+      mode: env.mode,
+      enabledCameraCount: repositories
+        .listLocalCameras()
+        .filter((camera) => camera.enabled).length,
+      action: "Run pnpm start without VENUE_EDGE_MODE=simulate to capture real video.",
+    })
+  }
 
   const nvrPasswordStore = createNvrPasswordStore({
     dataDir: env.dataDir,
