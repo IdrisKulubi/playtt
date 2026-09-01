@@ -1,4 +1,8 @@
+import Link from "next/link"
+
+import { runbookHref } from "@/components/admin/admin-certification-nav"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import type {
   CertificationGate,
   PhaseCertificationReport,
@@ -41,6 +45,15 @@ function CertificationGateRow({ gate }: { gate: CertificationGate }) {
         </Badge>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">{gate.summary}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {gate.runbookPath ? (
+          <Button asChild size="sm">
+            <Link href={runbookHref(gate.runbookPath)} target="_blank" rel="noreferrer">
+              Open checklist
+            </Link>
+          </Button>
+        ) : null}
+      </div>
       {gate.evidencePath ? (
         <code className="mt-2 block rounded bg-muted px-2 py-1 text-xs">
           {gate.evidencePath}
@@ -57,8 +70,10 @@ function CertificationGateRow({ gate }: { gate: CertificationGate }) {
 
 export function AdminCertificationPanel({
   report,
+  anchorId,
 }: {
   report: PhaseCertificationReport
+  anchorId: string
 }) {
   const softwareGates = report.gates.filter((gate) => gate.kind === "software")
   const hardwareGates = report.gates.filter(
@@ -72,7 +87,7 @@ export function AdminCertificationPanel({
         : "Phase 8"
 
   return (
-    <div className="space-y-6">
+    <div id={anchorId} className="scroll-mt-28 space-y-6">
       <section className="admin-dashboard-card space-y-2">
         <p className="text-sm text-muted-foreground">{phaseLabel} certification</p>
         <div className="flex flex-wrap items-center gap-2">
