@@ -141,7 +141,22 @@ export class SourceSupervisorRegistry {
       }
     )
 
-    await supervisor.start()
+    try {
+      await supervisor.start()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (message.startsWith("SOURCE_RTSP_URL_MISSING:")) {
+        safeLog("warn", "Deferred buffer supervisor until camera credentials are available", {
+          sourceId: camera.cameraId,
+          resourceId: camera.resourceId ?? null,
+          reason: "source_rtsp_url_missing",
+          action: "Open VenueEdge setup and re-enter the NVR password.",
+        })
+        return
+      }
+
+      throw error
+    }
     this.supervisors.set(camera.cameraId, supervisor)
 
     safeLog("info", "Buffer supervisor started", {

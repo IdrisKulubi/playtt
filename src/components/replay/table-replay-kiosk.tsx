@@ -14,10 +14,17 @@ type KioskStatus = {
   } | null
   remainingCredits: number | null
   inFlightReplayRequestId: string | null
-  latestReplay: {
+  inFlightReplay: {
     id: string
     status: string
+    requestedAt: string
+  } | null
+  latestReplay: {
+    id: string
+    replayId: string
+    status: string
     failureReason: string | null
+    readyAt: string | null
   } | null
 }
 
@@ -77,8 +84,42 @@ type ViewState =
   | "success"
   | "error"
 
-const POLL_MS = 5_000
+const IDLE_POLL_MS = 5_000
+const PROCESSING_POLL_MS = 1_000
 const SUCCESS_MS = 4_000
+
+const CAPTURE_STAGES = [
+  {
+    statuses: ["requested", "authorized", "dispatched"],
+    label: "Starting capture",
+    detail: "Sending the replay request to the venue recorder.",
+  },
+  {
+    statuses: ["edge_acknowledged", "capturing"],
+    label: "Capturing the moment",
+    detail: "Collecting the buffered video from your table.",
+  },
+  {
+    statuses: ["extracting"],
+    label: "Cutting your clip",
+    detail: "Building the full replay around the moment you tapped.",
+  },
+  {
+    statuses: ["uploading", "verifying"],
+    label: "Finishing up",
+    detail: "Preparing playback for the TV and your library.",
+  },
+] as const
+
+function captureStage(status: string | undefined) {
+  const index = Math.max(
+    0,
+    CAPTURE_STAGES.findIndex((stage) =>
+      (stage.statuses as readonly string[]).includes(status ?? ""),
+    ),
+  )
+  return { ...CAPTURE_STAGES[index], index }
+}
 
 function createIdempotencyKey() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -110,6 +151,7 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
   const [status, setStatus] = useState<KioskStatus | null>(null)
   const [viewState, setViewState] = useState<ViewState>("loading")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const pendingReplayIdRef = useRef<string | null>(null)
   const idempotencyKeyRef = useRef<string | null>(null)
   const dismissedFailureIdRef = useRef<string | null>(null)
@@ -138,6 +180,18 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
 
     if (next.inFlightReplayRequestId) {
       setViewState("processing")
+      return
+    }
+
+    if (
+      pendingReplayIdRef.current &&
+      next.latestReplay?.status === "ready" &&
+      next.latestReplay.replayId === pendingReplayIdRef.current
+    ) {
+      pendingReplayIdRef.current = null
+      idempotencyKeyRef.current = null
+      setViewState("success")
+      setErrorMessage(null)
       return
     }
 
@@ -198,10 +252,51 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
           }
         })
         .catch(() => undefined)
-    }, POLL_MS)
+    }, viewState === "processing" ? PROCESSING_POLL_MS : IDLE_POLL_MS)
 
     return () => {
       clearInterval(interval)
+    }
+  }, [applyStatusToView, fetchStatus, viewState])
+
+  useEffect(() => {
+    if (viewState !== "processing") {
+      setElapsedSeconds(0)
+      return
+    }
+
+    const startedAt = status?.inFlightReplay?.requestedAt
+      ? new Date(status.inFlightReplay.requestedAt).getTime()
+      : Date.now()
+    const updateElapsed = () => {
+      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)))
+    }
+    updateElapsed()
+    const timer = setInterval(updateElapsed, 1_000)
+    return () => clearInterval(timer)
+  }, [status?.inFlightReplay?.requestedAt, viewState])
+
+  useEffect(() => {
+    if (viewState !== "success") {
+      return
+    }
+
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current)
+    }
+
+    successTimerRef.current = setTimeout(() => {
+      void fetchStatus()
+        .then((next) => applyStatusToView(next))
+        .catch(() => setViewState("ready"))
+      successTimerRef.current = null
+    }, SUCCESS_MS)
+
+    return () => {
+      if (successTimerRef.current) {
+        clearTimeout(successTimerRef.current)
+        successTimerRef.current = null
+      }
     }
   }, [applyStatusToView, fetchStatus, viewState])
 
@@ -229,19 +324,6 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
         idempotencyKeyRef.current = null
         setViewState("success")
         setErrorMessage(null)
-
-        if (successTimerRef.current) {
-          clearTimeout(successTimerRef.current)
-        }
-
-        successTimerRef.current = setTimeout(() => {
-          void fetchStatus()
-            .then((next) => applyStatusToView(next))
-            .catch(() => {
-              setViewState("ready")
-            })
-          successTimerRef.current = null
-        }, SUCCESS_MS)
       } catch {
         // Ignore malformed replay hints.
       }
@@ -249,12 +331,8 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
 
     return () => {
       source.close()
-
-      if (successTimerRef.current) {
-        clearTimeout(successTimerRef.current)
-      }
     }
-  }, [applyStatusToView, fetchStatus, resourceId])
+  }, [resourceId])
 
   const handleReplayTap = async () => {
     if (viewState === "processing") {
@@ -312,6 +390,11 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
               ...current,
               remainingCredits: result.remainingCredits,
               inFlightReplayRequestId: result.replayRequestId,
+              inFlightReplay: {
+                id: result.replayRequestId,
+                status: result.status,
+                requestedAt: new Date().toISOString(),
+              },
             }
           : current,
       )
@@ -374,14 +457,37 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
         ) : null}
 
         {viewState === "processing" ? (
-          <div className="max-w-lg text-center">
+          <div
+            className="w-full max-w-lg text-center"
+            role="status"
+            aria-live="polite"
+          >
             <div
-              className="mx-auto h-16 w-16 animate-spin rounded-full border-4 border-white/20 border-t-emerald-400"
+              className="mx-auto h-16 w-16 animate-spin rounded-full border-4 border-white/20 border-t-emerald-400 motion-reduce:animate-none"
               aria-hidden="true"
             />
-            <p className="mt-8 text-2xl font-medium">Capturing replay…</p>
+            <p className="mt-8 text-2xl font-medium">
+              {captureStage(status?.inFlightReplay?.status).label}
+            </p>
             <p className="mt-4 text-lg text-white/60">
-              Clip will play on the TV when ready.
+              {captureStage(status?.inFlightReplay?.status).detail}
+            </p>
+            <div
+              className="mx-auto mt-8 flex max-w-sm gap-2"
+              aria-label={`Replay step ${captureStage(status?.inFlightReplay?.status).index + 1} of ${CAPTURE_STAGES.length}`}
+            >
+              {CAPTURE_STAGES.map((stage, index) => (
+                <span
+                  key={stage.label}
+                  className={`h-1.5 flex-1 rounded-full transition-colors duration-200 ${index <= captureStage(status?.inFlightReplay?.status).index ? "bg-emerald-400" : "bg-white/20"}`}
+                />
+              ))}
+            </div>
+            <p className="mt-5 tabular-nums text-sm text-white/50">
+              {elapsedSeconds}s elapsed · Most replays are ready in about 15 seconds
+            </p>
+            <p className="mt-2 text-sm text-white/50">
+              It will play on the TV first, then we’ll send the email.
             </p>
           </div>
         ) : null}

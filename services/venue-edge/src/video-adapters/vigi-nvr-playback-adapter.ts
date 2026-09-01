@@ -1,4 +1,6 @@
+import { assertReplayClip } from "../ffmpeg/media-probe"
 import { runFfmpeg } from "../ffmpeg/runner"
+import { safeLog } from "../health/metrics"
 import { buildVigiPlaybackUrl } from "./vigi-urls"
 import type {
   VideoAdapter,
@@ -67,20 +69,23 @@ export class VigiNvrPlaybackAdapter implements VideoAdapter {
       throw new Error("extraction_failed")
     }
 
-    const result = await runFfmpeg({
+    const inputArgs = [
+      "-rtsp_transport",
+      "tcp",
+      "-analyzeduration",
+      "2000000",
+      "-probesize",
+      "500000",
+      "-i",
+      playbackUrl,
+      "-map",
+      "0:v:0",
+      "-map",
+      "0:a:0?",
+    ]
+    let result = await runFfmpeg({
       args: [
-        "-rtsp_transport",
-        "tcp",
-        "-analyzeduration",
-        "2000000",
-        "-probesize",
-        "500000",
-        "-i",
-        playbackUrl,
-        "-map",
-        "0:v:0",
-        "-map",
-        "0:a:0?",
+        ...inputArgs,
         "-c:v",
         "copy",
         "-c:a",
@@ -100,14 +105,70 @@ export class VigiNvrPlaybackAdapter implements VideoAdapter {
       logLevel: "warning",
     })
 
+    const expectedDuration = request.preRollSeconds + request.postRollSeconds
+    let extractionMethod = "stream_copy"
+    if (result.exitCode === 0) {
+      try {
+        await assertReplayClip(request.outputPath, expectedDuration)
+      } catch {
+        result = { ...result, exitCode: 1 }
+      }
+    }
+
+    if (result.exitCode !== 0) {
+      safeLog("warn", "NVR playback copy failed, retrying with transcode", {
+        replayRequestId: request.replayRequestId,
+        exitCode: result.exitCode,
+        timedOut: result.timedOut,
+        stderr: result.stderr.slice(-800),
+      })
+      extractionMethod = "transcode"
+      result = await runFfmpeg({
+        args: [
+          ...inputArgs,
+          "-c:v",
+          "libx264",
+          "-preset",
+          "veryfast",
+          "-crf",
+          "23",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "64k",
+          "-ac",
+          "1",
+          "-ar",
+          "16000",
+          "-movflags",
+          "+faststart",
+          "-y",
+          request.outputPath,
+        ],
+        timeoutMs: 90_000,
+        logLevel: "warning",
+      })
+    }
+
     if (result.exitCode !== 0) {
       throw new Error(result.stderr.trim() || "extraction_failed")
     }
 
+    const validated = await assertReplayClip(request.outputPath, expectedDuration)
+
+    safeLog("info", "Replay clip extracted and validated", {
+      replayRequestId: request.replayRequestId,
+      captureMode: "nvr_playback",
+      extractionMethod,
+      durationSeconds: validated.durationSeconds,
+      sizeBytes: validated.sizeBytes,
+      hasVideo: validated.hasVideo,
+    })
+
     return {
       outputPath: request.outputPath,
       source: "nvr_playback",
-      durationSeconds: request.preRollSeconds + request.postRollSeconds,
+      durationSeconds: validated.durationSeconds ?? expectedDuration,
     }
   }
 }

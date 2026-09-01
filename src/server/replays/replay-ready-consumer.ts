@@ -28,15 +28,8 @@ export async function consumeReplayReady(row: ReplayReadyOutboxRow) {
     throw new Error("replay.ready.v1 event is missing required payload fields.")
   }
 
-  if (userId && bookingId) {
-    await enqueueCoachAnalysisForReplay({
-      tenantId,
-      replayId,
-      userId,
-      bookingId,
-    })
-  }
-
+  // This is a durable fallback for the direct completion-path broadcast.
+  // Keep it ahead of every non-display side effect so TV playback wins.
   if (venueId) {
     await publishReplayReadyRealtime({
       tenantId,
@@ -45,6 +38,15 @@ export async function consumeReplayReady(row: ReplayReadyOutboxRow) {
       sessionId,
       replayId,
       mediaId,
+    })
+  }
+
+  if (userId && bookingId) {
+    await enqueueCoachAnalysisForReplay({
+      tenantId,
+      replayId,
+      userId,
+      bookingId,
     })
   }
 

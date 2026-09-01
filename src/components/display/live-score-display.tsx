@@ -10,7 +10,13 @@ export function LiveScoreDisplay({
   resourceId: string
   variant: "kiosk" | "tv"
 }) {
-  const { payload, isLoading, error, replayOverlay } = useLiveScore(resourceId)
+  const {
+    payload,
+    isLoading,
+    error,
+    replayOverlay,
+    dismissReplayOverlay,
+  } = useLiveScore(resourceId)
 
   if (isLoading && !payload) {
     return (
@@ -51,6 +57,7 @@ export function LiveScoreDisplay({
             muted
             playsInline
             src={replayOverlay.playbackUrl}
+            onEnded={dismissReplayOverlay}
           />
         </div>
       ) : null}

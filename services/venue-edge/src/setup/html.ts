@@ -99,6 +99,8 @@ export function renderSetupPage(input: {
       .actions { display: flex; flex-wrap: wrap; gap: var(--space-xs); margin-top: var(--space-md); }
       button.inline { margin: 0; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
       .nvr-item, .camera-item, .resource-item { padding: var(--space-md) 0; border-top: 1px solid var(--border); }
+      .credential-recovery { display: grid; grid-template-columns: minmax(12rem, 1fr) auto; align-items: end; gap: var(--space-sm); margin: var(--space-sm) 0; padding: var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-soft); }
+      .credential-recovery p { grid-column: 1 / -1; margin: 0; }
       .badge { display: inline-flex; border-radius: 999px; padding: .15rem .5rem; background: var(--surface-soft); color: var(--muted); font-size: .8rem; }
       pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
       details { margin-top: var(--space-lg); border-top: 1px solid var(--border); padding-top: var(--space-md); }
@@ -119,7 +121,7 @@ export function renderSetupPage(input: {
         main { padding: var(--space-xl) var(--space-md) 7rem; }
         .footer-actions { left: 0; padding-inline: var(--space-md); }
       }
-      @media (max-width: 560px) { .row { grid-template-columns: 1fr; } h2 { font-size: 1.45rem; } }
+      @media (max-width: 560px) { .row, .credential-recovery { grid-template-columns: 1fr; } h2 { font-size: 1.45rem; } }
       @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
     </style>
   </head>
@@ -383,6 +385,44 @@ export function renderSetupPage(input: {
             (nvr.hasPassword ? "" : " · <em>no password</em>") +
             "<pre class='muted'>" + formatTestSummary(nvr.lastTest) + "</pre>";
           if (!setupLocked) {
+            if (!nvr.hasPassword) {
+              const credentialForm = document.createElement("form");
+              credentialForm.className = "credential-recovery";
+              const credentialCopy = document.createElement("p");
+              credentialCopy.className = "muted";
+              credentialCopy.textContent = "Restore credentials to start real video buffering. The password stays protected on this PC.";
+              const passwordLabel = document.createElement("label");
+              passwordLabel.textContent = "NVR password";
+              const passwordInput = document.createElement("input");
+              passwordInput.type = "password";
+              passwordInput.required = true;
+              passwordInput.autocomplete = "current-password";
+              passwordInput.placeholder = "Enter password";
+              passwordLabel.appendChild(passwordInput);
+              const savePasswordBtn = document.createElement("button");
+              savePasswordBtn.type = "submit";
+              savePasswordBtn.textContent = "Save password";
+              credentialForm.append(credentialCopy, passwordLabel, savePasswordBtn);
+              credentialForm.onsubmit = async (event) => {
+                event.preventDefault();
+                savePasswordBtn.disabled = true;
+                savePasswordBtn.textContent = "Saving…";
+                document.getElementById("nvr-message").textContent = "Protecting NVR credentials on this PC…";
+                try {
+                  await api("/api/setup/nvrs/" + nvr.id, {
+                    method: "PATCH",
+                    body: JSON.stringify({ password: passwordInput.value }),
+                  });
+                  await loadNvrs();
+                  document.getElementById("nvr-message").textContent = "Credentials restored. Real video buffering is starting.";
+                } catch (error) {
+                  savePasswordBtn.disabled = false;
+                  savePasswordBtn.textContent = "Save password";
+                  document.getElementById("nvr-message").textContent = error instanceof Error ? error.message : "Could not save the password.";
+                }
+              };
+              item.appendChild(credentialForm);
+            }
             const testBtn = document.createElement("button");
             testBtn.textContent = "Run test";
             testBtn.className = "inline";
