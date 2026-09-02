@@ -3,6 +3,14 @@
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName PresentationFramework
 
+$identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+$principal = [Security.Principal.WindowsPrincipal]::new($identity)
+if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+  $quotedScript = '"' + $PSCommandPath.Replace('"', '""') + '"'
+  Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File $quotedScript"
+  exit 0
+}
+
 try {
   $dataRoot = Join-Path $env:ProgramData "PlayTT\VenueEdge"
   $logRoot = Join-Path $dataRoot "logs"

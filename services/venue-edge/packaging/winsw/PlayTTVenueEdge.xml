@@ -25,8 +25,9 @@
   <env name="VENUE_EDGE_INSTALL_LAYOUT" value="installed"/>
   <env name="VENUE_EDGE_INSTALL_ROOT" value="%BASE%"/>
   <env name="VENUE_EDGE_SETUP_ON_START" value="true"/>
+  <env name="VENUE_EDGE_SECRET_STORE" value="dpapi"/>
   <env name="FFMPEG_PATH" value="%BASE%\ffmpeg\ffmpeg.exe"/>
-  <env name="VENUE_EDGE_CLOUD_BASE_URL" value="https://playtt.app"/>
+  <env name="VENUE_EDGE_CLOUD_BASE_URL" value="https://www.theplaytt.com"/>
   <eventlog>
     <source name="PlayTT VenueEdge"/>
   </eventlog>
