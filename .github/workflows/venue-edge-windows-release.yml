@@ -26,7 +26,7 @@ name: VenueEdge Windows installer
       release_notes:
         description: Short release note shown in /nvr
         required: true
-        default: "VenueEdge 0.2.2 Windows service logging repair pilot"
+        default: "VenueEdge 0.2.3 Windows service path repair pilot"
 
 permissions:
   contents: read

@@ -39,6 +39,7 @@ test("Windows service uses a restricted account and data ACL", async () => {
     readFile(join(serviceRoot, "packaging", "acl.ps1"), "utf8"),
   ])
   assert.match(xml, /<username>NT AUTHORITY\\LocalService<\/username>/)
+  assert.match(xml, /<arguments>"%BASE%\\app\\index\.js" start<\/arguments>/)
   assert.match(xml, /VENUE_EDGE_SECRET_STORE" value="dpapi"/)
   assert.match(
     xml,
