@@ -65,7 +65,9 @@ jobs:
         with:
           node-version: 22.18.0
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            services/venue-edge/pnpm-lock.yaml
 
       - name: Require release credentials
         shell: pwsh
@@ -90,10 +92,21 @@ jobs:
             throw "pilot_location_ids is required for pilot releases"
           }
 
-      - name: Install dependencies and Inno Setup
+      - name: Install web dependencies
         shell: pwsh
         run: |
           pnpm install --frozen-lockfile
+
+      - name: Install VenueEdge dependencies
+        shell: pwsh
+        working-directory: services/venue-edge
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec esbuild --version
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
           choco install innosetup --no-progress --yes
 
       - name: Import ephemeral signing certificate
