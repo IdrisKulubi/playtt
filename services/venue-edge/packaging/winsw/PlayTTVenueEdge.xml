@@ -3,7 +3,7 @@
   <name>PlayTT VenueEdge Agent</name>
   <description>PlayTT venue-local replay capture and upload service.</description>
   <executable>%BASE%\node\node.exe</executable>
-  <arguments>%BASE%\app\index.js start</arguments>
+  <arguments>"%BASE%\app\index.js" start</arguments>
   <workingdirectory>%BASE%</workingdirectory>
   <startmode>Automatic</startmode>
   <delayedAutoStart>true</delayedAutoStart>
