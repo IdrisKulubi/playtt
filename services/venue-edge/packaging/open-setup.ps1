@@ -6,6 +6,14 @@ param(
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName PresentationFramework
 
+$identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+$principal = [Security.Principal.WindowsPrincipal]::new($identity)
+if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+  $quotedScript = '"' + $PSCommandPath.Replace('"', '""') + '"'
+  Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File $quotedScript -WaitSeconds $WaitSeconds"
+  exit 0
+}
+
 function Show-SetupError {
   param([string] $Message)
   [System.Windows.MessageBox]::Show(
@@ -23,6 +31,7 @@ try {
   }
   if ($service.Status -ne "Running") {
     Start-Service -Name "PlayTTVenueEdge"
+    $service.WaitForStatus("Running", [TimeSpan]::FromSeconds(15))
   }
 
   $setupPath = Join-Path $env:ProgramData "PlayTT\VenueEdge\setup-url.txt"
@@ -43,7 +52,9 @@ try {
     Start-Sleep -Milliseconds 500
   } while ([DateTime]::UtcNow -lt $deadline)
 
-  throw "VenueEdge started, but the setup page was not ready. Open VenueEdge diagnostics for the service log, then try again."
+  $service.Refresh()
+  $logPath = Join-Path $env:ProgramData "PlayTT\VenueEdge\logs"
+  throw "VenueEdge setup did not become ready. Service status: $($service.Status). Open VenueEdge diagnostics and send the newest log from $logPath to PlayTT support."
 } catch {
   Show-SetupError $_.Exception.Message
   exit 1

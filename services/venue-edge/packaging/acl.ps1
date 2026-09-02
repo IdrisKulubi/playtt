@@ -18,11 +18,15 @@ function Ensure-DirectoryAcl {
     New-Item -ItemType Directory -Path $Path -Force | Out-Null
   }
 
-  $grants = @("SYSTEM:(OI)(CI)F", "Administrators:(OI)(CI)F")
+  # Use well-known SIDs so ACL installation works on every Windows language.
+  $grants = @(
+    "*S-1-5-18:(OI)(CI)F",      # Local System
+    "*S-1-5-32-544:(OI)(CI)F"  # Built-in Administrators
+  )
   if ($WritableByService) {
-    $grants += "NT AUTHORITY\LOCAL SERVICE:(OI)(CI)M"
+    $grants += "*S-1-5-19:(OI)(CI)M" # Local Service
   } else {
-    $grants += "NT AUTHORITY\LOCAL SERVICE:(OI)(CI)RX"
+    $grants += "*S-1-5-19:(OI)(CI)RX"
   }
   & icacls $Path /inheritance:r /grant:r $grants | Out-Null
   if ($LASTEXITCODE -ne 0) {
@@ -47,7 +51,7 @@ if (-not (Test-Path $entropyPath)) {
   [System.IO.File]::WriteAllBytes($entropyPath, $bytes)
 }
 
-icacls $entropyPath /inheritance:r /grant:r "SYSTEM:F" "Administrators:F" "NT AUTHORITY\LOCAL SERVICE:R" | Out-Null
+icacls $entropyPath /inheritance:r /grant:r "*S-1-5-18:F" "*S-1-5-32-544:F" "*S-1-5-19:R" | Out-Null
 if ($LASTEXITCODE -ne 0) {
   throw "Failed to secure DPAPI entropy file"
 }
