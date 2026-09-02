@@ -206,7 +206,7 @@ export async function ensureAccessGrantForConfirmedBooking(
             stableName: buildProviderPasscodeName(grantId, credentialId),
             validFrom: window.validFrom,
             validUntil: window.validUntil,
-            status: "pending",
+            status: "pending" as const,
             nextAttemptAt: new Date(),
             metadata: { externalLockId: target.externalLockId },
           }
@@ -427,7 +427,7 @@ export async function applyAccessModificationForBooking(
               stableName: buildProviderPasscodeName(grant.id, credentialId),
               validFrom: window.validFrom,
               validUntil: window.validUntil,
-              status: "pending",
+              status: "pending" as const,
               nextAttemptAt: new Date(),
               metadata: { externalLockId: target.externalLockId },
             }

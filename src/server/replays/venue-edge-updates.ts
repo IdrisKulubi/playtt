@@ -27,7 +27,7 @@ import {
   type VenueEdgeUpdateAttemptStatus,
 } from "@/server/replays/venue-edge-update-manifest"
 import { writeAuditLog } from "@/server/tenancy/audit-log-write"
-import type { TenantContext } from "@/server/tenancy/types"
+import { resolveTenantContextForDevice } from "@/server/tenancy/context-factory"
 
 export interface VenueEdgeUpdateManifestResponse {
   manifest: SignedVenueEdgeUpdateManifest | null
@@ -207,13 +207,11 @@ export async function getVenueEdgeUpdateManifestForDevice(input: {
     })
 
     await writeAuditLog(
-      {
+      resolveTenantContextForDevice({
         tenantId: installation.tenantId,
-        locationId: installation.locationId,
-        actorId: installation.edgeDeviceId,
-        actorType: "device",
+        deviceId: installation.edgeDeviceId,
         correlationId: input.correlationId,
-      },
+      }),
       {
         action: VENUE_EDGE_AUDIT_ACTIONS.updateStarted,
         targetType: "venue_edge_installation",
@@ -222,6 +220,7 @@ export async function getVenueEdgeUpdateManifestForDevice(input: {
           attemptId: attempt.id,
           targetVersion: release.version,
           releaseId: release.id,
+          locationId: installation.locationId,
         },
       },
     )
@@ -279,13 +278,11 @@ export async function recordVenueEdgeUpdateResult(
     }
   }
 
-  const auditContext: TenantContext = {
+  const auditContext = resolveTenantContextForDevice({
     tenantId: input.tenantId,
-    locationId: installation.locationId,
-    actorId: installation.edgeDeviceId,
-    actorType: "device",
+    deviceId: installation.edgeDeviceId,
     correlationId: input.correlationId,
-  }
+  })
 
   const nextVersion =
     input.status === "succeeded" && input.appliedVersion
@@ -353,6 +350,7 @@ export async function recordVenueEdgeUpdateResult(
       targetVersion: attempt.targetVersion,
       status: input.status,
       reasonCode: input.reasonCode ?? null,
+      locationId: installation.locationId,
     },
   })
 

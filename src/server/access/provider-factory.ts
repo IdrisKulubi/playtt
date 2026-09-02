@@ -157,10 +157,12 @@ export async function getAccessProviderForConnection(
   }
 
   const connection = await getConnection(tenantId, connectionId)
-  if (connection.status === "inactive") {
+  if (connection.status !== "active") {
     throw new AccessProviderError(
       "configuration_terminal",
-      "TTLock connection is inactive.",
+      connection.status === "reauth_required"
+        ? "TTLock connection requires reauthentication."
+        : "TTLock connection is not active.",
     )
   }
   return new TtlockAccessProvider({

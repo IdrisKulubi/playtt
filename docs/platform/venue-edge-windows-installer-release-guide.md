@@ -111,10 +111,14 @@ Generate a high-entropy secret once. For example, on an administrator Windows
 PC:
 
 ```powershell
-[Convert]::ToBase64String(
-  [Security.Cryptography.RandomNumberGenerator]::GetBytes(48)
-)
+$bytes = New-Object byte[] 48
+[Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+[Convert]::ToBase64String($bytes)
 ```
+
+Windows PowerShell 5.1 does not have `RandomNumberGenerator::GetBytes(48)`.
+Use `Create().GetBytes($bytes)` as shown above. PowerShell 7 can use the
+shorter static `GetBytes(48)` form if you prefer.
 
 Save the exact generated value in both places:
 
