@@ -84,6 +84,15 @@ export async function provisionAccessGrant({ grant, credentials, providerFor, re
   return grant.status
 }
 
+/**
+ * @param {{
+ *   grant: any
+ *   credentials: any[]
+ *   providerFor: (credential: any) => any
+ *   repository: any
+ *   credentialFilter?: ((credential: any) => boolean) | null
+ * }} input
+ */
 export async function revokeAccessGrant({
   grant,
   credentials,

@@ -30,6 +30,7 @@ export type DeviceErrorCode =
   | "PAIRING_HEARTBEAT_REQUIRED"
   | "DEVICE_IN_USE"
   | "VALIDATION_ERROR"
+  | "UPDATE_SIGNING_UNAVAILABLE"
 
 export class DeviceError extends Error {
   readonly code: DeviceErrorCode

@@ -7,6 +7,13 @@ function boundedMinutes(value, fallback) {
   return Number.isInteger(value) && value >= 0 && value <= 60 ? value : fallback
 }
 
+/**
+ * @param {{
+ *   startTime: Date | string
+ *   endTime: Date | string
+ *   venueSettings?: { [key: string]: unknown } | null
+ * }} input
+ */
 export function resolveAccessWindow({ startTime, endTime, venueSettings = null }) {
   const start = new Date(startTime)
   const end = new Date(endTime)

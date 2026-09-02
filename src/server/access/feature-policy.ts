@@ -13,6 +13,15 @@ export const ACCESS_FEATURE_FLAGS = {
 } as const
 
 export type AccessFeature = keyof typeof ACCESS_FEATURE_FLAGS
+export type AccessFeatureKey = AccessFeature
+
+export const ACCESS_FEATURE_KEYS = {
+  liveAccess: "liveAccess",
+  ttlockProvider: "ttlockProvider",
+  relayAutomation: "relayAutomation",
+  notifications: "notifications",
+  remoteUnlock: "remoteUnlock",
+} as const satisfies Record<AccessFeature, AccessFeature>
 
 const ENV_KEYS: Record<AccessFeature, string> = {
   liveAccess: "LIVE_ACCESS_ENABLED",

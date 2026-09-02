@@ -175,7 +175,11 @@ export class TtlockAccessProvider implements AccessProvider {
     this.#now = options.now ?? Date.now
   }
 
-  async #request<T>(path: string, fields: Record<string, string | number>, refreshed = false) {
+  async #request<T>(
+    path: string,
+    fields: Record<string, string | number>,
+    refreshed = false,
+  ): Promise<T> {
     const token = await this.#token()
     const body = new URLSearchParams({
       clientId: token.clientId,
