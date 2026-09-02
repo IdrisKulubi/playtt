@@ -38,8 +38,13 @@ test("Windows service uses a restricted account and data ACL", async () => {
     ),
     readFile(join(serviceRoot, "packaging", "acl.ps1"), "utf8"),
   ])
-  assert.match(xml, /<user>LocalService<\/user>/)
+  assert.match(xml, /<username>NT AUTHORITY\\LocalService<\/username>/)
   assert.match(xml, /VENUE_EDGE_SECRET_STORE" value="dpapi"/)
+  assert.match(
+    xml,
+    /<logpath>%ProgramData%\\PlayTT\\VenueEdge\\logs<\/logpath>/
+  )
+  assert.doesNotMatch(xml, /<pattern>%ProgramData%/)
   assert.match(acl, /\*S-1-5-19:\(OI\)\(CI\)M/)
   assert.doesNotMatch(acl, /S-1-5-32-545/)
 })
