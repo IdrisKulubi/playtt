@@ -32,11 +32,11 @@ function createR2Client() {
   const accountId = requireR2Env("R2_ACCOUNT_ID", process.env.R2_ACCOUNT_ID)
   const accessKeyId = requireR2Env(
     "R2_ACCESS_KEY_ID",
-    process.env.R2_ACCESS_KEY_ID,
+    process.env.R2_ACCESS_KEY_ID
   )
   const secretAccessKey = requireR2Env(
     "R2_SECRET_ACCESS_KEY",
-    process.env.R2_SECRET_ACCESS_KEY,
+    process.env.R2_SECRET_ACCESS_KEY
   )
   const endpoint =
     process.env.R2_ENDPOINT?.trim() ??
@@ -54,6 +54,57 @@ function createR2Client() {
     requestChecksumCalculation: "WHEN_REQUIRED",
     responseChecksumValidation: "WHEN_REQUIRED",
   })
+}
+
+function createInstallerR2Client() {
+  const accessKeyId = requireR2Env(
+    "VENUE_EDGE_R2_ACCESS_KEY_ID",
+    process.env.VENUE_EDGE_R2_ACCESS_KEY_ID ?? process.env.R2_ACCESS_KEY_ID
+  )
+  const secretAccessKey = requireR2Env(
+    "VENUE_EDGE_R2_SECRET_ACCESS_KEY",
+    process.env.VENUE_EDGE_R2_SECRET_ACCESS_KEY ??
+      process.env.R2_SECRET_ACCESS_KEY
+  )
+  const endpoint =
+    process.env.VENUE_EDGE_R2_ENDPOINT?.trim() ??
+    process.env.R2_ENDPOINT?.trim() ??
+    `https://${requireR2Env("R2_ACCOUNT_ID", process.env.R2_ACCOUNT_ID)}.r2.cloudflarestorage.com`
+
+  return new S3Client({
+    region: process.env.R2_REGION?.trim() || "auto",
+    endpoint,
+    credentials: { accessKeyId, secretAccessKey },
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
+  })
+}
+
+export async function createVenueEdgeInstallerDownloadGrant(input: {
+  objectKey: string
+  fileName: string
+  expiresInSeconds: number
+}) {
+  const client = createInstallerR2Client()
+  const bucket = requireR2Env(
+    "VENUE_EDGE_R2_BUCKET",
+    process.env.VENUE_EDGE_R2_BUCKET ??
+      process.env.VENUE_EDGE_INSTALLER_R2_BUCKET ??
+      process.env.R2_BUCKET
+  )
+  const expiresAt = new Date(Date.now() + input.expiresInSeconds * 1000)
+  const safeFileName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "-")
+  const command = new GetObjectCommand({
+    Bucket: bucket,
+    Key: input.objectKey,
+    ResponseContentDisposition: `attachment; filename="${safeFileName}"`,
+    ResponseContentType: "application/vnd.microsoft.portable-executable",
+  })
+  const url = await getSignedUrl(client, command, {
+    expiresIn: input.expiresInSeconds,
+  })
+
+  return { url, expiresAt }
 }
 
 export class R2MediaStore implements MediaStore {
@@ -109,7 +160,7 @@ export class R2MediaStore implements MediaStore {
         new HeadObjectCommand({
           Bucket: this.bucket,
           Key: objectKey,
-        }),
+        })
       )
 
       return {
@@ -132,7 +183,7 @@ export class R2MediaStore implements MediaStore {
       new DeleteObjectCommand({
         Bucket: this.bucket,
         Key: objectKey,
-      }),
+      })
     )
   }
 
@@ -146,7 +197,7 @@ export class R2MediaStore implements MediaStore {
           Bucket: this.bucket,
           Prefix: prefix,
           ContinuationToken: continuationToken,
-        }),
+        })
       )
 
       for (const item of response.Contents ?? []) {
@@ -175,7 +226,10 @@ function isNotFoundError(error: unknown) {
     return false
   }
 
-  const candidate = error as { name?: string; $metadata?: { httpStatusCode?: number } }
+  const candidate = error as {
+    name?: string
+    $metadata?: { httpStatusCode?: number }
+  }
   return (
     candidate.name === "NotFound" ||
     candidate.name === "NoSuchKey" ||

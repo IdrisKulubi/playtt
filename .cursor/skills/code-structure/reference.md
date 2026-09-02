@@ -26,6 +26,8 @@
 | `/api/bookings/*`                                | `src/app/api/bookings/`                                           | Booking, payment, cancellation, modifications            |
 | `/api/v1/venues/*`                               | `src/app/api/v1/venues/`                                          | Versioned public venue/resource catalog                  |
 | `/api/operator/*`                                | `src/app/api/operator/`                                           | Operator catalog inspection                              |
+| `/api/operator/venue-edge/installer-download`    | `src/app/api/operator/venue-edge/installer-download/route.ts`     | Authorized short-lived VenueEdge installer download      |
+| `/api/operator/venue-edge/installer-releases`    | `src/app/api/operator/venue-edge/installer-releases/route.ts`     | CI registration and withdrawal of immutable installers   |
 | `/api/user/*`                                    | `src/app/api/user/`                                               | Profile and onboarding                                   |
 | `/api/webhooks/paystack`                         | `src/app/api/webhooks/paystack/route.ts`                          | Paystack webhook                                         |
 | `/api/replays/*`                                 | `src/app/api/replays/`                                            | Replay credits, requests, library                        |
@@ -75,10 +77,10 @@ From `docs/system_overview.md` — do **not** assume these exist when reading or
 | Replay credits and Coach product payments   | Implemented; mobile preview mode remains enabled                                                                                                  |
 | Realtime broadcaster (SSE + optional Redis) | Implemented                                                                                                                                       |
 | ESP32 device registry and scoring           | Implemented (P3-05/06); firmware simulator in `firmware/`                                                                                         |
-| Cloudflare R2 private media                 | Planned                                                                                                                                           |
+| Cloudflare R2 private media and installers  | Implemented; production credentials and buckets are environment-managed                                                                           |
 | TTLock smart locks                          | Planned; access UI is preview only                                                                                                                |
 | Smart relays (lighting/HVAC)                | Planned                                                                                                                                           |
-| Instant replay / camera pipeline            | VenueEdge v1 runtime plus Phase 1 multi-NVR schema/config v2 foundation implemented; production installer and failover runtime remain in progress |
+| Instant replay / camera pipeline            | VenueEdge runtime, multi-NVR config, failover, six-stage setup, and unsigned pilot installer implemented; signed stable rollout remains gated     |
 | Push notifications (mobile)                 | Planned; preferences are local only                                                                                                               |
 
 The platform-wide target and delivery sequence live in `docs/platform/`. When an integration status changes, update this file and the relevant skill/agent docs via `self-improving`.

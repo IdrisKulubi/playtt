@@ -184,12 +184,12 @@ export class CommissioningManager {
     }
     const recommendedReasons: string[] = []
     if (!allEnabledCamerasPreviewed) {
-      recommendedReasons.push(
+      blockingReasons.push(
         "Capture a 15-second preview for every enabled camera.",
       )
     }
     if (!state.failoverReady) {
-      recommendedReasons.push("Complete failover drills for mapped resources.")
+      blockingReasons.push("Complete failover drills for mapped resources.")
     }
 
     const baseConfig = this.getEdgeConfigV2()
@@ -214,13 +214,16 @@ export class CommissioningManager {
     } else if (!state.publishedAt) {
       blockingReasons.push("Publish commissioning snapshot to PlayTT.")
     } else if (!configApplied) {
-      recommendedReasons.push(
-        "Cloud configuration will apply when PlayTT publishes it. You can lock setup now.",
+      blockingReasons.push(
+        state.completed
+          ? "Finishing commissioning after the latest cloud configuration applies. Keep VenueEdge online."
+          : "Wait for the published cloud configuration to apply locally.",
       )
     }
 
     const canComplete =
       blockingReasons.length === 0 && !state.completed
+    const completed = state.completed && configApplied
 
     return {
       enrolled,
@@ -230,7 +233,7 @@ export class CommissioningManager {
       failoverReady: state.failoverReady,
       published: Boolean(state.publishedAt),
       configApplied,
-      completed: state.completed,
+      completed,
       canComplete,
       blockingReasons,
       recommendedReasons,

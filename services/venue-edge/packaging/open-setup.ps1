@@ -1,0 +1,50 @@
+#Requires -Version 5.1
+param(
+  [int] $WaitSeconds = 35
+)
+
+$ErrorActionPreference = "Stop"
+Add-Type -AssemblyName PresentationFramework
+
+function Show-SetupError {
+  param([string] $Message)
+  [System.Windows.MessageBox]::Show(
+    $Message,
+    "PlayTT VenueEdge setup",
+    [System.Windows.MessageBoxButton]::OK,
+    [System.Windows.MessageBoxImage]::Error
+  ) | Out-Null
+}
+
+try {
+  $service = Get-Service -Name "PlayTTVenueEdge" -ErrorAction SilentlyContinue
+  if (-not $service) {
+    throw "VenueEdge is not installed correctly. Run the installer again and choose Repair."
+  }
+  if ($service.Status -ne "Running") {
+    Start-Service -Name "PlayTTVenueEdge"
+  }
+
+  $setupPath = Join-Path $env:ProgramData "PlayTT\VenueEdge\setup-url.txt"
+  $deadline = [DateTime]::UtcNow.AddSeconds($WaitSeconds)
+  do {
+    if (Test-Path -LiteralPath $setupPath) {
+      $setupUrl = (Get-Content -LiteralPath $setupPath -Raw).Trim()
+      $parsed = $null
+      if (
+        [Uri]::TryCreate($setupUrl, [UriKind]::Absolute, [ref]$parsed) -and
+        $parsed.Scheme -eq "http" -and
+        $parsed.Host -eq "127.0.0.1"
+      ) {
+        Start-Process $setupUrl
+        exit 0
+      }
+    }
+    Start-Sleep -Milliseconds 500
+  } while ([DateTime]::UtcNow -lt $deadline)
+
+  throw "VenueEdge started, but the setup page was not ready. Open VenueEdge diagnostics for the service log, then try again."
+} catch {
+  Show-SetupError $_.Exception.Message
+  exit 1
+}

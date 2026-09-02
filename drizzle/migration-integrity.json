@@ -97,6 +97,12 @@
     },
     "0031_powerful_bloodscream": {
       "sha256": "7a5f0a1e957b0f70921bd4bfc55f6a33b564c6e9f090c391d0b72cefd97ec6d3"
+    },
+    "0032_venue_edge_updates": {
+      "sha256": "4e7a93149bd523b61ea42ebab9ae175ba7496ff9c6dbbc5c1e530c524877256d"
+    },
+    "0033_venue_edge_installer_delivery": {
+      "sha256": "d0e99e464827562168fdd376d46c550f472257ac447c88da3db6d57ddf6b9be2"
     }
   },
   "acknowledgedMetadataDrift": [],
@@ -144,6 +150,16 @@
         "add\\s+constraint\\s+\"device_assignments_score_input_window_excl\"\\s+exclude\\s+using\\s+gist",
         "\"resource_id\"\\s+with\\s+=",
         "where\\s*\\(\"role\"\\s*=\\s*'score_input'\\s+and\\s+\"resource_id\"\\s+is\\s+not\\s+null\\)"
+      ]
+    },
+    {
+      "name": "venue_edge_installer_artifact_immutable",
+      "migration": "0033_venue_edge_installer_delivery",
+      "patterns": [
+        "create\\s+function\\s+\"prevent_venue_edge_installer_artifact_mutation\"",
+        "old\\.\"status\"\\s+in\\s*\\('published',\\s*'withdrawn'\\)",
+        "create\\s+trigger\\s+\"venue_edge_installer_artifact_immutable\"",
+        "before\\s+update\\s+on\\s+\"venue_edge_installer_releases\""
       ]
     }
   ]

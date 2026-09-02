@@ -1,24 +1,57 @@
-name: VenueEdge Windows release candidate
+name: VenueEdge Windows installer
 
 "on":
   workflow_dispatch:
     inputs:
+      channel:
+        description: Release gate. Pilot may be unsigned; stable must be signed.
+        required: true
+        type: choice
+        options:
+          - pilot
+          - stable
+        default: pilot
       source_date_epoch:
         description: Reproducible build timestamp as Unix seconds
         required: true
         default: "0"
+      pilot_location_ids:
+        description: Comma-separated venue location IDs allowed to download a pilot build
+        required: false
+        default: ""
+      target_tenant_ids:
+        description: Comma-separated tenant IDs receiving a stable build
+        required: false
+        default: ""
+      release_notes:
+        description: Short release note shown in /nvr
+        required: true
+        default: "VenueEdge 0.2.0 clean-PC pilot"
 
 permissions:
   contents: read
 
 jobs:
-  signed-installer:
+  installer:
     runs-on: windows-latest
     timeout-minutes: 45
+    environment: venue-edge-${{ inputs.channel }}
     env:
       SOURCE_DATE_EPOCH: ${{ inputs.source_date_epoch }}
+      VENUE_EDGE_RELEASE_CHANNEL: ${{ inputs.channel }}
+      VENUE_EDGE_PILOT_LOCATION_IDS: ${{ inputs.pilot_location_ids }}
+      VENUE_EDGE_TARGET_TENANT_IDS: ${{ inputs.target_tenant_ids }}
+      VENUE_EDGE_RELEASE_NOTES: ${{ inputs.release_notes }}
       VENUE_EDGE_SIGNING_PFX_BASE64: ${{ secrets.VENUE_EDGE_SIGNING_PFX_BASE64 }}
       VENUE_EDGE_SIGNING_PFX_PASSWORD: ${{ secrets.VENUE_EDGE_SIGNING_PFX_PASSWORD }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.VENUE_EDGE_R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.VENUE_EDGE_R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      VENUE_EDGE_R2_ENDPOINT: ${{ secrets.VENUE_EDGE_R2_ENDPOINT }}
+      VENUE_EDGE_R2_BUCKET: ${{ secrets.VENUE_EDGE_R2_BUCKET }}
+      VENUE_EDGE_RELEASE_REGISTRATION_URL: ${{ secrets.VENUE_EDGE_RELEASE_REGISTRATION_URL }}
+      VENUE_EDGE_RELEASE_REGISTRATION_TOKEN: ${{ secrets.VENUE_EDGE_RELEASE_REGISTRATION_TOKEN }}
+      VENUE_EDGE_SIGNATURE_PUBLISHER: ${{ secrets.VENUE_EDGE_SIGNATURE_PUBLISHER }}
 
     steps:
       - uses: actions/checkout@v6
@@ -34,11 +67,27 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Require signing secrets
+      - name: Require release credentials
         shell: pwsh
         run: |
-          if (-not $env:VENUE_EDGE_SIGNING_PFX_BASE64 -or -not $env:VENUE_EDGE_SIGNING_PFX_PASSWORD) {
-            throw "VenueEdge code-signing secrets are not configured"
+          $required = @(
+            'AWS_ACCESS_KEY_ID',
+            'AWS_SECRET_ACCESS_KEY',
+            'VENUE_EDGE_R2_ENDPOINT',
+            'VENUE_EDGE_R2_BUCKET',
+            'VENUE_EDGE_RELEASE_REGISTRATION_URL',
+            'VENUE_EDGE_RELEASE_REGISTRATION_TOKEN'
+          )
+          foreach ($name in $required) {
+            if (-not (Get-Item "Env:$name" -ErrorAction SilentlyContinue).Value) { throw "$name is not configured" }
+          }
+          if ($env:VENUE_EDGE_RELEASE_CHANNEL -eq 'stable') {
+            foreach ($name in @('VENUE_EDGE_SIGNING_PFX_BASE64', 'VENUE_EDGE_SIGNING_PFX_PASSWORD', 'VENUE_EDGE_SIGNATURE_PUBLISHER')) {
+              if (-not (Get-Item "Env:$name" -ErrorAction SilentlyContinue).Value) { throw "$name is required for stable releases" }
+            }
+            if (-not $env:VENUE_EDGE_TARGET_TENANT_IDS.Trim()) { throw "target_tenant_ids is required for stable releases" }
+          } elseif (-not $env:VENUE_EDGE_PILOT_LOCATION_IDS.Trim()) {
+            throw "pilot_location_ids is required for pilot releases"
           }
 
       - name: Install dependencies and Inno Setup
@@ -48,6 +97,7 @@ jobs:
           choco install innosetup --no-progress --yes
 
       - name: Import ephemeral signing certificate
+        if: inputs.channel == 'stable'
         shell: pwsh
         run: |
           $pfxPath = Join-Path $env:RUNNER_TEMP "venue-edge-signing.pfx"
@@ -61,12 +111,17 @@ jobs:
           "SIGNTOOL_PATH=$($signTool.FullName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
           Remove-Item -LiteralPath $pfxPath -Force
 
-      - name: Build signed installer
+      - name: Build installer
         shell: pwsh
         working-directory: services/venue-edge
-        run: ./packaging/pack.ps1
+        run: |
+          if ($env:VENUE_EDGE_RELEASE_CHANNEL -eq 'stable') {
+            ./packaging/pack.ps1 -Channel stable
+          } else {
+            ./packaging/pack.ps1 -Channel pilot -AllowUnsignedDevelopment
+          }
 
-      - name: Verify hashes and Authenticode signatures
+      - name: Verify hashes and release gate
         shell: pwsh
         working-directory: services/venue-edge
         run: |
@@ -74,17 +129,16 @@ jobs:
           Get-Content (Join-Path $bundle "SHA256SUMS") | ForEach-Object {
             $parts = $_ -split '\s+', 2
             $path = Join-Path $bundle ($parts[1].Replace('/', '\'))
-            if ((Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLowerInvariant() -ne $parts[0]) {
-              throw "Hash verification failed for $path"
-            }
-          }
-          Get-ChildItem $bundle -Recurse -Filter *.exe | ForEach-Object {
-            if ((Get-AuthenticodeSignature $_.FullName).Status -ne 'Valid') { throw "Invalid signature: $($_.FullName)" }
+            if ((Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLowerInvariant() -ne $parts[0]) { throw "Hash verification failed for $path" }
           }
           $setups = @(Get-ChildItem dist/windows-bundle/artifacts -Filter *-Setup-*.exe -File)
           if ($setups.Count -ne 1) { throw "Expected exactly one Setup.exe, found $($setups.Count)" }
-          $setup = $setups[0]
-          if ((Get-AuthenticodeSignature $setup.FullName).Status -ne 'Valid') { throw "Invalid installer signature" }
+          if ($env:VENUE_EDGE_RELEASE_CHANNEL -eq 'stable') {
+            Get-ChildItem $bundle -Recurse -Filter *.exe | ForEach-Object {
+              if ((Get-AuthenticodeSignature $_.FullName).Status -ne 'Valid') { throw "Invalid signature: $($_.FullName)" }
+            }
+            if ((Get-AuthenticodeSignature $setups[0].FullName).Status -ne 'Valid') { throw "Invalid installer signature" }
+          }
 
       - name: Scan installer bundle with Microsoft Defender
         shell: pwsh
@@ -95,9 +149,39 @@ jobs:
           & $defender -Scan -ScanType 3 -File (Resolve-Path dist/windows-bundle)
           if ($LASTEXITCODE -ne 0) { throw "Microsoft Defender scan failed with exit code $LASTEXITCODE" }
 
+      - name: Upload immutable installer and register release
+        shell: pwsh
+        working-directory: services/venue-edge
+        run: |
+          $manifest = Get-Content dist/windows-bundle/artifacts/manifest.json -Raw | ConvertFrom-Json
+          $setup = Resolve-Path (Join-Path 'dist/windows-bundle/artifacts' $manifest.setup.fileName)
+          $objectKey = "venue-edge/installers/$($manifest.channel)/$($manifest.version)/$($manifest.setup.sha256)/$($manifest.setup.fileName)"
+          aws s3 cp $setup "s3://$env:VENUE_EDGE_R2_BUCKET/$objectKey" --endpoint-url $env:VENUE_EDGE_R2_ENDPOINT --content-type application/vnd.microsoft.portable-executable --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "R2 upload failed" }
+
+          $body = @{
+            version = $manifest.version
+            channel = $manifest.channel
+            objectKey = $objectKey
+            fileName = $manifest.setup.fileName
+            sha256 = $manifest.setup.sha256
+            sizeBytes = [long]$manifest.setup.sizeBytes
+            signed = [bool]$manifest.signed
+            signaturePublisher = if ($manifest.signed) { $env:VENUE_EDGE_SIGNATURE_PUBLISHER } else { $null }
+            releaseNotes = $env:VENUE_EDGE_RELEASE_NOTES
+            minimumWindowsVersion = '10 22H2'
+          }
+          if ($manifest.channel -eq 'pilot') {
+            $body.pilotLocationIds = @($env:VENUE_EDGE_PILOT_LOCATION_IDS.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+          } else {
+            $body.targetTenantIds = @($env:VENUE_EDGE_TARGET_TENANT_IDS.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+          }
+          $body = $body | ConvertTo-Json -Depth 4
+          Invoke-RestMethod -Method Post -Uri $env:VENUE_EDGE_RELEASE_REGISTRATION_URL -Headers @{ Authorization = "Bearer $env:VENUE_EDGE_RELEASE_REGISTRATION_TOKEN" } -ContentType 'application/json' -Body $body
+
       - uses: actions/upload-artifact@v6
         with:
-          name: venue-edge-signed-windows-rc
+          name: venue-edge-${{ inputs.channel }}-windows-${{ github.run_number }}
           path: services/venue-edge/dist/windows-bundle/artifacts/
           if-no-files-found: error
           retention-days: 14

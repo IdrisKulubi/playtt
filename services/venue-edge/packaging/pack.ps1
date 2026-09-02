@@ -1,6 +1,8 @@
 #Requires -Version 5.1
 param(
   [string] $OutputDir = "",
+  [ValidateSet("pilot", "stable")]
+  [string] $Channel = "pilot",
   [switch] $SkipSetupExe,
   [switch] $AllowUnsignedDevelopment
 )
@@ -21,6 +23,12 @@ $version = $pins.packageVersion
 $sourceDateEpoch = if ($env:SOURCE_DATE_EPOCH) { [long]$env:SOURCE_DATE_EPOCH } else { 0 }
 $builtAt = [DateTimeOffset]::FromUnixTimeSeconds($sourceDateEpoch).UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ")
 $isSignedBuild = -not $AllowUnsignedDevelopment
+$previousUpdateChannel = $env:VENUE_EDGE_UPDATE_CHANNEL
+$env:VENUE_EDGE_UPDATE_CHANNEL = $Channel
+
+if ($Channel -eq "stable" -and -not $isSignedBuild) {
+  throw "Stable installer builds must be Authenticode signed. Use Channel=pilot for an explicitly unsigned internal build."
+}
 
 foreach ($dependency in @("node", "ffmpeg", "winsw")) {
   $pin = $pins.$dependency
@@ -42,6 +50,20 @@ New-Item -ItemType Directory -Path $stagingRoot, $artifactRoot, $downloadsRoot -
 function Get-FileSha256Hex {
   param([string] $Path)
   return (Get-FileHash -Algorithm SHA256 -Path $Path).Hash.ToLowerInvariant()
+}
+
+function Invoke-Pnpm {
+  param([string[]] $PnpmArgs)
+
+  $corepack = Get-Command "corepack" -ErrorAction SilentlyContinue
+  if ($corepack) {
+    & $corepack.Source pnpm @PnpmArgs
+  } else {
+    & pnpm @PnpmArgs
+  }
+  if ($LASTEXITCODE -ne 0) {
+    throw "pnpm $($PnpmArgs -join ' ') failed"
+  }
 }
 
 function Download-IfMissing {
@@ -70,9 +92,9 @@ function Download-IfMissing {
 Push-Location $serviceRoot
 try {
   if (-not (Test-Path "node_modules")) {
-    pnpm install --frozen-lockfile
+    Invoke-Pnpm -PnpmArgs @("install", "--frozen-lockfile")
   }
-  pnpm run build
+  Invoke-Pnpm -PnpmArgs @("run", "build")
 } finally {
   Pop-Location
 }
@@ -89,7 +111,7 @@ if (Test-Path (Join-Path $serviceRoot "dist\index.js.map")) {
 
 $versionJson = @{
   version = $version
-  channel = "development"
+  channel = $Channel
   minimumAgentVersion = "0.1.0"
   signed = $isSignedBuild
   builtAt = $builtAt
@@ -99,6 +121,8 @@ $versionJson | ConvertTo-Json -Depth 4 | Set-Content -Path $versionJsonPath -Enc
 
 Copy-Item (Join-Path $packagingRoot "THIRD-PARTY-NOTICES.md") (Join-Path $installRoot "licenses\THIRD-PARTY-NOTICES.md") -Force
 Copy-Item (Join-Path $packagingRoot "acl.ps1") (Join-Path $installRoot "install-acl.ps1") -Force
+Copy-Item (Join-Path $packagingRoot "open-setup.ps1") (Join-Path $installRoot "open-setup.ps1") -Force
+Copy-Item (Join-Path $packagingRoot "open-diagnostics.ps1") (Join-Path $installRoot "open-diagnostics.ps1") -Force
 
 $nodeZip = Join-Path $downloadsRoot "node-$($pins.node.version)-win-x64.zip"
 Download-IfMissing -Url $pins.node.url -Destination $nodeZip -ExpectedSha256 $pins.node.sha256
@@ -149,7 +173,7 @@ $checksumLines | Set-Content (Join-Path $installRoot "SHA256SUMS") -Encoding ASC
 
 $manifest = @{
   version = $version
-  channel = "development"
+  channel = $Channel
   signed = $isSignedBuild
   artifacts = @{
     bundleRoot = "PlayTTVenueEdge"
@@ -183,9 +207,22 @@ if (-not $SkipSetupExe) {
     if ($LASTEXITCODE -ne 0) {
       throw "Update manifest generation failed"
     }
+
+    $manifest.setup = @{
+      fileName = Split-Path -Leaf $setupExe
+      sha256 = $setupHash
+      sizeBytes = (Get-Item -LiteralPath $setupExe).Length
+    }
+    $manifest | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $artifactRoot "manifest.json") -Encoding UTF8
   } else {
     throw "Inno Setup compiler not found. Set INNO_SETUP_COMPILER or use -SkipSetupExe for an explicit bundle-only build."
   }
 }
 
 Write-Host "VenueEdge Windows bundle ready under $OutputDir"
+
+if ($null -eq $previousUpdateChannel) {
+  Remove-Item Env:VENUE_EDGE_UPDATE_CHANNEL -ErrorAction SilentlyContinue
+} else {
+  $env:VENUE_EDGE_UPDATE_CHANNEL = $previousUpdateChannel
+}

@@ -468,7 +468,7 @@ test("complete refused until checklist passes", async () => {
   stack.database.close()
 })
 
-test("15-second previews are recommended and do not block complete", async () => {
+test("15-second previews block complete until captured", async () => {
   const stack = await createCommissioningStack({
     probeRunner: createProbeScenario("ok"),
     client: {
@@ -499,19 +499,20 @@ test("15-second previews are recommended and do not block complete", async () =>
 
   const checklist = stack.commissioningManager.buildChecklist(true)
   assert.equal(checklist.allEnabledCamerasPreviewed, false)
-  assert.equal(checklist.canComplete, true)
-  assert.ok(
-    checklist.recommendedReasons.some((reason) => /preview/i.test(reason)),
-  )
+  assert.equal(checklist.canComplete, false)
   assert.equal(
     checklist.blockingReasons.includes(
       "Capture a 15-second preview for every enabled camera.",
     ),
-    false,
+    true,
   )
 
-  const completed = await stack.commissioningManager.complete(true)
-  assert.equal(completed.completed, true)
+  await assert.rejects(
+    () => stack.commissioningManager.complete(true),
+    (error) =>
+      error instanceof CommissioningError &&
+      error.code === "checklist_incomplete",
+  )
   stack.database.close()
 })
 
@@ -703,7 +704,7 @@ test("topology changes invalidate completed commissioning", async () => {
   assert.equal(state.failoverReady, false)
 })
 
-test("setup wizard shows a spinner and does not require waiting for cloud config", () => {
+test("setup wizard shows progress and polls until cloud config applies", () => {
   const html = readFileSync(
     new URL("../src/setup/html.ts", import.meta.url),
     "utf8",
@@ -711,5 +712,7 @@ test("setup wizard shows a spinner and does not require waiting for cloud config
   assert.match(html, /complete-spinner/)
   assert.match(html, /setCompleteStatus/)
   assert.match(html, /Publishing final snapshot to PlayTT/)
-  assert.match(html, /you can lock setup now/)
+  assert.match(html, /Applying the latest configuration on this PC/)
+  assert.match(html, /commissioningPollTimer/)
+  assert.match(html, /setTimeout/)
 })
