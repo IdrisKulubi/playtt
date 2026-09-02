@@ -1,5 +1,5 @@
 {
-  "packageVersion": "0.1.0-rc1",
+  "packageVersion": "0.2.0",
   "node": {
     "version": "22.18.0",
     "url": "https://nodejs.org/dist/v22.18.0/node-v22.18.0-win-x64.zip",

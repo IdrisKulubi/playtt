@@ -43,7 +43,10 @@ export default async function NvrOnboardingPage({ searchParams }: PageProps) {
     : []
 
   const canManage = canPerformTenantAction(access.context.role, "venue.manage")
-  const installer = getVenueEdgeInstallerArtifactMetadata()
+  const installer = await getVenueEdgeInstallerArtifactMetadata(
+    access.context,
+    selectedVenueId
+  )
 
   return (
     <AdminShell
@@ -71,6 +74,7 @@ export default async function NvrOnboardingPage({ searchParams }: PageProps) {
             canManage={canManage}
             installer={installer}
             initialSessions={sessions}
+            initialInstallationHref={installations[0]?.nextAction.href ?? null}
           />
         </div>
       </div>

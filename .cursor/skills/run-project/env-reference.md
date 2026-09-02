@@ -127,6 +127,20 @@ commit authenticated RTSP URLs.
 | `VENUE_EDGE_UPDATE_ARTIFACT_URL` | — | HTTPS URL embedded in generated `update-manifest.json` during packaging |
 | `VENUE_EDGE_UPDATE_CHANNEL` | `development` | Release channel stamped into generated update manifests |
 
+### VenueEdge installer delivery (web and release CI)
+
+| Variable | Used in | Purpose |
+| -------- | ------- | ------- |
+| `VENUE_EDGE_RELEASE_REGISTRATION_TOKEN` | Installer registration API and release workflow | Bearer secret used only by CI to register an uploaded immutable artifact |
+| `VENUE_EDGE_R2_BUCKET` | Web deployment and release workflow | Private R2 bucket containing installer artifacts |
+| `VENUE_EDGE_R2_ENDPOINT` | Web deployment and release workflow | Cloudflare R2 S3-compatible endpoint |
+| `VENUE_EDGE_R2_ACCESS_KEY_ID` / `VENUE_EDGE_R2_SECRET_ACCESS_KEY` | Web deployment and release workflow | R2 credentials scoped to reading or publishing the installer object prefix |
+| `VENUE_EDGE_SIGNING_CERT` / `SIGNTOOL_PATH` | Windows stable packaging | Authenticode identity and Windows SDK signing executable |
+| `VENUE_EDGE_SIGNING_PFX_BASE64` / `VENUE_EDGE_SIGNING_PFX_PASSWORD` | Current GitHub stable workflow | Protected certificate import values; replace this adapter when moving to KeyLocker/HSM signing |
+| `VENUE_EDGE_SIGNATURE_PUBLISHER` | Stable release workflow | Exact verified Authenticode publisher name stored with the release record |
+
+Installer objects stay private. Signed-in venue administrators receive a short-lived exact-object download grant from `/nvr`; pairing codes are created separately and are never embedded in an installer.
+
 The installer will move source RTSP mappings into OS-protected local connection
 storage in the pairing/NVR setup phases. Cloud config contains only source IDs
 and opaque local connection keys.

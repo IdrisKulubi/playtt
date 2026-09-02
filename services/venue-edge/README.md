@@ -77,10 +77,16 @@ pnpm pack:dry-run   # CI-friendly compile + layout checks (no Windows downloads)
 On a Windows build host with Inno Setup 6:
 
 ```powershell
-.\packaging\pack.ps1
+.\packaging\pack.ps1 -Channel pilot -AllowUnsignedDevelopment
+# Stable releases fail closed unless Authenticode and update signing are configured:
+.\packaging\pack.ps1 -Channel stable
 ```
 
-This stages SHA-256-pinned Node, FFmpeg, and WinSW binaries, generates an SPDX SBOM and `SHA256SUMS`, signs and verifies every shipped executable, and compiles `PlayTTVenueEdge-Setup-<version>.exe`. Release packaging fails unless `VENUE_EDGE_SIGNING_CERT` identifies an installed code-signing certificate and `signtool.exe` is available. For local bundle testing only, use `-AllowUnsignedDevelopment -SkipSetupExe`; unsigned output is explicitly marked as development output.
+This stages SHA-256-pinned Node, FFmpeg, and WinSW binaries, generates an SPDX SBOM and `SHA256SUMS`, and compiles the complete offline `PlayTTVenueEdge-Setup-<version>.exe`. Pilot builds are explicitly marked unsigned and must remain limited to approved internal venues. Stable packaging fails unless `VENUE_EDGE_SIGNING_CERT` identifies an installed code-signing certificate and `signtool.exe` is available. OTA update manifests use the separate `VENUE_EDGE_UPDATE_PRIVATE_KEY` when publishing an agent update.
+
+The installer creates Start Menu actions for continuing setup and opening diagnostics. Venue staff do not need Node.js, pnpm, Git, FFmpeg, or a terminal. Setup and repair preserve the DPAPI identity, NVR credentials, topology, buffers, and logs in ProgramData.
+
+The GitHub workflow `.github/workflows/venue-edge-windows-release.yml` uploads the installer to a private, immutable R2 object key and registers its metadata with the web app. Configure its protected `venue-edge-pilot` and `venue-edge-stable` environments with the R2 credentials and release-registration URL/token named in the workflow. Signing secrets are required only by the stable environment.
 
 **Uninstall:** Program Files are removed by default. Local pairing, NVR passwords, and topology in ProgramData are **preserved** unless the uninstaller “Remove local data” task is selected.
 

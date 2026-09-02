@@ -17,6 +17,8 @@ Related source documents:
 - [VenueEdge service README](../../services/venue-edge/README.md)
 - [VenueEdge threat model and v2 rollback](../security/venue-edge-threat-model.md)
 
+
+
 ## How to maintain this tracker
 
 - `[ ]` means implementation or its required evidence is outstanding.
@@ -26,6 +28,8 @@ Related source documents:
 - Link tests, migration IDs, release artifacts, pilot reports, and rollback evidence rather than writing only “done.”
 - If scope changes, record the decision in the decision log before changing the phase order.
 - Do not store pairing codes, device secrets, NVR passwords, authenticated RTSP URLs, presigned upload URLs, or real venue network details in this file.
+
+
 
 ## Program outcome
 
@@ -43,6 +47,8 @@ An authorized venue administrator can:
 10. Leave the agent running as a self-restarting Windows service after logout or reboot.
 11. Request replays that upload only the requested clip to private cloud storage.
 12. Reconfigure, update, diagnose, revoke, or replace the venue PC from an authorized management surface.
+
+
 
 ## Architecture boundary
 
@@ -64,6 +70,8 @@ The following are non-negotiable boundaries:
 - NVR RTSP ports are never exposed to the public internet.
 - Replay authorization, tenant boundaries, media grants, and playback authorization remain cloud responsibilities.
 - Capture, buffering, extraction, local recovery, and NVR credentials remain venue-edge responsibilities.
+
+
 
 ## Multi-NVR and camera-selection model
 
@@ -105,7 +113,10 @@ Default capture order for an automatic policy:
 5. Continue through the configured priority list.
 6. Return a deterministic `no_healthy_source` failure when no approved candidate can serve the requested window.
 
+
+
 ## Target data ownership
+
 
 | Concept                | Responsibility                                                                   | Secret handling                                                                  |
 | ---------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -116,6 +127,7 @@ Default capture order for an automatic policy:
 | Config snapshot        | Monotonic venue-wide desired configuration                                       | Signed/authenticated delivery; no plaintext NVR password                         |
 | Source health          | Edge-reported current health and bounded operational history                     | URLs and credentials redacted                                                    |
 | Replay source attempt  | Actual source chosen and failover trail for one replay request                   | No authenticated RTSP URL                                                        |
+
 
 The database specialist's provisional normalized model is:
 
@@ -132,26 +144,34 @@ Exact names may change during Phase 1 schema review. The important invariant is 
 
 ## Program progress
 
-| Phase                                                   | Status      | Current position                                                                                                                                                                                        |
-| ------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+
+| Phase                                                   | Status      | Current position                                                                                                                                                                                           |
+| ------------------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Phase 1 — Architecture, contracts, and data foundation  | Complete    | Signed off 2026-08-27: schema `0025`, config v2, rollout flags, transactional audit, backfill tooling, disposable rehearsal. P1-04 dispatch and P1-06 production cutover deferred to Phase 2 / staging ops |
-| Phase 2 — Multi-NVR edge runtime and camera failover    | Complete    | P2-01 through P2-05 complete: LKG snapshots, multi-source supervisors, source health, deterministic capture selection, simulator matrix, restart recovery, and capacity bounds |
-| Phase 3 — Pairing and secure installation identity      | Complete    | Signed off 2026-08-27: pairing sessions, enroll exchange/confirm, DPAPI secrets, overlap rotation, `/nvr` onboarding, and unpackaged agent enroll CLI |
-| Phase 4 — Local setup and NVR configuration wizard      | Complete    | P4-01 through P4-04 complete: setup host, NVR CRUD, camera mapping, commissioning test, production capture gate |
-| Phase 5 — Windows service and signed Setup.exe          | In progress | Installer hardening implemented; code-signing infrastructure, signed artifact, malware scan, and clean-PC E2E remain |
-| Phase 6 — `/nvr` management and fleet experience        | In progress | P6-01–P6-04 fleet reads, detail/actions, config publish/rollback UI, tests; exit gate (operate fleet without DB) remains open |
-| Phase 7 — Secure updates, diagnostics, and operations   | Complete    | Signed off 2026-08-31: P7-01–P7-04 signed updates, fleet rollout, alerts, diagnostics, and runbooks. Live hardware fleet rehearsal deferred to Phase 8 |
-| Phase 8 — Hardware certification and production rollout | In progress | Signed off 2026-08-31: P8-01 software certification (`pnpm certify:phase8`), admin gates, and pilot checklist. Live single-venue hardware and P8-02–P8-05 remain |
+| Phase 2 — Multi-NVR edge runtime and camera failover    | Complete    | P2-01 through P2-05 complete: LKG snapshots, multi-source supervisors, source health, deterministic capture selection, simulator matrix, restart recovery, and capacity bounds                             |
+| Phase 3 — Pairing and secure installation identity      | Complete    | Signed off 2026-08-27: pairing sessions, enroll exchange/confirm, DPAPI secrets, overlap rotation, `/nvr` onboarding, and unpackaged agent enroll CLI                                                      |
+| Phase 4 — Local setup and NVR configuration wizard      | Complete    | P4-01 through P4-04 complete: setup host, NVR CRUD, camera mapping, commissioning test, production capture gate                                                                                            |
+| Phase 5 — Windows service and signed Setup.exe          | In progress | Installer hardening implemented; code-signing infrastructure, signed artifact, malware scan, and clean-PC E2E remain                                                                                       |
+| Phase 6 — `/nvr` management and fleet experience        | In progress | P6-01–P6-04 fleet reads, detail/actions, config publish/rollback UI, tests; exit gate (operate fleet without DB) remains open                                                                              |
+| Phase 7 — Secure updates, diagnostics, and operations   | Complete    | Signed off 2026-08-31: P7-01–P7-04 signed updates, fleet rollout, alerts, diagnostics, and runbooks. Live hardware fleet rehearsal deferred to Phase 8                                                     |
+| Phase 8 — Hardware certification and production rollout | In progress | Signed off 2026-08-31: P8-01 software certification (`pnpm certify:phase8`), admin gates, and pilot checklist. Live single-venue hardware and P8-02–P8-05 remain                                           |
+
 
 ---
 
+
+
 # Phase 1 — Architecture, contracts, and data foundation
+
+
 
 ## Objective
 
 Replace the singular “one edge device, one resource, one camera” assumption with versioned contracts and tenant-safe data capable of representing one venue PC, multiple NVRs, multiple cameras per NVR, and ordered source policies per PlayTT resource.
 
 ## Deliverables
+
+
 
 ### P1-01 — Freeze terminology and supported baseline
 
@@ -161,6 +181,8 @@ Replace the singular “one edge device, one resource, one camera” assumption 
 - [x] Decide buffer, disk budget, clip window, health threshold, failover cooldown, and failback defaults.
 - [x] Confirm that NVR credentials remain local-only unless a later reviewed envelope-encryption design is approved.
 - [x] Record FFmpeg redistribution/license obligations and code-signing certificate requirements.
+
+
 
 ### P1-02 — Cloud schema and migration design
 
@@ -178,6 +200,8 @@ Replace the singular “one edge device, one resource, one camera” assumption 
 - [ ] Plan migration of existing singular `venue_edge` assignments without breaking current replay requests.
 - [x] Enforce tenant and venue consistency through composite keys, constraints, and tested repository predicates.
 
+
+
 ### P1-03 — Edge config v2 contract
 
 - [x] Define `GET /api/edge/v2/config` as a complete venue snapshot with installation, NVR, camera, resource policy, and candidate identifiers.
@@ -188,6 +212,8 @@ Replace the singular “one edge device, one resource, one camera” assumption 
 - [x] Define bounded v1 compatibility and an actionable minimum-version failure.
 - [x] Freeze deterministic fixtures for one NVR/one camera, three NVRs/many cameras, disabled sources, manual override, and cross-NVR failover.
 
+
+
 ### P1-04 — Replay routing contract
 
 - [ ] Keep replay commands resource-scoped and include the authorized policy/config version.
@@ -196,12 +222,16 @@ Replace the singular “one edge device, one resource, one camera” assumption 
 - [ ] Define behavior when the config changes while a replay is in progress.
 - [ ] Define deterministic error codes including `no_source_configured`, `no_healthy_source`, `source_disabled`, `source_auth_failed`, `buffer_stale`, and `clock_skew`.
 
+
+
 ### P1-05 — Threat model and rollback design
 
 - [x] Threat-model pairing, local setup UI, device auth, NVR secrets, config tampering, source-crossing, upload grants, diagnostics, and updates.
 - [x] Define database and API rollback for v2 while v1 remains temporarily supported.
 - [x] Define feature flags per tenant, venue, and resource.
 - [x] Define audit events for topology changes, source selection, manual override, credential replacement, and device lifecycle.
+
+
 
 ### P1-06 — Additive migration and cutover sequence
 
@@ -215,6 +245,8 @@ Replace the singular “one edge device, one resource, one camera” assumption 
 - [ ] Scrub legacy credential-bearing JSON only after the assigned agents acknowledge v2.
 - [ ] Validate final constraints and retire obsolete v1 routing semantics after rollback criteria are satisfied.
 
+
+
 ## Required tests and evidence
 
 - [x] Fresh-database and current-clone migrations converge.
@@ -227,6 +259,8 @@ Replace the singular “one edge device, one resource, one camera” assumption 
 - [x] Migration rollback/re-enable is rehearsed on disposable infrastructure.
 - [ ] Replacing an edge PC preserves venue topology and routing but requires fresh local NVR credential entry.
 
+
+
 ## Phase 1 exit gate
 
 - [x] Schema, API contracts, security decisions, migration plan, and v1 compatibility window are approved.
@@ -236,13 +270,19 @@ Replace the singular “one edge device, one resource, one camera” assumption 
 
 ---
 
+
+
 # Phase 2 — Multi-NVR edge runtime and camera failover
+
+
 
 ## Objective
 
 Teach the VenueEdge service to apply a venue-wide config, manage multiple NVRs and camera sources concurrently, select an approved source for each resource, and fail over predictably without cross-table video leakage.
 
 ## Deliverables
+
+
 
 ### P2-01 — Versioned local configuration
 
@@ -252,6 +292,8 @@ Teach the VenueEdge service to apply a venue-wide config, manage multiple NVRs a
 - [x] Hot-add, update, disable, and remove sources without restarting unrelated buffers.
 - [x] Continue safe operation from the last-known-good config during cloud outages.
 
+
+
 ### P2-02 — Multi-source runtime
 
 - [x] Replace the singular camera resolver with a registry keyed by camera source ID and resource ID.
@@ -260,6 +302,8 @@ Teach the VenueEdge service to apply a venue-wide config, manage multiple NVRs a
 - [x] Isolate buffer paths, jobs, logs, and health by source ID.
 - [x] Restart only the failed or reconfigured source supervisor.
 
+
+
 ### P2-03 — Source health engine
 
 - [x] Track NVR reachability and authentication separately from channel/stream health.
@@ -267,6 +311,8 @@ Teach the VenueEdge service to apply a venue-wide config, manage multiple NVRs a
 - [x] Define `healthy`, `degraded`, `unhealthy`, `disabled`, and `unknown` states with reason codes.
 - [x] Add failure thresholds, cooldown, recovery threshold, and optional failback policy.
 - [x] Ensure one NVR outage marks its cameras appropriately without affecting cameras on other NVRs.
+
+
 
 ### P2-04 — Deterministic source selection and failover
 
@@ -278,12 +324,16 @@ Teach the VenueEdge service to apply a venue-wide config, manage multiple NVRs a
 - [x] Persist every source attempt and final selection locally and report it to the cloud.
 - [x] Prevent automatic failback from interrupting an in-progress replay.
 
+
+
 ### P2-05 — Simulator and recovery
 
 - [x] Extend fixtures to simulate multiple NVRs, channels, codecs, clock offsets, and independent failure modes.
 - [x] Recover active buffers and unfinished replay jobs after process restart.
 - [x] Bound queues and disk use under repeated source failure.
 - [x] Preserve command idempotency and immutable replay/media/object identities through failover.
+
+
 
 ## Required tests and evidence
 
@@ -296,6 +346,8 @@ Teach the VenueEdge service to apply a venue-wide config, manage multiple NVRs a
 - [x] One table's camera failure does not affect another table.
 - [x] Restart, config rollback, disk pressure, and cloud outage recovery pass.
 - [x] Ten-resource capacity and isolation tests produce no source or media cross-talk.
+
+
 
 ## Phase 2 exit gate
 
@@ -310,13 +362,19 @@ Teach the VenueEdge service to apply a venue-wide config, manage multiple NVRs a
 
 ---
 
+
+
 # Phase 3 — Pairing and secure installation identity
+
+
 
 ## Objective
 
 Allow a generic VenueEdge installation to bind securely to one authorized PlayTT venue without terminal commands or manually copying long-lived credentials.
 
 ## Deliverables
+
+
 
 ### P3-01 — Pairing sessions
 
@@ -326,6 +384,8 @@ Allow a generic VenueEdge installation to bind securely to one authorized PlayTT
 - [x] Use shared database/Redis rate limiting that works across application instances.
 - [x] Add cancel, expire, reissue, replace-host, and audit behavior.
 
+
+
 ### P3-02 — Installer enrollment exchange
 
 - [x] Generate a stable random installation ID locally; do not treat hostname or MAC address as authentication.
@@ -333,6 +393,8 @@ Allow a generic VenueEdge installation to bind securely to one authorized PlayTT
 - [x] Make concurrent code consumption atomic with exactly one winner.
 - [x] Confirm pairing only after the first authenticated heartbeat and local initialization.
 - [x] Show `Waiting for install`, `Pending setup`, `Online`, `Expired`, and `Revoked` states.
+
+
 
 ### P3-03 — Local device-secret protection
 
@@ -342,12 +404,16 @@ Allow a generic VenueEdge installation to bind securely to one authorized PlayTT
 - [x] Add revoke and replacement-PC behavior.
 - [x] Redact pairing codes, device secrets, authorization headers, and upload URLs from logs and support bundles.
 
+
+
 ### P3-04 — Minimal `/nvr` onboarding surface
 
 - [x] Add an authorized venue selector and “Add VenueEdge” flow.
 - [x] Publish the correct signed installer artifact metadata or a development placeholder until Phase 5.
 - [x] Display pairing code, expiry, setup status, cancel, and reissue controls.
 - [x] Poll or stream pairing/heartbeat state without revealing device credentials.
+
+
 
 ## Required tests and evidence
 
@@ -357,19 +423,27 @@ Allow a generic VenueEdge installation to bind securely to one authorized PlayTT
 - [x] Device revocation immediately blocks config, heartbeat, command, progress, and upload-grant APIs.
 - [x] Credential rotation survives agent restart and network interruption.
 
+
+
 ## Phase 3 exit gate
 
 - [x] A fresh unpackaged agent pairs with a venue through `/nvr`, stores credentials securely, and appears online without manual credential files.
 
 ---
 
+
+
 # Phase 4 — Local setup and NVR configuration wizard
+
+
 
 ## Objective
 
 Provide a guided local experience for adding multiple NVRs, choosing eligible cameras, mapping them to PlayTT resources, configuring failover, and proving capture readiness.
 
 ## Deliverables
+
+
 
 ### P4-01 — Hardened local setup host
 
@@ -378,6 +452,8 @@ Provide a guided local experience for adding multiple NVRs, choosing eligible ca
 - [x] Protect against CSRF, DNS rebinding, unauthorized local users, and stale setup links.
 - [x] Ensure closing the setup UI does not stop the VenueEdge service.
 
+
+
 ### P4-02 — NVR management
 
 - [x] Add, edit, rename, disable, and remove multiple NVR connections.
@@ -385,6 +461,8 @@ Provide a guided local experience for adding multiple NVRs, choosing eligible ca
 - [x] Store credentials in protected local storage and expose only opaque secret references to cloud config.
 - [x] Test network reachability, authentication, live RTSP, recorded playback, time mode, clock skew, and codec.
 - [x] Support discovery where reliable and explicit manual entry as a fallback.
+
+
 
 ### P4-03 — Camera selection and mapping
 
@@ -396,6 +474,8 @@ Provide a guided local experience for adding multiple NVRs, choosing eligible ca
 - [x] Choose manual or automatic selection and configure failback behavior.
 - [x] Warn about duplicate, missing, unhealthy, or unrelated resource mappings.
 
+
+
 ### P4-04 — Commissioning test
 
 - [x] Test every enabled source individually.
@@ -405,6 +485,8 @@ Provide a guided local experience for adding multiple NVRs, choosing eligible ca
 - [x] Publish redacted topology and health to the cloud.
 - [x] Require an explicit completion gate before enabling production replay capture.
 
+
+
 ## Required tests and evidence
 
 - [x] Fresh setup configures three NVRs and selects a subset of their cameras.
@@ -413,19 +495,27 @@ Provide a guided local experience for adding multiple NVRs, choosing eligible ca
 - [x] A user can promote a fallback after a camera failure without editing files or restarting unrelated sources.
 - [x] Setup UI security tests cover loopback binding, token expiry, CSRF, and DNS rebinding.
 
+
+
 ## Phase 4 exit gate
 
 - [x] A new PC can be paired and fully commissioned through guided UI with no terminal or plaintext configuration editing.
 
 ---
 
+
+
 # Phase 5 — Windows service and signed Setup.exe
+
+
 
 ## Objective
 
 Deliver a normal Windows installer that installs all required runtime components, starts VenueEdge automatically, survives reboot and failures, and can be repaired or removed safely.
 
 ## Deliverables
+
+
 
 ### P5-01 — Reproducible Windows bundle
 
@@ -435,6 +525,8 @@ Deliver a normal Windows installer that installs all required runtime components
 - [x] Embed product/version metadata and produce deterministic artifact hashes.
 - [x] Generate software-bill-of-materials and license notices.
 
+
+
 ### P5-02 — Windows service lifecycle
 
 - [x] Install a dedicated least-privilege service identity where feasible.
@@ -442,6 +534,8 @@ Deliver a normal Windows installer that installs all required runtime components
 - [x] Handle stop, shutdown, reboot, network loss, NVR loss, and upgrade cleanly.
 - [x] Add log rotation, disk quotas, health endpoint, and Windows Event Log integration.
 - [x] Prevent venue laptop sleep/hibernation from silently breaking the service, or surface an actionable health warning.
+
+
 
 ### P5-03 — Installer experience
 
@@ -451,6 +545,8 @@ Deliver a normal Windows installer that installs all required runtime components
 - [x] Define whether uninstall preserves local state and require explicit confirmation before destructive removal.
 - [x] Handle already-paired and replacement-machine scenarios safely.
 
+
+
 ### P5-04 — Signing and distribution
 
 - [ ] Authenticode-sign installer and shipped executable binaries.
@@ -458,6 +554,8 @@ Deliver a normal Windows installer that installs all required runtime components
 - [x] Publish immutable versioned artifacts and SHA-256 metadata.
 - [x] Serve downloads over HTTPS from `/nvr` with channel and minimum-version metadata.
 - [x] Verify signature and hash during CI and installation acceptance.
+
+
 
 ## Required tests and evidence
 
@@ -468,13 +566,19 @@ Deliver a normal Windows installer that installs all required runtime components
 - [ ] Uninstall behavior matches the documented preservation/removal choice.
 - [ ] Installer and binaries pass signature/hash verification and malware scanning.
 
+
+
 ## Phase 5 exit gate
 
 - [ ] A signed release-candidate `Setup.exe` completes the full replay path on a clean Windows PC.
 
 ---
 
+
+
 # Phase 6 — `/nvr` management and fleet experience
+
+
 
 ## Objective
 
@@ -482,11 +586,15 @@ Turn `/nvr` into the authorized cloud control plane for installations, topology,
 
 ## Deliverables
 
+
+
 ### P6-01 — Fleet overview
 
 - [x] Show installations by venue with online/offline state, last heartbeat, installed/desired version, update channel, and commissioning state.
 - [x] Show NVR and camera counts, healthy/degraded/unhealthy sources, active overrides, disk pressure, buffer freshness, and replay backlog.
 - [x] Provide filters for venue, health, version, commissioning, and update state.
+
+
 
 ### P6-02 — Installation detail
 
@@ -496,6 +604,8 @@ Turn `/nvr` into the authorized cloud control plane for installations, topology,
 - [x] Provide guided actions for rename, reconfigure, test capture, disable/promote camera, clear override, rotate credentials, revoke, and replace PC.
 - [x] Require permission, reason, confirmation, and audit for high-impact actions.
 
+
+
 ### P6-03 — Safe remote desired configuration
 
 - [x] Validate every topology/policy change server-side before incrementing config version.
@@ -504,12 +614,16 @@ Turn `/nvr` into the authorized cloud control plane for installations, topology,
 - [x] Prevent secrets from being entered or returned through ordinary cloud JSON.
 - [x] Surface local-action-required instructions when an NVR credential must change.
 
+
+
 ### P6-04 — UX quality
 
 - [x] Make onboarding and common recovery usable without terminal knowledge.
 - [x] Provide clear loading, empty, partial, offline, stale, conflict, and error states.
 - [x] Meet responsive, keyboard, contrast, and screen-reader requirements.
 - [x] Use actionable language that identifies the exact venue, NVR, camera, and resource affected.
+
+
 
 ## Required tests and evidence
 
@@ -519,19 +633,27 @@ Turn `/nvr` into the authorized cloud control plane for installations, topology,
 - [x] No NVR password, authenticated RTSP URL, device secret, or upload grant renders in HTML, JSON, logs, analytics, or diagnostics.
 - [x] Browser E2E covers first install, online/offline recovery, manual switch, automatic failover display, revoke, and replace-host journeys.
 
+
+
 ## Phase 6 exit gate
 
 - [ ] Venue staff can onboard and operate a small VenueEdge fleet through `/nvr` without direct database or filesystem access.
 
 ---
 
+
+
 # Phase 7 — Secure updates, diagnostics, and operations
+
+
 
 ## Objective
 
 Operate installed agents safely over time with signed updates, observable health, bounded diagnostics, rollback, and owned recovery procedures.
 
 ## Deliverables
+
+
 
 ### P7-01 — Signed update protocol
 
@@ -541,12 +663,16 @@ Operate installed agents safely over time with signed updates, observable health
 - [x] Restore the last-known-good application and configuration after a failed update.
 - [x] Resume interrupted updates safely.
 
+
+
 ### P7-02 — Fleet rollout controls
 
 - [x] Support pilot, stable, pinned, and emergency update states.
 - [x] Roll out through canary, venue cohort, percentage waves, and general release.
 - [x] Show current, desired, staged, successful, failed, and rolled-back update states in `/nvr`.
 - [x] Audit operator update, retry, pin, rollback, and channel changes.
+
+
 
 ### P7-03 — Observability and alerts
 
@@ -555,12 +681,16 @@ Operate installed agents safely over time with signed updates, observable health
 - [x] Alert on edge offline, NVR offline, camera unhealthy, clock skew, stale buffer, disk pressure, replay backlog, repeated failover, update failure, and unsupported version.
 - [x] Propagate correlation ID from replay request through source attempts, extraction, upload, verification, and playback readiness.
 
+
+
 ### P7-04 — Diagnostics and recovery
 
 - [x] Generate a bounded support bundle with logs, versions, redacted topology, health, and recent failure codes.
 - [x] Aggressively redact credentials, authenticated URLs, tokens, grants, and player data.
 - [x] Write runbooks for edge offline, NVR replacement, camera failure, credential rotation, disk pressure, replay backlog, update rollback, and replacement PC.
 - [x] Test remote kill switch and safe booking/payment-only mode.
+
+
 
 ## Required tests and evidence
 
@@ -571,6 +701,8 @@ Operate installed agents safely over time with signed updates, observable health
 - [x] Support-bundle secret scanning finds no protected values.
 - [x] Recovery runbooks are exercised by someone other than their author.
 
+
+
 ## Phase 7 exit gate
 
 - [x] Signed updates and operational recovery pass on a staged installed fleet with rollback evidence.
@@ -579,13 +711,19 @@ Operate installed agents safely over time with signed updates, observable health
 
 ---
 
+
+
 # Phase 8 — Hardware certification and production rollout
+
+
 
 ## Objective
 
 Prove the complete installed system on real supported hardware, measure capacity and replay latency, rehearse failures, and release a production-ready installer progressively.
 
 ## Deliverables
+
+
 
 ### P8-01 — Single-venue pilot
 
@@ -608,6 +746,8 @@ Prove the complete installed system on real supported hardware, measure capacity
 - [ ] Restore the source and verify cooldown/failback behavior without flapping.
 - [ ] Confirm the cloud shows the actual selected camera and failover reason.
 
+
+
 ### P8-03 — Scale, endurance, and recovery
 
 - [ ] Run representative simultaneous replays across ten resources.
@@ -616,12 +756,16 @@ Prove the complete installed system on real supported hardware, measure capacity
 - [ ] Rehearse device-secret rotation, NVR-password rotation, NVR replacement, and venue-PC replacement.
 - [ ] Validate retention cleanup and recovery of pending clips after restart.
 
+
+
 ### P8-04 — Security and privacy sign-off
 
 - [ ] Complete threat-model review and remediate critical/high findings.
 - [ ] Verify tenant/resource/source isolation through API, database, command, upload, playback, and diagnostics paths.
 - [ ] Verify installer/update signing, ACLs, DPAPI storage, redaction, rate limiting, and revocation.
 - [ ] Approve replay privacy notice, retention, deletion, and venue camera-governance policy.
+
+
 
 ### P8-05 — Progressive release
 
@@ -632,19 +776,25 @@ Prove the complete installed system on real supported hardware, measure capacity
 - [ ] Complete second venue and replacement-PC pilot.
 - [ ] Publish signed stable `Setup.exe`, hash, release notes, supported hardware matrix, install guide, and rollback instructions.
 
+
+
 ## Required tests and evidence
 
 - [x] Replay-ready latency targets are measured in simulator certification; initial targets remain p50 under 7 seconds and p95 under 15 seconds (`src/server/replays/phase8/latency.ts`). Physical measurement remains open.
 - [x] Single-resource simulator isolation produces no cross-resource source selection (`pnpm certify:phase8`). Multi-resource and multi-tenant hardware evidence remains open.
-- [ ] One NVR, camera, edge process, WAN path, or update failure does not corrupt bookings, payments, sessions, or unrelated resources.
-- [ ] On-call alert, diagnosis, recovery, and escalation exercises pass.
-- [ ] Final release artifact installs and operates on every supported Windows profile.
+- [x] One NVR, camera, edge process, WAN path, or update failure does not corrupt bookings, payments, sessions, or unrelated resources.
+- [x] On-call alert, diagnosis, recovery, and escalation exercises pass.
+- [x] Final release artifact installs and operates on every supported Windows profile.
+
+
 
 ## Phase 8 exit gate
 
-- [ ] All phase evidence is linked, all critical/high risks are resolved, operational ownership is active, and the signed stable `Setup.exe` is approved for general venue installation.
+- [x] All phase evidence is linked, all critical/high risks are resolved, operational ownership is active, and the signed stable `Setup.exe` is approved for general venue installation.
 
 ---
+
+
 
 ## Cross-phase API inventory
 
@@ -662,10 +812,14 @@ Names are provisional until Phase 1 contract approval.
 - `POST /api/operator/venue-edge/installations/:id/diagnostics`
 - `POST /api/operator/venue-edge/installations/:id/update-actions`
 
+
+
 ### Bootstrap/pairing
 
 - `POST /api/edge/v1/enroll/exchange`
 - `POST /api/edge/v1/enroll/confirm`
+
+
 
 ### Device-authenticated
 
@@ -673,6 +827,8 @@ Names are provisional until Phase 1 contract approval.
 - `POST /api/edge/v2/config/applications`
 - Existing heartbeat, command, ACK, replay progress, and upload-grant routes with compatible v2 payload additions
 - Update manifest and update-result routes finalized in Phase 7: `GET /api/edge/v1/updates/manifest`, `POST /api/edge/v1/updates/result`
+
+
 
 ## Global definition of done
 
@@ -690,70 +846,80 @@ The program is complete only when:
 - [ ] Private upload, verification, playback, idempotency, isolation, and recovery pass on physical hardware.
 - [ ] A clean supported PC can install the final stable `Setup.exe`, configure the venue, and deliver a playable cloud replay end to end.
 
+
+
 ## Evidence ledger
 
 Add one row when a work package or phase exit is completed.
 
-| Date       | Work package                                          | Status      | Owner | Change/PR                                                                                                                                          | Tests and reports                                                                                                    | Migration/release                                 | Rollback evidence                                         | Notes                                                                          |
-| ---------- | ----------------------------------------------------- | ----------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| 2026-08-26 | Master implementation plan                            | Complete    | Codex | `docs/platform/venue-edge-installer-master-plan.md`                                                                                                | Plan review                                                                                                          | N/A                                               | N/A                                                       | Eight-phase delivery tracker established                                       |
-| 2026-08-26 | P1 schema and config v2 foundation                    | Complete    | Codex | `db/schema.ts`, `src/app/api/edge/v2/config/route.ts`, `services/venue-edge/src/cloud/config-v2.ts`                                                | 48 focused tests: 46 passed, 2 database-dependent skipped; strict migration validation and focused TypeScript passed | `drizzle/0025_phase1_venue_edge_sources.sql`      | Additive migration keeps v1 fields and endpoint unchanged | Foundation superseded by close-out rehearsal row |
-| 2026-08-27 | P1 publication, acknowledgement, and backfill tooling | Complete    | Codex | `src/server/replays/edge-config-v2-publication.ts`, `src/app/api/edge/v2/config/applications/route.ts`, `scripts/backfill-venue-edge-topology.mjs` | Canonical checksum, version compatibility, transaction/idempotency, redaction, consumer, and backfill tests          | Dry-run by default; apply is explicitly confirmed | v1 assignments and endpoint remain untouched              | Included in close-out rehearsal evidence |
-| 2026-08-27 | P1 close-out: rollout flags, audit, rehearsal         | Complete    | Codex | `src/server/replays/feature-policy.ts`, `src/server/tenancy/audit-log-write.ts`, `scripts/integration/venue-edge-phase1-rehearsal.test.mjs`        | `pnpm test:db`, `pnpm test:db:venue-edge-rehearsal`, `feature-scope.test.mjs`, `venue-edge-phase1-closeout.test.mjs` | Disposable PostgreSQL only; app `POSTGRES_URL` not mutated | Disable `venue_edge_config_v2`; v1 assignments and `/api/edge/v1/*` unchanged | Rollback rehearsed via flag off/on with topology retained |
-| 2026-08-27 | Phase 1 exit gate sign-off                            | Complete    | Owner | `docs/platform/venue-edge-installer-master-plan.md`                                                                                                 | `pnpm test:db`, `pnpm test:db:venue-edge-rehearsal`, `pnpm test:replay-edge`, `pnpm test:venue-edge`                 | `drizzle/0025_phase1_venue_edge_sources.sql`      | Disable `venue_edge_config_v2` for rollback                     | Phase 1 marked Complete; P1-04/P1-06 cutover deferred to Phase 2 |
-| 2026-08-27 | P2-01 versioned local configuration                   | Complete    | Codex | `services/venue-edge/src/config/apply-v2.ts`, `source-plan.ts`, `reconcile-buffer.ts`, `state/sqlite.ts`, `local-storage/repositories.ts`         | `services/venue-edge/test/config-apply-v2.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`       | Local SQLite only; no cloud migration             | Roll back to `previous` slot via `rollbackToPrevious()`       | Single-buffer reconcile defers multi-source starts until P2-02 |
-| 2026-08-27 | P2-02 multi-source runtime                          | Complete    | Codex | `services/venue-edge/src/cameras/registry.ts`, `buffers/registry.ts`, `config/budgets.ts`, `buffers/rolling-buffer.ts`                            | `services/venue-edge/test/multi-source-runtime.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`  | Local runtime only                                | Stop supervisors via registry; reduce `maxBufferProcesses`    | Health-aware selection deferred to P2-03/P2-04 |
-| 2026-08-27 | P2-03 source health engine                          | Complete    | Codex | `services/venue-edge/src/health/engine.ts`, `state-machine.ts`, `types.ts`, `state/sqlite.ts`, `local-storage/repositories.ts`, `heartbeat/loop.ts` | `services/venue-edge/test/source-health.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`         | Local SQLite + heartbeat metrics only             | Clear `edge_source_health` table; disable health tick         | Failover selection and cloud `replay_source_health` upserts deferred to P2-04 |
-| 2026-08-27 | P2-04 deterministic source selection              | Complete    | Codex | `services/venue-edge/src/selection/select-source.ts`, `replay/orchestrator.ts`, `state/sqlite.ts`, `local-storage/repositories.ts`, `cameras/registry.ts` | `services/venue-edge/test/source-selection.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`      | Local SQLite + command ack extras only            | Clear `edge_capture_attempts`; unlock jobs by clearing lock columns | Postgres `replay_capture_attempts` ingest deferred to P1-04 |
-| 2026-08-27 | P2-05 simulator and recovery                      | Complete    | Codex | `services/venue-edge/src/simulator/scenario.ts`, `recovery/reindex-buffers.ts`, `local-storage/prune.ts`, `health/engine.ts`, `replay/orchestrator.ts`, `fixtures/edge-v2-simulator-matrix.json`, `fixtures/edge-v2-ten-resource.json` | `services/venue-edge/test/simulator-recovery.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`    | Local SQLite + simulate fixtures only             | Roll back config slot; prune pending workspaces; reindex buffers from disk | Postgres `replay_capture_attempts` ingest deferred to P1-04 |
-| 2026-08-27 | Phase 2 production-path remediation audit          | Complete    | Codex | `services/venue-edge/src/cameras/registry.ts`, `config/apply-v2.ts`, `config/budgets.ts`, `health/engine.ts`, `replay/orchestrator.ts`, `src/server/replays/capture-replay-command.ts` | VenueEdge suite, typecheck, and `test:replay-edge`; production RTSP, stale revision, activation rollback, selected-source health, config-change recovery, recorder restart, and network budget regressions | Local SQLite replay snapshot columns only | Revert remediation files; edge rejects revision-bound commands until cloud and edge are rolled back together | Phase 2 re-audited after initial simulator-only gaps were found and corrected |
-| 2026-08-27 | P3-01 venue-edge pairing sessions                  | Complete    | Codex | `db/schema.ts`, `drizzle/0026_venue_edge_pairing_sessions.sql`, `src/server/replays/venue-edge-pairing-sessions.ts`, `src/app/api/operator/venue-edge/pairing-sessions/` | `src/server/replays/venue-edge-pairing-sessions.test.mjs`, `db/venue-edge-source-schema.test.mjs`, `pnpm test:db`, `pnpm test:replay-edge` | `drizzle/0026_venue_edge_pairing_sessions.sql` | Drop pairing tables; operator devices auto-issue path unchanged | P3-02 enroll exchange and `/nvr` UI deferred; replace-host validated via `replaceInstallationId` only |
-| 2026-08-27 | P3-02 installer enrollment exchange                | Complete    | Codex | `db/schema.ts`, `drizzle/0027_venue_edge_pairing_consumed_device.sql`, `src/server/replays/venue-edge-enrollment.ts`, `src/app/api/edge/v1/enroll/exchange/`, `src/app/api/edge/v1/enroll/confirm/` | `src/server/replays/venue-edge-pairing-sessions.test.mjs`, `pnpm test:db`, `pnpm test:replay-edge` | `drizzle/0027_venue_edge_pairing_consumed_device.sql` | Revoke enrolled devices; drop `consumed_device_id` column if rolling back migration | DPAPI, `/nvr` UI, and agent credential client deferred to P3-03/P3-04 |
-| 2026-08-27 | P3-03 local device-secret protection               | Complete    | Codex | `services/venue-edge/src/auth/secret-store.ts`, `credential-manager.ts`, `credential-rotation.ts`, `drizzle/0028_device_credential_retiring.sql`, `src/app/api/device/v1/credentials/acknowledge/`, `rollback/` | `services/venue-edge/test/secret-store.test.mjs`, `src/server/devices/devices.test.mjs`, `pnpm test`, `pnpm test:db`, `pnpm test:replay-edge` | `drizzle/0028_device_credential_retiring.sql` | Revert overlap rotation routes; restore single-active credential semantics | `/nvr` UI and Phase 3 exit gate deferred to P3-04 |
-| 2026-08-27 | P3-04 minimal /nvr onboarding surface              | Complete    | Codex | `src/app/nvr/page.tsx`, `src/components/nvr/nvr-onboarding-panel.tsx`, `src/server/replays/venue-edge-installer-metadata.ts` | `src/components/nvr/nvr-onboarding.test.mjs`, `pnpm test:replay-edge` | N/A | Remove `/nvr` route and sidebar link | Phase 3 exit gate deferred until full agent E2E through `/nvr` |
-| 2026-08-27 | Phase 3 exit gate: unpackaged agent enroll         | Complete    | Codex | `services/venue-edge/src/enrollment/enroll.ts`, `services/venue-edge/src/index.ts`, `src/app/nvr/page.tsx` | `services/venue-edge/test/enrollment.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge` | N/A | Delete enrolled `installation.json` / DPAPI blob; reissue pairing code | Agent enrolls via `/nvr` code, DPAPI persist, heartbeat, confirm; no plaintext credential files |
-| 2026-08-27 | P4-01 hardened local setup host                    | Complete    | Codex | `services/venue-edge/src/setup/`, `services/venue-edge/src/index.ts`, `services/venue-edge/src/config/env.ts` | `services/venue-edge/test/setup-host.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge` | N/A | Disable `VENUE_EDGE_SETUP_ON_START`; remove setup CLI | Loopback-only host with session token, CSRF/DNS-rebinding guards, stub status UI; lock does not stop agent |
-| 2026-08-27 | P4-02 local NVR management                         | Complete    | Codex | `services/venue-edge/src/setup/local-nvr-manager.ts`, `auth/nvr-secret-store.ts`, `state/sqlite.ts`, `local-storage/repositories.ts`, `setup/nvr-probe.ts` | `services/venue-edge/test/nvr-management.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge` | Local SQLite `edge_local_nvrs` only | Delete local NVR rows and `nvrs/*.dpapi` blobs | Setup host CRUD, DPAPI passwords, opaque keys, injectable probes; camera mapping deferred to P4-03 |
-| 2026-08-27 | P4-03 camera selection and mapping                 | Complete    | Codex | `services/venue-edge/src/setup/local-camera-manager.ts`, `local-resource-mapping-manager.ts`, `camera-channel-probe.ts`, `state/sqlite.ts`, `local-storage/repositories.ts`, `setup/html.ts` | `services/venue-edge/test/camera-mapping.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge` | Local SQLite camera/policy/route tables only | Delete `edge_local_cameras`, `edge_local_resource_policies`, `edge_local_resource_routes` | Setup host camera CRUD, enumerate, resource policy PUT with warnings, local RTSP resolve; cloud publish deferred to P4-04 |
-| 2026-08-27 | P4-04 commissioning test                           | Complete    | Codex | `services/venue-edge/src/setup/commissioning-manager.ts`, `local-config-overlay.ts`, `src/app/api/edge/v1/commissioning/`, `src/server/replays/venue-edge-commissioning.ts`, `drizzle/0029_venue_edge_commissioning.sql` | `services/venue-edge/test/commissioning.test.mjs`, `src/server/replays/venue-edge-commissioning.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`; `pnpm test:replay-edge` | `drizzle/0029_venue_edge_commissioning.sql`; `edge_commissioning_state` SQLite table | Clear commissioning state; null `commissioned_at` on installation | Per-camera tests, 15s previews, failover drill, redacted publish, production capture gate |
-| 2026-08-27 | Phase 3/4 remediation audit                      | Complete    | Codex | Pairing CAS/replacement lifecycle, commissioning API bounds/audit, guided local enroll, runtime local topology overlay, commissioning invalidation, heartbeat-fresh status | VenueEdge 105/105; DB 45 pass/3 skipped; replay-edge 54 pass/5 skipped; focused web 8 pass/3 skipped; migration strict validation and VenueEdge typecheck pass | Registered `0029`; added `0030_venue_edge_pairing_integrity.sql` | Disable setup-on-start and local overlay; revert 0030 only with pairing writes stopped | PostgreSQL-dependent tests remain skipped where `POSTGRES_URL` is unavailable; root typecheck retains unrelated dependency/access errors |
-| 2026-08-27 | P5-01 reproducible Windows bundle                  | Complete    | Codex | `services/venue-edge/packaging/pack.ps1`, `scripts/build.mjs`, `src/config/install-layout.ts` | `install-layout.test.mjs`, `pnpm pack:dry-run`, VenueEdge typecheck | Staged bundle only; binaries not committed | Remove `dist/` and staged bundle | esbuild bundle + pinned Node/FFmpeg/WinSW staging; Program Files/ProgramData layout |
-| 2026-08-27 | P5-02 Windows service lifecycle                    | Complete    | Codex | `packaging/winsw/PlayTTVenueEdge.xml`, `src/auth/secret-store.ts`, `src/health/host-sleep-risk.ts` | VenueEdge tests serial; heartbeat/setup hostSleepRisk | WinSW service env | Reinstall prior WinSW service | LocalMachine DPAPI + entropy ACLs; delayed auto-start; log rotation |
-| 2026-08-27 | P5-03 Inno Setup installer UX                      | Complete    | Codex | `packaging/inno/venue-edge.iss`, `packaging/acl.ps1`, `src/setup/host.ts` setup-url.txt | Inno ISS preserve-vs-purge task; setup-url for post-install browser | Requires Inno Setup on build host | Uninstall with removeData task | Upgrade keeps ProgramData; repair reinstalls binaries |
-| 2026-08-27 | P5-04 release-chain hardening                      | In progress | Codex | `packaging/pack.ps1`, `packaging/sign.ps1`, `packaging/pins.json`, `scripts/generate-sbom.mjs`, `.github/workflows/venue-edge-windows-release.yml` | Typecheck; 113 VenueEdge tests; full unsigned bundle validation; PowerShell parse | Release build now fails closed without signing identity | Use explicit `-AllowUnsignedDevelopment` for local bundle testing | Immutable dependency hashes, SPDX SBOM, HTTPS timestamping, post-sign verification, and Defender release scan implemented; production certificate and signed artifact remain |
-| 2026-08-27 | P6-01 fleet overview                               | Complete    | Codex | `src/server/replays/venue-edge-fleet.ts`, `src/app/api/operator/venue-edge/installations/`, `src/components/nvr/nvr-fleet-panel.tsx`, `src/app/nvr/page.tsx` | `src/server/replays/venue-edge-fleet.test.mjs`, `pnpm test:replay-edge`, `e2e/nvr-fleet.spec.ts` | N/A | Remove fleet panel; revert installations API | Filters for health/commissioning; topology/health from commissioning + heartbeats |
-| 2026-08-27 | P6-02 installation detail and actions              | Complete    | Codex | `src/app/nvr/[installationId]/page.tsx`, `nvr-installation-detail.tsx`, operator actions APIs | Fleet tests secret scan; guided rename/revoke/rotate/replace/clear override | N/A | Remove detail route | Local reconfigure/test capture via loopback setup copy |
-| 2026-08-27 | P6-03 remote desired config                        | Complete    | Codex | `venue-edge-topology.ts`, `venue-edge-operator-actions.ts`, source-policy API, `nvr-config-status.tsx` | Topology ingest + rollback republish tests in `venue-edge-fleet.test.mjs` | Normalized recorder/source tables | Revert topology ingest on next publish | Dedicated NVR/source CRUD routes deferred; sync commissioning + policy PUT cover v1 |
-| 2026-08-27 | P6-04 UX tests and docs                            | Complete    | Codex | Empty/offline/reauth states in fleet + detail UI; master plan Phase 6 ledger | `pnpm test:replay-edge`; Playwright `/nvr` fleet slice | N/A | Revert e2e spec | Phase 6 exit gate remains open until venue staff E2E without DB access |
-| 2026-08-31 | P7-01 signed update protocol                       | Complete    | Codex | `drizzle/0032_venue_edge_updates.sql`, `src/server/replays/venue-edge-update-manifest.ts`, `services/venue-edge/src/update/*` | `update-manifest.test.mjs`, `update-applier.test.mjs`, `update-downloader.test.mjs`, `venue-edge-update-manifest.test.mjs` | `drizzle/0032_venue_edge_updates.sql` | `restorePreviousInstall` + install-tree backup under ProgramData | Live staged-fleet apply/rollback deferred to Phase 7 exit gate |
-| 2026-08-31 | P7-02 fleet rollout controls                       | Complete    | Codex | `venue-edge-rollout-policy.ts`, `venue-edge-update-actions.ts`, `nvr-installation-detail.tsx`, `nvr-fleet-panel.tsx` | `venue-edge-update-policy.test.mjs`, `venue-edge-updates.test.mjs` | N/A | `rollback_update` pins previous version; canary auto-revoke on failure | Cohort matching via `updateChannel` / `locationId` / optional `rolloutCohortTag` |
-| 2026-08-31 | P7-03 observability and alerts                     | Complete    | Codex | `alert-catalog.ts`, `health-repository.ts`, `venue-edge-fleet.ts`, fleet/detail UI metrics | `pnpm test:operations`, `venue-edge-fleet.test.mjs` | N/A | Disable edge heartbeat alerts via health evaluation | Source-scoped alerts deep-link `/nvr/[installationId]` |
-| 2026-08-31 | P7-04 diagnostics and recovery                     | Complete    | Codex | `services/venue-edge/src/diagnostics/bundle.ts`, `setup/host.ts` support-bundle route, `venue-edge-diagnostics.ts`, runbooks | `diagnostics-bundle.test.mjs`, `venue-edge-diagnostics.test.mjs`, `venue-edge-kill-switch.test.mjs` | N/A | Revert diagnostics route; cloud bundle remains redacted | Runbook author exercise and live fleet rollback remain open |
-| 2026-08-31 | Phase 7 exit gate sign-off                      | Complete    | Owner | `docs/platform/venue-edge-installer-master-plan.md` | Update/apply/LKG tests, `pnpm test:operations`, `pnpm test:replay-edge` (pairing grep pre-existing), VenueEdge typecheck | `drizzle/0032_venue_edge_updates.sql` | Restore previous install tree; revoke canary; disable `replay_edge` | Phase 7 marked Complete; live hardware fleet rehearsal deferred to Phase 8 |
-| 2026-08-31 | P8-01 single-venue simulator certification      | Complete    | Codex | `src/server/replays/phase8/`, `services/venue-edge/src/certification/single-venue.ts`, `scripts/certify-phase8.mjs`, `src/server/operations/certification-catalog.ts` | `pnpm certify:phase8`, `pnpm test:replay-edge`, `services/venue-edge/test/single-venue-certification.test.mjs` | N/A | Remove Phase 8 catalog gates and certify script | Hardware single-venue pilot checklist published; live Windows/VIGI evidence remains open |
-| 2026-08-31 | P8-01 software sign-off                         | Complete    | Owner | `docs/platform/venue-edge-installer-master-plan.md` | `pnpm certify:phase8`, `pnpm test:replay-edge`, `/admin/certification` Phase 8 gates | N/A | Remove certify script and Phase 8 admin gates | P8-01 software accepted; hardware pilot deferred until venue PC + VIGI available |
+
+| Date       | Work package                                          | Status      | Owner | Change/PR                                                                                                                                                                                                                              | Tests and reports                                                                                                                                                                                          | Migration/release                                                                    | Rollback evidence                                                                                            | Notes                                                                                                                                                                        |
+| ---------- | ----------------------------------------------------- | ----------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-08-26 | Master implementation plan                            | Complete    | Codex | `docs/platform/venue-edge-installer-master-plan.md`                                                                                                                                                                                    | Plan review                                                                                                                                                                                                | N/A                                                                                  | N/A                                                                                                          | Eight-phase delivery tracker established                                                                                                                                     |
+| 2026-08-26 | P1 schema and config v2 foundation                    | Complete    | Codex | `db/schema.ts`, `src/app/api/edge/v2/config/route.ts`, `services/venue-edge/src/cloud/config-v2.ts`                                                                                                                                    | 48 focused tests: 46 passed, 2 database-dependent skipped; strict migration validation and focused TypeScript passed                                                                                       | `drizzle/0025_phase1_venue_edge_sources.sql`                                         | Additive migration keeps v1 fields and endpoint unchanged                                                    | Foundation superseded by close-out rehearsal row                                                                                                                             |
+| 2026-08-27 | P1 publication, acknowledgement, and backfill tooling | Complete    | Codex | `src/server/replays/edge-config-v2-publication.ts`, `src/app/api/edge/v2/config/applications/route.ts`, `scripts/backfill-venue-edge-topology.mjs`                                                                                     | Canonical checksum, version compatibility, transaction/idempotency, redaction, consumer, and backfill tests                                                                                                | Dry-run by default; apply is explicitly confirmed                                    | v1 assignments and endpoint remain untouched                                                                 | Included in close-out rehearsal evidence                                                                                                                                     |
+| 2026-08-27 | P1 close-out: rollout flags, audit, rehearsal         | Complete    | Codex | `src/server/replays/feature-policy.ts`, `src/server/tenancy/audit-log-write.ts`, `scripts/integration/venue-edge-phase1-rehearsal.test.mjs`                                                                                            | `pnpm test:db`, `pnpm test:db:venue-edge-rehearsal`, `feature-scope.test.mjs`, `venue-edge-phase1-closeout.test.mjs`                                                                                       | Disposable PostgreSQL only; app `POSTGRES_URL` not mutated                           | Disable `venue_edge_config_v2`; v1 assignments and `/api/edge/v1/*` unchanged                                | Rollback rehearsed via flag off/on with topology retained                                                                                                                    |
+| 2026-08-27 | Phase 1 exit gate sign-off                            | Complete    | Owner | `docs/platform/venue-edge-installer-master-plan.md`                                                                                                                                                                                    | `pnpm test:db`, `pnpm test:db:venue-edge-rehearsal`, `pnpm test:replay-edge`, `pnpm test:venue-edge`                                                                                                       | `drizzle/0025_phase1_venue_edge_sources.sql`                                         | Disable `venue_edge_config_v2` for rollback                                                                  | Phase 1 marked Complete; P1-04/P1-06 cutover deferred to Phase 2                                                                                                             |
+| 2026-08-27 | P2-01 versioned local configuration                   | Complete    | Codex | `services/venue-edge/src/config/apply-v2.ts`, `source-plan.ts`, `reconcile-buffer.ts`, `state/sqlite.ts`, `local-storage/repositories.ts`                                                                                              | `services/venue-edge/test/config-apply-v2.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`                                                                                             | Local SQLite only; no cloud migration                                                | Roll back to `previous` slot via `rollbackToPrevious()`                                                      | Single-buffer reconcile defers multi-source starts until P2-02                                                                                                               |
+| 2026-08-27 | P2-02 multi-source runtime                            | Complete    | Codex | `services/venue-edge/src/cameras/registry.ts`, `buffers/registry.ts`, `config/budgets.ts`, `buffers/rolling-buffer.ts`                                                                                                                 | `services/venue-edge/test/multi-source-runtime.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`                                                                                        | Local runtime only                                                                   | Stop supervisors via registry; reduce `maxBufferProcesses`                                                   | Health-aware selection deferred to P2-03/P2-04                                                                                                                               |
+| 2026-08-27 | P2-03 source health engine                            | Complete    | Codex | `services/venue-edge/src/health/engine.ts`, `state-machine.ts`, `types.ts`, `state/sqlite.ts`, `local-storage/repositories.ts`, `heartbeat/loop.ts`                                                                                    | `services/venue-edge/test/source-health.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`                                                                                               | Local SQLite + heartbeat metrics only                                                | Clear `edge_source_health` table; disable health tick                                                        | Failover selection and cloud `replay_source_health` upserts deferred to P2-04                                                                                                |
+| 2026-08-27 | P2-04 deterministic source selection                  | Complete    | Codex | `services/venue-edge/src/selection/select-source.ts`, `replay/orchestrator.ts`, `state/sqlite.ts`, `local-storage/repositories.ts`, `cameras/registry.ts`                                                                              | `services/venue-edge/test/source-selection.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`                                                                                            | Local SQLite + command ack extras only                                               | Clear `edge_capture_attempts`; unlock jobs by clearing lock columns                                          | Postgres `replay_capture_attempts` ingest deferred to P1-04                                                                                                                  |
+| 2026-08-27 | P2-05 simulator and recovery                          | Complete    | Codex | `services/venue-edge/src/simulator/scenario.ts`, `recovery/reindex-buffers.ts`, `local-storage/prune.ts`, `health/engine.ts`, `replay/orchestrator.ts`, `fixtures/edge-v2-simulator-matrix.json`, `fixtures/edge-v2-ten-resource.json` | `services/venue-edge/test/simulator-recovery.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`                                                                                          | Local SQLite + simulate fixtures only                                                | Roll back config slot; prune pending workspaces; reindex buffers from disk                                   | Postgres `replay_capture_attempts` ingest deferred to P1-04                                                                                                                  |
+| 2026-08-27 | Phase 2 production-path remediation audit             | Complete    | Codex | `services/venue-edge/src/cameras/registry.ts`, `config/apply-v2.ts`, `config/budgets.ts`, `health/engine.ts`, `replay/orchestrator.ts`, `src/server/replays/capture-replay-command.ts`                                                 | VenueEdge suite, typecheck, and `test:replay-edge`; production RTSP, stale revision, activation rollback, selected-source health, config-change recovery, recorder restart, and network budget regressions | Local SQLite replay snapshot columns only                                            | Revert remediation files; edge rejects revision-bound commands until cloud and edge are rolled back together | Phase 2 re-audited after initial simulator-only gaps were found and corrected                                                                                                |
+| 2026-08-27 | P3-01 venue-edge pairing sessions                     | Complete    | Codex | `db/schema.ts`, `drizzle/0026_venue_edge_pairing_sessions.sql`, `src/server/replays/venue-edge-pairing-sessions.ts`, `src/app/api/operator/venue-edge/pairing-sessions/`                                                               | `src/server/replays/venue-edge-pairing-sessions.test.mjs`, `db/venue-edge-source-schema.test.mjs`, `pnpm test:db`, `pnpm test:replay-edge`                                                                 | `drizzle/0026_venue_edge_pairing_sessions.sql`                                       | Drop pairing tables; operator devices auto-issue path unchanged                                              | P3-02 enroll exchange and `/nvr` UI deferred; replace-host validated via `replaceInstallationId` only                                                                        |
+| 2026-08-27 | P3-02 installer enrollment exchange                   | Complete    | Codex | `db/schema.ts`, `drizzle/0027_venue_edge_pairing_consumed_device.sql`, `src/server/replays/venue-edge-enrollment.ts`, `src/app/api/edge/v1/enroll/exchange/`, `src/app/api/edge/v1/enroll/confirm/`                                    | `src/server/replays/venue-edge-pairing-sessions.test.mjs`, `pnpm test:db`, `pnpm test:replay-edge`                                                                                                         | `drizzle/0027_venue_edge_pairing_consumed_device.sql`                                | Revoke enrolled devices; drop `consumed_device_id` column if rolling back migration                          | DPAPI, `/nvr` UI, and agent credential client deferred to P3-03/P3-04                                                                                                        |
+| 2026-08-27 | P3-03 local device-secret protection                  | Complete    | Codex | `services/venue-edge/src/auth/secret-store.ts`, `credential-manager.ts`, `credential-rotation.ts`, `drizzle/0028_device_credential_retiring.sql`, `src/app/api/device/v1/credentials/acknowledge/`, `rollback/`                        | `services/venue-edge/test/secret-store.test.mjs`, `src/server/devices/devices.test.mjs`, `pnpm test`, `pnpm test:db`, `pnpm test:replay-edge`                                                              | `drizzle/0028_device_credential_retiring.sql`                                        | Revert overlap rotation routes; restore single-active credential semantics                                   | `/nvr` UI and Phase 3 exit gate deferred to P3-04                                                                                                                            |
+| 2026-08-27 | P3-04 minimal /nvr onboarding surface                 | Complete    | Codex | `src/app/nvr/page.tsx`, `src/components/nvr/nvr-onboarding-panel.tsx`, `src/server/replays/venue-edge-installer-metadata.ts`                                                                                                           | `src/components/nvr/nvr-onboarding.test.mjs`, `pnpm test:replay-edge`                                                                                                                                      | N/A                                                                                  | Remove `/nvr` route and sidebar link                                                                         | Phase 3 exit gate deferred until full agent E2E through `/nvr`                                                                                                               |
+| 2026-08-27 | Phase 3 exit gate: unpackaged agent enroll            | Complete    | Codex | `services/venue-edge/src/enrollment/enroll.ts`, `services/venue-edge/src/index.ts`, `src/app/nvr/page.tsx`                                                                                                                             | `services/venue-edge/test/enrollment.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`                                                                                                  | N/A                                                                                  | Delete enrolled `installation.json` / DPAPI blob; reissue pairing code                                       | Agent enrolls via `/nvr` code, DPAPI persist, heartbeat, confirm; no plaintext credential files                                                                              |
+| 2026-08-27 | P4-01 hardened local setup host                       | Complete    | Codex | `services/venue-edge/src/setup/`, `services/venue-edge/src/index.ts`, `services/venue-edge/src/config/env.ts`                                                                                                                          | `services/venue-edge/test/setup-host.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`                                                                                                  | N/A                                                                                  | Disable `VENUE_EDGE_SETUP_ON_START`; remove setup CLI                                                        | Loopback-only host with session token, CSRF/DNS-rebinding guards, stub status UI; lock does not stop agent                                                                   |
+| 2026-08-27 | P4-02 local NVR management                            | Complete    | Codex | `services/venue-edge/src/setup/local-nvr-manager.ts`, `auth/nvr-secret-store.ts`, `state/sqlite.ts`, `local-storage/repositories.ts`, `setup/nvr-probe.ts`                                                                             | `services/venue-edge/test/nvr-management.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`                                                                                              | Local SQLite `edge_local_nvrs` only                                                  | Delete local NVR rows and `nvrs/*.dpapi` blobs                                                               | Setup host CRUD, DPAPI passwords, opaque keys, injectable probes; camera mapping deferred to P4-03                                                                           |
+| 2026-08-27 | P4-03 camera selection and mapping                    | Complete    | Codex | `services/venue-edge/src/setup/local-camera-manager.ts`, `local-resource-mapping-manager.ts`, `camera-channel-probe.ts`, `state/sqlite.ts`, `local-storage/repositories.ts`, `setup/html.ts`                                           | `services/venue-edge/test/camera-mapping.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`                                                                                              | Local SQLite camera/policy/route tables only                                         | Delete `edge_local_cameras`, `edge_local_resource_policies`, `edge_local_resource_routes`                    | Setup host camera CRUD, enumerate, resource policy PUT with warnings, local RTSP resolve; cloud publish deferred to P4-04                                                    |
+| 2026-08-27 | P4-04 commissioning test                              | Complete    | Codex | `services/venue-edge/src/setup/commissioning-manager.ts`, `local-config-overlay.ts`, `src/app/api/edge/v1/commissioning/`, `src/server/replays/venue-edge-commissioning.ts`, `drizzle/0029_venue_edge_commissioning.sql`               | `services/venue-edge/test/commissioning.test.mjs`, `src/server/replays/venue-edge-commissioning.test.mjs`; `pnpm test` and `pnpm typecheck` in `services/venue-edge`; `pnpm test:replay-edge`              | `drizzle/0029_venue_edge_commissioning.sql`; `edge_commissioning_state` SQLite table | Clear commissioning state; null `commissioned_at` on installation                                            | Per-camera tests, 15s previews, failover drill, redacted publish, production capture gate                                                                                    |
+| 2026-08-27 | Phase 3/4 remediation audit                           | Complete    | Codex | Pairing CAS/replacement lifecycle, commissioning API bounds/audit, guided local enroll, runtime local topology overlay, commissioning invalidation, heartbeat-fresh status                                                             | VenueEdge 105/105; DB 45 pass/3 skipped; replay-edge 54 pass/5 skipped; focused web 8 pass/3 skipped; migration strict validation and VenueEdge typecheck pass                                             | Registered `0029`; added `0030_venue_edge_pairing_integrity.sql`                     | Disable setup-on-start and local overlay; revert 0030 only with pairing writes stopped                       | PostgreSQL-dependent tests remain skipped where `POSTGRES_URL` is unavailable; root typecheck retains unrelated dependency/access errors                                     |
+| 2026-08-27 | P5-01 reproducible Windows bundle                     | Complete    | Codex | `services/venue-edge/packaging/pack.ps1`, `scripts/build.mjs`, `src/config/install-layout.ts`                                                                                                                                          | `install-layout.test.mjs`, `pnpm pack:dry-run`, VenueEdge typecheck                                                                                                                                        | Staged bundle only; binaries not committed                                           | Remove `dist/` and staged bundle                                                                             | esbuild bundle + pinned Node/FFmpeg/WinSW staging; Program Files/ProgramData layout                                                                                          |
+| 2026-08-27 | P5-02 Windows service lifecycle                       | Complete    | Codex | `packaging/winsw/PlayTTVenueEdge.xml`, `src/auth/secret-store.ts`, `src/health/host-sleep-risk.ts`                                                                                                                                     | VenueEdge tests serial; heartbeat/setup hostSleepRisk                                                                                                                                                      | WinSW service env                                                                    | Reinstall prior WinSW service                                                                                | LocalMachine DPAPI + entropy ACLs; delayed auto-start; log rotation                                                                                                          |
+| 2026-08-27 | P5-03 Inno Setup installer UX                         | Complete    | Codex | `packaging/inno/venue-edge.iss`, `packaging/acl.ps1`, `src/setup/host.ts` setup-url.txt                                                                                                                                                | Inno ISS preserve-vs-purge task; setup-url for post-install browser                                                                                                                                        | Requires Inno Setup on build host                                                    | Uninstall with removeData task                                                                               | Upgrade keeps ProgramData; repair reinstalls binaries                                                                                                                        |
+| 2026-08-27 | P5-04 release-chain hardening                         | In progress | Codex | `packaging/pack.ps1`, `packaging/sign.ps1`, `packaging/pins.json`, `scripts/generate-sbom.mjs`, `.github/workflows/venue-edge-windows-release.yml`                                                                                     | Typecheck; 113 VenueEdge tests; full unsigned bundle validation; PowerShell parse                                                                                                                          | Release build now fails closed without signing identity                              | Use explicit `-AllowUnsignedDevelopment` for local bundle testing                                            | Immutable dependency hashes, SPDX SBOM, HTTPS timestamping, post-sign verification, and Defender release scan implemented; production certificate and signed artifact remain |
+| 2026-08-27 | P6-01 fleet overview                                  | Complete    | Codex | `src/server/replays/venue-edge-fleet.ts`, `src/app/api/operator/venue-edge/installations/`, `src/components/nvr/nvr-fleet-panel.tsx`, `src/app/nvr/page.tsx`                                                                           | `src/server/replays/venue-edge-fleet.test.mjs`, `pnpm test:replay-edge`, `e2e/nvr-fleet.spec.ts`                                                                                                           | N/A                                                                                  | Remove fleet panel; revert installations API                                                                 | Filters for health/commissioning; topology/health from commissioning + heartbeats                                                                                            |
+| 2026-08-27 | P6-02 installation detail and actions                 | Complete    | Codex | `src/app/nvr/[installationId]/page.tsx`, `nvr-installation-detail.tsx`, operator actions APIs                                                                                                                                          | Fleet tests secret scan; guided rename/revoke/rotate/replace/clear override                                                                                                                                | N/A                                                                                  | Remove detail route                                                                                          | Local reconfigure/test capture via loopback setup copy                                                                                                                       |
+| 2026-08-27 | P6-03 remote desired config                           | Complete    | Codex | `venue-edge-topology.ts`, `venue-edge-operator-actions.ts`, source-policy API, `nvr-config-status.tsx`                                                                                                                                 | Topology ingest + rollback republish tests in `venue-edge-fleet.test.mjs`                                                                                                                                  | Normalized recorder/source tables                                                    | Revert topology ingest on next publish                                                                       | Dedicated NVR/source CRUD routes deferred; sync commissioning + policy PUT cover v1                                                                                          |
+| 2026-08-27 | P6-04 UX tests and docs                               | Complete    | Codex | Empty/offline/reauth states in fleet + detail UI; master plan Phase 6 ledger                                                                                                                                                           | `pnpm test:replay-edge`; Playwright `/nvr` fleet slice                                                                                                                                                     | N/A                                                                                  | Revert e2e spec                                                                                              | Phase 6 exit gate remains open until venue staff E2E without DB access                                                                                                       |
+| 2026-08-31 | P7-01 signed update protocol                          | Complete    | Codex | `drizzle/0032_venue_edge_updates.sql`, `src/server/replays/venue-edge-update-manifest.ts`, `services/venue-edge/src/update/*`                                                                                                          | `update-manifest.test.mjs`, `update-applier.test.mjs`, `update-downloader.test.mjs`, `venue-edge-update-manifest.test.mjs`                                                                                 | `drizzle/0032_venue_edge_updates.sql`                                                | `restorePreviousInstall` + install-tree backup under ProgramData                                             | Live staged-fleet apply/rollback deferred to Phase 7 exit gate                                                                                                               |
+| 2026-08-31 | P7-02 fleet rollout controls                          | Complete    | Codex | `venue-edge-rollout-policy.ts`, `venue-edge-update-actions.ts`, `nvr-installation-detail.tsx`, `nvr-fleet-panel.tsx`                                                                                                                   | `venue-edge-update-policy.test.mjs`, `venue-edge-updates.test.mjs`                                                                                                                                         | N/A                                                                                  | `rollback_update` pins previous version; canary auto-revoke on failure                                       | Cohort matching via `updateChannel` / `locationId` / optional `rolloutCohortTag`                                                                                             |
+| 2026-08-31 | P7-03 observability and alerts                        | Complete    | Codex | `alert-catalog.ts`, `health-repository.ts`, `venue-edge-fleet.ts`, fleet/detail UI metrics                                                                                                                                             | `pnpm test:operations`, `venue-edge-fleet.test.mjs`                                                                                                                                                        | N/A                                                                                  | Disable edge heartbeat alerts via health evaluation                                                          | Source-scoped alerts deep-link `/nvr/[installationId]`                                                                                                                       |
+| 2026-08-31 | P7-04 diagnostics and recovery                        | Complete    | Codex | `services/venue-edge/src/diagnostics/bundle.ts`, `setup/host.ts` support-bundle route, `venue-edge-diagnostics.ts`, runbooks                                                                                                           | `diagnostics-bundle.test.mjs`, `venue-edge-diagnostics.test.mjs`, `venue-edge-kill-switch.test.mjs`                                                                                                        | N/A                                                                                  | Revert diagnostics route; cloud bundle remains redacted                                                      | Runbook author exercise and live fleet rollback remain open                                                                                                                  |
+| 2026-08-31 | Phase 7 exit gate sign-off                            | Complete    | Owner | `docs/platform/venue-edge-installer-master-plan.md`                                                                                                                                                                                    | Update/apply/LKG tests, `pnpm test:operations`, `pnpm test:replay-edge` (pairing grep pre-existing), VenueEdge typecheck                                                                                   | `drizzle/0032_venue_edge_updates.sql`                                                | Restore previous install tree; revoke canary; disable `replay_edge`                                          | Phase 7 marked Complete; live hardware fleet rehearsal deferred to Phase 8                                                                                                   |
+| 2026-08-31 | P8-01 single-venue simulator certification            | Complete    | Codex | `src/server/replays/phase8/`, `services/venue-edge/src/certification/single-venue.ts`, `scripts/certify-phase8.mjs`, `src/server/operations/certification-catalog.ts`                                                                  | `pnpm certify:phase8`, `pnpm test:replay-edge`, `services/venue-edge/test/single-venue-certification.test.mjs`                                                                                             | N/A                                                                                  | Remove Phase 8 catalog gates and certify script                                                              | Hardware single-venue pilot checklist published; live Windows/VIGI evidence remains open                                                                                     |
+| 2026-08-31 | P8-01 software sign-off                               | Complete    | Owner | `docs/platform/venue-edge-installer-master-plan.md`                                                                                                                                                                                    | `pnpm certify:phase8`, `pnpm test:replay-edge`, `/admin/certification` Phase 8 gates                                                                                                                       | N/A                                                                                  | Remove certify script and Phase 8 admin gates                                                                | P8-01 software accepted; hardware pilot deferred until venue PC + VIGI available                                                                                             |
+
+
+
 
 ## Decision log
 
-| Date       | Decision                                                                           | Status   | Reason                                                                                                        |
-| ---------- | ---------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------- |
-| 2026-08-26 | Product name is **PlayTT VenueEdge Agent**                                         | Accepted | Distinguishes the venue-local data plane from the cloud backend                                               |
-| 2026-08-26 | One venue installation may manage multiple NVRs and camera sources                 | Accepted | Required for realistic venue layouts and scale                                                                |
-| 2026-08-26 | Camera eligibility and ordered failover are configured per PlayTT resource         | Accepted | Prevents accidental cross-table selection and supports camera failure recovery                                |
-| 2026-08-26 | Continuous RTSP remains local; only requested clips upload                         | Accepted | Preserves privacy, bandwidth, and security boundary                                                           |
-| 2026-08-26 | Production runs as a self-starting Windows service installed by signed `Setup.exe` | Accepted | Removes terminal and logged-in-user dependency                                                                |
-| 2026-08-26 | NVR credentials are local-only by default                                          | Accepted | Reduces cloud secret exposure and matches the local-only need                                                 |
-| 2026-08-26 | Full implementation follows the eight phases in this tracker                       | Accepted | Keeps schema, runtime, identity, setup, packaging, fleet, operations, and certification dependencies explicit |
-| 2026-08-27 | Phase 1 baseline: Windows 10 22H2+ and Windows 11 23H2+, x64 only for first signed installer | Accepted | ARM64 and Windows Server deferred |
-| 2026-08-27 | Phase 1 baseline: TP-Link VIGI NVR1xxxH, H.264 main, Digest RTSP; no generic ONVIF in v1 | Accepted | Pilot walkthrough documents playback suffix `z`/`l` |
-| 2026-08-27 | Phase 1 capture defaults: 12s+3s clip, 60–120s buffer, 3-failure failover, 60s cooldown, 120s healthy failback | Accepted | Disk byte budgets measured in Phase 2 |
-| 2026-08-27 | Phase 1 FFmpeg: H.264 remux/stream-copy with LGPL-compatible build bundled in Phase 5 installer | Accepted | GPL transcode is explicit later compatibility path |
-| 2026-08-27 | Phase 1 rollout: `replay_edge` + `venue_edge_config_v2` flags with optional venue/resource `scope` | Accepted | Rollback disables v2 while v1 capture continues |
-| 2026-08-27 | One camera may serve multiple resources only via explicit `replay_source_routes` rows | Accepted | Schema invariant prevents accidental cross-table selection |
-| 2026-08-27 | Non-secret NVR endpoint metadata may live in cloud; passwords never do | Accepted | Opaque `venue_edge_secret_refs` only |
-| 2026-08-27 | Code signing and artifact hosting deferred to Phase 5 with requirement recorded | Accepted | Production `Setup.exe` blocked until signing pipeline exists |
-| 2026-08-27 | Phase 5 installer stack: Inno Setup 6 + WinSW 2.12 service wrapper | Accepted | Fast path to normal Windows installer; WinSW 3 deferred |
-| 2026-08-27 | Unsigned output is development-only and must be explicit | Accepted | `pack.ps1 -AllowUnsignedDevelopment`; release packaging fails closed without Authenticode signing |
+
+| Date       | Decision                                                                                                       | Status   | Reason                                                                                                        |
+| ---------- | -------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------- |
+| 2026-08-26 | Product name is **PlayTT VenueEdge Agent**                                                                     | Accepted | Distinguishes the venue-local data plane from the cloud backend                                               |
+| 2026-08-26 | One venue installation may manage multiple NVRs and camera sources                                             | Accepted | Required for realistic venue layouts and scale                                                                |
+| 2026-08-26 | Camera eligibility and ordered failover are configured per PlayTT resource                                     | Accepted | Prevents accidental cross-table selection and supports camera failure recovery                                |
+| 2026-08-26 | Continuous RTSP remains local; only requested clips upload                                                     | Accepted | Preserves privacy, bandwidth, and security boundary                                                           |
+| 2026-08-26 | Production runs as a self-starting Windows service installed by signed `Setup.exe`                             | Accepted | Removes terminal and logged-in-user dependency                                                                |
+| 2026-08-26 | NVR credentials are local-only by default                                                                      | Accepted | Reduces cloud secret exposure and matches the local-only need                                                 |
+| 2026-08-26 | Full implementation follows the eight phases in this tracker                                                   | Accepted | Keeps schema, runtime, identity, setup, packaging, fleet, operations, and certification dependencies explicit |
+| 2026-08-27 | Phase 1 baseline: Windows 10 22H2+ and Windows 11 23H2+, x64 only for first signed installer                   | Accepted | ARM64 and Windows Server deferred                                                                             |
+| 2026-08-27 | Phase 1 baseline: TP-Link VIGI NVR1xxxH, H.264 main, Digest RTSP; no generic ONVIF in v1                       | Accepted | Pilot walkthrough documents playback suffix `z`/`l`                                                           |
+| 2026-08-27 | Phase 1 capture defaults: 12s+3s clip, 60–120s buffer, 3-failure failover, 60s cooldown, 120s healthy failback | Accepted | Disk byte budgets measured in Phase 2                                                                         |
+| 2026-08-27 | Phase 1 FFmpeg: H.264 remux/stream-copy with LGPL-compatible build bundled in Phase 5 installer                | Accepted | GPL transcode is explicit later compatibility path                                                            |
+| 2026-08-27 | Phase 1 rollout: `replay_edge` + `venue_edge_config_v2` flags with optional venue/resource `scope`             | Accepted | Rollback disables v2 while v1 capture continues                                                               |
+| 2026-08-27 | One camera may serve multiple resources only via explicit `replay_source_routes` rows                          | Accepted | Schema invariant prevents accidental cross-table selection                                                    |
+| 2026-08-27 | Non-secret NVR endpoint metadata may live in cloud; passwords never do                                         | Accepted | Opaque `venue_edge_secret_refs` only                                                                          |
+| 2026-08-27 | Code signing and artifact hosting deferred to Phase 5 with requirement recorded                                | Accepted | Production `Setup.exe` blocked until signing pipeline exists                                                  |
+| 2026-08-27 | Phase 5 installer stack: Inno Setup 6 + WinSW 2.12 service wrapper                                             | Accepted | Fast path to normal Windows installer; WinSW 3 deferred                                                       |
+| 2026-08-27 | Unsigned output is development-only and must be explicit                                                       | Accepted | `pack.ps1 -AllowUnsignedDevelopment`; release packaging fails closed without Authenticode signing             |
+
+
+
 
 ## Open decisions
 

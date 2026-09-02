@@ -184,7 +184,7 @@ export function renderSetupPage(input: {
           </section>
 
           <section class="stage" data-stage="6" hidden>
-            <div class="stage-intro"><h2>Complete commissioning</h2><p class="muted">Finish after cameras are tested and the snapshot is published. Cloud configuration can apply later in the background.</p></div>
+            <div class="stage-intro"><h2>Complete commissioning</h2><p class="muted">Finish after every preview and failover check passes and the latest cloud configuration is applied on this PC.</p></div>
             <div class="panel"><h3>Final readiness check</h3><pre id="commissioning-final-checklist" class="muted"></pre><div class="actions"><button type="button" id="commissioning-complete" ${disabledAttr}>Complete commissioning</button><button type="button" id="lock-btn" class="secondary" ${disabledAttr}>Lock setup and close</button></div><p class="muted busy-row" aria-live="polite"><span id="complete-spinner" class="spinner" hidden></span><span id="complete-status"></span></p></div>
           </section>
         </main>
@@ -204,8 +204,11 @@ export function renderSetupPage(input: {
         published: false,
         completed: false,
       };
-      let currentStage = Math.min(6, Math.max(1, Number(sessionStorage.getItem("venue-edge-stage") || (workflow.enrolled ? 2 : 1))));
+      const savedStage = sessionStorage.getItem("venue-edge-stage");
+      let resumeFromSavedProgress = savedStage === null;
+      let currentStage = Math.min(6, Math.max(1, Number(savedStage || (workflow.enrolled ? 2 : 1))));
       let topologyProposal = null;
+      let commissioningPollTimer = null;
 
       function setCompleteStatus(text, spinning) {
         const status = document.getElementById("complete-status");
@@ -224,6 +227,15 @@ export function renderSetupPage(input: {
       }
 
       function renderStages() {
+        if (resumeFromSavedProgress) {
+          currentStage = 6;
+          for (let stage = 1; stage <= 6; stage += 1) {
+            if (!stageComplete(stage)) {
+              currentStage = stage;
+              break;
+            }
+          }
+        }
         document.querySelectorAll("[data-stage]").forEach((section) => {
           section.hidden = Number(section.dataset.stage) !== currentStage;
         });
@@ -246,10 +258,12 @@ export function renderSetupPage(input: {
       }
 
       document.getElementById("stage-back")?.addEventListener("click", () => {
+        resumeFromSavedProgress = false;
         currentStage = Math.max(1, currentStage - 1);
         renderStages();
       });
       document.getElementById("stage-next")?.addEventListener("click", () => {
+        resumeFromSavedProgress = false;
         if (!stageComplete(currentStage)) {
           const messageId = currentStage === 2 ? "nvr-message" : currentStage === 3 ? "camera-message" : currentStage === 4 ? "mapping-message" : currentStage === 6 ? "complete-status" : "commissioning-message";
           const message = document.getElementById(messageId);
@@ -566,12 +580,15 @@ export function renderSetupPage(input: {
         document.getElementById("commissioning-complete").disabled =
           setupLocked || !checklist.canComplete;
         if (checklist.completed) {
-          setCompleteStatus(
-            checklist.configApplied
-              ? "Commissioning complete. Cloud configuration is applied locally."
-              : "Commissioning complete. Cloud configuration will apply when PlayTT publishes it — you can lock setup now.",
-            false,
-          );
+          setCompleteStatus("Commissioning complete. Cloud configuration is applied locally.", false);
+        } else if (checklist.published && !checklist.configApplied) {
+          setCompleteStatus("Applying the latest configuration on this PC…", true);
+        }
+        if (commissioningPollTimer) clearTimeout(commissioningPollTimer);
+        if (checklist.published && !checklist.configApplied) {
+          commissioningPollTimer = setTimeout(() => {
+            loadCommissioning().catch((error) => setCompleteStatus(error.message, false));
+          }, 2000);
         }
         renderStages();
       }
@@ -977,6 +994,9 @@ export function renderSetupPage(input: {
         loadCommissioning().catch((error) => {
           document.getElementById("commissioning-message").textContent = error.message;
         });
+      }
+      if (new URLSearchParams(window.location.search).get("technician") === "1") {
+        document.querySelectorAll("details").forEach((detail) => { detail.open = true; });
       }
     </script>
   </body>

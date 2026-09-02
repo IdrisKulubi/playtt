@@ -53,7 +53,7 @@ const payload = {
   attemptId: "00000000-0000-0000-0000-000000000000",
   installationId: "00000000-0000-0000-0000-000000000000",
   version,
-  channel: process.env.VENUE_EDGE_UPDATE_CHANNEL ?? "development",
+  channel: process.env.VENUE_EDGE_UPDATE_CHANNEL ?? "pilot",
   minimumSupportedVersion: "0.1.0",
   platform: "win32",
   architecture: "x64",

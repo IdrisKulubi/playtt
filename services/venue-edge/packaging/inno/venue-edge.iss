@@ -1,7 +1,7 @@
 #define MyAppName "PlayTT VenueEdge Agent"
 #define MyAppPublisher "PlayTT"
 #define MyAppURL "https://playtt.app"
-#define MyInstallRoot "{pf64}\PlayTT\VenueEdge"
+#define MyInstallRoot "{commonpf64}\PlayTT\VenueEdge"
 #define MyDataRoot "{commonappdata}\PlayTT\VenueEdge"
 
 #ifndef MyAppVersion
@@ -30,6 +30,7 @@ OutputBaseFilename=PlayTTVenueEdge-Setup-{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=admin
+MinVersion=10.0.19045
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 WizardStyle=modern
@@ -38,11 +39,13 @@ UninstallDisplayIcon={#MyInstallRoot}\PlayTTVenueEdge.exe
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
-[Tasks]
-Name: "removeData"; Description: "Remove local VenueEdge data and pairing (destructive)"; GroupDescription: "Uninstall options:"; Flags: unchecked
-
 [Files]
 Source: "{#StagingRoot}\PlayTTVenueEdge\*"; DestDir: "{#MyInstallRoot}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[Icons]
+Name: "{group}\Continue VenueEdge setup"; Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{#MyInstallRoot}\open-setup.ps1"""; WorkingDir: "{#MyInstallRoot}"
+Name: "{group}\VenueEdge diagnostics"; Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{#MyInstallRoot}\open-diagnostics.ps1"""; WorkingDir: "{#MyInstallRoot}"
+Name: "{group}\Uninstall VenueEdge"; Filename: "{uninstallexe}"
 
 [Dirs]
 Name: "{#MyDataRoot}"; Permissions: admins-full system-full
@@ -59,16 +62,24 @@ Filename: "{#MyInstallRoot}\PlayTTVenueEdge.exe"; Parameters: "uninstall"; Statu
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{#MyInstallRoot}\install-acl.ps1"" -ProgramFilesRoot ""{#MyInstallRoot}"" -ProgramDataRoot ""{#MyDataRoot}"""; StatusMsg: "Applying security permissions..."; Flags: runhidden waituntilterminated
 Filename: "{#MyInstallRoot}\PlayTTVenueEdge.exe"; Parameters: "install"; StatusMsg: "Installing VenueEdge service..."; Flags: runhidden waituntilterminated
 Filename: "{#MyInstallRoot}\PlayTTVenueEdge.exe"; Parameters: "start"; StatusMsg: "Starting VenueEdge service..."; Flags: runhidden waituntilterminated
-Filename: "powershell.exe"; Parameters: "-NoProfile -Command ""Start-Sleep -Seconds 6; $path = Join-Path $env:ProgramData 'PlayTT\VenueEdge\setup-url.txt'; if (Test-Path $path) { Start-Process (Get-Content $path -Raw).Trim() }"""; Description: "Open VenueEdge setup wizard"; Flags: postinstall nowait skipifsilent
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{#MyInstallRoot}\open-setup.ps1"""; Description: "Open VenueEdge setup wizard"; Flags: postinstall nowait skipifsilent
 
 [UninstallRun]
-Filename: "{#MyInstallRoot}\PlayTTVenueEdge.exe"; Parameters: "stop"; Flags: runhidden waituntilterminated
-Filename: "{#MyInstallRoot}\PlayTTVenueEdge.exe"; Parameters: "uninstall"; Flags: runhidden waituntilterminated
+Filename: "{#MyInstallRoot}\PlayTTVenueEdge.exe"; Parameters: "stop"; Flags: runhidden waituntilterminated; RunOnceId: "StopVenueEdgeService"
+Filename: "{#MyInstallRoot}\PlayTTVenueEdge.exe"; Parameters: "uninstall"; Flags: runhidden waituntilterminated; RunOnceId: "RemoveVenueEdgeService"
 
 [UninstallDelete]
-Type: filesandordirs; Name: "{#MyDataRoot}"; Tasks: removeData
+Type: filesandordirs; Name: "{#MyDataRoot}"; Check: ShouldRemoveData
 
 [Code]
+var
+  RemoveDataOnUninstall: Boolean;
+
+function ShouldRemoveData(): Boolean;
+begin
+  Result := RemoveDataOnUninstall;
+end;
+
 function ServiceExists(): Boolean;
 var
   ResultCode: Integer;
@@ -89,14 +100,31 @@ begin
   end;
 end;
 
+function InitializeSetup(): Boolean;
+begin
+  Result := True;
+  if not IsWin64 then begin
+    MsgBox('VenueEdge requires a 64-bit Windows 10 or Windows 11 PC.', mbError, MB_OK);
+    Result := False;
+  end;
+end;
+
 function InitializeUninstall(): Boolean;
 begin
+  RemoveDataOnUninstall := False;
   Result := MsgBox(
     'Uninstall PlayTT VenueEdge Agent?' + #13#10 + #13#10 +
-    'Venue data and pairing are preserved unless the destructive remove-data option was selected during installation.',
+    'Venue data, pairing, NVR credentials, and logs are preserved by default.',
     mbConfirmation, MB_YESNO) = IDYES;
-  if Result and WizardIsTaskSelected('removeData') then
-    Result := MsgBox(
-      'WARNING: Local VenueEdge configuration, pairing secrets, buffered clips, and logs will be permanently deleted. Continue?',
-      mbError, MB_YESNO) = IDYES;
+  if Result then begin
+    RemoveDataOnUninstall := MsgBox(
+      'Also remove all local VenueEdge data and pairing?' + #13#10 + #13#10 +
+      'Choose No to keep the data for a repair or reinstall.',
+      mbConfirmation, MB_YESNO) = IDYES;
+    if RemoveDataOnUninstall then begin
+      RemoveDataOnUninstall := MsgBox(
+        'WARNING: Local configuration, pairing secrets, buffered clips, and logs will be permanently deleted. Continue with data removal?',
+        mbError, MB_YESNO) = IDYES;
+    end;
+  end;
 end;

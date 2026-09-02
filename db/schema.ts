@@ -2768,6 +2768,201 @@ export const venueEdgeReleases = pgTable(
   ]
 )
 
+export const venueEdgeInstallerReleases = pgTable(
+  "venue_edge_installer_releases",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    version: text("version").notNull(),
+    channel: text("channel").default("pilot").notNull(),
+    platform: text("platform").default("windows").notNull(),
+    architecture: text("architecture").default("x64").notNull(),
+    objectKey: text("object_key").notNull(),
+    fileName: text("file_name").notNull(),
+    sha256: text("sha256").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    isSigned: boolean("is_signed").default(false).notNull(),
+    signaturePublisher: text("signature_publisher"),
+    minimumWindowsVersion: text("minimum_windows_version")
+      .default("10 22H2")
+      .notNull(),
+    status: text("status").default("draft").notNull(),
+    releaseNotes: text("release_notes"),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("venue_edge_installer_releases_tenant_id_unique").on(
+      table.tenantId,
+      table.id
+    ),
+    uniqueIndex("venue_edge_installer_releases_object_key_unique").on(
+      table.tenantId,
+      table.objectKey
+    ),
+    uniqueIndex("venue_edge_installer_releases_version_channel_unique").on(
+      table.tenantId,
+      table.version,
+      table.channel,
+      table.platform,
+      table.architecture
+    ),
+    index("venue_edge_installer_releases_channel_status_idx").on(
+      table.tenantId,
+      table.channel,
+      table.status,
+      table.publishedAt
+    ),
+    check(
+      "venue_edge_installer_releases_channel_valid",
+      sql`${table.channel} in ('pilot', 'stable')`
+    ),
+    check(
+      "venue_edge_installer_releases_status_valid",
+      sql`${table.status} in ('draft', 'published', 'withdrawn')`
+    ),
+    check(
+      "venue_edge_installer_releases_artifact_valid",
+      sql`length(${table.objectKey}) > 0 and length(${table.fileName}) > 0 and ${table.sha256} ~ '^[0-9a-fA-F]{64}$' and ${table.sizeBytes} > 0`
+    ),
+    check(
+      "venue_edge_installer_releases_stable_signed",
+      sql`${table.channel} <> 'stable' or ${table.isSigned} = true`
+    ),
+    check(
+      "venue_edge_installer_releases_signature_consistent",
+      sql`${table.isSigned} = false or length(coalesce(${table.signaturePublisher}, '')) > 0`
+    ),
+    check(
+      "venue_edge_installer_releases_publication_consistent",
+      sql`(${table.status} <> 'published' or ${table.publishedAt} is not null) and (${table.status} <> 'withdrawn' or ${table.withdrawnAt} is not null)`
+    ),
+  ]
+)
+
+export const venueEdgeInstallerPilotEligibility = pgTable(
+  "venue_edge_installer_pilot_eligibility",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    releaseId: uuid("release_id").notNull(),
+    locationId: uuid("location_id").notNull(),
+    grantedByUserId: text("granted_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    grantedAt: timestamp("granted_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("venue_edge_installer_pilot_eligibility_unique").on(
+      table.tenantId,
+      table.releaseId,
+      table.locationId
+    ),
+    index("venue_edge_installer_pilot_location_idx").on(
+      table.tenantId,
+      table.locationId,
+      table.revokedAt,
+      table.expiresAt
+    ),
+    foreignKey({
+      columns: [table.tenantId, table.releaseId],
+      foreignColumns: [
+        venueEdgeInstallerReleases.tenantId,
+        venueEdgeInstallerReleases.id,
+      ],
+      name: "venue_edge_installer_pilot_release_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.tenantId, table.locationId],
+      foreignColumns: [locations.tenantId, locations.id],
+      name: "venue_edge_installer_pilot_location_fk",
+    }).onDelete("cascade"),
+    check(
+      "venue_edge_installer_pilot_eligibility_window_valid",
+      sql`${table.expiresAt} is null or ${table.expiresAt} > ${table.grantedAt}`
+    ),
+  ]
+)
+
+export const venueEdgeInstallerDownloadAudits = pgTable(
+  "venue_edge_installer_download_audits",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    releaseId: uuid("release_id").notNull(),
+    locationId: uuid("location_id").notNull(),
+    requestedByUserId: text("requested_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    outcome: text("outcome").notNull(),
+    reasonCode: text("reason_code"),
+    correlationId: text("correlation_id").notNull(),
+    downloadUrlExpiresAt: timestamp("download_url_expires_at", {
+      withTimezone: true,
+    }),
+    requestedAt: timestamp("requested_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("venue_edge_installer_download_audits_correlation_unique").on(
+      table.tenantId,
+      table.correlationId
+    ),
+    index("venue_edge_installer_download_audits_location_idx").on(
+      table.tenantId,
+      table.locationId,
+      table.requestedAt
+    ),
+    index("venue_edge_installer_download_audits_release_idx").on(
+      table.tenantId,
+      table.releaseId,
+      table.requestedAt
+    ),
+    foreignKey({
+      columns: [table.tenantId, table.releaseId],
+      foreignColumns: [
+        venueEdgeInstallerReleases.tenantId,
+        venueEdgeInstallerReleases.id,
+      ],
+      name: "venue_edge_installer_download_audits_release_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.tenantId, table.locationId],
+      foreignColumns: [locations.tenantId, locations.id],
+      name: "venue_edge_installer_download_audits_location_fk",
+    }).onDelete("restrict"),
+    check(
+      "venue_edge_installer_download_audits_outcome_valid",
+      sql`${table.outcome} in ('allowed', 'denied')`
+    ),
+    check(
+      "venue_edge_installer_download_audits_result_consistent",
+      sql`(${table.outcome} = 'allowed' and ${table.downloadUrlExpiresAt} is not null) or (${table.outcome} = 'denied' and length(coalesce(${table.reasonCode}, '')) > 0)`
+    ),
+  ]
+)
+
 export const venueEdgeUpdateAttempts = pgTable(
   "venue_edge_update_attempts",
   {
@@ -5107,6 +5302,62 @@ export const venueEdgeReleaseRelations = relations(
       references: [tenants.id],
     }),
     updateAttempts: many(venueEdgeUpdateAttempts),
+  })
+)
+
+export const venueEdgeInstallerReleaseRelations = relations(
+  venueEdgeInstallerReleases,
+  ({ one, many }) => ({
+    tenant: one(tenants, {
+      fields: [venueEdgeInstallerReleases.tenantId],
+      references: [tenants.id],
+    }),
+    pilotEligibility: many(venueEdgeInstallerPilotEligibility),
+    downloadAudits: many(venueEdgeInstallerDownloadAudits),
+  })
+)
+
+export const venueEdgeInstallerPilotEligibilityRelations = relations(
+  venueEdgeInstallerPilotEligibility,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [venueEdgeInstallerPilotEligibility.tenantId],
+      references: [tenants.id],
+    }),
+    release: one(venueEdgeInstallerReleases, {
+      fields: [venueEdgeInstallerPilotEligibility.releaseId],
+      references: [venueEdgeInstallerReleases.id],
+    }),
+    location: one(locations, {
+      fields: [venueEdgeInstallerPilotEligibility.locationId],
+      references: [locations.id],
+    }),
+    grantedByUser: one(user, {
+      fields: [venueEdgeInstallerPilotEligibility.grantedByUserId],
+      references: [user.id],
+    }),
+  })
+)
+
+export const venueEdgeInstallerDownloadAuditRelations = relations(
+  venueEdgeInstallerDownloadAudits,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [venueEdgeInstallerDownloadAudits.tenantId],
+      references: [tenants.id],
+    }),
+    release: one(venueEdgeInstallerReleases, {
+      fields: [venueEdgeInstallerDownloadAudits.releaseId],
+      references: [venueEdgeInstallerReleases.id],
+    }),
+    location: one(locations, {
+      fields: [venueEdgeInstallerDownloadAudits.locationId],
+      references: [locations.id],
+    }),
+    requestedByUser: one(user, {
+      fields: [venueEdgeInstallerDownloadAudits.requestedByUserId],
+      references: [user.id],
+    }),
   })
 )
 
