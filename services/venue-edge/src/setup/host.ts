@@ -69,6 +69,8 @@ export interface SetupHostOptions {
   topologyReviewManager?: TopologyReviewManager
   diagnostics?: SetupHostDiagnosticsContext
   onConfigurationChanged?: () => Promise<void>
+  refreshConfiguration?: () => Promise<void>
+  cloudDashboardUrl?: string | null
   resetConfigCache?: () => Promise<void> | void
   enroll?: (pairingCode: string) => Promise<unknown>
   host?: string
@@ -232,8 +234,10 @@ async function handleCommissioningRoutes(
   body: unknown,
   commissioningManager: CommissioningManager,
   enrollmentStatus: Awaited<ReturnType<typeof resolveSetupEnrollmentStatus>>,
+  refreshConfiguration?: () => Promise<void>,
 ): Promise<Response | null> {
   if (method === "GET" && pathname === "/api/setup/commissioning") {
+    await refreshConfiguration?.()
     const checklist = commissioningManager.buildChecklist(
       enrollmentStatus === "enrolled",
     )
@@ -459,6 +463,26 @@ export async function startSetupHost(
 
   let session = createSetupSession(options.sessionTtlMs)
   let server: Server | null = null
+  let lastConfigurationRefreshAt = 0
+  let configurationRefreshPromise: Promise<void> | null = null
+
+  const refreshConfigurationIfDue = async (): Promise<void> => {
+    if (!options.refreshConfiguration) return
+    if (configurationRefreshPromise) return configurationRefreshPromise
+    if (Date.now() - lastConfigurationRefreshAt < 5_000) return
+
+    lastConfigurationRefreshAt = Date.now()
+    configurationRefreshPromise = options.refreshConfiguration()
+      .catch((error) => {
+        safeLog("warn", "Setup config refresh failed", {
+          message: error instanceof Error ? error.message : String(error),
+        })
+      })
+      .finally(() => {
+        configurationRefreshPromise = null
+      })
+    return configurationRefreshPromise
+  }
 
   const getPort = (): number => {
     if (!server) {
@@ -679,6 +703,7 @@ export async function startSetupHost(
             jsonBody,
             options.commissioningManager,
             enrollmentStatus,
+            refreshConfigurationIfDue,
           )
           if (commissioningResponse) {
             const applyAfterComplete =
@@ -856,6 +881,7 @@ export async function startSetupHost(
           setupLocked: session.locked,
           expiresAt: session.expiresAt.toISOString(),
           setupToken: session.token,
+          cloudDashboardUrl: options.cloudDashboardUrl ?? null,
         })
         await sendNodeResponse(res, textResponse(200, html, "text/html; charset=utf-8"))
         return
