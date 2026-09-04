@@ -371,8 +371,13 @@ export async function startVenueEdge(
   let heartbeat: HeartbeatLoop | null = null
 
   const handleDeviceRevoked = async (): Promise<void> => {
-    safeLog("warn", "Wiping local credentials after cloud revocation")
+    safeLog("warn", "Cloud identity removed; returning setup to pairing")
     await credentialManager.wipeAfterRevoke()
+    repositories.invalidateCommissioning()
+    configManager.resetLocalConfigCache()
+    client.clearCredentials()
+    credentials = null
+    await activateRuntimeConfig(null)
     if (heartbeat) {
       heartbeat.stop()
     }

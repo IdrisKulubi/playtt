@@ -130,6 +130,11 @@ export class EdgeV1Client {
     this.secret = credentials.secret
   }
 
+  clearCredentials(): void {
+    this.deviceId = null
+    this.secret = null
+  }
+
   authHeaders(): Record<string, string> {
     if (!this.deviceId || !this.secret) {
       throw new EdgeProtocolError(

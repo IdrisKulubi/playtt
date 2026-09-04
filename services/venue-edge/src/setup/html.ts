@@ -11,7 +11,7 @@ export function renderSetupPage(input: {
     input.enrollmentStatus === "enrolled"
       ? "Enrolled"
       : input.enrollmentStatus === "revoked"
-        ? "Revoked"
+        ? "Pairing required"
         : "Not enrolled"
 
   const lockState = input.setupLocked
@@ -99,7 +99,14 @@ export function renderSetupPage(input: {
       input[type="checkbox"] { width: auto; min-height: auto; }
       .actions { display: flex; flex-wrap: wrap; gap: var(--space-xs); margin-top: var(--space-md); }
       button.inline { margin: 0; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
-      .nvr-item, .camera-item, .resource-item { padding: var(--space-md) 0; border-top: 1px solid var(--border); }
+      .nvr-item, .resource-item { padding: var(--space-md) 0; border-top: 1px solid var(--border); }
+      .camera-item { display: grid; grid-template-columns: minmax(15rem, 22rem) minmax(0, 1fr); gap: var(--space-lg); padding: var(--space-lg) 0; border-top: 1px solid var(--border); }
+      .camera-live { position: relative; min-height: 11rem; overflow: hidden; border-radius: var(--radius-md); background: var(--ink); color: white; }
+      .camera-live img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; }
+      .camera-live-state { position: absolute; left: var(--space-sm); bottom: var(--space-sm); border-radius: 999px; padding: .2rem .55rem; background: rgba(4,16,25,.82); color: white; font-size: .78rem; }
+      .camera-heading { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
+      .camera-meta { margin: var(--space-xs) 0; }
+      button.camera-choice[data-selected="true"] { border-color: var(--success); background: #f1fbf5; color: #075c31; }
       .credential-recovery { display: grid; grid-template-columns: minmax(12rem, 1fr) auto; align-items: end; gap: var(--space-sm); margin: var(--space-sm) 0; padding: var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-soft); }
       .credential-recovery p { grid-column: 1 / -1; margin: 0; }
       .badge { display: inline-flex; border-radius: 999px; padding: .15rem .5rem; background: var(--surface-soft); color: var(--muted); font-size: .8rem; }
@@ -122,6 +129,7 @@ export function renderSetupPage(input: {
         main { padding: var(--space-xl) var(--space-md) 7rem; }
         .footer-actions { left: 0; padding-inline: var(--space-md); }
       }
+      @media (max-width: 700px) { .camera-item { grid-template-columns: 1fr; } }
       @media (max-width: 560px) { .row, .credential-recovery { grid-template-columns: 1fr; } h2 { font-size: 1.45rem; } }
       @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
     </style>
@@ -138,13 +146,13 @@ export function renderSetupPage(input: {
       <div class="workspace">
         <header class="topbar">
           <div><h1>VenueEdge setup</h1><p class="muted">${lockState} ${expiresCopy}</p></div>
-          <span class="status">${statusLabel}</span>
+          <span class="status" id="enrollment-status">${statusLabel}</span>
         </header>
         <main>
           <section class="stage" data-stage="1">
             <div class="stage-intro"><h2>Pair this venue PC</h2><p class="muted">Connect VenueEdge to the correct PlayTT venue before adding equipment.</p></div>
             <div class="panel">
-              ${input.enrollmentStatus === "enrolled" ? `<h3>Paired with PlayTT</h3><p class="muted">This PC has protected device credentials and is ready for equipment setup.</p>` : `<form id="enrollment-form"><label>One-time pairing code<input name="pairingCode" autocomplete="one-time-code" required maxlength="32" ${disabledAttr} /></label><div class="actions"><button type="submit" ${disabledAttr}>Pair this VenueEdge</button></div></form>`}
+              ${input.enrollmentStatus === "enrolled" ? `<h3>Paired with PlayTT</h3><p class="muted">This PC has protected device credentials and is ready for equipment setup.</p>` : `<h3>${input.enrollmentStatus === "revoked" ? "Cloud connection removed" : "Connect this venue PC"}</h3><p class="muted">${input.enrollmentStatus === "revoked" ? "This installation no longer exists in PlayTT. Create a new pairing code in the admin dashboard and enter it below." : "Create a one-time pairing code in the PlayTT admin dashboard and enter it below."}</p><form id="enrollment-form"><label>One-time pairing code<input name="pairingCode" autocomplete="one-time-code" required maxlength="32" ${disabledAttr} /></label><div class="actions"><button type="submit" ${disabledAttr}>Pair this VenueEdge</button></div></form>`}
               <p id="enrollment-message" class="muted" aria-live="polite"></p>
             </div>
           </section>
@@ -163,7 +171,7 @@ export function renderSetupPage(input: {
           </section>
 
           <section class="stage" data-stage="3" hidden>
-            <div class="stage-intro"><h2>Review cameras</h2><p class="muted">Scan every channel, keep valid video sources, and review duplicates before anything is removed.</p></div>
+            <div class="stage-intro"><h2>Review cameras</h2><p class="muted">Watch every detected channel live, select the cameras that may create replay clips, and assign them to tables in the next step.</p></div>
             <div id="topology-review" class="review" aria-live="polite"><strong>Checking topology…</strong></div>
             <form id="camera-form" class="panel">
               <h3>Add a channel manually</h3>
@@ -197,6 +205,7 @@ export function renderSetupPage(input: {
       const token = ${JSON.stringify(input.setupToken)};
       const setupLocked = ${JSON.stringify(input.setupLocked)};
       const cloudDashboardUrl = ${JSON.stringify(input.cloudDashboardUrl)};
+      const initialEnrollmentStatus = ${JSON.stringify(input.enrollmentStatus)};
       const workflow = {
         enrolled: ${JSON.stringify(input.enrollmentStatus === "enrolled")},
         nvrCount: 0,
@@ -212,6 +221,7 @@ export function renderSetupPage(input: {
       let currentStage = Math.min(6, Math.max(1, Number(savedStage || (workflow.enrolled ? 2 : 1))));
       let topologyProposal = null;
       let commissioningPollTimer = null;
+      let setupStatusPollTimer = null;
 
       function setCompleteStatus(text, spinning) {
         const status = document.getElementById("complete-status");
@@ -505,14 +515,43 @@ export function renderSetupPage(input: {
         for (const camera of data.cameras) {
           const item = document.createElement("div");
           item.className = "camera-item";
-          item.innerHTML =
-            "<strong>" + camera.label + "</strong> " +
-            "<span class='badge'>" + (camera.enabled ? "capture enabled" : "capture disabled") + "</span><br>" +
-            camera.nvrLabel + " · ch " + camera.channelKey + " · " + camera.streamProfile +
-            " · " + camera.codec +
-            (camera.healthStatus ? " · health " + camera.healthStatus : "") +
-            "<pre class='muted'>" + formatTestSummary(camera.lastTest) + "</pre>";
+
+          const live = document.createElement("div");
+          live.className = "camera-live";
+          const liveImage = document.createElement("img");
+          liveImage.alt = "Live view from " + camera.label;
+          liveImage.loading = "lazy";
+          const liveState = document.createElement("span");
+          liveState.className = "camera-live-state";
+          liveState.textContent = "Connecting…";
+          const refreshLiveView = () => {
+            liveState.textContent = "Connecting…";
+            liveImage.src = "/api/setup/cameras/" + camera.id + "/live.mjpeg?setup_token=" + encodeURIComponent(token) + "&view=" + Date.now();
+          };
+          liveImage.onload = () => { liveState.textContent = "Live"; };
+          liveImage.onerror = () => { liveState.textContent = "Live view unavailable"; };
+          refreshLiveView();
+          live.append(liveImage, liveState);
+
+          const info = document.createElement("div");
+          const heading = document.createElement("div");
+          heading.className = "camera-heading";
+          const title = document.createElement("strong");
+          title.textContent = camera.label;
+          const badge = document.createElement("span");
+          badge.className = "badge";
+          badge.textContent = camera.enabled ? "Used for replay clips" : "Not selected";
+          heading.append(title, badge);
+          const meta = document.createElement("p");
+          meta.className = "muted camera-meta";
+          meta.textContent = camera.nvrLabel + " · channel " + camera.channelKey + " · " + camera.streamProfile + " · " + camera.codec + (camera.healthStatus ? " · " + camera.healthStatus : "");
+          const testSummary = document.createElement("pre");
+          testSummary.className = "muted";
+          testSummary.textContent = formatTestSummary(camera.lastTest);
+          info.append(heading, meta, testSummary);
           if (!setupLocked) {
+            const actions = document.createElement("div");
+            actions.className = "actions";
             const testBtn = document.createElement("button");
             testBtn.textContent = "Test camera";
             testBtn.className = "inline";
@@ -522,15 +561,23 @@ export function renderSetupPage(input: {
             previewBtn.className = "inline";
             previewBtn.onclick = () => capturePreview(camera.id);
             const enableBtn = document.createElement("button");
-            enableBtn.textContent = camera.enabled ? "Disable capture" : "Enable capture";
-            enableBtn.className = "inline";
+            enableBtn.textContent = camera.enabled ? "✓ Used for replay clips" : "Use for replay clips";
+            enableBtn.className = "inline camera-choice";
+            enableBtn.dataset.selected = String(camera.enabled);
+            enableBtn.setAttribute("aria-pressed", String(camera.enabled));
             enableBtn.onclick = () => toggleCamera(camera);
+            const refreshBtn = document.createElement("button");
+            refreshBtn.textContent = "Restart live view";
+            refreshBtn.className = "inline";
+            refreshBtn.onclick = refreshLiveView;
             const deleteBtn = document.createElement("button");
             deleteBtn.textContent = "Remove";
             deleteBtn.className = "inline";
             deleteBtn.onclick = () => removeCamera(camera.id);
-            item.append(testBtn, previewBtn, enableBtn, deleteBtn);
+            actions.append(enableBtn, testBtn, previewBtn, refreshBtn, deleteBtn);
+            info.appendChild(actions);
           }
+          item.append(live, info);
           list.appendChild(item);
         }
         await loadTopologyReview();
@@ -994,6 +1041,20 @@ export function renderSetupPage(input: {
         }
       });
 
+      async function pollSetupStatus() {
+        try {
+          const status = await api("/api/setup/status");
+          if (status.enrollmentStatus !== initialEnrollmentStatus) {
+            sessionStorage.setItem("venue-edge-stage", "1");
+            window.location.reload();
+            return;
+          }
+        } catch (error) {
+          // The normal page actions surface session and connectivity errors.
+        }
+        setupStatusPollTimer = setTimeout(pollSetupStatus, 5000);
+      }
+
       if (!setupLocked) {
         loadNvrs().catch((error) => {
           document.getElementById("nvr-message").textContent = error.message;
@@ -1005,10 +1066,11 @@ export function renderSetupPage(input: {
           document.getElementById("commissioning-message").textContent = error.message;
         });
       }
-      if (new URLSearchParams(window.location.search).get("technician") === "1") {
-        document.querySelectorAll("details").forEach((detail) => { detail.open = true; });
-      }
-    </script>
+          if (new URLSearchParams(window.location.search).get("technician") === "1") {
+            document.querySelectorAll("details").forEach((detail) => { detail.open = true; });
+          }
+          setupStatusPollTimer = setTimeout(pollSetupStatus, 5000);
+        </script>
   </body>
 </html>`
 }

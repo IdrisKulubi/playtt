@@ -6,6 +6,7 @@ import {
 import { parseEdgeConfigV2 } from "../cloud/config-v2"
 import type { EdgeV1Client } from "../cloud/client"
 import { EdgeProtocolError } from "../cloud/client"
+import { isDeviceRevokedCloudError } from "../auth/cloud-errors"
 import type { EdgeRepositories } from "../local-storage/repositories"
 import { safeLog } from "../health/metrics"
 import { buildSourcePlan, type SourcePlan } from "./source-plan"
@@ -106,6 +107,9 @@ export class EdgeConfigV2Manager {
         activate: options.activate,
       })
     } catch (error) {
+      if (isDeviceRevokedCloudError(error)) {
+        throw error
+      }
       if (error instanceof EdgeProtocolError) {
         if (
           error.code === "DEVICE_FORBIDDEN" ||
