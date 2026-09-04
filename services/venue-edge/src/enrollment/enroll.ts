@@ -71,9 +71,7 @@ export async function enrollVenueEdge(
 
   const metadata = await input.credentialManager.loadInstallationMetadata()
   if (metadata?.revokedAt) {
-    throw new Error(
-      "This installation was revoked. Create a replace-host pairing code from /nvr.",
-    )
+    safeLog("info", "Starting fresh enrollment after cloud identity removal")
   }
 
   const installationUid = resolveInstallationUid()

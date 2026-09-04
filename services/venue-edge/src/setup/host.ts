@@ -46,6 +46,7 @@ import {
   TopologyReviewError,
   type TopologyReviewManager,
 } from "./topology-review-manager"
+import { streamCameraAsMjpeg } from "./live-camera-stream"
 
 export interface SetupHostDiagnosticsContext {
   env: VenueEdgeEnv
@@ -689,6 +690,29 @@ export async function startSetupHost(
           return
         }
         await sendNodeFile(res, previewPath, "video/mp4")
+        return
+      }
+
+      const liveCameraMatch = url.pathname.match(
+        /^\/api\/setup\/cameras\/([^/]+)\/live\.mjpeg$/,
+      )
+      if (liveCameraMatch && method === "GET" && options.localCameraManager) {
+        const rtspUrl = await options.localCameraManager.resolveCameraRtspUrl(
+          liveCameraMatch[1],
+        )
+        if (!rtspUrl) {
+          await sendNodeResponse(
+            res,
+            jsonResponse(404, { error: "Camera live view is unavailable." }),
+          )
+          return
+        }
+        streamCameraAsMjpeg({
+          req,
+          res,
+          cameraId: liveCameraMatch[1],
+          rtspUrl,
+        })
         return
       }
 
