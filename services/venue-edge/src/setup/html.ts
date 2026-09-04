@@ -5,6 +5,7 @@ export function renderSetupPage(input: {
   setupLocked: boolean
   expiresAt: string | null
   setupToken: string
+  cloudDashboardUrl: string | null
 }): string {
   const statusLabel =
     input.enrollmentStatus === "enrolled"
@@ -130,7 +131,7 @@ export function renderSetupPage(input: {
       <aside class="rail" aria-label="Setup progress">
         <div class="brand"><strong>PlayTT</strong><span>VenueEdge</span></div>
         <ol class="steps">
-          ${["Pair device", "Add NVR", "Review cameras", "Map tables", "Publish config", "Commission"].map((label, index) => `<li class="step" data-step-item="${index + 1}" data-state="upcoming"><span class="step-dot">${index + 1}</span><span>${label}<small>Not started</small></span></li>`).join("")}
+          ${["Pair device", "Add NVR", "Review cameras", "Map tables", "Publish & apply", "Commission"].map((label, index) => `<li class="step" data-step-item="${index + 1}" data-state="upcoming"><span class="step-dot">${index + 1}</span><span>${label}<small>Not started</small></span></li>`).join("")}
         </ol>
         <div class="rail-footer"><p class="muted">Setup stays local. NVR passwords never leave this PC.</p></div>
       </aside>
@@ -179,8 +180,8 @@ export function renderSetupPage(input: {
           </section>
 
           <section class="stage" data-stage="5" hidden>
-            <div class="stage-intro"><h2>Publish configuration</h2><p class="muted">Test enabled cameras and send a credential-free topology snapshot to PlayTT. 15-second previews are recommended, not required to continue.</p></div>
-            <div class="panel"><pre id="commissioning-checklist" class="muted"></pre><div class="actions"><button type="button" id="commissioning-test-all" class="secondary" ${disabledAttr}>Test enabled cameras</button><button type="button" id="commissioning-publish" ${disabledAttr}>Publish snapshot</button></div><video id="commissioning-preview" controls></video><p id="commissioning-message" class="muted" aria-live="polite"></p></div>
+            <div class="stage-intro"><h2>Publish and apply configuration</h2><p class="muted">Send the credential-free topology to PlayTT, approve it in the admin dashboard, and wait for this PC to apply the resulting revision.</p></div>
+            <div class="panel"><pre id="commissioning-checklist" class="muted"></pre><div class="actions"><button type="button" id="commissioning-test-all" class="secondary" ${disabledAttr}>Test enabled cameras</button><button type="button" id="commissioning-publish" ${disabledAttr}>Send snapshot to PlayTT</button>${input.cloudDashboardUrl ? `<button type="button" id="open-cloud-dashboard" class="secondary">Open PlayTT admin</button>` : ""}</div><video id="commissioning-preview" controls></video><p id="commissioning-message" class="muted" aria-live="polite"></p></div>
           </section>
 
           <section class="stage" data-stage="6" hidden>
@@ -195,6 +196,7 @@ export function renderSetupPage(input: {
     <script>
       const token = ${JSON.stringify(input.setupToken)};
       const setupLocked = ${JSON.stringify(input.setupLocked)};
+      const cloudDashboardUrl = ${JSON.stringify(input.cloudDashboardUrl)};
       const workflow = {
         enrolled: ${JSON.stringify(input.enrollmentStatus === "enrolled")},
         nvrCount: 0,
@@ -202,6 +204,7 @@ export function renderSetupPage(input: {
         topologyClean: false,
         failoverReady: false,
         published: false,
+        configApplied: false,
         completed: false,
       };
       const savedStage = sessionStorage.getItem("venue-edge-stage");
@@ -222,7 +225,7 @@ export function renderSetupPage(input: {
         if (stage === 2) return workflow.nvrCount > 0;
         if (stage === 3) return workflow.cameraCount > 0 && workflow.topologyClean;
         if (stage === 4) return workflow.failoverReady;
-        if (stage === 5) return workflow.published;
+        if (stage === 5) return workflow.published && workflow.configApplied;
         return workflow.completed;
       }
 
@@ -574,6 +577,7 @@ export function renderSetupPage(input: {
         workflow.enrolled = checklist.enrolled;
         workflow.failoverReady = checklist.failoverReady;
         workflow.published = checklist.published;
+        workflow.configApplied = checklist.configApplied;
         workflow.completed = checklist.completed;
         document.getElementById("commissioning-checklist").textContent = lines.join("\\n");
         document.getElementById("commissioning-final-checklist").textContent = lines.join("\\n");
@@ -582,7 +586,9 @@ export function renderSetupPage(input: {
         if (checklist.completed) {
           setCompleteStatus("Commissioning complete. Cloud configuration is applied locally.", false);
         } else if (checklist.published && !checklist.configApplied) {
-          setCompleteStatus("Applying the latest configuration on this PC…", true);
+          if (currentStage > 5) currentStage = 5;
+          setCompleteStatus("Waiting for approval in PlayTT admin. Open the dashboard, select this installation, then publish the reviewed configuration.", false);
+          document.getElementById("commissioning-message").textContent = "Snapshot sent. Approve and publish it in PlayTT admin; this screen will continue automatically.";
         }
         if (commissioningPollTimer) clearTimeout(commissioningPollTimer);
         if (checklist.published && !checklist.configApplied) {
@@ -621,6 +627,10 @@ export function renderSetupPage(input: {
         } catch (error) {
           document.getElementById("commissioning-message").textContent = error.message;
         }
+      });
+
+      document.getElementById("open-cloud-dashboard")?.addEventListener("click", () => {
+        if (cloudDashboardUrl) window.open(cloudDashboardUrl, "_blank", "noopener,noreferrer");
       });
 
       document.getElementById("commissioning-complete")?.addEventListener("click", async () => {

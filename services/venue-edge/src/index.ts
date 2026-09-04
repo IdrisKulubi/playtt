@@ -505,6 +505,8 @@ export async function startVenueEdge(
         await activateRuntimeConfig(configManager.getState().edgeConfigV2)
         await refreshRuntimeSourceRtspUrls()
       },
+      refreshConfiguration: refreshConfig,
+      cloudDashboardUrl: new URL("/nvr", env.cloudBaseUrl).toString(),
       enroll: async (pairingCode) => {
         const enrolled = await enrollVenueEdge({
           pairingCode,
