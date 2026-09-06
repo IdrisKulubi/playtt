@@ -138,10 +138,13 @@ export function NvrOnboardingPanel({
       )
       if (!response.ok) return
       const payload = (await response.json()) as {
-        data?: { installations?: Array<{ nextAction: { href: string } }> }
+        data?: { installations?: Array<{ connectivity: string; nextAction: { href: string } }> }
       }
-      const href = payload.data?.installations?.[0]?.nextAction.href
-      if (href) setInstallationHref(href)
+      const installations = payload.data?.installations ?? []
+      const preferred =
+        installations.find((installation) => installation.connectivity === "online") ??
+        installations[0]
+      setInstallationHref(preferred?.nextAction.href ?? null)
     }
     const timer = setInterval(() => void refreshSetupState(), 8_000)
     return () => clearInterval(timer)

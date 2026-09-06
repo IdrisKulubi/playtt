@@ -41,6 +41,9 @@ export default async function NvrOnboardingPage({ searchParams }: PageProps) {
   const installations = selectedVenueId
     ? await listVenueEdgeInstallations(access.context, selectedVenueId)
     : []
+  const preferredInstallation =
+    installations.find((installation) => installation.connectivity === "online") ??
+    installations[0]
 
   const canManage = canPerformTenantAction(access.context.role, "venue.manage")
   const installer = await getVenueEdgeInstallerArtifactMetadata(
@@ -74,7 +77,7 @@ export default async function NvrOnboardingPage({ searchParams }: PageProps) {
             canManage={canManage}
             installer={installer}
             initialSessions={sessions}
-            initialInstallationHref={installations[0]?.nextAction.href ?? null}
+            initialInstallationHref={preferredInstallation?.nextAction.href ?? null}
           />
         </div>
       </div>
