@@ -137,6 +137,33 @@ test("cloud client paths align with frozen fixture routes", async () => {
   ])
 })
 
+test("cloud client stops a request that never responds", async () => {
+  const { EdgeProtocolError, EdgeV1Client } = await import(
+    "../src/cloud/client.ts"
+  )
+  const fetchImpl = (_url, init) =>
+    new Promise((_resolve, reject) => {
+      init.signal.addEventListener("abort", () => {
+        reject(new DOMException("Aborted", "AbortError"))
+      })
+    })
+  const client = new EdgeV1Client({
+    baseUrl: "https://playtt.example",
+    deviceId: "device-1",
+    secret: "secret-1",
+    requestTimeoutMs: 10,
+    fetchImpl,
+  })
+
+  await assert.rejects(
+    () => client.publishCommissioning({ reportVersion: 1 }),
+    (error) =>
+      error instanceof EdgeProtocolError &&
+      error.code === "NETWORK_TIMEOUT" &&
+      error.status === 0,
+  )
+})
+
 test("buffer_missing after extracting maps to extraction_failed", async () => {
   const { mapReplayFailureStatus } = await import("../src/replay/orchestrator.ts")
 

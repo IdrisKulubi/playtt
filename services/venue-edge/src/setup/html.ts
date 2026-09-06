@@ -350,13 +350,25 @@ export function renderSetupPage(input: {
           "X-VenueEdge-Setup-Token": token,
           ...(options.headers || {}),
         };
-        const response = await fetch(path, { ...options, headers });
-        const text = await response.text();
-        const body = text ? JSON.parse(text) : null;
-        if (!response.ok) {
-          throw new Error(body?.error || body?.message || "Request failed (" + response.status + ")");
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000);
+        try {
+          const response = await fetch(path, { ...options, headers, signal: controller.signal });
+          const text = await response.text();
+          let body = null;
+          try { body = text ? JSON.parse(text) : null; } catch { body = { message: text }; }
+          if (!response.ok) {
+            throw new Error(body?.error || body?.message || "Request failed (" + response.status + ")");
+          }
+          return body;
+        } catch (error) {
+          if (controller.signal.aborted) {
+            throw new Error("This request took longer than 30 seconds. Check the venue PC internet connection and try again.");
+          }
+          throw error;
+        } finally {
+          clearTimeout(timeout);
         }
-        return body;
       }
 
       function formatTestSummary(lastTest) {
@@ -630,6 +642,16 @@ export function renderSetupPage(input: {
         document.getElementById("commissioning-final-checklist").textContent = lines.join("\\n");
         document.getElementById("commissioning-complete").disabled =
           setupLocked || !checklist.canComplete;
+        const publishButton = document.getElementById("commissioning-publish");
+        if (publishButton && publishButton.dataset.busy !== "true") {
+          publishButton.disabled =
+            setupLocked ||
+            !checklist.enrolled ||
+            checklist.enabledCameraCount === 0 ||
+            !checklist.allEnabledCamerasTested ||
+            !checklist.allEnabledCamerasPreviewed ||
+            !checklist.failoverReady;
+        }
         if (checklist.completed) {
           setCompleteStatus("Commissioning complete. Cloud configuration is applied locally.", false);
         } else if (checklist.published && !checklist.configApplied) {
@@ -666,13 +688,21 @@ export function renderSetupPage(input: {
       });
 
       document.getElementById("commissioning-publish")?.addEventListener("click", async () => {
+        const publishButton = document.getElementById("commissioning-publish");
+        publishButton.disabled = true;
+        publishButton.dataset.busy = "true";
+        publishButton.textContent = "Sending snapshot…";
         document.getElementById("commissioning-message").textContent = "Publishing snapshot…";
         try {
           await api("/api/setup/commissioning/publish", { method: "POST", body: "{}" });
           await loadCommissioning();
-          document.getElementById("commissioning-message").textContent = "Snapshot published.";
+          document.getElementById("commissioning-message").textContent = "Snapshot received by PlayTT. Open the admin dashboard to review and publish the configuration.";
         } catch (error) {
           document.getElementById("commissioning-message").textContent = error.message;
+        } finally {
+          publishButton.dataset.busy = "false";
+          publishButton.textContent = "Send snapshot to PlayTT";
+          await loadCommissioning().catch(() => {});
         }
       });
 

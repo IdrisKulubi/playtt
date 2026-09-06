@@ -88,6 +88,7 @@ export interface EdgeClientOptions {
   correlationId?: string
   agentVersion?: string
   fetchImpl?: typeof fetch
+  requestTimeoutMs?: number
 }
 
 function joinUrl(baseUrl: string, path: string): string {
@@ -109,6 +110,7 @@ async function parseResponse(response: Response): Promise<unknown> {
 
 export class EdgeV1Client {
   private readonly fetchImpl: typeof fetch
+  private readonly requestTimeoutMs: number
 
   baseUrl: string
   deviceId: string | null
@@ -123,6 +125,7 @@ export class EdgeV1Client {
     this.correlationId = options.correlationId ?? randomUUID()
     this.agentVersion = options.agentVersion ?? null
     this.fetchImpl = options.fetchImpl ?? fetch
+    this.requestTimeoutMs = options.requestTimeoutMs ?? 20_000
   }
 
   setCredentials(credentials: { deviceId: string; secret: string }): void {
@@ -166,18 +169,31 @@ export class EdgeV1Client {
 
     let response: Response
 
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), this.requestTimeoutMs)
+
     try {
       response = await this.fetchImpl(joinUrl(this.baseUrl, path), {
         method: options.method ?? "GET",
         headers,
         body: options.body ? JSON.stringify(options.body) : undefined,
+        signal: controller.signal,
       })
     } catch (error) {
+      if (controller.signal.aborted) {
+        throw new EdgeProtocolError(
+          "NETWORK_TIMEOUT",
+          `PlayTT did not respond within ${Math.ceil(this.requestTimeoutMs / 1000)} seconds. Check internet access and try again.`,
+          0,
+        )
+      }
       throw new EdgeProtocolError(
         "NETWORK_ERROR",
         error instanceof Error ? error.message : "Network request failed.",
         0
       )
+    } finally {
+      clearTimeout(timeout)
     }
 
     const body = await parseResponse(response)

@@ -446,6 +446,17 @@ export async function revokeVenueEdgeInstallation(
     installation.edgeDeviceId,
   )
 
+  const retiredAt = new Date()
+  await db
+    .update(venueEdgeInstallations)
+    .set({ retiredAt, updatedAt: retiredAt })
+    .where(
+      and(
+        eq(venueEdgeInstallations.tenantId, context.tenantId),
+        eq(venueEdgeInstallations.id, installationId),
+      ),
+    )
+
   await writeAuditLog(context, {
     action: "venue_edge.installation.revoke",
     targetType: "venue_edge_installation",
@@ -456,7 +467,7 @@ export async function revokeVenueEdgeInstallation(
     },
   })
 
-  return device
+  return { ...device, retiredAt: retiredAt.toISOString() }
 }
 
 export async function rotateVenueEdgeInstallationCredential(

@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm"
+import { and, desc, eq, isNull } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import {
@@ -563,6 +563,7 @@ export async function listVenueEdgeInstallations(
       and(
         eq(venueEdgeInstallations.tenantId, context.tenantId),
         eq(venueEdgeInstallations.locationId, locationId),
+        isNull(venueEdgeInstallations.retiredAt),
       ),
     )
     .orderBy(desc(venueEdgeInstallations.updatedAt))
