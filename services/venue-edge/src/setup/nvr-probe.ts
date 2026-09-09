@@ -1,6 +1,7 @@
 import { connect } from "node:net"
 
-import { probeCodec } from "../ffmpeg/probe"
+import { probeCodec, type CodecProbeResult } from "../ffmpeg/probe"
+import { redactStringSecrets } from "../health/metrics"
 import { buildVigiPlaybackUrl } from "../video-adapters/vigi-urls"
 import type { LocalNvrRow, LocalNvrTimeMode } from "../local-storage/local-nvr-types"
 
@@ -14,7 +15,18 @@ export interface NvrProbeCheckResult {
 export interface NvrProbeSuiteResult {
   passed: boolean
   timeMode: LocalNvrTimeMode
+  diagnostic?: NvrProbeDiagnostic
   checks: NvrProbeCheckResult[]
+}
+
+export interface NvrProbeDiagnostic {
+  code: string
+  summary: string
+  action: string
+  exitCode: number | null
+  timedOut: boolean
+  detectedCodec: string | null
+  output: string | null
 }
 
 export interface NvrProbeInput {
@@ -78,6 +90,25 @@ function authFailed(stderr: string): boolean {
   return /401|403|unauthorized|authentication failed|access denied/i.test(stderr)
 }
 
+function safeProbeOutput(raw: string): string | null {
+  const lines = redactStringSecrets(raw)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+  return lines.length > 0 ? lines.slice(-12).join("\n").slice(-2_500) : null
+}
+
+export function diagnoseCodecProbe(probe: CodecProbeResult): NvrProbeDiagnostic {
+  const base = { exitCode: probe.exitCode, timedOut: probe.timedOut, detectedCodec: probe.codec, output: safeProbeOutput(probe.raw) }
+  if (authFailed(probe.raw)) return { ...base, code: "source_auth_failed", summary: "The NVR rejected the RTSP username or password.", action: "Re-enter the dedicated NVR credentials, then test again." }
+  if (probe.timedOut) return { ...base, code: "probe_timed_out", summary: "The stream produced no video within 15 seconds.", action: "Stop other live viewers, confirm the camera is online, then test again." }
+  if (probe.cancelled) return { ...base, code: "probe_cancelled", summary: "The camera check was cancelled before video arrived.", action: "Run the camera check again." }
+  if (probe.exitCode !== 0) return { ...base, code: "ffmpeg_failed", summary: `FFmpeg could not open the camera stream (exit code ${probe.exitCode ?? "unknown"}).`, action: "Open Technical details and use the final FFmpeg lines to correct the stream or channel settings." }
+  if (!probe.codec) return { ...base, code: "video_stream_missing", summary: "The RTSP connection returned no detectable video track.", action: "Confirm the channel and main stream are enabled on the NVR, then test again." }
+  if (!probe.compatible) return { ...base, code: "codec_incompatible", summary: `The stream uses ${probe.codec.toUpperCase()}, but replay capture currently requires H.264.`, action: "Change this camera's main stream encoding to H.264 on the NVR, then test again." }
+  return { ...base, code: "ok", summary: `Live ${probe.codec.toUpperCase()} video was detected.`, action: "No action is needed." }
+}
+
 export class DefaultNvrProbeRunner implements NvrProbeRunner {
   async run(input: NvrProbeInput): Promise<NvrProbeSuiteResult> {
     const checks: NvrProbeCheckResult[] = []
@@ -96,11 +127,12 @@ export class DefaultNvrProbeRunner implements NvrProbeRunner {
     )
 
     if (!reachable) {
-      return { passed: false, timeMode, checks }
+      return { passed: false, timeMode, diagnostic: { code: "nvr_unreachable", summary: "The venue PC cannot reach the NVR RTSP port.", action: "Check the NVR IP address, RTSP port, network cable, and Windows firewall.", exitCode: null, timedOut: false, detectedCodec: null, output: null }, checks }
     }
 
     const codecProbe = await probeCodec(input.liveRtspUrl)
     const combined = codecProbe.raw
+    const diagnostic = diagnoseCodecProbe(codecProbe)
 
     if (authFailed(combined)) {
       checks.push(
@@ -111,18 +143,17 @@ export class DefaultNvrProbeRunner implements NvrProbeRunner {
           "source_auth_failed",
         ),
       )
-      return { passed: false, timeMode, checks }
+      return { passed: false, timeMode, diagnostic, checks }
     }
 
     const streamResponded = codecProbe.codec !== null
     checks.push(
       checkResult(
         "authentication",
-        streamResponded,
+        true,
         streamResponded
           ? "NVR accepted RTSP credentials."
-          : "RTSP authentication could not be verified because the stream returned no video metadata.",
-        streamResponded ? undefined : "authentication_unverified",
+          : "The NVR did not report an authentication error.",
       ),
     )
 
@@ -144,8 +175,10 @@ export class DefaultNvrProbeRunner implements NvrProbeRunner {
         codecProbe.compatible,
         codecProbe.compatible
           ? `Codec ${codecProbe.codec ?? "h264"} is compatible.`
-          : "Unsupported codec — PlayTT requires H.264 for v1 capture.",
-        codecProbe.compatible ? undefined : "codec_incompatible",
+          : codecProbe.codec
+            ? `Unsupported codec ${codecProbe.codec} — PlayTT requires H.264 for v1 capture.`
+            : "Codec check skipped because no live video track was detected.",
+        codecProbe.compatible ? undefined : codecProbe.codec ? "codec_incompatible" : "codec_not_detected",
       ),
     )
 
@@ -155,7 +188,9 @@ export class DefaultNvrProbeRunner implements NvrProbeRunner {
         checkResult(
           "clock_skew",
           false,
-          "Clock skew could not be measured — enable stream timestamps and verify NTP on the NVR.",
+          streamResponded
+            ? "The stream did not expose a timestamp. Verify NTP on the NVR."
+            : "Clock check skipped because no live video track was detected.",
           "clock_skew_unavailable",
         ),
       )
@@ -221,7 +256,7 @@ export class DefaultNvrProbeRunner implements NvrProbeRunner {
     const passed = checks
       .filter((entry) => blocking.has(entry.check))
       .every((entry) => entry.passed)
-    return { passed, timeMode, checks }
+    return { passed, timeMode, diagnostic, checks }
   }
 }
 
