@@ -173,13 +173,14 @@ export function renderSetupPage(input: {
           <section class="stage" data-stage="3" hidden>
             <div class="stage-intro"><h2>Review cameras</h2><p class="muted">Watch every detected channel live, select the cameras that may create replay clips, and assign them to tables in the next step.</p></div>
             <div id="topology-review" class="review" aria-live="polite"><strong>Checking topology…</strong></div>
-            <form id="camera-form" class="panel">
+            <div class="actions"><button id="scan-cameras" type="button" class="secondary">Find cameras</button><button id="prepare-cameras" type="button">Verify selected cameras</button></div>
+            <p id="camera-message" class="muted" aria-live="polite"></p><div id="camera-list"></div>
+            <details><summary>Technician: add a channel manually</summary><form id="camera-form" class="panel">
               <h3>Add a channel manually</h3>
               <div class="row"><label>NVR<select name="nvrId" id="camera-nvr-select" required ${disabledAttr}></select></label><label>Channel<input name="channelKey" placeholder="1" required ${disabledAttr} /></label></div>
               <div class="row"><label>Camera name<input name="label" placeholder="Table 1 main" ${disabledAttr} /></label><label>Stream<select name="streamProfile" ${disabledAttr}><option value="main">Main</option><option value="sub">Sub</option></select></label></div>
               <div class="actions"><button type="submit" class="secondary" ${disabledAttr}>Add camera manually</button></div>
-              <p id="camera-message" class="muted" aria-live="polite"></p><div id="camera-list"></div>
-            </form>
+            </form></details>
           </section>
 
           <section class="stage" data-stage="4" hidden>
@@ -222,6 +223,9 @@ export function renderSetupPage(input: {
       let topologyProposal = null;
       let commissioningPollTimer = null;
       let setupStatusPollTimer = null;
+      let camerasReady = false;
+      let preparingCameras = false;
+      let renderedStage = null;
 
       function setCompleteStatus(text, spinning) {
         const status = document.getElementById("complete-status");
@@ -233,7 +237,7 @@ export function renderSetupPage(input: {
       function stageComplete(stage) {
         if (stage === 1) return workflow.enrolled;
         if (stage === 2) return workflow.nvrCount > 0;
-        if (stage === 3) return workflow.cameraCount > 0 && workflow.topologyClean;
+        if (stage === 3) return workflow.cameraCount > 0 && workflow.topologyClean && camerasReady;
         if (stage === 4) return workflow.failoverReady;
         if (stage === 5) return workflow.published && workflow.configApplied;
         return workflow.completed;
@@ -252,6 +256,10 @@ export function renderSetupPage(input: {
         document.querySelectorAll("[data-stage]").forEach((section) => {
           section.hidden = Number(section.dataset.stage) !== currentStage;
         });
+        document.querySelectorAll(".camera-live img").forEach((image, index) => {
+          if (currentStage === 3 && index < 4 && !image.getAttribute("src") && image.dataset.liveUrl) image.src = image.dataset.liveUrl;
+          if (currentStage !== 3 && image.getAttribute("src")) image.removeAttribute("src");
+        });
         document.querySelectorAll("[data-step-item]").forEach((item) => {
           const step = Number(item.dataset.stepItem);
           const state = step === currentStage ? "current" : stageComplete(step) ? "complete" : "upcoming";
@@ -267,7 +275,10 @@ export function renderSetupPage(input: {
         next.hidden = currentStage === 6;
         next.textContent = stageComplete(currentStage) ? "Continue" : "Review requirements";
         sessionStorage.setItem("venue-edge-stage", String(currentStage));
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        if (renderedStage !== currentStage) {
+          renderedStage = currentStage;
+          window.scrollTo({ top: 0, behavior: "instant" });
+        }
       }
 
       document.getElementById("stage-back")?.addEventListener("click", () => {
@@ -275,8 +286,11 @@ export function renderSetupPage(input: {
         currentStage = Math.max(1, currentStage - 1);
         renderStages();
       });
-      document.getElementById("stage-next")?.addEventListener("click", () => {
+      document.getElementById("stage-next")?.addEventListener("click", async () => {
         resumeFromSavedProgress = false;
+        if (currentStage === 3 && !camerasReady) {
+          await prepareSelectedCameras();
+        }
         if (!stageComplete(currentStage)) {
           const messageId = currentStage === 2 ? "nvr-message" : currentStage === 3 ? "camera-message" : currentStage === 4 ? "mapping-message" : currentStage === 6 ? "complete-status" : "commissioning-message";
           const message = document.getElementById(messageId);
@@ -351,7 +365,8 @@ export function renderSetupPage(input: {
           ...(options.headers || {}),
         };
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 30000);
+        const timeoutMs = options.timeoutMs || 30000;
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
         try {
           const response = await fetch(path, { ...options, headers, signal: controller.signal });
           const text = await response.text();
@@ -363,7 +378,7 @@ export function renderSetupPage(input: {
           return body;
         } catch (error) {
           if (controller.signal.aborted) {
-            throw new Error("This request took longer than 30 seconds. Check the venue PC internet connection and try again.");
+            throw new Error("The request timed out. Check the connection and retry; your saved setup is preserved.");
           }
           throw error;
         } finally {
@@ -511,6 +526,7 @@ export function renderSetupPage(input: {
         const result = await api("/api/setup/nvrs/" + nvrId + "/cameras/enumerate", {
           method: "POST",
           body: "{}",
+          timeoutMs: 240000,
         });
         await loadCameras();
         document.getElementById("camera-message").textContent =
@@ -518,6 +534,43 @@ export function renderSetupPage(input: {
           result.created.length + " added, " + result.updated.length + " refreshed, " +
           result.unavailable.length + " unavailable.";
       }
+
+      async function discoverAllCameras() {
+        const button = document.getElementById("scan-cameras");
+        button.disabled = true;
+        try {
+          const data = await api("/api/setup/nvrs");
+          for (const nvr of data.nvrs.filter((nvr) => nvr.enabled)) await enumerateCameras(nvr.id);
+        } catch (error) {
+          document.getElementById("camera-message").textContent = error.message;
+        } finally { button.disabled = setupLocked; }
+      }
+      document.getElementById("scan-cameras")?.addEventListener("click", discoverAllCameras);
+
+      async function prepareSelectedCameras() {
+        if (preparingCameras) return;
+        preparingCameras = true;
+        const button = document.getElementById("prepare-cameras");
+        const message = document.getElementById("camera-message");
+        button.disabled = true;
+        try {
+          const data = await api("/api/setup/cameras");
+          const selected = data.cameras.filter((camera) => camera.enabled);
+          if (!selected.length) throw new Error("Select at least one camera for replay clips.");
+          for (const [index, camera] of selected.entries()) {
+            message.textContent = "Checking " + camera.label + " (" + (index + 1) + " of " + selected.length + ")…";
+            const result = await api("/api/setup/cameras/" + camera.id + "/test", { method: "POST", body: "{}", timeoutMs: 180000 });
+            if (result.passed === false) throw new Error(camera.label + " failed its camera check. Review the connection and retry.");
+            message.textContent = "Recording a 15-second check from " + camera.label + "…";
+            await api("/api/setup/cameras/" + camera.id + "/preview", { method: "POST", body: "{}", timeoutMs: 90000 });
+          }
+          await loadCameras();
+          await loadCommissioning();
+          message.textContent = camerasReady ? "Selected cameras are ready. Continue to map them to tables." : "A camera check failed. Review the camera details and retry.";
+        } catch (error) { message.textContent = error.message; }
+        finally { preparingCameras = false; button.disabled = setupLocked; }
+      }
+      document.getElementById("prepare-cameras")?.addEventListener("click", prepareSelectedCameras);
 
       async function loadCameras() {
         const data = await api("/api/setup/cameras");
@@ -538,11 +591,14 @@ export function renderSetupPage(input: {
           liveState.textContent = "Connecting…";
           const refreshLiveView = () => {
             liveState.textContent = "Connecting…";
+            const active = [...document.querySelectorAll(".camera-live img[src]")].filter((image) => image !== liveImage);
+            if (active.length >= 4) active[0].removeAttribute("src");
             liveImage.src = "/api/setup/cameras/" + camera.id + "/live.mjpeg?setup_token=" + encodeURIComponent(token) + "&view=" + Date.now();
           };
           liveImage.onload = () => { liveState.textContent = "Live"; };
           liveImage.onerror = () => { liveState.textContent = "Live view unavailable"; };
-          refreshLiveView();
+          liveImage.dataset.liveUrl = "/api/setup/cameras/" + camera.id + "/live.mjpeg?setup_token=" + encodeURIComponent(token);
+          liveState.textContent = "Live view opens during camera review";
           live.append(liveImage, liveState);
 
           const info = document.createElement("div");
@@ -550,10 +606,21 @@ export function renderSetupPage(input: {
           heading.className = "camera-heading";
           const title = document.createElement("strong");
           title.textContent = camera.label;
+          const nameInput = document.createElement("input");
+          nameInput.value = camera.label;
+          nameInput.setAttribute("aria-label", "Camera name for channel " + camera.channelKey);
+          nameInput.disabled = setupLocked;
+          nameInput.onchange = async () => {
+            try {
+              await api("/api/setup/cameras/" + camera.id, { method: "PATCH", body: JSON.stringify({ label: nameInput.value }) });
+              await loadCommissioning();
+              document.getElementById("camera-message").textContent = "Camera name saved.";
+            } catch (error) { document.getElementById("camera-message").textContent = error.message; }
+          };
           const badge = document.createElement("span");
           badge.className = "badge";
           badge.textContent = camera.enabled ? "Used for replay clips" : "Not selected";
-          heading.append(title, badge);
+          heading.append(nameInput, badge);
           const meta = document.createElement("p");
           meta.className = "muted camera-meta";
           meta.textContent = camera.nvrLabel + " · channel " + camera.channelKey + " · " + camera.streamProfile + " · " + camera.codec + (camera.healthStatus ? " · " + camera.healthStatus : "");
@@ -638,6 +705,8 @@ export function renderSetupPage(input: {
         workflow.published = checklist.published;
         workflow.configApplied = checklist.configApplied;
         workflow.completed = checklist.completed;
+        camerasReady = checklist.allEnabledCamerasTested && checklist.allEnabledCamerasPreviewed;
+        if (checklist.configApplied && currentStage === 5) currentStage = 6;
         document.getElementById("commissioning-checklist").textContent = lines.join("\\n");
         document.getElementById("commissioning-final-checklist").textContent = lines.join("\\n");
         document.getElementById("commissioning-complete").disabled =
@@ -1036,13 +1105,17 @@ export function renderSetupPage(input: {
           vendor: form.vendor.value,
         };
         document.getElementById("nvr-message").textContent = "Saving NVR…";
-        await api("/api/setup/nvrs", {
+        const saved = await api("/api/setup/nvrs", {
           method: "POST",
           body: JSON.stringify(payload),
         });
         form.password.value = "";
         await loadNvrs();
-        document.getElementById("nvr-message").textContent = "NVR saved.";
+        resumeFromSavedProgress = false;
+        currentStage = 3;
+        renderStages();
+        try { await enumerateCameras(saved.nvr.id); }
+        catch (error) { document.getElementById("camera-message").textContent = "NVR saved. " + error.message + " Use Find cameras to retry."; }
       });
 
       document.getElementById("discover-btn")?.addEventListener("click", async () => {

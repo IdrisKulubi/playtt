@@ -24,6 +24,7 @@ import {
 } from "./nvr-probe"
 import type { LocalCameraManager } from "./local-camera-manager"
 import { buildLocalConfigOverlay } from "./local-config-overlay"
+import { topologySignature } from "./applied-topology"
 import {
   selectCapturePlan,
   type SourceHealthLookup,
@@ -161,8 +162,7 @@ export class CommissioningManager {
       enabledCameras.length > 0 &&
       enabledCameras.every(
         (camera) =>
-          camera.lastTest?.passed === true &&
-          Date.parse(camera.lastTest.testedAt) >= Date.parse(camera.updatedAt),
+          camera.lastTest?.passed === true,
       )
 
     const allEnabledCamerasPreviewed =
@@ -196,7 +196,7 @@ export class CommissioningManager {
     const configApplied = Boolean(
       baseConfig &&
         state.publishedAt &&
-        Date.parse(baseConfig.configRevision.publishedAt) >= Date.parse(state.publishedAt),
+        topologySignature(baseConfig) === topologySignature(buildLocalConfigOverlay(this.repositories, baseConfig)),
     )
     if (baseConfig) {
       for (const resource of baseConfig.resources.filter((r) => r.enabled)) {
@@ -703,7 +703,7 @@ export class CommissioningManager {
     return this.repositories.updateCommissioningState({
       completed: true,
       completedAt,
-      publishedAt: completedAt,
+      publishedAt: this.repositories.getCommissioningState().publishedAt,
       reportVersion,
       lastError: null,
     })
