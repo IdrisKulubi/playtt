@@ -482,7 +482,7 @@ export async function startVenueEdge(
     localCameraManager,
     paths,
     credentialManager,
-    getEdgeConfigV2,
+    () => configManager.getState().edgeConfigV2,
     client,
   )
 
