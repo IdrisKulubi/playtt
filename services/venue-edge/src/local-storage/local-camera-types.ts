@@ -7,6 +7,15 @@ export type LocalCameraCodec = "h264" | "h265" | "unknown"
 export interface LocalCameraTestSummary {
   passed: boolean
   testedAt: string
+  diagnostic?: {
+    code: string
+    summary: string
+    action: string
+    exitCode: number | null
+    timedOut: boolean
+    detectedCodec: string | null
+    output: string | null
+  }
   checks: Array<{
     check: string
     passed: boolean

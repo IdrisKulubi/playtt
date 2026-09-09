@@ -106,6 +106,7 @@ export function renderSetupPage(input: {
       .camera-live-state { position: absolute; left: var(--space-sm); bottom: var(--space-sm); border-radius: 999px; padding: .2rem .55rem; background: rgba(4,16,25,.82); color: white; font-size: .78rem; }
       .camera-heading { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
       .camera-meta { margin: var(--space-xs) 0; }
+      .technical-output { margin-top: var(--space-sm); padding: var(--space-sm); border-radius: var(--radius-md); background: #101827; color: #dce9f8; font: .8rem/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
       button.camera-choice[data-selected="true"] { border-color: var(--success); background: #f1fbf5; color: #075c31; }
       .credential-recovery { display: grid; grid-template-columns: minmax(12rem, 1fr) auto; align-items: end; gap: var(--space-sm); margin: var(--space-sm) 0; padding: var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-soft); }
       .credential-recovery p { grid-column: 1 / -1; margin: 0; }
@@ -116,7 +117,11 @@ export function renderSetupPage(input: {
       .review { margin: var(--space-lg) 0; padding: var(--space-lg); border: 1px solid #e3b35d; border-radius: var(--radius-lg); background: #fff9ed; }
       .review[data-empty="true"] { border-color: #bfe4cf; background: #f1fbf5; }
       .review-list { margin: var(--space-md) 0 0; padding-left: 1.25rem; }
-      .footer-actions { position: fixed; right: 0; bottom: 0; left: 17rem; display: flex; justify-content: space-between; gap: var(--space-md); padding: var(--space-md) var(--space-xl) max(var(--space-md), env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 96%, transparent); }
+      .footer-actions { position: fixed; right: 0; bottom: 0; left: 17rem; display: grid; gap: var(--space-sm); padding: var(--space-md) var(--space-xl) max(var(--space-md), env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 96%, transparent); }
+      .footer-buttons { display: flex; justify-content: space-between; gap: var(--space-md); }
+      .stage-guidance { max-height: 12rem; overflow: auto; padding: var(--space-sm) var(--space-md); border-radius: var(--radius-md); background: #fff6df; color: #633b00; }
+      .stage-guidance strong { display: block; color: #442800; }
+      .stage-guidance ul { margin: var(--space-xs) 0 0; padding-left: 1.2rem; }
       video { display: none; width: min(100%, 42rem); margin-top: var(--space-lg); border-radius: var(--radius-md); background: var(--ink); }
       @keyframes stage-in { from { opacity: .55; transform: translateY(.35rem); } to { opacity: 1; transform: none; } }
       @media (max-width: 800px) {
@@ -198,7 +203,10 @@ export function renderSetupPage(input: {
             <div class="panel"><h3>Final readiness check</h3><pre id="commissioning-final-checklist" class="muted"></pre><div class="actions"><button type="button" id="commissioning-complete" ${disabledAttr}>Complete commissioning</button><button type="button" id="lock-btn" class="secondary" ${disabledAttr}>Lock setup and close</button></div><p class="muted busy-row" aria-live="polite"><span id="complete-spinner" class="spinner" hidden></span><span id="complete-status"></span></p></div>
           </section>
         </main>
-        <nav class="footer-actions" aria-label="Stage navigation"><button id="stage-back" type="button" class="secondary">Back</button><button id="stage-next" type="button">Continue</button></nav>
+        <nav class="footer-actions" aria-label="Stage navigation">
+          <div id="stage-guidance" class="stage-guidance" role="status" aria-live="polite" tabindex="-1" hidden><strong>Before you continue</strong><ul id="stage-guidance-list"></ul></div>
+          <div class="footer-buttons"><button id="stage-back" type="button" class="secondary">Back</button><button id="stage-next" type="button">Continue</button></div>
+        </nav>
       </div>
     </div>
 
@@ -216,6 +224,9 @@ export function renderSetupPage(input: {
         published: false,
         configApplied: false,
         completed: false,
+        enabledCameraCount: 0,
+        camerasTested: false,
+        camerasPreviewed: false,
       };
       const savedStage = sessionStorage.getItem("venue-edge-stage");
       let resumeFromSavedProgress = savedStage === null;
@@ -241,6 +252,40 @@ export function renderSetupPage(input: {
         if (stage === 4) return workflow.failoverReady;
         if (stage === 5) return workflow.published && workflow.configApplied;
         return workflow.completed;
+      }
+
+      function requirementsForStage(stage) {
+        const requirements = [];
+        if (stage === 1 && !workflow.enrolled) requirements.push("Pair this PC using a code from PlayTT admin.");
+        if (stage === 2 && workflow.nvrCount === 0) requirements.push("Add the venue NVR and confirm its address and credentials.");
+        if (stage === 3) {
+          if (workflow.cameraCount === 0) requirements.push("Choose Find cameras to load the channels connected to the NVR.");
+          if (workflow.cameraCount > 0 && workflow.enabledCameraCount === 0) requirements.push("Select at least one camera to use for replay clips.");
+          if (!workflow.topologyClean) requirements.push("Resolve the camera issue shown in the review panel.");
+          if (workflow.enabledCameraCount > 0 && !workflow.camerasTested) requirements.push("Choose Verify selected cameras and let every camera check finish.");
+          if (workflow.enabledCameraCount > 0 && !workflow.camerasPreviewed) requirements.push("Capture a 15-second preview for every selected camera. Verify selected cameras does this automatically.");
+        }
+        if (stage === 4 && !workflow.failoverReady) requirements.push("Assign cameras to every table and complete any required failover checks.");
+        if (stage === 5) {
+          if (!workflow.published) requirements.push("Send the setup snapshot to PlayTT.");
+          else if (!workflow.configApplied) requirements.push("In PlayTT admin, approve and publish this installation's configuration, then keep this PC online while it applies.");
+        }
+        if (stage === 6 && !workflow.completed) requirements.push("Complete the final commissioning check.");
+        return requirements;
+      }
+
+      function showStageGuidance() {
+        const panel = document.getElementById("stage-guidance");
+        const list = document.getElementById("stage-guidance-list");
+        const requirements = requirementsForStage(currentStage);
+        list.innerHTML = "";
+        for (const requirement of requirements) {
+          const item = document.createElement("li");
+          item.textContent = requirement;
+          list.appendChild(item);
+        }
+        panel.hidden = requirements.length === 0;
+        if (!panel.hidden) panel.focus({ preventScroll: true });
       }
 
       function renderStages() {
@@ -273,7 +318,8 @@ export function renderSetupPage(input: {
         const next = document.getElementById("stage-next");
         back.disabled = currentStage === 1;
         next.hidden = currentStage === 6;
-        next.textContent = stageComplete(currentStage) ? "Continue" : "Review requirements";
+        next.textContent = "Continue";
+        if (stageComplete(currentStage)) document.getElementById("stage-guidance").hidden = true;
         sessionStorage.setItem("venue-edge-stage", String(currentStage));
         if (renderedStage !== currentStage) {
           renderedStage = currentStage;
@@ -284,20 +330,17 @@ export function renderSetupPage(input: {
       document.getElementById("stage-back")?.addEventListener("click", () => {
         resumeFromSavedProgress = false;
         currentStage = Math.max(1, currentStage - 1);
+        document.getElementById("stage-guidance").hidden = true;
         renderStages();
       });
       document.getElementById("stage-next")?.addEventListener("click", async () => {
         resumeFromSavedProgress = false;
-        if (currentStage === 3 && !camerasReady) {
-          await prepareSelectedCameras();
-        }
         if (!stageComplete(currentStage)) {
-          const messageId = currentStage === 2 ? "nvr-message" : currentStage === 3 ? "camera-message" : currentStage === 4 ? "mapping-message" : currentStage === 6 ? "complete-status" : "commissioning-message";
-          const message = document.getElementById(messageId);
-          if (message) message.textContent = "Finish the requirements in this step before continuing.";
+          showStageGuidance();
           return;
         }
         currentStage = Math.min(6, currentStage + 1);
+        document.getElementById("stage-guidance").hidden = true;
         renderStages();
       });
 
@@ -391,9 +434,24 @@ export function renderSetupPage(input: {
         const checks = lastTest.checks
           .map((c) => (c.passed ? "✓" : "✗") + " " + c.message)
           .join("\\n");
+        const diagnosis = !lastTest.passed && lastTest.diagnostic
+          ? "Problem: " + lastTest.diagnostic.summary + "\\nNext: " + lastTest.diagnostic.action + "\\n\\n"
+          : "";
         return lastTest.passed
           ? "Last test passed.\\n" + checks
-          : "Last test failed.\\n" + checks;
+          : diagnosis + "Check results:\\n" + checks;
+      }
+
+      function formatTechnicalDetails(lastTest) {
+        const diagnostic = lastTest?.diagnostic;
+        if (!diagnostic) return "No technical probe details were recorded. Run Test camera again with VenueEdge 0.2.8.";
+        return [
+          "Code: " + diagnostic.code,
+          "FFmpeg exit code: " + (diagnostic.exitCode ?? "none"),
+          "Timed out: " + (diagnostic.timedOut ? "yes" : "no"),
+          "Detected codec: " + (diagnostic.detectedCodec ?? "none"),
+          "\\nLast safe FFmpeg output:\\n" + (diagnostic.output || "No FFmpeg output was returned."),
+        ].join("\\n");
       }
 
       document.getElementById("enrollment-form")?.addEventListener("submit", async (event) => {
@@ -554,6 +612,8 @@ export function renderSetupPage(input: {
         const message = document.getElementById("camera-message");
         button.disabled = true;
         try {
+          pauseLiveViews();
+          await new Promise((resolve) => setTimeout(resolve, 350));
           const data = await api("/api/setup/cameras");
           const selected = data.cameras.filter((camera) => camera.enabled);
           if (!selected.length) throw new Error("Select at least one camera for replay clips.");
@@ -568,7 +628,7 @@ export function renderSetupPage(input: {
           await loadCommissioning();
           message.textContent = camerasReady ? "Selected cameras are ready. Continue to map them to tables." : "A camera check failed. Review the camera details and retry.";
         } catch (error) { message.textContent = error.message; }
-        finally { preparingCameras = false; button.disabled = setupLocked; }
+        finally { preparingCameras = false; button.disabled = setupLocked; resumeLiveViews(); }
       }
       document.getElementById("prepare-cameras")?.addEventListener("click", prepareSelectedCameras);
 
@@ -584,6 +644,7 @@ export function renderSetupPage(input: {
           const live = document.createElement("div");
           live.className = "camera-live";
           const liveImage = document.createElement("img");
+          liveImage.dataset.cameraId = camera.id;
           liveImage.alt = "Live view from " + camera.label;
           liveImage.loading = "lazy";
           const liveState = document.createElement("span");
@@ -628,6 +689,28 @@ export function renderSetupPage(input: {
           testSummary.className = "muted";
           testSummary.textContent = formatTestSummary(camera.lastTest);
           info.append(heading, meta, testSummary);
+          if (camera.lastTest && !camera.lastTest.passed) {
+            const technical = document.createElement("details");
+            const technicalSummary = document.createElement("summary");
+            technicalSummary.textContent = "Technical details";
+            const technicalOutput = document.createElement("pre");
+            technicalOutput.className = "technical-output";
+            technicalOutput.textContent = formatTechnicalDetails(camera.lastTest);
+            const copyButton = document.createElement("button");
+            copyButton.type = "button";
+            copyButton.className = "inline";
+            copyButton.textContent = "Copy diagnostics";
+            copyButton.onclick = async () => {
+              try {
+                await navigator.clipboard.writeText(technicalOutput.textContent);
+                copyButton.textContent = "Copied";
+              } catch {
+                copyButton.textContent = "Select the details above to copy";
+              }
+            };
+            technical.append(technicalSummary, technicalOutput, copyButton);
+            info.appendChild(technical);
+          }
           if (!setupLocked) {
             const actions = document.createElement("div");
             actions.className = "actions";
@@ -664,11 +747,30 @@ export function renderSetupPage(input: {
       }
 
       async function testCamera(id) {
-        document.getElementById("camera-message").textContent = "Running camera test…";
-        await api("/api/setup/cameras/" + id + "/test", { method: "POST", body: "{}" });
-        await loadCameras();
-        await loadCommissioning();
-        document.getElementById("camera-message").textContent = "Camera test finished.";
+        const message = document.getElementById("camera-message");
+        message.textContent = "Closing the live view, then checking the camera…";
+        pauseLiveViews();
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        try {
+          const result = await api("/api/setup/cameras/" + id + "/test", { method: "POST", body: "{}", timeoutMs: 180000 });
+          await loadCameras();
+          await loadCommissioning();
+          message.textContent = result.passed ? "Camera check passed." : "Camera check failed. See the problem and Technical details below.";
+        } catch (error) {
+          message.textContent = error.message;
+          resumeLiveViews();
+        }
+      }
+
+      function pauseLiveViews() {
+        document.querySelectorAll(".camera-live img[src]").forEach((image) => image.removeAttribute("src"));
+      }
+
+      function resumeLiveViews() {
+        if (currentStage !== 3) return;
+        document.querySelectorAll(".camera-live img[data-live-url]").forEach((image, index) => {
+          if (index < 4) image.src = image.dataset.liveUrl + "&view=" + Date.now();
+        });
       }
 
       async function capturePreview(id) {
@@ -705,6 +807,9 @@ export function renderSetupPage(input: {
         workflow.published = checklist.published;
         workflow.configApplied = checklist.configApplied;
         workflow.completed = checklist.completed;
+        workflow.enabledCameraCount = checklist.enabledCameraCount;
+        workflow.camerasTested = checklist.allEnabledCamerasTested;
+        workflow.camerasPreviewed = checklist.allEnabledCamerasPreviewed;
         camerasReady = checklist.allEnabledCamerasTested && checklist.allEnabledCamerasPreviewed;
         if (checklist.configApplied && currentStage === 5) currentStage = 6;
         document.getElementById("commissioning-checklist").textContent = lines.join("\\n");

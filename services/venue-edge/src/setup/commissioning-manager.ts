@@ -15,6 +15,7 @@ import type {
 import type { LocalCameraTestSummary } from "../local-storage/local-camera-types"
 import type { LocalStoragePaths } from "../local-storage/paths"
 import type { SourceHealthStatus } from "../health/types"
+import { safeLog } from "../health/metrics"
 import { LiveRtspClipAdapter } from "../video-adapters/live-rtsp-adapter"
 import { buildVigiLiveRtspUrl } from "../video-adapters/vigi-urls"
 import {
@@ -121,6 +122,7 @@ function toTestSummary(result: NvrProbeSuiteResult): LocalCameraTestSummary {
   return {
     passed: result.passed,
     testedAt: new Date().toISOString(),
+    diagnostic: result.diagnostic,
     checks: result.checks,
   }
 }
@@ -294,6 +296,13 @@ export class CommissioningManager {
 
     const summary = toTestSummary(result)
     this.repositories.updateLocalCamera(cameraId, { lastTest: summary })
+    if (!result.passed) {
+      safeLog("warn", "Camera verification failed", {
+        cameraId,
+        nvrId: nvr.id,
+        diagnostic: result.diagnostic,
+      })
+    }
 
     return { cameraId, passed: result.passed, result }
   }
