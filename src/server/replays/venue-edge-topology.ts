@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 
-import { and, desc, eq, isNull } from "drizzle-orm"
+import { and, desc, eq, isNull, ne } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import {
@@ -314,9 +314,39 @@ export async function ingestCommissioningSnapshotForLocation(input: {
     const seenRouteKeys = new Set<string>()
     const seenRoutePriorities = new Set<string>()
     const seenPolicyResourceIds = new Set<string>()
+    const recorderIdMap = new Map<string, string>()
+    const sourceIdMap = new Map<string, string>()
+    const existingRecorders = await tx
+      .select({
+        id: replayRecorders.id,
+        label: replayRecorders.label,
+        host: replayRecorders.host,
+        rtspPort: replayRecorders.rtspPort,
+      })
+      .from(replayRecorders)
+      .where(
+        and(
+          eq(replayRecorders.tenantId, input.tenantId),
+          eq(replayRecorders.locationId, input.locationId),
+        ),
+      )
+    const existingSources = await tx
+      .select({
+        id: replayCameraSources.id,
+        recorderId: replayCameraSources.recorderId,
+        channelKey: replayCameraSources.channelKey,
+        streamProfile: replayCameraSources.streamProfile,
+      })
+      .from(replayCameraSources)
+      .where(
+        and(
+          eq(replayCameraSources.tenantId, input.tenantId),
+          eq(replayCameraSources.locationId, input.locationId),
+        ),
+      )
 
     for (const nvr of input.snapshot.nvrs ?? []) {
-      const id = typeof nvr.id === "string" ? nvr.id : randomUUID()
+      const reportedId = typeof nvr.id === "string" ? nvr.id : randomUUID()
       const label = typeof nvr.label === "string" ? nvr.label : "NVR"
       const vendor =
         typeof nvr.vendor === "string" && nvr.vendor.length > 0
@@ -331,8 +361,33 @@ export async function ingestCommissioningSnapshotForLocation(input: {
       const localConnectionKey =
         typeof nvr.localConnectionKey === "string"
           ? nvr.localConnectionKey
-          : `local-nvr-${id.slice(0, 8)}`
+          : `local-nvr-${reportedId.slice(0, 8)}`
       const username = typeof nvr.username === "string" ? nvr.username : null
+      const exactRecorder = existingRecorders.find(
+        (recorder) => recorder.id === reportedId,
+      )
+      const labelRecorder = existingRecorders.find(
+        (recorder) => recorder.label.toLowerCase() === label.toLowerCase(),
+      )
+      const endpointRecorders = existingRecorders.filter(
+        (recorder) =>
+          hostWithoutScheme(recorder.host ?? "").toLowerCase() ===
+            hostWithoutScheme(host ?? "").toLowerCase() &&
+          (recorder.rtspPort ?? 554) === rtspPort,
+      )
+      if (!exactRecorder && !labelRecorder && endpointRecorders.length > 1) {
+        throw new DeviceError(
+          "CONFIG_INVALID",
+          `More than one saved NVR uses ${host}:${rtspPort}. Review the duplicate recorders before publishing.`,
+          409,
+        )
+      }
+      const id =
+        exactRecorder?.id ??
+        labelRecorder?.id ??
+        endpointRecorders[0]?.id ??
+        reportedId
+      recorderIdMap.set(reportedId, id)
       seenRecorderIds.add(id)
 
       const recorderResult = await tx
@@ -390,6 +445,19 @@ export async function ingestCommissioningSnapshotForLocation(input: {
       }
 
       await tx
+        .update(venueEdgeSecretRefs)
+        .set({ status: "revoked", revokedAt: now, updatedAt: now })
+        .where(
+          and(
+            eq(venueEdgeSecretRefs.tenantId, input.tenantId),
+            eq(venueEdgeSecretRefs.locationId, input.locationId),
+            eq(venueEdgeSecretRefs.recorderId, id),
+            ne(venueEdgeSecretRefs.edgeDeviceId, input.edgeDeviceId),
+            eq(venueEdgeSecretRefs.status, "active"),
+          ),
+        )
+
+      await tx
         .insert(venueEdgeSecretRefs)
         .values({
           tenantId: input.tenantId,
@@ -419,10 +487,20 @@ export async function ingestCommissioningSnapshotForLocation(input: {
     }
 
     for (const camera of input.snapshot.cameras ?? []) {
-      const id = typeof camera.id === "string" ? camera.id : randomUUID()
-      const recorderId = typeof camera.nvrId === "string" ? camera.nvrId : null
-      if (!recorderId) {
+      const reportedId =
+        typeof camera.id === "string" ? camera.id : randomUUID()
+      const reportedRecorderId =
+        typeof camera.nvrId === "string" ? camera.nvrId : null
+      if (!reportedRecorderId) {
         continue
+      }
+      const recorderId = recorderIdMap.get(reportedRecorderId)
+      if (!recorderId) {
+        throw new DeviceError(
+          "CONFIG_INVALID",
+          "A camera refers to an NVR that is not present in this snapshot. Return to Review cameras and scan again.",
+          409,
+        )
       }
 
       const label = typeof camera.label === "string" ? camera.label : "Camera"
@@ -432,6 +510,17 @@ export async function ingestCommissioningSnapshotForLocation(input: {
         typeof camera.streamProfile === "string" ? camera.streamProfile : "main"
       const enabled = camera.enabled !== false
       const codec = camera.codec === "h265" ? "h265" : "h264"
+      const naturalSource = existingSources.find(
+        (source) =>
+          source.recorderId === recorderId &&
+          source.channelKey === channelKey &&
+          source.streamProfile === streamProfile,
+      )
+      const exactSource = existingSources.find(
+        (source) => source.id === reportedId,
+      )
+      const id = naturalSource?.id ?? exactSource?.id ?? reportedId
+      sourceIdMap.set(reportedId, id)
       seenSourceIds.add(id)
 
       const sourceResult = await tx
@@ -484,10 +573,18 @@ export async function ingestCommissioningSnapshotForLocation(input: {
     for (const route of input.snapshot.resourceRoutes ?? []) {
       const resourceId =
         typeof route.resourceId === "string" ? route.resourceId : null
-      const cameraSourceId =
+      const reportedCameraSourceId =
         typeof route.cameraId === "string" ? route.cameraId : null
-      if (!resourceId || !cameraSourceId) {
+      if (!resourceId || !reportedCameraSourceId) {
         continue
+      }
+      const cameraSourceId = sourceIdMap.get(reportedCameraSourceId)
+      if (!cameraSourceId) {
+        throw new DeviceError(
+          "CONFIG_INVALID",
+          "A table is mapped to a camera that is not present in this snapshot. Return to Map tables and select the camera again.",
+          409,
+        )
       }
 
       const priority =
@@ -508,14 +605,6 @@ export async function ingestCommissioningSnapshotForLocation(input: {
         throw new DeviceError(
           "CONFIG_INVALID",
           "A selected camera has no supported replay capture mode. Return to Map tables and select the camera again.",
-          409,
-        )
-      }
-
-      if (!seenSourceIds.has(cameraSourceId)) {
-        throw new DeviceError(
-          "CONFIG_INVALID",
-          "A table is mapped to a camera that is not present in this snapshot. Return to Map tables and select the camera again.",
           409,
         )
       }
@@ -635,7 +724,9 @@ export async function ingestCommissioningSnapshotForLocation(input: {
       const selectionMode =
         policy.selectionMode === "manual" ? "manual" : "automatic"
       const manualSourceId =
-        typeof policy.manualSourceId === "string" ? policy.manualSourceId : null
+        typeof policy.manualSourceId === "string"
+          ? (sourceIdMap.get(policy.manualSourceId) ?? null)
+          : null
       const failureThreshold =
         typeof policy.failureThreshold === "number"
           ? policy.failureThreshold
@@ -796,6 +887,28 @@ export async function buildTopologySnapshotForLocation(
   locationId: string,
   installationId?: string,
 ): Promise<EdgeConfigV2TopologySnapshot> {
+  const [installationOwner] = installationId
+    ? await db
+        .select({ edgeDeviceId: venueEdgeInstallations.edgeDeviceId })
+        .from(venueEdgeInstallations)
+        .where(
+          and(
+            eq(venueEdgeInstallations.tenantId, tenantId),
+            eq(venueEdgeInstallations.locationId, locationId),
+            eq(venueEdgeInstallations.id, installationId),
+          ),
+        )
+        .limit(1)
+    : []
+
+  if (installationId && !installationOwner) {
+    throw new DeviceError(
+      "CONFIG_NOT_READY",
+      "VenueEdge installation ownership could not be verified while building configuration.",
+      409,
+    )
+  }
+
   const venueResources = await db
     .select({
       id: resources.id,
@@ -831,6 +944,12 @@ export async function buildTopologySnapshotForLocation(
       and(
         eq(venueEdgeSecretRefs.tenantId, tenantId),
         eq(venueEdgeSecretRefs.locationId, locationId),
+        installationOwner
+          ? eq(
+              venueEdgeSecretRefs.edgeDeviceId,
+              installationOwner.edgeDeviceId,
+            )
+          : undefined,
         eq(venueEdgeSecretRefs.status, "active"),
       ),
     )
