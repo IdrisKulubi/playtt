@@ -255,6 +255,7 @@ export async function publishVenueEdgeInstallationConfig(
   const topology = await buildTopologySnapshotForLocation(
     context.tenantId,
     installation.locationId,
+    installation.id,
   )
   const revision = await publishEdgeConfigV2Revision({
     tenantId: context.tenantId,
@@ -425,6 +426,7 @@ export async function updateVenueEdgeResourcePolicy(
 ) {
   const auditReason = requireReason(input.reason)
   const now = new Date()
+  let topologyInstallationId: string | undefined
 
   await db.transaction(async (tx) => {
     const [policy] = await tx
@@ -446,6 +448,7 @@ export async function updateVenueEdgeResourcePolicy(
         404,
       )
     }
+    topologyInstallationId = policy.installationId ?? undefined
 
     const nextSelectionMode = input.selectionMode ?? policy.selectionMode
     const nextManualSourceId = input.clearOverride
@@ -487,6 +490,7 @@ export async function updateVenueEdgeResourcePolicy(
         await tx.insert(replaySourceRoutes).values({
           tenantId: context.tenantId,
           locationId,
+          installationId: policy.installationId,
           resourceId,
           cameraSourceId: candidate.sourceId,
           priority: candidate.priority,
@@ -502,6 +506,7 @@ export async function updateVenueEdgeResourcePolicy(
   const topology = await buildTopologySnapshotForLocation(
     context.tenantId,
     locationId,
+    topologyInstallationId,
   )
   const revision = await publishEdgeConfigV2Revision({
     tenantId: context.tenantId,

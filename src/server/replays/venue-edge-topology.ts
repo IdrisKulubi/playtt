@@ -794,6 +794,7 @@ export async function ingestCommissioningSnapshotForLocation(input: {
 export async function buildTopologySnapshotForLocation(
   tenantId: string,
   locationId: string,
+  installationId?: string,
 ): Promise<EdgeConfigV2TopologySnapshot> {
   const venueResources = await db
     .select({
@@ -816,6 +817,9 @@ export async function buildTopologySnapshotForLocation(
       and(
         eq(replayRecorders.tenantId, tenantId),
         eq(replayRecorders.locationId, locationId),
+        installationId
+          ? eq(replayRecorders.installationId, installationId)
+          : undefined,
         isNull(replayRecorders.retiredAt),
       ),
     )
@@ -842,6 +846,9 @@ export async function buildTopologySnapshotForLocation(
       and(
         eq(replayCameraSources.tenantId, tenantId),
         eq(replayCameraSources.locationId, locationId),
+        installationId
+          ? eq(replayCameraSources.installationId, installationId)
+          : undefined,
         isNull(replayCameraSources.retiredAt),
       ),
     )
@@ -853,6 +860,9 @@ export async function buildTopologySnapshotForLocation(
       and(
         eq(replaySourceRoutes.tenantId, tenantId),
         eq(replaySourceRoutes.locationId, locationId),
+        installationId
+          ? eq(replaySourceRoutes.installationId, installationId)
+          : undefined,
         eq(replaySourceRoutes.isEnabled, true),
         isNull(replaySourceRoutes.retiredAt),
       ),
@@ -865,6 +875,9 @@ export async function buildTopologySnapshotForLocation(
       and(
         eq(replaySourcePolicies.tenantId, tenantId),
         eq(replaySourcePolicies.locationId, locationId),
+        installationId
+          ? eq(replaySourcePolicies.installationId, installationId)
+          : undefined,
         isNull(replaySourcePolicies.retiredAt),
       ),
     )
@@ -1001,6 +1014,7 @@ export async function syncCommissioningAndPublish(input: {
   const topology = await buildTopologySnapshotForLocation(
     input.tenantId,
     input.locationId,
+    input.installationId,
   )
 
   const revisionLineage = normalizeCommissioningRevisionLineage({

@@ -64,7 +64,14 @@ export function NvrInstallationDetail({ installation: initialInstallation, canMa
     const response = await fetch(`/api/operator/venue-edge/installations/${installation.id}`, { cache: "no-store" })
     if (!response.ok) return
     const payload = (await response.json()) as { data?: { installation?: VenueEdgeInstallationDetailView } }
-    if (payload.data?.installation) setInstallation(payload.data.installation)
+    const nextInstallation = payload.data?.installation
+    if (nextInstallation) {
+      const nextStageIndex = Math.max(0, STAGES.findIndex((stage) => stage.id === nextInstallation.lifecycleStage))
+      setInstallation(nextInstallation)
+      setActiveIndex((value) => Math.min(value, nextStageIndex))
+      setUpdateChannel(nextInstallation.updateChannel)
+      setPinnedVersion(nextInstallation.pinnedVersion ?? "")
+    }
   }, [installation.id])
 
   useEffect(() => {
@@ -72,15 +79,6 @@ export function NvrInstallationDetail({ installation: initialInstallation, canMa
     const timer = window.setInterval(() => void refreshDetail(), 5000)
     return () => window.clearInterval(timer)
   }, [installation.readiness, refreshDetail])
-
-  useEffect(() => {
-    if (activeIndex > currentStageIndex) setActiveIndex(currentStageIndex)
-  }, [activeIndex, currentStageIndex])
-
-  useEffect(() => {
-    setUpdateChannel(installation.updateChannel)
-    setPinnedVersion(installation.pinnedVersion ?? "")
-  }, [installation.updateChannel, installation.pinnedVersion])
 
   async function postAction(action: "reconcile_snapshot" | "publish_config" | "recover_config_stale" | "sync_commissioning" | "revoke" | "rotate_credential" | "rollback_config", extra?: Record<string, string>) {
     const response = await fetch(`/api/operator/venue-edge/installations/${installation.id}/actions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, reason, ...extra }) })
@@ -119,7 +117,7 @@ export function NvrInstallationDetail({ installation: initialInstallation, canMa
       try {
         if (installation.configDiagnostic?.staleReason === "version_not_newer") await postAction("recover_config_stale")
         else { await postAction("reconcile_snapshot"); await postAction("publish_config") }
-        setMessage("Configuration published. Waiting for the venue PC to apply it…")
+        setMessage("Configuration published. The venue PC will receive and verify it automatically.")
         setReason(""); await refreshDetail()
       } catch (error) { setMessage(error instanceof Error ? error.message : "Could not publish configuration.") }
     })

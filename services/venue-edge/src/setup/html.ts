@@ -999,7 +999,8 @@ export function renderSetupPage(input: {
           (checklist.failoverReady ? "✓" : "○") + " Failover drills complete",
           (checklist.enrolled ? "✓" : "○") + " Paired with PlayTT",
           (checklist.published ? "✓" : "○") + " Snapshot sent to PlayTT",
-          (checklist.configApplied ? "✓" : "○") + " Cloud configuration applied locally",
+          (checklist.latestCloudConfigReceived ? "✓" : "○") + " Latest cloud revision received",
+          (checklist.configApplied ? "✓" : "○") + " Cloud configuration matches this PC",
           (checklist.completed ? "✓" : "○") + " Commissioning complete",
         ];
         if (checklist.blockingReasons.length > 0) {
@@ -1036,8 +1037,13 @@ export function renderSetupPage(input: {
           setCompleteStatus("Commissioning complete. Cloud configuration is applied locally.", false);
         } else if (checklist.published && !checklist.configApplied) {
           if (currentStage > 5) currentStage = 5;
-          setCompleteStatus("Waiting for approval in PlayTT admin. Open the dashboard, select this installation, then publish the reviewed configuration.", false);
-          document.getElementById("commissioning-message").textContent = "Snapshot sent. Approve and publish it in PlayTT admin; this screen will continue automatically.";
+          if (checklist.latestCloudConfigReceived) {
+            setCompleteStatus("PlayTT sent a configuration, but it does not match this PC. Publish the latest reviewed snapshot again in PlayTT admin.", false);
+            document.getElementById("commissioning-message").textContent = "Configuration received. The camera and recorder list differs from this PC, so commissioning cannot continue yet.";
+          } else {
+            setCompleteStatus("Waiting for PlayTT admin to publish this snapshot.", false);
+            document.getElementById("commissioning-message").textContent = "Snapshot sent. Publish it in PlayTT admin; this screen will continue automatically.";
+          }
         }
         if (commissioningPollTimer) clearTimeout(commissioningPollTimer);
         if (checklist.published && !checklist.configApplied) {

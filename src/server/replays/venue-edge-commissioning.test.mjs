@@ -118,6 +118,18 @@ test("topology reconciliation clears a superseded active route before inserting 
   assert.match(topology, /seenRoutePriorities/)
   assert.match(
     topology,
+    /eq\(replayRecorders\.installationId, installationId\)/,
+  )
+  assert.match(
+    topology,
+    /eq\(replayCameraSources\.installationId, installationId\)/,
+  )
+  assert.match(
+    topology,
+    /eq\(replaySourceRoutes\.installationId, installationId\)/,
+  )
+  assert.match(
+    topology,
     /Two enabled cameras use the same priority for one table/,
   )
   assert.match(

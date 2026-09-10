@@ -704,6 +704,25 @@ test("topology changes invalidate completed commissioning", async () => {
   assert.equal(state.failoverReady, false)
 })
 
+test("checklist distinguishes a received topology mismatch from pending admin approval", async () => {
+  const stack = await createCommissioningStack({ fixture: "edge-v2-one-nvr.json" })
+  stack.repositories.updateCommissioningState({
+    publishedAt: "2026-08-26T08:59:00.000Z",
+  })
+
+  const checklist = stack.commissioningManager.buildChecklist(true)
+  assert.equal(checklist.latestCloudConfigReceived, true)
+  assert.equal(checklist.configApplied, false)
+  assert.equal(
+    checklist.blockingReasons.includes(
+      "The latest cloud configuration does not match this PC. In PlayTT admin, publish the latest reviewed snapshot again.",
+    ),
+    true,
+  )
+
+  stack.database.close()
+})
+
 test("setup wizard shows progress and polls until cloud config applies", () => {
   const html = readFileSync(
     new URL("../src/setup/html.ts", import.meta.url),
@@ -712,7 +731,9 @@ test("setup wizard shows progress and polls until cloud config applies", () => {
   assert.match(html, /complete-spinner/)
   assert.match(html, /setCompleteStatus/)
   assert.match(html, /Publishing final snapshot to PlayTT/)
-  assert.match(html, /Waiting for approval in PlayTT admin/)
+  assert.match(html, /Waiting for PlayTT admin to publish this snapshot/)
+  assert.match(html, /Latest cloud revision received/)
+  assert.match(html, /does not match this PC/)
   assert.match(html, /workflow\.published && workflow\.configApplied/)
   assert.match(html, /open-cloud-dashboard/)
   assert.match(html, /live\.mjpeg/)
