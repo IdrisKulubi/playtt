@@ -33,6 +33,7 @@ export interface NvrProbeInput {
   nvr: LocalNvrRow
   password: string
   liveRtspUrl: string
+  scope?: "connection" | "full"
 }
 
 export interface NvrProbeRunner {
@@ -168,6 +169,15 @@ export class DefaultNvrProbeRunner implements NvrProbeRunner {
         liveOk ? undefined : "channel_unavailable",
       ),
     )
+
+    if (input.scope === "connection") {
+      return {
+        passed: liveOk,
+        timeMode,
+        diagnostic,
+        checks,
+      }
+    }
 
     checks.push(
       checkResult(

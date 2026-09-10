@@ -74,7 +74,8 @@ export function renderSetupPage(input: {
       .brand { display: flex; align-items: baseline; gap: var(--space-xs); margin-bottom: var(--space-2xl); }
       .brand strong { color: #007fb3; font-size: 1.4rem; }
       .steps { display: grid; gap: var(--space-xs); list-style: none; padding: 0; margin: 0; }
-      .step { display: grid; grid-template-columns: 2rem 1fr; gap: var(--space-sm); align-items: center; padding: var(--space-sm); border-radius: var(--radius-md); color: var(--muted); }
+      .step { width: 100%; display: grid; grid-template-columns: 2rem 1fr; gap: var(--space-sm); align-items: center; padding: var(--space-sm); border-radius: var(--radius-md); color: var(--muted); text-align: left; }
+      .step:hover { background: var(--surface-soft); color: var(--ink); }
       .step-dot { width: 2rem; height: 2rem; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 50%; font-weight: 650; }
       .step[data-state="current"] { background: #e8f7ff; color: #006d99; }
       .step[data-state="current"] .step-dot { border-color: var(--primary); background: var(--primary); color: var(--primary-ink); }
@@ -98,6 +99,35 @@ export function renderSetupPage(input: {
       input, select { width: 100%; margin-top: var(--space-2xs); padding: .7rem .8rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); }
       input[type="checkbox"] { width: auto; min-height: auto; }
       .actions { display: flex; flex-wrap: wrap; gap: var(--space-xs); margin-top: var(--space-md); }
+      .form-message, #enrollment-message, #nvr-message, #camera-message, #mapping-message, #commissioning-message, .busy-row {
+        position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0);
+      }
+      .toast-stack {
+        position: fixed; top: var(--space-lg); right: var(--space-lg); z-index: 80;
+        display: grid; gap: var(--space-sm); width: min(24.5rem, calc(100vw - 2rem));
+        pointer-events: none;
+      }
+      .toast {
+        pointer-events: auto; display: grid; grid-template-columns: 2.25rem 1fr auto; gap: .7rem;
+        padding: .9rem 1rem; border: 1px solid var(--border); border-radius: 1rem;
+        background: var(--surface); box-shadow: 0 18px 40px rgba(15, 23, 42, .14);
+        animation: toast-in var(--motion);
+      }
+      .toast[data-kind="success"] { border-color: #bfe4cf; background: #f4fbf6; }
+      .toast[data-kind="warning"] { border-color: #f0d39a; background: #fff8ea; }
+      .toast[data-kind="error"] { border-color: #f0b6b6; background: #fff5f5; }
+      .toast-mark {
+        width: 2.25rem; height: 2.25rem; display: grid; place-items: center;
+        border-radius: 999px; font-weight: 750; background: #e8f7ff; color: #006d99;
+      }
+      .toast[data-kind="success"] .toast-mark { background: #d9f3e4; color: #075c31; }
+      .toast[data-kind="warning"] .toast-mark { background: #ffe8b8; color: #7a4a00; }
+      .toast[data-kind="error"] .toast-mark { background: #ffd6d6; color: var(--danger); }
+      .toast strong { display: block; font-size: .92rem; letter-spacing: -.01em; }
+      .toast p, .toast li { margin: .2rem 0 0; color: var(--muted); font-size: .88rem; }
+      .toast ul { margin: .35rem 0 0; padding-left: 1.1rem; }
+      .toast button { min-width: 2rem; min-height: 2rem; padding: 0; background: transparent; color: var(--muted); font-size: 1rem; }
+      @keyframes toast-in { from { opacity: 0; transform: translateY(-.4rem) scale(.98); } to { opacity: 1; transform: none; } }
       button.inline { margin: 0; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
       .nvr-item, .resource-item { padding: var(--space-md) 0; border-top: 1px solid var(--border); }
       .camera-item { display: grid; grid-template-columns: minmax(15rem, 22rem) minmax(0, 1fr); gap: var(--space-lg); padding: var(--space-lg) 0; border-top: 1px solid var(--border); }
@@ -117,11 +147,7 @@ export function renderSetupPage(input: {
       .review { margin: var(--space-lg) 0; padding: var(--space-lg); border: 1px solid #e3b35d; border-radius: var(--radius-lg); background: #fff9ed; }
       .review[data-empty="true"] { border-color: #bfe4cf; background: #f1fbf5; }
       .review-list { margin: var(--space-md) 0 0; padding-left: 1.25rem; }
-      .footer-actions { position: fixed; right: 0; bottom: 0; left: 17rem; display: grid; gap: var(--space-sm); padding: var(--space-md) var(--space-xl) max(var(--space-md), env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 96%, transparent); }
-      .footer-buttons { display: flex; justify-content: space-between; gap: var(--space-md); }
-      .stage-guidance { max-height: 12rem; overflow: auto; padding: var(--space-sm) var(--space-md); border-radius: var(--radius-md); background: #fff6df; color: #633b00; }
-      .stage-guidance strong { display: block; color: #442800; }
-      .stage-guidance ul { margin: var(--space-xs) 0 0; padding-left: 1.2rem; }
+      .footer-actions { position: fixed; right: 0; bottom: 0; left: 17rem; z-index: 40; display: flex; justify-content: space-between; gap: var(--space-md); padding: var(--space-md) var(--space-xl) max(var(--space-md), env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 96%, transparent); }
       video { display: none; width: min(100%, 42rem); margin-top: var(--space-lg); border-radius: var(--radius-md); background: var(--ink); }
       @keyframes stage-in { from { opacity: .55; transform: translateY(.35rem); } to { opacity: 1; transform: none; } }
       @media (max-width: 800px) {
@@ -144,7 +170,7 @@ export function renderSetupPage(input: {
       <aside class="rail" aria-label="Setup progress">
         <div class="brand"><strong>PlayTT</strong><span>VenueEdge</span></div>
         <ol class="steps">
-          ${["Pair device", "Add NVR", "Review cameras", "Map tables", "Publish & apply", "Commission"].map((label, index) => `<li class="step" data-step-item="${index + 1}" data-state="upcoming"><span class="step-dot">${index + 1}</span><span>${label}<small>Not started</small></span></li>`).join("")}
+          ${["Pair device", "Add NVR", "Review cameras", "Map tables", "Publish & apply", "Commission"].map((label, index) => `<li><button type="button" class="step quiet" data-step-item="${index + 1}" data-state="upcoming"><span class="step-dot">${index + 1}</span><span>${label}<small>Not started</small></span></button></li>`).join("")}
         </ol>
         <div class="rail-footer"><p class="muted">Setup stays local. NVR passwords never leave this PC.</p></div>
       </aside>
@@ -169,8 +195,8 @@ export function renderSetupPage(input: {
               <div class="row"><label>Host or IP address<input name="host" placeholder="192.168.0.240" required ${disabledAttr} /></label><label>RTSP port<input name="rtspPort" type="number" value="554" required ${disabledAttr} /></label></div>
               <div class="row"><label>Username<input name="username" required ${disabledAttr} /></label><label>Password<input name="password" type="password" required ${disabledAttr} /></label></div>
               <details><summary>Technician details</summary><div class="row"><label>Test channel<input name="testChannelKey" value="1" ${disabledAttr} /></label><label>Vendor<select name="vendor" ${disabledAttr}><option value="vigi">VIGI</option></select></label></div></details>
-              <div class="actions"><button type="submit" ${disabledAttr}>Add NVR</button><button type="button" id="discover-btn" class="secondary" ${disabledAttr}>Test reachability</button></div>
-              <p id="nvr-message" class="muted" aria-live="polite"></p>
+              <div class="actions"><button type="submit" id="add-nvr-btn" ${disabledAttr}>Verify &amp; add NVR</button><button type="button" id="discover-btn" class="secondary" ${disabledAttr}>Test network only</button></div>
+              <p id="nvr-message" class="form-message" role="status" aria-live="polite"></p>
               <div id="nvr-list"></div>
             </form>
           </section>
@@ -204,11 +230,12 @@ export function renderSetupPage(input: {
           </section>
         </main>
         <nav class="footer-actions" aria-label="Stage navigation">
-          <div id="stage-guidance" class="stage-guidance" role="status" aria-live="polite" tabindex="-1" hidden><strong>Before you continue</strong><ul id="stage-guidance-list"></ul></div>
-          <div class="footer-buttons"><button id="stage-back" type="button" class="secondary">Back</button><button id="stage-next" type="button">Continue</button></div>
+          <button id="stage-back" type="button" class="secondary">Back</button>
+          <button id="stage-next" type="button">Continue</button>
         </nav>
       </div>
     </div>
+    <div id="toast-stack" class="toast-stack" aria-live="polite" aria-relevant="additions"></div>
 
     <script>
       const token = ${JSON.stringify(input.setupToken)};
@@ -237,6 +264,122 @@ export function renderSetupPage(input: {
       let camerasReady = false;
       let preparingCameras = false;
       let renderedStage = null;
+      const toastNodes = new Map();
+      const toastTimers = new Map();
+      const toastLastText = new Map();
+
+      function inferToastKind(text, state) {
+        if (state === "error") return "error";
+        if (state === "success") return "success";
+        if (state === "checking") return "info";
+        const value = String(text || "").toLowerCase();
+        if (/fail|error|could not|invalid|required|reject|unavailable/.test(value)) return "error";
+        if (/complete|ready|saved|restored|finished|passed|verified|received|looks good|captured/.test(value)) return "success";
+        return "info";
+      }
+
+      function toastTitle(kind) {
+        if (kind === "success") return "Done";
+        if (kind === "warning") return "Before you continue";
+        if (kind === "error") return "Needs attention";
+        return "Working";
+      }
+
+      function toastMark(kind) {
+        if (kind === "success") return "✓";
+        if (kind === "warning") return "!";
+        if (kind === "error") return "!";
+        return "i";
+      }
+
+      function dismissToast(key) {
+        const node = toastNodes.get(key);
+        const timer = toastTimers.get(key);
+        if (timer) clearTimeout(timer);
+        toastTimers.delete(key);
+        toastNodes.delete(key);
+        toastLastText.delete(key);
+        if (node && node.parentNode) node.parentNode.removeChild(node);
+      }
+
+      function showToast(options) {
+        const message = typeof options === "string" ? options : options.message;
+        const items = typeof options === "string" ? null : options.items;
+        if (!message && !(items && items.length)) return;
+        const kind = typeof options === "string" ? inferToastKind(message) : (options.kind || inferToastKind(message, options.state));
+        const key = typeof options === "string" ? "notice" : (options.key || "notice");
+        const persist = typeof options === "object" && options.persist != null
+          ? options.persist
+          : kind === "warning" || kind === "error";
+        const title = typeof options === "object" && options.title ? options.title : toastTitle(kind);
+        const stack = document.getElementById("toast-stack");
+        if (!stack) return;
+        dismissToast(key);
+        const toast = document.createElement("div");
+        toast.className = "toast";
+        toast.dataset.kind = kind;
+        toast.setAttribute("role", kind === "error" || kind === "warning" ? "alert" : "status");
+        const mark = document.createElement("div");
+        mark.className = "toast-mark";
+        mark.textContent = toastMark(kind);
+        const body = document.createElement("div");
+        const heading = document.createElement("strong");
+        heading.textContent = title;
+        body.appendChild(heading);
+        if (message) {
+          const copy = document.createElement("p");
+          copy.textContent = message;
+          body.appendChild(copy);
+        }
+        if (items && items.length) {
+          const list = document.createElement("ul");
+          for (const item of items) {
+            const row = document.createElement("li");
+            row.textContent = item;
+            list.appendChild(row);
+          }
+          body.appendChild(list);
+        }
+        const close = document.createElement("button");
+        close.type = "button";
+        close.className = "quiet";
+        close.setAttribute("aria-label", "Dismiss notification");
+        close.textContent = "✕";
+        close.addEventListener("click", () => dismissToast(key));
+        toast.appendChild(mark);
+        toast.appendChild(body);
+        toast.appendChild(close);
+        stack.appendChild(toast);
+        toastNodes.set(key, toast);
+        toastLastText.set(key, message || items.join("\\n"));
+        if (!persist) {
+          toastTimers.set(key, setTimeout(() => dismissToast(key), kind === "success" ? 4200 : 5200));
+        }
+      }
+
+      function bindNoticeToasts() {
+        const ids = ["enrollment-message", "nvr-message", "camera-message", "mapping-message", "commissioning-message", "complete-status"];
+        for (const id of ids) {
+          const el = document.getElementById(id);
+          if (!el) continue;
+          const sync = () => {
+            const text = (el.textContent || "").trim();
+            const toastKey = id === "commissioning-message" || id === "complete-status"
+              ? "commissioning-progress"
+              : id;
+            if (!text || toastLastText.get(toastKey) === text) return;
+            const kind = inferToastKind(text, el.dataset.state);
+            showToast({
+              message: text,
+              key: toastKey,
+              kind: kind,
+              persist: kind === "error" || kind === "warning" || el.dataset.state === "checking" || /…$/.test(text),
+            });
+          };
+          new MutationObserver(sync).observe(el, { childList: true, characterData: true, subtree: true });
+        }
+      }
+      bindNoticeToasts();
 
       function setCompleteStatus(text, spinning) {
         const status = document.getElementById("complete-status");
@@ -275,17 +418,18 @@ export function renderSetupPage(input: {
       }
 
       function showStageGuidance() {
-        const panel = document.getElementById("stage-guidance");
-        const list = document.getElementById("stage-guidance-list");
         const requirements = requirementsForStage(currentStage);
-        list.innerHTML = "";
-        for (const requirement of requirements) {
-          const item = document.createElement("li");
-          item.textContent = requirement;
-          list.appendChild(item);
+        if (requirements.length === 0) {
+          dismissToast("stage-guidance");
+          return;
         }
-        panel.hidden = requirements.length === 0;
-        if (!panel.hidden) panel.focus({ preventScroll: true });
+        showToast({
+          key: "stage-guidance",
+          kind: "warning",
+          title: "Before you continue",
+          items: requirements,
+          persist: true,
+        });
       }
 
       function renderStages() {
@@ -319,7 +463,7 @@ export function renderSetupPage(input: {
         back.disabled = currentStage === 1;
         next.hidden = currentStage === 6;
         next.textContent = "Continue";
-        if (stageComplete(currentStage)) document.getElementById("stage-guidance").hidden = true;
+        if (stageComplete(currentStage)) dismissToast("stage-guidance");
         sessionStorage.setItem("venue-edge-stage", String(currentStage));
         if (renderedStage !== currentStage) {
           renderedStage = currentStage;
@@ -330,8 +474,26 @@ export function renderSetupPage(input: {
       document.getElementById("stage-back")?.addEventListener("click", () => {
         resumeFromSavedProgress = false;
         currentStage = Math.max(1, currentStage - 1);
-        document.getElementById("stage-guidance").hidden = true;
+        dismissToast("stage-guidance");
         renderStages();
+      });
+      document.querySelectorAll("[data-step-item]").forEach((item) => {
+        item.addEventListener("click", () => {
+          const requestedStage = Number(item.dataset.stepItem);
+          if (requestedStage > currentStage && !stageComplete(requestedStage)) {
+            showToast({
+              key: "stage-navigation",
+              kind: "info",
+              title: "Finish the current step first",
+              message: "You can revisit completed stages at any time.",
+            });
+            return;
+          }
+          resumeFromSavedProgress = false;
+          currentStage = requestedStage;
+          dismissToast("stage-guidance");
+          renderStages();
+        });
       });
       document.getElementById("stage-next")?.addEventListener("click", async () => {
         resumeFromSavedProgress = false;
@@ -340,7 +502,7 @@ export function renderSetupPage(input: {
           return;
         }
         currentStage = Math.min(6, currentStage + 1);
-        document.getElementById("stage-guidance").hidden = true;
+        dismissToast("stage-guidance");
         renderStages();
       });
 
@@ -497,12 +659,21 @@ export function renderSetupPage(input: {
             (nvr.hasPassword ? "" : " · <em>no password</em>") +
             "<pre class='muted'>" + formatTestSummary(nvr.lastTest) + "</pre>";
           if (!setupLocked) {
-            if (!nvr.hasPassword) {
+            {
               const credentialForm = document.createElement("form");
               credentialForm.className = "credential-recovery";
               const credentialCopy = document.createElement("p");
               credentialCopy.className = "muted";
-              credentialCopy.textContent = "Restore credentials to start real video buffering. The password stays protected on this PC.";
+              credentialCopy.textContent = nvr.hasPassword
+                ? "Camera access failing? Verify a corrected username and password here."
+                : "Restore credentials to start real video buffering. The password stays protected on this PC.";
+              const usernameLabel = document.createElement("label");
+              usernameLabel.textContent = "NVR username";
+              const usernameInput = document.createElement("input");
+              usernameInput.value = nvr.username;
+              usernameInput.required = true;
+              usernameInput.autocomplete = "username";
+              usernameLabel.appendChild(usernameInput);
               const passwordLabel = document.createElement("label");
               passwordLabel.textContent = "NVR password";
               const passwordInput = document.createElement("input");
@@ -513,27 +684,44 @@ export function renderSetupPage(input: {
               passwordLabel.appendChild(passwordInput);
               const savePasswordBtn = document.createElement("button");
               savePasswordBtn.type = "submit";
-              savePasswordBtn.textContent = "Save password";
-              credentialForm.append(credentialCopy, passwordLabel, savePasswordBtn);
+              savePasswordBtn.textContent = "Verify & save credentials";
+              credentialForm.append(credentialCopy, usernameLabel, passwordLabel, savePasswordBtn);
               credentialForm.onsubmit = async (event) => {
                 event.preventDefault();
                 savePasswordBtn.disabled = true;
-                savePasswordBtn.textContent = "Saving…";
-                document.getElementById("nvr-message").textContent = "Protecting NVR credentials on this PC…";
+                savePasswordBtn.textContent = "Verifying…";
+                const message = document.getElementById("nvr-message");
+                message.dataset.state = "checking";
+                message.textContent = "Checking the corrected credentials against the live stream…";
                 try {
                   await api("/api/setup/nvrs/" + nvr.id, {
                     method: "PATCH",
-                    body: JSON.stringify({ password: passwordInput.value }),
+                    body: JSON.stringify({
+                      username: usernameInput.value,
+                      password: passwordInput.value,
+                    }),
+                    timeoutMs: 25000,
                   });
                   await loadNvrs();
-                  document.getElementById("nvr-message").textContent = "Credentials restored. Real video buffering is starting.";
+                  const refreshedMessage = document.getElementById("nvr-message");
+                  refreshedMessage.dataset.state = "success";
+                  refreshedMessage.textContent = "Credentials verified and saved. Return to Review cameras and scan again.";
                 } catch (error) {
                   savePasswordBtn.disabled = false;
-                  savePasswordBtn.textContent = "Save password";
-                  document.getElementById("nvr-message").textContent = error instanceof Error ? error.message : "Could not save the password.";
+                  savePasswordBtn.textContent = "Verify & save credentials";
+                  message.dataset.state = "error";
+                  message.textContent = error instanceof Error ? error.message : "Could not verify the credentials.";
+                  passwordInput.focus();
                 }
               };
-              item.appendChild(credentialForm);
+              const credentialDetails = document.createElement("details");
+              const credentialSummary = document.createElement("summary");
+              credentialSummary.textContent = nvr.hasPassword
+                ? "Change NVR credentials"
+                : "NVR credentials required";
+              credentialDetails.open = !nvr.hasPassword;
+              credentialDetails.append(credentialSummary, credentialForm);
+              item.appendChild(credentialDetails);
             }
             const testBtn = document.createElement("button");
             testBtn.textContent = "Run test";
@@ -580,17 +768,35 @@ export function renderSetupPage(input: {
       }
 
       async function enumerateCameras(nvrId) {
-        document.getElementById("camera-message").textContent = "Enumerating channels…";
-        const result = await api("/api/setup/nvrs/" + nvrId + "/cameras/enumerate", {
-          method: "POST",
-          body: "{}",
-          timeoutMs: 240000,
-        });
-        await loadCameras();
-        document.getElementById("camera-message").textContent =
-          "Scan finished. Probed " + result.probed + " channel(s): " +
-          result.created.length + " added, " + result.updated.length + " refreshed, " +
-          result.unavailable.length + " unavailable.";
+        const message = document.getElementById("camera-message");
+        message.dataset.state = "checking";
+        message.textContent = "Checking NVR channels for live video…";
+        try {
+          const result = await api("/api/setup/nvrs/" + nvrId + "/cameras/enumerate", {
+            method: "POST",
+            body: "{}",
+            timeoutMs: 240000,
+          });
+          await loadCameras();
+          const found = result.created.length + result.updated.length;
+          if (found === 0) {
+            const firstFailure = result.failures?.[0];
+            message.dataset.state = "error";
+            message.textContent = firstFailure
+              ? "No cameras found. Channel " + firstFailure.channelKey + ": " + firstFailure.summary + " " + firstFailure.action
+              : "No cameras found. Check that camera channels are enabled on the NVR.";
+          } else {
+            message.dataset.state = "success";
+            message.textContent =
+              "Scan finished. Found " + found + " camera(s); " +
+              result.skipped + " channel(s) did not return video.";
+          }
+        } catch (error) {
+          message.dataset.state = "error";
+          message.setAttribute("role", "alert");
+          message.textContent = error.message;
+          throw error;
+        }
       }
 
       async function discoverAllCameras() {
@@ -792,7 +998,7 @@ export function renderSetupPage(input: {
           (checklist.allEnabledCamerasPreviewed ? "✓" : "○") + " 15-second previews captured",
           (checklist.failoverReady ? "✓" : "○") + " Failover drills complete",
           (checklist.enrolled ? "✓" : "○") + " Paired with PlayTT",
-          (checklist.published ? "✓" : "○") + " Snapshot published",
+          (checklist.published ? "✓" : "○") + " Snapshot sent to PlayTT",
           (checklist.configApplied ? "✓" : "○") + " Cloud configuration applied locally",
           (checklist.completed ? "✓" : "○") + " Commissioning complete",
         ];
@@ -1200,6 +1406,8 @@ export function renderSetupPage(input: {
       document.getElementById("nvr-form")?.addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = event.target;
+        const submitButton = document.getElementById("add-nvr-btn");
+        const message = document.getElementById("nvr-message");
         const payload = {
           label: form.label.value,
           host: form.host.value,
@@ -1209,18 +1417,34 @@ export function renderSetupPage(input: {
           testChannelKey: form.testChannelKey.value,
           vendor: form.vendor.value,
         };
-        document.getElementById("nvr-message").textContent = "Saving NVR…";
-        const saved = await api("/api/setup/nvrs", {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
-        form.password.value = "";
-        await loadNvrs();
-        resumeFromSavedProgress = false;
-        currentStage = 3;
-        renderStages();
-        try { await enumerateCameras(saved.nvr.id); }
-        catch (error) { document.getElementById("camera-message").textContent = "NVR saved. " + error.message + " Use Find cameras to retry."; }
+        submitButton.disabled = true;
+        submitButton.textContent = "Checking credentials…";
+        message.dataset.state = "checking";
+        message.textContent = "Connecting to the NVR and verifying the username and password…";
+        try {
+          const saved = await api("/api/setup/nvrs", {
+            method: "POST",
+            body: JSON.stringify(payload),
+            timeoutMs: 25000,
+          });
+          form.password.value = "";
+          message.dataset.state = "success";
+          message.textContent = "Credentials verified. Finding connected cameras…";
+          await loadNvrs();
+          resumeFromSavedProgress = false;
+          currentStage = 3;
+          renderStages();
+          try { await enumerateCameras(saved.nvr.id); }
+          catch (error) { document.getElementById("camera-message").textContent = "NVR added. " + error.message + " Use Find cameras to retry."; }
+        } catch (error) {
+          message.dataset.state = "error";
+          message.setAttribute("role", "alert");
+          message.textContent = error.message;
+          form.password.focus();
+        } finally {
+          submitButton.disabled = setupLocked;
+          submitButton.textContent = "Verify & add NVR";
+        }
       });
 
       document.getElementById("discover-btn")?.addEventListener("click", async () => {
@@ -1229,11 +1453,20 @@ export function renderSetupPage(input: {
           host: form.host.value,
           rtspPort: Number(form.rtspPort.value),
         };
-        const result = await api("/api/setup/nvrs/discover", {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
-        document.getElementById("nvr-message").textContent = result.message;
+        const message = document.getElementById("nvr-message");
+        message.dataset.state = "checking";
+        message.textContent = "Checking whether this PC can reach the NVR…";
+        try {
+          const result = await api("/api/setup/nvrs/discover", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          message.dataset.state = result.reachable ? "success" : "error";
+          message.textContent = result.message + (result.reachable ? " This does not verify the username or password." : "");
+        } catch (error) {
+          message.dataset.state = "error";
+          message.textContent = error.message;
+        }
       });
 
       document.getElementById("lock-btn")?.addEventListener("click", async () => {

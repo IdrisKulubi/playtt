@@ -9,6 +9,33 @@ export interface CommissioningRevisionLineage {
   sourceReportChecksumSha256: string | null
 }
 
+export function isCommissioningRevisionCurrent(input: {
+  installationId: string
+  reportVersion: number | null | undefined
+  reportChecksumSha256: string | null | undefined
+  revisionInstallationId: string | null | undefined
+  revisionReportVersion: number | null | undefined
+  revisionReportChecksumSha256: string | null | undefined
+}): boolean {
+  const report = normalizeTopologyReportLineage(
+    input.reportVersion,
+    input.reportChecksumSha256,
+  )
+  const revision = normalizeCommissioningRevisionLineage({
+    installationId: input.revisionInstallationId,
+    reportVersion: input.revisionReportVersion,
+    reportChecksumSha256: input.revisionReportChecksumSha256,
+  })
+
+  return Boolean(
+    report.reportedVersion &&
+      report.reportChecksumSha256 &&
+      revision.commissioningInstallationId === input.installationId &&
+      revision.sourceReportVersion === report.reportedVersion &&
+      revision.sourceReportChecksumSha256 === report.reportChecksumSha256,
+  )
+}
+
 export function normalizeTopologyReportLineage(
   version: number | null | undefined,
   checksum: string | null | undefined,

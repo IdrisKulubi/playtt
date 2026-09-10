@@ -125,6 +125,7 @@ async function handleLocalNvrRoutes(
       password: payload.password,
       enabled: payload.enabled as boolean | undefined,
       testChannelKey: payload.testChannelKey,
+      verifyCredentials: true,
     })
     return jsonResponse(201, { nvr })
   }
@@ -141,7 +142,10 @@ async function handleLocalNvrRoutes(
   const patchMatch = pathname.match(/^\/api\/setup\/nvrs\/([^/]+)$/)
   if (patchMatch && method === "PATCH") {
     const payload = (body ?? {}) as Record<string, unknown>
-    const updated = await localNvrManager.updateNvr(patchMatch[1], payload)
+    const updated = await localNvrManager.updateNvr(patchMatch[1], {
+      ...payload,
+      verifyCredentials: true,
+    })
     if (!updated) {
       return jsonResponse(404, { error: "NVR not found." })
     }

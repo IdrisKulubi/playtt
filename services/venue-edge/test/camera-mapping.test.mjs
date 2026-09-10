@@ -448,6 +448,34 @@ test("enumeration rescans existing channels and marks failed probes unavailable"
   assert.equal(second.unavailable[0].codec, "unknown")
 })
 
+test("enumeration stops immediately and reports rejected NVR credentials", async () => {
+  const { nvrManager, cameraManager } = await createTestStack({
+    channelProbe: {
+      async probe() {
+        return {
+          live: false,
+          codec: "unknown",
+          code: "source_auth_failed",
+        }
+      },
+    },
+  })
+  const nvr = await nvrManager.createNvr({
+    label: "Unauthorized NVR",
+    vendor: "vigi",
+    host: "192.168.10.52",
+    rtspPort: 554,
+    username: "playtt_edge",
+    password: "bad-secret",
+    testChannelKey: "1",
+  })
+
+  await assert.rejects(
+    cameraManager.enumerateCameras(nvr.id, { maxChannels: 8 }),
+    (error) => error?.code === "source_auth_failed",
+  )
+})
+
 test("setup camera and mapping APIs require setup token", async () => {
   const { nvrManager, cameraManager, mappingManager, credentialManager } =
     await createTestStack({ fixture: "edge-v2-one-nvr.json" })

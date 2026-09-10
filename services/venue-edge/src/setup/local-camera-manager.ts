@@ -259,6 +259,12 @@ export class LocalCameraManager {
     created: LocalCameraPublicView[]
     updated: LocalCameraPublicView[]
     unavailable: LocalCameraPublicView[]
+    failures: Array<{
+      channelKey: string
+      code: string
+      summary: string
+      action: string
+    }>
     skipped: number
     probed: number
   }> {
@@ -279,6 +285,12 @@ export class LocalCameraManager {
     const created: LocalCameraPublicView[] = []
     const updated: LocalCameraPublicView[] = []
     const unavailable: LocalCameraPublicView[] = []
+    const failures: Array<{
+      channelKey: string
+      code: string
+      summary: string
+      action: string
+    }> = []
     let skipped = 0
 
     for (let channel = 1; channel <= maxChannels; channel += 1) {
@@ -301,6 +313,22 @@ export class LocalCameraManager {
 
       const probe = await this.channelProbeRunner.probe({ liveRtspUrl })
       if (!probe.live) {
+        if (probe.code === "source_auth_failed") {
+          throw new LocalCameraError(
+            "source_auth_failed",
+            "The NVR rejected the saved username or password. Return to Add NVR, change the credentials, and scan again.",
+          )
+        }
+        failures.push({
+          channelKey,
+          code: probe.code ?? "source_unavailable",
+          summary:
+            probe.diagnostic?.summary ??
+            "This channel did not return a usable video stream.",
+          action:
+            probe.diagnostic?.action ??
+            "Confirm the channel is enabled on the NVR and try again.",
+        })
         if (existing) {
           const lastTest: LocalCameraTestSummary = {
             passed: false,
@@ -311,11 +339,9 @@ export class LocalCameraManager {
                 passed: false,
                 code: probe.code ?? "source_unavailable",
                 message:
-                  probe.code === "source_auth_failed"
-                    ? "Authentication failed while checking this channel."
-                    : probe.code === "probe_timed_out"
-                      ? "The channel did not respond before the probe timed out."
-                      : "No valid video stream was found on this channel.",
+                  probe.code === "probe_timed_out"
+                    ? "The channel did not respond before the probe timed out."
+                    : "No valid video stream was found on this channel.",
               },
             ],
           }
@@ -395,7 +421,14 @@ export class LocalCameraManager {
       }
     }
 
-    return { created, updated, unavailable, skipped, probed: maxChannels }
+    return {
+      created,
+      updated,
+      unavailable,
+      failures,
+      skipped,
+      probed: maxChannels,
+    }
   }
 
   async resolveCameraRtspUrl(cameraId: string): Promise<string | null> {

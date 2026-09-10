@@ -27,6 +27,7 @@ import {
   type TopologyCounts,
 } from "@/server/replays/venue-edge-topology"
 import type { TenantContext } from "@/server/tenancy/types"
+import { isCommissioningRevisionCurrent } from "@/server/replays/venue-edge-report-lineage"
 
 export type VenueEdgeFleetConnectivity =
   | "online"
@@ -234,6 +235,7 @@ function deriveWorkflow(input: {
   hostSleepRisk: boolean
   configStatus: string | null
   diagnostic: VenueEdgeConfigDiagnostic | null
+  latestReportPublished: boolean
 }) {
   const blockers: VenueEdgeChecklistBlocker[] = []
   if (input.connectivity === "pending_setup" || input.connectivity === "waiting_for_install") {
@@ -249,6 +251,7 @@ function deriveWorkflow(input: {
     blockers.push({ code: "MAP_TABLES", label: "Map cameras to tables", detail: "Every replay table needs a primary camera route.", stage: "map_tables" })
   }
   const configReady =
+    input.latestReportPublished &&
     input.desired.revisionVersion !== null &&
     input.desired.revisionVersion === input.applied.revisionVersion &&
     input.configStatus === "applied"
@@ -256,7 +259,11 @@ function deriveWorkflow(input: {
     blockers.push({
       code: input.diagnostic?.code ?? "PUBLISH_CONFIG",
       label: input.diagnostic?.staleReason ? "Recover configuration delivery" : "Publish and apply configuration",
-      detail: input.diagnostic?.remediation ?? "Publish the reviewed topology and wait for the venue PC to apply it.",
+      detail:
+        input.diagnostic?.remediation ??
+        (input.latestReportPublished
+          ? "The latest reviewed topology is published. Keep the venue PC online while it applies."
+          : "The local snapshot is newer than the published configuration. Review and publish this snapshot."),
       stage: "publish_config",
     })
   }
@@ -287,7 +294,10 @@ function deriveWorkflow(input: {
         JSON.stringify(input.reported.topology) !== JSON.stringify(input.desired.topology),
       summary: configReady
         ? "Desired configuration is applied on the venue PC."
-        : input.diagnostic?.remediation ?? "Local, desired, and applied topology are not yet aligned.",
+        : input.diagnostic?.remediation ??
+          (input.latestReportPublished
+            ? "The latest desired configuration has not been applied by the venue PC yet."
+            : "The latest local snapshot has not been published yet."),
     },
   }
 }
@@ -404,6 +414,11 @@ async function loadPublishedConfigSummary(
       checksumSha256: venueEdgeConfigRevisions.checksumSha256,
       snapshot: venueEdgeConfigRevisions.snapshot,
       publishedAt: venueEdgeConfigRevisions.publishedAt,
+      commissioningInstallationId:
+        venueEdgeConfigRevisions.commissioningInstallationId,
+      sourceReportVersion: venueEdgeConfigRevisions.sourceReportVersion,
+      sourceReportChecksumSha256:
+        venueEdgeConfigRevisions.sourceReportChecksumSha256,
     })
     .from(venueEdgeConfigRevisions)
     .where(
@@ -659,6 +674,16 @@ export async function listVenueEdgeInstallations(
       hostSleepRisk: sleepRisk.hostSleepRisk,
       configStatus: configApplication?.status ?? null,
       diagnostic: configDiagnostic,
+      latestReportPublished: isCommissioningRevisionCurrent({
+        installationId: row.installation.id,
+        reportVersion: row.installation.lastReportVersion,
+        reportChecksumSha256: row.installation.lastReportChecksumSha256,
+        revisionInstallationId:
+          publishedRevision?.commissioningInstallationId,
+        revisionReportVersion: publishedRevision?.sourceReportVersion,
+        revisionReportChecksumSha256:
+          publishedRevision?.sourceReportChecksumSha256,
+      }),
     })
 
     const view: VenueEdgeInstallationFleetView = {

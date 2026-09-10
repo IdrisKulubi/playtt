@@ -172,7 +172,9 @@ test("local NVR CRUD persists metadata and protected passwords across sqlite reo
 })
 
 test("setup NVR APIs omit passwords and require setup token", async () => {
-  const { manager, credentialManager } = await createTestStack()
+  const { manager, credentialManager } = await createTestStack(
+    createProbeScenario("ok"),
+  )
   const host = await startSetupHost({
     port: 0,
     sessionTtlMs: 60_000,
@@ -212,6 +214,72 @@ test("setup NVR APIs omit passwords and require setup token", async () => {
   assert.equal(listed.nvrs.length, 1)
   assert.equal(listed.nvrs[0].hasPassword, true)
 
+  await stopSetupHost(host)
+})
+
+test("setup NVR API rejects invalid credentials without saving the recorder", async () => {
+  const { manager, credentialManager } = await createTestStack(
+    createProbeScenario("source_auth_failed"),
+  )
+  const host = await startSetupHost({
+    port: 0,
+    sessionTtlMs: 60_000,
+    credentialManager,
+    localNvrManager: manager,
+  })
+  const fetchSetup = setupFetch(host.port, host.session.token)
+
+  const response = await fetchSetup("/api/setup/nvrs", {
+    method: "POST",
+    body: JSON.stringify({
+      label: "Wrong password NVR",
+      vendor: "vigi",
+      host: "192.168.10.22",
+      rtspPort: 554,
+      username: "playtt_edge",
+      password: "wrong-password",
+      testChannelKey: "1",
+    }),
+  })
+
+  assert.equal(response.status, 400)
+  assert.equal((await response.json()).code, "source_auth_failed")
+  assert.equal((await manager.listPublicNvrs()).length, 0)
+  await stopSetupHost(host)
+})
+
+test("credential correction rejects a bad password without replacing the saved one", async () => {
+  const { manager, credentialManager, passwordStore } = await createTestStack(
+    createProbeScenario("source_auth_failed"),
+  )
+  const nvr = await manager.createNvr({
+    label: "Existing NVR",
+    vendor: "vigi",
+    host: "192.168.10.23",
+    rtspPort: 554,
+    username: "playtt_edge",
+    password: "known-good-password",
+    testChannelKey: "1",
+  })
+  const host = await startSetupHost({
+    port: 0,
+    sessionTtlMs: 60_000,
+    credentialManager,
+    localNvrManager: manager,
+  })
+  const fetchSetup = setupFetch(host.port, host.session.token)
+
+  const response = await fetchSetup(`/api/setup/nvrs/${nvr.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ password: "wrong-password" }),
+  })
+
+  assert.equal(response.status, 400)
+  assert.equal((await response.json()).code, "source_auth_failed")
+  assert.equal(
+    await passwordStore.get(nvr.localConnectionKey),
+    "known-good-password",
+  )
   await stopSetupHost(host)
 })
 
