@@ -92,6 +92,50 @@ export class LocalNvrManager {
     this.probeRunner = probeRunner ?? new DefaultNvrProbeRunner()
   }
 
+  private async verifyConnection(
+    candidate: LocalNvrRow,
+    password: string,
+  ): Promise<NvrProbeSuiteResult> {
+    const liveRtspUrl = buildVigiLiveRtspUrl({
+      host: candidate.host,
+      rtspPort: candidate.rtspPort,
+      username: candidate.username,
+      password,
+      channelKey: candidate.testChannelKey,
+      streamProfile: "main",
+    })
+    const result = await this.probeRunner.run({
+      nvr: candidate,
+      password,
+      liveRtspUrl,
+      scope: "connection",
+    })
+
+    if (result.passed) {
+      return result
+    }
+
+    if (result.checks.some((check) => check.code === "source_auth_failed")) {
+      throw new LocalNvrError(
+        "source_auth_failed",
+        "The NVR rejected that username or password. Check both fields and try again.",
+      )
+    }
+
+    if (result.checks.some((check) => check.code === "nvr_unreachable")) {
+      throw new LocalNvrError(
+        "nvr_unreachable",
+        "This PC cannot reach the NVR. Check the IP address, RTSP port, and network connection.",
+      )
+    }
+
+    throw new LocalNvrError(
+      "nvr_stream_unavailable",
+      result.diagnostic?.summary ??
+        `The credentials could not be verified on channel ${candidate.testChannelKey}. Check the channel and stream settings, then try again.`,
+    )
+  }
+
   async listPublicNvrs(): Promise<LocalNvrPublicView[]> {
     const rows = this.repositories.listLocalNvrs()
     const views: LocalNvrPublicView[] = []
@@ -130,6 +174,7 @@ export class LocalNvrManager {
     password: unknown
     enabled?: boolean
     testChannelKey?: unknown
+    verifyCredentials?: boolean
   }): Promise<LocalNvrPublicView> {
     const label =
       typeof input.label === "string" && input.label.trim().length > 0
@@ -163,6 +208,12 @@ export class LocalNvrManager {
       )
     }
 
+    const vendor = parseVendor(input.vendor)
+    const testChannelKey =
+      typeof input.testChannelKey === "string" &&
+      input.testChannelKey.trim().length > 0
+        ? input.testChannelKey.trim()
+        : "1"
     const id = randomUUID()
     const localConnectionKey = mintLocalConnectionKey(id)
     const playbackPort =
@@ -170,27 +221,55 @@ export class LocalNvrManager {
         ? null
         : parsePort(input.playbackPort, "playbackPort")
 
+    let connectionTest: NvrProbeSuiteResult | null = null
+    if (input.verifyCredentials) {
+      const timestamp = new Date().toISOString()
+      const candidate: LocalNvrRow = {
+        id,
+        label,
+        vendor,
+        host,
+        rtspPort,
+        playbackPort,
+        username,
+        localConnectionKey,
+        enabled: input.enabled ?? true,
+        testChannelKey,
+        timeMode: "unknown",
+        lastTest: null,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      }
+      connectionTest = await this.verifyConnection(candidate, input.password)
+    }
+
     const row = this.repositories.insertLocalNvr({
       id,
       label,
-      vendor: parseVendor(input.vendor),
+      vendor,
       host,
       rtspPort,
       playbackPort,
       username,
       localConnectionKey,
       enabled: input.enabled ?? true,
-      testChannelKey:
-        typeof input.testChannelKey === "string" &&
-        input.testChannelKey.trim().length > 0
-          ? input.testChannelKey.trim()
-          : "1",
+      testChannelKey,
       timeMode: "unknown",
     })
 
     await this.passwordStore.set(localConnectionKey, input.password)
+    if (connectionTest) {
+      this.repositories.updateLocalNvr(id, {
+        lastTest: {
+          passed: true,
+          testedAt: new Date().toISOString(),
+          timeMode: connectionTest.timeMode,
+          checks: connectionTest.checks,
+        },
+      })
+    }
     this.repositories.invalidateCommissioning()
-    return toPublicView(row, true)
+    return toPublicView(this.repositories.getLocalNvrById(row.id)!, true)
   }
 
   async updateNvr(
@@ -204,6 +283,7 @@ export class LocalNvrManager {
       password?: unknown
       enabled?: boolean
       testChannelKey?: unknown
+      verifyCredentials?: boolean
     },
   ): Promise<LocalNvrPublicView | null> {
     const existing = this.repositories.getLocalNvrById(id)
@@ -275,10 +355,6 @@ export class LocalNvrManager {
       typeof input.password === "string" && input.password.length > 0
         ? input.password
         : null
-    if (newPassword) {
-      await this.passwordStore.set(existing.localConnectionKey, newPassword)
-    }
-
     const duplicate = this.repositories.findLocalNvrByEndpoint(
       patch.host ?? existing.host,
       patch.rtspPort ?? existing.rtspPort,
@@ -289,6 +365,37 @@ export class LocalNvrManager {
         "duplicate_endpoint",
         `This endpoint is already saved as ${duplicate.label}.`,
       )
+    }
+
+    const connectionChanged =
+      newPassword !== null ||
+      patch.host !== undefined ||
+      patch.rtspPort !== undefined ||
+      patch.username !== undefined ||
+      patch.testChannelKey !== undefined
+    if (input.verifyCredentials && connectionChanged) {
+      const password =
+        newPassword ??
+        (await this.passwordStore.get(existing.localConnectionKey))
+      if (!password) {
+        throw new LocalNvrError(
+          "invalid_password",
+          "Enter the NVR password before verifying these credentials.",
+        )
+      }
+      await this.verifyConnection(
+        {
+          ...existing,
+          ...patch,
+          lastTest: null,
+          updatedAt: new Date().toISOString(),
+        },
+        password,
+      )
+    }
+
+    if (newPassword) {
+      await this.passwordStore.set(existing.localConnectionKey, newPassword)
     }
 
     const configurationChanged = Object.keys(patch).length > 0 || newPassword !== null

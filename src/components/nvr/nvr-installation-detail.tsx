@@ -74,7 +74,7 @@ export function NvrInstallationDetail({ installation: initialInstallation, canMa
   }, [installation.readiness, refreshDetail])
 
   useEffect(() => {
-    if (activeIndex < currentStageIndex) setActiveIndex(currentStageIndex)
+    if (activeIndex > currentStageIndex) setActiveIndex(currentStageIndex)
   }, [activeIndex, currentStageIndex])
 
   useEffect(() => {

@@ -1,10 +1,12 @@
 import { probeCodec } from "../ffmpeg/probe"
 import type { LocalCameraCodec } from "../local-storage/local-camera-types"
+import { diagnoseCodecProbe, type NvrProbeDiagnostic } from "./nvr-probe"
 
 export interface CameraChannelProbeResult {
   live: boolean
   codec: LocalCameraCodec
   code?: "source_auth_failed" | "source_unavailable" | "probe_timed_out"
+  diagnostic?: NvrProbeDiagnostic
 }
 
 export interface CameraChannelProbeInput {
@@ -33,12 +35,14 @@ export class DefaultCameraChannelProbeRunner implements CameraChannelProbeRunner
   async probe(input: CameraChannelProbeInput): Promise<CameraChannelProbeResult> {
     const codecProbe = await probeCodec(input.liveRtspUrl)
     const combined = codecProbe.raw
+    const diagnostic = diagnoseCodecProbe(codecProbe)
 
     if (authFailed(combined)) {
       return {
         live: false,
         codec: "unknown",
         code: "source_auth_failed",
+        diagnostic,
       }
     }
 
@@ -47,6 +51,7 @@ export class DefaultCameraChannelProbeRunner implements CameraChannelProbeRunner
         live: false,
         codec: "unknown",
         code: "probe_timed_out",
+        diagnostic,
       }
     }
 
@@ -55,6 +60,7 @@ export class DefaultCameraChannelProbeRunner implements CameraChannelProbeRunner
         live: false,
         codec: "unknown",
         code: "source_unavailable",
+        diagnostic,
       }
     }
 
