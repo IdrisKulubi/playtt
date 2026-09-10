@@ -116,6 +116,12 @@ test("topology reconciliation clears a superseded active route before inserting 
   assert.ok(supersededRouteUpdate > routeLoop)
   assert.ok(routeInsert > supersededRouteUpdate)
   assert.match(topology, /seenRoutePriorities/)
+  assert.match(topology, /recorderIdMap/)
+  assert.match(topology, /sourceIdMap/)
+  assert.match(topology, /labelRecorder/)
+  assert.match(topology, /endpointRecorders/)
+  assert.match(topology, /naturalSource/)
+  assert.match(topology, /ne\(venueEdgeSecretRefs\.edgeDeviceId, input\.edgeDeviceId\)/)
   assert.match(
     topology,
     /eq\(replayRecorders\.installationId, installationId\)/,
