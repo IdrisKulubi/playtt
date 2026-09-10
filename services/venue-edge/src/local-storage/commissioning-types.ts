@@ -25,6 +25,7 @@ export interface CommissioningChecklist {
   allEnabledCamerasPreviewed: boolean
   failoverReady: boolean
   published: boolean
+  latestCloudConfigReceived: boolean
   configApplied: boolean
   completed: boolean
   canComplete: boolean

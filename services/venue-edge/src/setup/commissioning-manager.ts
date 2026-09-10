@@ -195,6 +195,18 @@ export class CommissioningManager {
     }
 
     const baseConfig = this.getEdgeConfigV2()
+    const localSnapshotPublishedAt = state.publishedAt
+      ? Date.parse(state.publishedAt)
+      : Number.NaN
+    const cloudConfigPublishedAt = baseConfig
+      ? Date.parse(baseConfig.configRevision.publishedAt)
+      : Number.NaN
+    const latestCloudConfigReceived = Boolean(
+      baseConfig &&
+        Number.isFinite(localSnapshotPublishedAt) &&
+        Number.isFinite(cloudConfigPublishedAt) &&
+        cloudConfigPublishedAt >= localSnapshotPublishedAt,
+    )
     const configApplied = Boolean(
       baseConfig &&
         state.publishedAt &&
@@ -217,7 +229,9 @@ export class CommissioningManager {
       blockingReasons.push("Publish commissioning snapshot to PlayTT.")
     } else if (!configApplied) {
       blockingReasons.push(
-        state.completed
+        latestCloudConfigReceived
+          ? "The latest cloud configuration does not match this PC. In PlayTT admin, publish the latest reviewed snapshot again."
+          : state.completed
           ? "Finishing commissioning after the latest cloud configuration applies. Keep VenueEdge online."
           : "Wait for the published cloud configuration to apply locally.",
       )
@@ -234,6 +248,7 @@ export class CommissioningManager {
       allEnabledCamerasPreviewed,
       failoverReady: state.failoverReady,
       published: Boolean(state.publishedAt),
+      latestCloudConfigReceived,
       configApplied,
       completed,
       canComplete,
