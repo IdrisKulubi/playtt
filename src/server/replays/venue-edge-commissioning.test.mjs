@@ -96,3 +96,49 @@ test("commissioning checksum is verified on the raw body before schema parse", (
   assert.match(service, /hashCommissioningReport/)
   assert.match(route, /const rawPayload/)
 })
+
+test("topology reconciliation clears a superseded active route before inserting its replacement", () => {
+  const topology = readFileSync(
+    join(repoRoot, "src", "server", "replays", "venue-edge-topology.ts"),
+    "utf8",
+  )
+
+  const routeLoop = topology.indexOf(
+    "for (const route of input.snapshot.resourceRoutes ?? [])",
+  )
+  const supersededRouteUpdate = topology.indexOf(
+    ".update(replaySourceRoutes)",
+    routeLoop,
+  )
+  const routeInsert = topology.indexOf(".insert(replaySourceRoutes)", routeLoop)
+
+  assert.ok(routeLoop > 0)
+  assert.ok(supersededRouteUpdate > routeLoop)
+  assert.ok(routeInsert > supersededRouteUpdate)
+  assert.match(topology, /seenRoutePriorities/)
+  assert.match(
+    topology,
+    /Two enabled cameras use the same priority for one table/,
+  )
+  assert.match(
+    topology,
+    /A table is mapped to a camera that is not present in this snapshot/,
+  )
+})
+
+test("operator reconciliation returns a safe recovery message for database failures", () => {
+  const actions = readFileSync(
+    join(
+      repoRoot,
+      "src",
+      "server",
+      "replays",
+      "venue-edge-operator-actions.ts",
+    ),
+    "utf8",
+  )
+
+  assert.match(actions, /VenueEdge snapshot reconciliation failed/)
+  assert.match(actions, /No configuration was published/)
+  assert.match(actions, /findDatabaseErrorMetadata/)
+})

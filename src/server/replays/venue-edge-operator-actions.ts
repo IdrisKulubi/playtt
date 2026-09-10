@@ -162,20 +162,50 @@ export async function reconcileVenueEdgeSnapshot(
   reason?: string,
 ) {
   const auditReason = requireReason(reason)
-  const installation = await getInstallationForTenant(context.tenantId, installationId)
-  const snapshot = parseCommissioningSnapshot(installation.commissioningSnapshotJson)
+  const installation = await getInstallationForTenant(
+    context.tenantId,
+    installationId,
+  )
+  const snapshot = parseCommissioningSnapshot(
+    installation.commissioningSnapshotJson,
+  )
   if (!snapshot) {
-    throw new DeviceError("CONFIG_NOT_READY", "No commissioning snapshot is available for this installation.", 409)
+    throw new DeviceError(
+      "CONFIG_NOT_READY",
+      "No commissioning snapshot is available for this installation.",
+      409,
+    )
   }
-  const ingested = await ingestCommissioningSnapshotForLocation({
-    tenantId: context.tenantId,
-    locationId: installation.locationId,
-    edgeDeviceId: installation.edgeDeviceId,
-    installationId: installation.id,
-    reportVersion: installation.lastReportVersion,
-    reportChecksumSha256: installation.lastReportChecksumSha256,
-    snapshot,
-  })
+  let ingested: Awaited<
+    ReturnType<typeof ingestCommissioningSnapshotForLocation>
+  >
+  try {
+    ingested = await ingestCommissioningSnapshotForLocation({
+      tenantId: context.tenantId,
+      locationId: installation.locationId,
+      edgeDeviceId: installation.edgeDeviceId,
+      installationId: installation.id,
+      reportVersion: installation.lastReportVersion,
+      reportChecksumSha256: installation.lastReportChecksumSha256,
+      snapshot,
+    })
+  } catch (error) {
+    if (error instanceof DeviceError) {
+      throw error
+    }
+
+    const databaseError = findDatabaseErrorMetadata(error)
+    console.error("VenueEdge snapshot reconciliation failed", {
+      installationId,
+      locationId: installation.locationId,
+      ...databaseError,
+    })
+    throw new DeviceError(
+      "CONFIG_INVALID",
+      "PlayTT could not apply the reviewed camera mappings. No configuration was published. Refresh this page and try Publish reviewed configuration again.",
+      500,
+    )
+  }
   await writeAuditLog(context, {
     action: "venue_edge.topology.reconciled",
     targetType: "venue_edge_installation",
@@ -185,6 +215,32 @@ export async function reconcileVenueEdgeSnapshot(
   return ingested
 }
 
+function findDatabaseErrorMetadata(error: unknown) {
+  let current: unknown = error
+  for (let depth = 0; depth < 4 && current instanceof Error; depth += 1) {
+    const candidate = current as Error & {
+      code?: unknown
+      constraint?: unknown
+      cause?: unknown
+    }
+    if (
+      typeof candidate.code === "string" ||
+      typeof candidate.constraint === "string"
+    ) {
+      return {
+        databaseCode:
+          typeof candidate.code === "string" ? candidate.code : "unknown",
+        constraint:
+          typeof candidate.constraint === "string"
+            ? candidate.constraint
+            : "unknown",
+      }
+    }
+    current = candidate.cause
+  }
+  return { databaseCode: "unknown", constraint: "unknown" }
+}
+
 export async function publishVenueEdgeInstallationConfig(
   context: TenantContext,
   installationId: string,
@@ -192,8 +248,14 @@ export async function publishVenueEdgeInstallationConfig(
   minimumVersionExclusive?: number,
 ) {
   const auditReason = requireReason(reason)
-  const installation = await getInstallationForTenant(context.tenantId, installationId)
-  const topology = await buildTopologySnapshotForLocation(context.tenantId, installation.locationId)
+  const installation = await getInstallationForTenant(
+    context.tenantId,
+    installationId,
+  )
+  const topology = await buildTopologySnapshotForLocation(
+    context.tenantId,
+    installation.locationId,
+  )
   const revision = await publishEdgeConfigV2Revision({
     tenantId: context.tenantId,
     locationId: installation.locationId,
@@ -209,7 +271,11 @@ export async function publishVenueEdgeInstallationConfig(
     action: VENUE_EDGE_AUDIT_ACTIONS.configPublished,
     targetType: "venue_edge_installation",
     targetId: installationId,
-    metadata: { reason: auditReason, revisionVersion: revision.version, mode: "publish_only" },
+    metadata: {
+      reason: auditReason,
+      revisionVersion: revision.version,
+      mode: "publish_only",
+    },
   })
   return revision
 }
@@ -217,7 +283,8 @@ export async function publishVenueEdgeInstallationConfig(
 function safeNumber(details: Record<string, unknown> | null, keys: string[]) {
   for (const key of keys) {
     const value = details?.[key]
-    if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) return value
+    if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0)
+      return value
   }
   return null
 }
@@ -235,7 +302,10 @@ export async function recoverVenueEdgeStaleConfig(
   installationId: string,
   reason?: string,
 ) {
-  const installation = await getInstallationForTenant(context.tenantId, installationId)
+  const installation = await getInstallationForTenant(
+    context.tenantId,
+    installationId,
+  )
   const [application] = await db
     .select({
       errorCode: venueEdgeConfigApplications.errorCode,
@@ -255,7 +325,11 @@ export async function recoverVenueEdgeStaleConfig(
   const details = application?.errorDetails ?? null
   const staleReason = safeString(details, ["reason", "staleReason"])
   if (application?.errorCode !== "CONFIG_STALE") {
-    throw new DeviceError("CONFIG_NOT_READY", "The latest configuration was not rejected as stale.", 409)
+    throw new DeviceError(
+      "CONFIG_NOT_READY",
+      "The latest configuration was not rejected as stale.",
+      409,
+    )
   }
   if (staleReason === "installation_mismatch") {
     throw new DeviceError(
@@ -265,17 +339,37 @@ export async function recoverVenueEdgeStaleConfig(
     )
   }
   if (staleReason !== "version_not_newer") {
-    throw new DeviceError("CONFIG_NOT_READY", "The stale configuration reason is unknown. Review the venue PC before retrying.", 409)
+    throw new DeviceError(
+      "CONFIG_NOT_READY",
+      "The stale configuration reason is unknown. Review the venue PC before retrying.",
+      409,
+    )
   }
   const localInstallationId = safeString(details, ["localInstallationId"])
-  if (localInstallationId && localInstallationId !== installation.installationUid) {
-    throw new DeviceError("CONFIG_NOT_READY", "The venue PC installation identity does not match this installation.", 409)
+  if (
+    localInstallationId &&
+    localInstallationId !== installation.installationUid
+  ) {
+    throw new DeviceError(
+      "CONFIG_NOT_READY",
+      "The venue PC installation identity does not match this installation.",
+      409,
+    )
   }
   const localVersion = safeNumber(details, ["localVersion", "appliedVersion"])
   if (localVersion === null) {
-    throw new DeviceError("CONFIG_NOT_READY", "The venue PC did not report its local configuration version.", 409)
+    throw new DeviceError(
+      "CONFIG_NOT_READY",
+      "The venue PC did not report its local configuration version.",
+      409,
+    )
   }
-  return publishVenueEdgeInstallationConfig(context, installationId, reason, localVersion)
+  return publishVenueEdgeInstallationConfig(
+    context,
+    installationId,
+    reason,
+    localVersion,
+  )
 }
 
 export async function rollbackVenueEdgeInstallationConfig(
@@ -356,7 +450,7 @@ export async function updateVenueEdgeResourcePolicy(
     const nextSelectionMode = input.selectionMode ?? policy.selectionMode
     const nextManualSourceId = input.clearOverride
       ? null
-      : input.manualSourceId ?? policy.manualSourceId
+      : (input.manualSourceId ?? policy.manualSourceId)
 
     await tx
       .update(replaySourcePolicies)
@@ -365,7 +459,9 @@ export async function updateVenueEdgeResourcePolicy(
         manualSourceId: nextManualSourceId,
         overrideActorId: input.clearOverride ? null : policy.overrideActorId,
         overrideReason: input.clearOverride ? null : policy.overrideReason,
-        overrideExpiresAt: input.clearOverride ? null : policy.overrideExpiresAt,
+        overrideExpiresAt: input.clearOverride
+          ? null
+          : policy.overrideExpiresAt,
         updatedAt: now,
       })
       .where(

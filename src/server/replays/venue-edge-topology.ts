@@ -125,7 +125,8 @@ export function countTopologyFromSnapshot(
   return {
     nvrCount: snapshot.nvrs?.length ?? 0,
     cameraCount: cameras.length,
-    enabledCameraCount: cameras.filter((camera) => camera.enabled === true).length,
+    enabledCameraCount: cameras.filter((camera) => camera.enabled === true)
+      .length,
   }
 }
 
@@ -140,7 +141,9 @@ export function parseHeartbeatMetrics(
     cpuPercent:
       typeof metrics?.cpuPercent === "number" ? metrics.cpuPercent : null,
     freeMemoryBytes:
-      typeof metrics?.freeMemoryBytes === "number" ? metrics.freeMemoryBytes : 0,
+      typeof metrics?.freeMemoryBytes === "number"
+        ? metrics.freeMemoryBytes
+        : 0,
     diskUsageBytes:
       typeof metrics?.diskUsageBytes === "number" ? metrics.diskUsageBytes : 0,
     reservedFreeDiskBytes:
@@ -152,7 +155,9 @@ export function parseHeartbeatMetrics(
         ? metrics.bufferAgeSeconds
         : null,
     uploadHealth:
-      typeof metrics?.uploadHealth === "string" ? metrics.uploadHealth : "unknown",
+      typeof metrics?.uploadHealth === "string"
+        ? metrics.uploadHealth
+        : "unknown",
     ffmpegRunning: metrics?.ffmpegRunning === true,
     ffmpegProcessCount:
       typeof metrics?.ffmpegProcessCount === "number"
@@ -189,8 +194,7 @@ export function parseSourceHealthRows(
       sourceId: typeof row.sourceId === "string" ? row.sourceId : "",
       recorderId: typeof row.recorderId === "string" ? row.recorderId : "",
       status: typeof row.status === "string" ? row.status : "unknown",
-      reasonCode:
-        typeof row.reasonCode === "string" ? row.reasonCode : null,
+      reasonCode: typeof row.reasonCode === "string" ? row.reasonCode : null,
     }))
     .filter((row) => row.sourceId.length > 0 || row.recorderId.length > 0)
 }
@@ -256,7 +260,12 @@ export async function ingestCommissioningSnapshotForLocation(input: {
   reportChecksumSha256?: string | null
   snapshot: CommissioningSnapshot
   now?: Date
-}): Promise<{ recorders: number; sources: number; routes: number; policies: number }> {
+}): Promise<{
+  recorders: number
+  sources: number
+  routes: number
+  policies: number
+}> {
   await assertLocation(input.tenantId, input.locationId)
 
   const [installation] = await db
@@ -278,7 +287,11 @@ export async function ingestCommissioningSnapshotForLocation(input: {
     )
     .limit(1)
   if (!installation) {
-    throw new DeviceError("CONFIG_NOT_READY", "VenueEdge installation ownership could not be verified.", 409)
+    throw new DeviceError(
+      "CONFIG_NOT_READY",
+      "VenueEdge installation ownership could not be verified.",
+      409,
+    )
   }
 
   const { reportedVersion, reportChecksumSha256 } =
@@ -299,6 +312,7 @@ export async function ingestCommissioningSnapshotForLocation(input: {
     const seenRecorderIds = new Set<string>()
     const seenSourceIds = new Set<string>()
     const seenRouteKeys = new Set<string>()
+    const seenRoutePriorities = new Set<string>()
     const seenPolicyResourceIds = new Set<string>()
 
     for (const nvr of input.snapshot.nvrs ?? []) {
@@ -310,8 +324,7 @@ export async function ingestCommissioningSnapshotForLocation(input: {
           : "generic_rtsp"
       const host =
         typeof nvr.host === "string" ? hostWithoutScheme(nvr.host) : null
-      const rtspPort =
-        typeof nvr.rtspPort === "number" ? nvr.rtspPort : 554
+      const rtspPort = typeof nvr.rtspPort === "number" ? nvr.rtspPort : 554
       const playbackPort =
         typeof nvr.playbackPort === "number" ? nvr.playbackPort : null
       const enabled = nvr.enabled !== false
@@ -319,8 +332,7 @@ export async function ingestCommissioningSnapshotForLocation(input: {
         typeof nvr.localConnectionKey === "string"
           ? nvr.localConnectionKey
           : `local-nvr-${id.slice(0, 8)}`
-      const username =
-        typeof nvr.username === "string" ? nvr.username : null
+      const username = typeof nvr.username === "string" ? nvr.username : null
       seenRecorderIds.add(id)
 
       const recorderResult = await tx
@@ -408,8 +420,7 @@ export async function ingestCommissioningSnapshotForLocation(input: {
 
     for (const camera of input.snapshot.cameras ?? []) {
       const id = typeof camera.id === "string" ? camera.id : randomUUID()
-      const recorderId =
-        typeof camera.nvrId === "string" ? camera.nvrId : null
+      const recorderId = typeof camera.nvrId === "string" ? camera.nvrId : null
       if (!recorderId) {
         continue
       }
@@ -420,8 +431,7 @@ export async function ingestCommissioningSnapshotForLocation(input: {
       const streamProfile =
         typeof camera.streamProfile === "string" ? camera.streamProfile : "main"
       const enabled = camera.enabled !== false
-      const codec =
-        camera.codec === "h265" ? "h265" : "h264"
+      const codec = camera.codec === "h265" ? "h265" : "h264"
       seenSourceIds.add(id)
 
       const sourceResult = await tx
@@ -484,14 +494,92 @@ export async function ingestCommissioningSnapshotForLocation(input: {
         typeof route.priority === "number" && route.priority > 0
           ? route.priority
           : 1
-      const captureModes: Array<"edge_buffer" | "nvr_playback"> = Array.isArray(route.captureModes)
+      const captureModes: Array<"edge_buffer" | "nvr_playback"> = Array.isArray(
+        route.captureModes,
+      )
         ? route.captureModes.filter(
             (mode): mode is "edge_buffer" | "nvr_playback" =>
               mode === "edge_buffer" || mode === "nvr_playback",
           )
         : ["edge_buffer", "nvr_playback"]
       const enabled = route.enabled !== false
+
+      if (captureModes.length === 0) {
+        throw new DeviceError(
+          "CONFIG_INVALID",
+          "A selected camera has no supported replay capture mode. Return to Map tables and select the camera again.",
+          409,
+        )
+      }
+
+      if (!seenSourceIds.has(cameraSourceId)) {
+        throw new DeviceError(
+          "CONFIG_INVALID",
+          "A table is mapped to a camera that is not present in this snapshot. Return to Map tables and select the camera again.",
+          409,
+        )
+      }
+
+      const priorityKey = `${resourceId}:${priority}`
+      if (enabled && seenRoutePriorities.has(priorityKey)) {
+        throw new DeviceError(
+          "CONFIG_INVALID",
+          "Two enabled cameras use the same priority for one table. Return to Map tables and review the primary and failover cameras.",
+          409,
+        )
+      }
+      if (enabled) {
+        seenRoutePriorities.add(priorityKey)
+      }
       seenRouteKeys.add(`${resourceId}:${cameraSourceId}`)
+
+      // A previous camera can still occupy this table/priority until the cleanup
+      // pass below. PostgreSQL checks the active-priority unique index during the
+      // insert, so retire the directly superseded assignment first. This is an
+      // explicit mapping replacement approved by the operator; unrelated omitted
+      // manual or foreign-owned routes remain untouched by the later ownership
+      // cleanup.
+      if (enabled) {
+        const activePriorityRoutes = await tx
+          .select({
+            id: replaySourceRoutes.id,
+            cameraSourceId: replaySourceRoutes.cameraSourceId,
+            installationId: replaySourceRoutes.installationId,
+          })
+          .from(replaySourceRoutes)
+          .where(
+            and(
+              eq(replaySourceRoutes.tenantId, input.tenantId),
+              eq(replaySourceRoutes.locationId, input.locationId),
+              eq(replaySourceRoutes.resourceId, resourceId),
+              eq(replaySourceRoutes.priority, priority),
+              eq(replaySourceRoutes.isEnabled, true),
+            ),
+          )
+
+        for (const existingRoute of activePriorityRoutes) {
+          if (existingRoute.cameraSourceId === cameraSourceId) {
+            continue
+          }
+
+          await tx
+            .update(replaySourceRoutes)
+            .set({
+              isEnabled: false,
+              ...(existingRoute.installationId
+                ? { retiredAt: now, lastReportedVersion: reportedVersion }
+                : {}),
+              updatedAt: now,
+            })
+            .where(
+              and(
+                eq(replaySourceRoutes.tenantId, input.tenantId),
+                eq(replaySourceRoutes.locationId, input.locationId),
+                eq(replaySourceRoutes.id, existingRoute.id),
+              ),
+            )
+        }
+      }
 
       const routeResult = await tx
         .insert(replaySourceRoutes)
@@ -547,13 +635,15 @@ export async function ingestCommissioningSnapshotForLocation(input: {
       const selectionMode =
         policy.selectionMode === "manual" ? "manual" : "automatic"
       const manualSourceId =
-        typeof policy.manualSourceId === "string"
-          ? policy.manualSourceId
-          : null
+        typeof policy.manualSourceId === "string" ? policy.manualSourceId : null
       const failureThreshold =
-        typeof policy.failureThreshold === "number" ? policy.failureThreshold : 3
+        typeof policy.failureThreshold === "number"
+          ? policy.failureThreshold
+          : 3
       const healthyThreshold =
-        typeof policy.healthyThreshold === "number" ? policy.healthyThreshold : 2
+        typeof policy.healthyThreshold === "number"
+          ? policy.healthyThreshold
+          : 2
       const cooldownSeconds =
         typeof policy.cooldownSeconds === "number" ? policy.cooldownSeconds : 60
       const autoFailback = policy.autoFailback !== false
@@ -606,25 +696,96 @@ export async function ingestCommissioningSnapshotForLocation(input: {
       }
     }
 
-    const ownedRecorders = await tx.select({ id: replayRecorders.id }).from(replayRecorders).where(
-      and(eq(replayRecorders.tenantId, input.tenantId), eq(replayRecorders.locationId, input.locationId), eq(replayRecorders.installationId, installation.id), isNull(replayRecorders.retiredAt)),
-    )
-    for (const row of ownedRecorders) if (!seenRecorderIds.has(row.id)) await tx.update(replayRecorders).set({ retiredAt: now, isEnabled: false, lastReportedVersion: reportedVersion }).where(eq(replayRecorders.id, row.id))
+    const ownedRecorders = await tx
+      .select({ id: replayRecorders.id })
+      .from(replayRecorders)
+      .where(
+        and(
+          eq(replayRecorders.tenantId, input.tenantId),
+          eq(replayRecorders.locationId, input.locationId),
+          eq(replayRecorders.installationId, installation.id),
+          isNull(replayRecorders.retiredAt),
+        ),
+      )
+    for (const row of ownedRecorders)
+      if (!seenRecorderIds.has(row.id))
+        await tx
+          .update(replayRecorders)
+          .set({
+            retiredAt: now,
+            isEnabled: false,
+            lastReportedVersion: reportedVersion,
+          })
+          .where(eq(replayRecorders.id, row.id))
 
-    const ownedSources = await tx.select({ id: replayCameraSources.id }).from(replayCameraSources).where(
-      and(eq(replayCameraSources.tenantId, input.tenantId), eq(replayCameraSources.locationId, input.locationId), eq(replayCameraSources.installationId, installation.id), isNull(replayCameraSources.retiredAt)),
-    )
-    for (const row of ownedSources) if (!seenSourceIds.has(row.id)) await tx.update(replayCameraSources).set({ retiredAt: now, isEnabled: false, lastReportedVersion: reportedVersion }).where(eq(replayCameraSources.id, row.id))
+    const ownedSources = await tx
+      .select({ id: replayCameraSources.id })
+      .from(replayCameraSources)
+      .where(
+        and(
+          eq(replayCameraSources.tenantId, input.tenantId),
+          eq(replayCameraSources.locationId, input.locationId),
+          eq(replayCameraSources.installationId, installation.id),
+          isNull(replayCameraSources.retiredAt),
+        ),
+      )
+    for (const row of ownedSources)
+      if (!seenSourceIds.has(row.id))
+        await tx
+          .update(replayCameraSources)
+          .set({
+            retiredAt: now,
+            isEnabled: false,
+            lastReportedVersion: reportedVersion,
+          })
+          .where(eq(replayCameraSources.id, row.id))
 
-    const ownedRoutes = await tx.select({ id: replaySourceRoutes.id, resourceId: replaySourceRoutes.resourceId, cameraSourceId: replaySourceRoutes.cameraSourceId }).from(replaySourceRoutes).where(
-      and(eq(replaySourceRoutes.tenantId, input.tenantId), eq(replaySourceRoutes.locationId, input.locationId), eq(replaySourceRoutes.installationId, installation.id), isNull(replaySourceRoutes.retiredAt)),
-    )
-    for (const row of ownedRoutes) if (!seenRouteKeys.has(`${row.resourceId}:${row.cameraSourceId}`)) await tx.update(replaySourceRoutes).set({ retiredAt: now, isEnabled: false, lastReportedVersion: reportedVersion }).where(eq(replaySourceRoutes.id, row.id))
+    const ownedRoutes = await tx
+      .select({
+        id: replaySourceRoutes.id,
+        resourceId: replaySourceRoutes.resourceId,
+        cameraSourceId: replaySourceRoutes.cameraSourceId,
+      })
+      .from(replaySourceRoutes)
+      .where(
+        and(
+          eq(replaySourceRoutes.tenantId, input.tenantId),
+          eq(replaySourceRoutes.locationId, input.locationId),
+          eq(replaySourceRoutes.installationId, installation.id),
+          isNull(replaySourceRoutes.retiredAt),
+        ),
+      )
+    for (const row of ownedRoutes)
+      if (!seenRouteKeys.has(`${row.resourceId}:${row.cameraSourceId}`))
+        await tx
+          .update(replaySourceRoutes)
+          .set({
+            retiredAt: now,
+            isEnabled: false,
+            lastReportedVersion: reportedVersion,
+          })
+          .where(eq(replaySourceRoutes.id, row.id))
 
-    const ownedPolicies = await tx.select({ id: replaySourcePolicies.id, resourceId: replaySourcePolicies.resourceId }).from(replaySourcePolicies).where(
-      and(eq(replaySourcePolicies.tenantId, input.tenantId), eq(replaySourcePolicies.locationId, input.locationId), eq(replaySourcePolicies.installationId, installation.id), isNull(replaySourcePolicies.retiredAt)),
-    )
-    for (const row of ownedPolicies) if (!seenPolicyResourceIds.has(row.resourceId)) await tx.update(replaySourcePolicies).set({ retiredAt: now, lastReportedVersion: reportedVersion }).where(eq(replaySourcePolicies.id, row.id))
+    const ownedPolicies = await tx
+      .select({
+        id: replaySourcePolicies.id,
+        resourceId: replaySourcePolicies.resourceId,
+      })
+      .from(replaySourcePolicies)
+      .where(
+        and(
+          eq(replaySourcePolicies.tenantId, input.tenantId),
+          eq(replaySourcePolicies.locationId, input.locationId),
+          eq(replaySourcePolicies.installationId, installation.id),
+          isNull(replaySourcePolicies.retiredAt),
+        ),
+      )
+    for (const row of ownedPolicies)
+      if (!seenPolicyResourceIds.has(row.resourceId))
+        await tx
+          .update(replaySourcePolicies)
+          .set({ retiredAt: now, lastReportedVersion: reportedVersion })
+          .where(eq(replaySourcePolicies.id, row.id))
 
     return inserted
   })
@@ -642,7 +803,10 @@ export async function buildTopologySnapshotForLocation(
     })
     .from(resources)
     .where(
-      and(eq(resources.tenantId, tenantId), eq(resources.locationId, locationId)),
+      and(
+        eq(resources.tenantId, tenantId),
+        eq(resources.locationId, locationId),
+      ),
     )
 
   const recorders = await db
@@ -712,7 +876,9 @@ export async function buildTopologySnapshotForLocation(
     routesByResource.set(route.resourceId, bucket)
   }
 
-  const venueResourceIds = new Set(venueResources.map((resource) => resource.id))
+  const venueResourceIds = new Set(
+    venueResources.map((resource) => resource.id),
+  )
   const recorderIds = new Set(recorders.map((recorder) => recorder.id))
   const enabledRecorderIds = new Set(
     recorders
@@ -818,7 +984,10 @@ export async function syncCommissioningAndPublish(input: {
   snapshot: CommissioningSnapshot
   createdByActorId?: string | null
   correlationId?: string
-}): Promise<{ ingested: Awaited<ReturnType<typeof ingestCommissioningSnapshotForLocation>>; revision: Awaited<ReturnType<typeof publishEdgeConfigV2Revision>> }> {
+}): Promise<{
+  ingested: Awaited<ReturnType<typeof ingestCommissioningSnapshotForLocation>>
+  revision: Awaited<ReturnType<typeof publishEdgeConfigV2Revision>>
+}> {
   const ingested = await ingestCommissioningSnapshotForLocation({
     tenantId: input.tenantId,
     locationId: input.locationId,
