@@ -46,7 +46,7 @@ export function SiteFooter() {
       <div className="site-footer">
         <div className="section-shell site-footer__shell">
           <p className="site-footer__word" data-footer-word aria-hidden>
-            PLAYTT
+            PlayTT
           </p>
 
           <div className="site-footer__grid">

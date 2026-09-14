@@ -21,14 +21,14 @@
       "icon": "./assets/images/playstore.png",
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
-        "foregroundImage": "./assets/images/playstore.png"
+        "foregroundImage": "./assets/images/playstore-foreground.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/logo.png"
+      "favicon": "./assets/images/mark.png"
     },
     "plugins": [
       "expo-router",

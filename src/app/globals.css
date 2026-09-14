@@ -236,7 +236,7 @@
   }
 
   .section-label {
-    @apply text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground;
+    @apply text-[11px] font-medium tracking-[0.2em] text-muted-foreground uppercase;
   }
 
   .stat-chip {
@@ -297,7 +297,7 @@
 
   .marketing-nav__link::after {
     content: "";
-    @apply absolute bottom-1 left-3 right-3 h-px origin-left scale-x-0 transition-transform duration-300;
+    @apply absolute right-3 bottom-1 left-3 h-px origin-left scale-x-0 transition-transform duration-300;
     background: #00b7ff;
   }
 
@@ -339,7 +339,7 @@
   }
 
   .player-shell__nav-link {
-    @apply flex h-11 items-center gap-3 rounded-[var(--radius-field)] px-3 text-sm font-medium text-muted-foreground transition hover:bg-primary/8 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary;
+    @apply flex h-11 items-center gap-3 rounded-[var(--radius-field)] px-3 text-sm font-medium text-muted-foreground transition hover:bg-primary/8 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none;
   }
 
   .player-shell__nav-link--active {
@@ -347,7 +347,7 @@
   }
 
   .player-shell__book-link {
-    @apply mt-auto inline-flex h-11 items-center justify-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:-translate-y-0.5 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background-elevated)];
+    @apply mt-auto inline-flex h-11 items-center justify-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:-translate-y-0.5 hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background-elevated)] focus-visible:outline-none;
   }
 
   .player-shell__main {
@@ -371,7 +371,7 @@
   }
 
   .player-shell__eyebrow {
-    @apply mb-0.5 text-[0.62rem] font-semibold uppercase tracking-[0.15em] text-primary;
+    @apply mb-0.5 text-[0.62rem] font-semibold tracking-[0.15em] text-primary uppercase;
   }
 
   .player-shell__header-action {
@@ -383,11 +383,11 @@
   }
 
   .player-shell__mobile-nav {
-    @apply fixed bottom-3 left-4 right-4 z-40 flex items-end justify-around rounded-[var(--radius-panel)] border border-border bg-card/95 px-1 py-2 shadow-[var(--elevation-panel)] backdrop-blur-sm md:hidden;
+    @apply fixed right-4 bottom-3 left-4 z-40 flex items-end justify-around rounded-[var(--radius-panel)] border border-border bg-card/95 px-1 py-2 shadow-[var(--elevation-panel)] backdrop-blur-sm md:hidden;
   }
 
   .player-shell__mobile-link {
-    @apply flex min-w-0 flex-1 flex-col items-center gap-1 rounded-[var(--radius-field)] px-1 py-1.5 text-[0.62rem] font-medium text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary;
+    @apply flex min-w-0 flex-1 flex-col items-center gap-1 rounded-[var(--radius-field)] px-1 py-1.5 text-[0.62rem] font-medium text-muted-foreground transition focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none;
   }
 
   .player-shell__mobile-link--active {
@@ -423,7 +423,7 @@
 
   .booking-stage__eyebrow,
   .booking-summary__eyebrow {
-    @apply text-[0.68rem] font-semibold uppercase tracking-[0.15em] text-primary;
+    @apply text-[0.68rem] font-semibold tracking-[0.15em] text-primary uppercase;
   }
 
   .booking-stage__intro h2 {
@@ -480,7 +480,7 @@
   }
 
   .booking-summary__total strong {
-    @apply text-base font-semibold tabular-nums text-foreground;
+    @apply text-base font-semibold text-foreground tabular-nums;
   }
 
   .booking-summary-rail {
@@ -556,7 +556,7 @@
   }
 
   .booking-mobile-bar {
-    @apply fixed bottom-[5.25rem] left-0 right-0 z-50 px-4 py-4 supports-[padding:max(1rem)]:pb-[max(1rem,env(safe-area-inset-bottom))];
+    @apply fixed right-0 bottom-[5.25rem] left-0 z-50 px-4 py-4 supports-[padding:max(1rem)]:pb-[max(1rem,env(safe-area-inset-bottom))];
     background-color: var(--booking-bar-bg);
     color: var(--booking-bar-fg);
   }
@@ -609,7 +609,7 @@
 
   .auth-experience::before {
     content: "";
-    @apply pointer-events-none absolute right-[-16vw] top-[-12vw] size-[48vw] rounded-full border-[2.35rem] border-[#ff866b]/70;
+    @apply pointer-events-none absolute top-[-12vw] right-[-16vw] size-[48vw] rounded-full border-[2.35rem] border-[#ff866b]/70;
   }
 
   .auth-experience::after {
@@ -618,23 +618,15 @@
   }
 
   .auth-home-mark {
-    @apply absolute left-5 top-4 z-20 inline-flex sm:left-8 lg:left-10;
+    @apply absolute top-4 left-5 z-20 inline-flex sm:left-8 lg:left-10;
   }
 
   .auth-home-mark > a > span:first-child {
-    @apply size-11;
-  }
-
-  .auth-home-mark > a > span:last-child > span:first-child {
-    @apply text-[#041019];
-  }
-
-  .auth-home-mark > a > span:last-child > span:last-child {
-    @apply text-[#041019]/65;
+    @apply w-32;
   }
 
   .auth-experience__shell {
-    @apply mx-auto grid h-svh w-full max-w-[96rem] items-center gap-6 px-5 pb-4 pt-20 sm:px-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(30rem,0.98fr)] lg:items-start lg:px-10 lg:pb-10 lg:pt-[4.35rem];
+    @apply mx-auto grid h-svh w-full max-w-[96rem] items-center gap-6 px-5 pt-20 pb-4 sm:px-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(30rem,0.98fr)] lg:items-start lg:px-10 lg:pt-[4.35rem] lg:pb-10;
   }
 
   .auth-story {
@@ -642,7 +634,7 @@
   }
 
   .auth-story__eyebrow {
-    @apply mb-3 text-[0.66rem] font-bold uppercase tracking-[0.2em];
+    @apply mb-3 text-[0.66rem] font-bold tracking-[0.2em] uppercase;
     color: rgb(4 16 25 / 0.72);
   }
 
@@ -685,7 +677,7 @@
   }
 
   .auth-panel__intro p {
-    @apply text-[0.68rem] font-bold uppercase tracking-[0.18em];
+    @apply text-[0.68rem] font-bold tracking-[0.18em] uppercase;
     color: rgb(4 16 25 / 0.68);
   }
 
@@ -705,7 +697,7 @@
   }
 
   .auth-form-card [data-slot="card-header"] {
-    @apply gap-1.5 px-5 pb-2 pt-4;
+    @apply gap-1.5 px-5 pt-4 pb-2;
   }
 
   .auth-form-card [data-slot="card-title"] {
@@ -722,7 +714,7 @@
   }
 
   .auth-form-card [data-slot="card-footer"] {
-    @apply px-5 py-2.5 text-xs border-[#fff5da]/15 text-[#fff5da]/62;
+    @apply border-[#fff5da]/15 px-5 py-2.5 text-xs text-[#fff5da]/62;
   }
 
   .auth-form-card [data-slot="form-item"] {
@@ -779,7 +771,7 @@
   }
 
   .form-divider > span {
-    @apply relative mx-auto bg-[#17140f] px-3 text-[10px] font-medium uppercase tracking-[0.18em] text-[#fff5da]/52;
+    @apply relative mx-auto bg-[#17140f] px-3 text-[10px] font-medium tracking-[0.18em] text-[#fff5da]/52 uppercase;
   }
 
   .field-cluster {
@@ -810,13 +802,12 @@
   }
 
   @media (max-height: 820px) and (min-width: 1024px) {
-    .auth-home-mark > a > span:last-child > span:last-child,
     .auth-story__copy {
       @apply hidden;
     }
 
     .auth-experience__shell {
-      @apply pb-7 pt-14;
+      @apply pt-14 pb-7;
     }
 
     .auth-story__headline {
@@ -838,27 +829,19 @@
     }
 
     .auth-experience::before {
-      @apply right-[-4.75rem] top-[-4rem] size-32 border-[1.1rem] opacity-45;
+      @apply top-[-4rem] right-[-4.75rem] size-32 border-[1.1rem] opacity-45;
     }
 
     .auth-home-mark {
-      @apply left-5 top-5;
+      @apply top-5 left-5;
     }
 
     .auth-home-mark > a > span:first-child {
-      @apply size-9;
-    }
-
-    .auth-home-mark > a > span:last-child > span:first-child {
-      @apply text-xs tracking-[0.16em];
-    }
-
-    .auth-home-mark > a > span:last-child > span:last-child {
-      @apply text-[0.7rem];
+      @apply w-28;
     }
 
     .auth-experience__shell {
-      @apply h-auto min-h-svh items-start gap-0 px-5 pb-8 pt-[5.75rem];
+      @apply h-auto min-h-svh items-start gap-0 px-5 pt-[5.75rem] pb-8;
     }
 
     .auth-story {
@@ -886,7 +869,7 @@
     }
 
     .auth-form-card [data-slot="card-header"] {
-      @apply px-4 pb-2 pt-5;
+      @apply px-4 pt-5 pb-2;
     }
 
     .auth-form-card [data-slot="card-title"] {
@@ -928,12 +911,12 @@
     }
 
     .auth-panel__footer {
-      @apply mb-2 mt-3;
+      @apply mt-3 mb-2;
     }
   }
 
   .booking-tier-badge {
-    @apply inline-flex items-center rounded-md border border-primary/20 bg-primary/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary;
+    @apply inline-flex items-center rounded-md border border-primary/20 bg-primary/8 px-2 py-0.5 text-[10px] font-semibold tracking-[0.12em] text-primary uppercase;
   }
 
   .dark .booking-tier-badge {
@@ -953,11 +936,11 @@
   }
 
   .journey-timeline__connector--vertical {
-    @apply absolute left-[1.375rem] top-11 h-[calc(100%+2rem)] w-px -translate-x-1/2 bg-border;
+    @apply absolute top-11 left-[1.375rem] h-[calc(100%+2rem)] w-px -translate-x-1/2 bg-border;
   }
 
   .journey-timeline__connector--horizontal {
-    @apply absolute left-[calc(50%+1.375rem)] top-[1.375rem] h-px w-[calc(100%-2.75rem)] bg-border;
+    @apply absolute top-[1.375rem] left-[calc(50%+1.375rem)] h-px w-[calc(100%-2.75rem)] bg-border;
   }
 
   .section-shell {
@@ -1012,7 +995,7 @@
   }
 
   .closing-cta__action {
-    @apply inline-flex shrink-0 items-center gap-3 border-2 border-[#041019] bg-[#fff5da] px-7 py-4 text-sm font-bold uppercase tracking-[0.12em] text-[#041019] shadow-[7px_7px_0_#ff866b] transition hover:-translate-y-1 hover:shadow-[11px_11px_0_#ff866b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#041019] focus-visible:ring-offset-4 focus-visible:ring-offset-[#00b7ff];
+    @apply inline-flex shrink-0 items-center gap-3 border-2 border-[#041019] bg-[#fff5da] px-7 py-4 text-sm font-bold tracking-[0.12em] text-[#041019] uppercase shadow-[7px_7px_0_#ff866b] transition hover:-translate-y-1 hover:shadow-[11px_11px_0_#ff866b] focus-visible:ring-2 focus-visible:ring-[#041019] focus-visible:ring-offset-4 focus-visible:ring-offset-[#00b7ff] focus-visible:outline-none;
   }
 
   .closing-cta__action svg {
@@ -1024,7 +1007,7 @@
   }
 
   .closing-cta__ball--one {
-    @apply -right-16 top-10 size-52 border-[18px] border-[#fff5da] lg:right-[12%] lg:size-72;
+    @apply top-10 -right-16 size-52 border-[18px] border-[#fff5da] lg:right-[12%] lg:size-72;
   }
 
   .closing-cta__ball--two {
@@ -1042,7 +1025,7 @@
   }
 
   .site-footer__word {
-    @apply pointer-events-none absolute -top-20 right-0 select-none font-semibold tracking-[-0.1em] opacity-20;
+    @apply pointer-events-none absolute -top-20 right-0 font-semibold tracking-[-0.1em] opacity-20 select-none;
     color: #00b7ff;
     font-size: clamp(7rem, 22vw, 22rem);
     line-height: 0.72;
@@ -1074,7 +1057,7 @@
   }
 
   .site-footer__social-link {
-    @apply inline-flex size-10 items-center justify-center rounded-full border border-[#00b7ff]/35 bg-[#00b7ff]/10 text-[#00b7ff] transition duration-200 hover:-translate-y-0.5 hover:border-[#00b7ff] hover:bg-[#00b7ff] hover:text-[#041019] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00b7ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#17140f];
+    @apply inline-flex size-10 items-center justify-center rounded-full border border-[#00b7ff]/35 bg-[#00b7ff]/10 text-[#00b7ff] transition duration-200 hover:-translate-y-0.5 hover:border-[#00b7ff] hover:bg-[#00b7ff] hover:text-[#041019] focus-visible:ring-2 focus-visible:ring-[#00b7ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#17140f] focus-visible:outline-none;
   }
 
   .site-footer__social-link svg {
@@ -1103,11 +1086,11 @@
   }
 
   .ghost-on-azure {
-    @apply inline-flex items-center justify-center rounded-[var(--radius-pill)] border-2 border-primary-foreground bg-transparent px-6 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-primary-foreground transition hover:bg-primary-foreground/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-primary;
+    @apply inline-flex items-center justify-center rounded-[var(--radius-pill)] border-2 border-primary-foreground bg-transparent px-6 py-3 text-sm font-semibold tracking-[0.08em] text-primary-foreground uppercase transition hover:bg-primary-foreground/10 focus-visible:ring-2 focus-visible:ring-primary-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-primary focus-visible:outline-none;
   }
 
   .marketing-hero-band {
-    @apply relative -mx-6 overflow-hidden border-b border-border bg-[var(--background-elevated)] px-6 pb-10 pt-2 lg:-mx-10 lg:px-10 lg:pb-16 lg:pt-6;
+    @apply relative -mx-6 overflow-hidden border-b border-border bg-[var(--background-elevated)] px-6 pt-2 pb-10 lg:-mx-10 lg:px-10 lg:pt-6 lg:pb-16;
     border-bottom-left-radius: 28px;
     border-bottom-right-radius: 28px;
   }
@@ -1133,7 +1116,7 @@
 
   .hero-stage::before {
     content: "";
-    @apply pointer-events-none absolute -right-24 top-16 hidden size-[34rem] rounded-full border-[2.6rem] border-[#fff5da]/72 lg:block;
+    @apply pointer-events-none absolute top-16 -right-24 hidden size-[34rem] rounded-full border-[2.6rem] border-[#fff5da]/72 lg:block;
   }
 
   .hero-stage::after {
@@ -1158,7 +1141,7 @@
   }
 
   .hero-words-copy .section-label {
-    @apply text-[0.66rem] font-bold uppercase tracking-[0.2em];
+    @apply text-[0.66rem] font-bold tracking-[0.2em] uppercase;
     color: rgb(4 16 25 / 0.78);
   }
 
@@ -1201,7 +1184,7 @@
   }
 
   .hero-words-primary {
-    @apply rounded-none border border-[#041019] bg-[#fff5da] font-bold uppercase tracking-[0.08em] text-[#041019] shadow-[6px_7px_0_#ff866b] transition hover:-translate-y-0.5 hover:bg-[#cbff61] hover:shadow-[8px_9px_0_#ff866b] focus-visible:ring-[#041019] focus-visible:ring-offset-[#00b7ff];
+    @apply rounded-none border border-[#041019] bg-[#fff5da] font-bold tracking-[0.08em] text-[#041019] uppercase shadow-[6px_7px_0_#ff866b] transition hover:-translate-y-0.5 hover:bg-[#cbff61] hover:shadow-[8px_9px_0_#ff866b] focus-visible:ring-[#041019] focus-visible:ring-offset-[#00b7ff];
   }
 
   .hero-words-secondary {
@@ -1226,7 +1209,7 @@
   }
 
   .hero-words-ticker__track {
-    @apply flex w-max whitespace-nowrap py-3 text-sm font-semibold uppercase tracking-[0.12em] sm:py-4 sm:text-base;
+    @apply flex w-max py-3 text-sm font-semibold tracking-[0.12em] whitespace-nowrap uppercase sm:py-4 sm:text-base;
     color: rgb(4 16 25 / 0.72);
     will-change: transform;
   }
@@ -1236,7 +1219,7 @@
   }
 
   .hero-phone-visual {
-    @apply relative hidden w-full max-w-[22rem] justify-self-end pb-12 pt-5 lg:block;
+    @apply relative hidden w-full max-w-[22rem] justify-self-end pt-5 pb-12 lg:block;
     perspective: 1200px;
   }
 
@@ -1252,7 +1235,7 @@
   }
 
   .hero-phone-device__edge {
-    @apply absolute -right-[0.78rem] top-[8%] h-[76%] w-[0.82rem] rounded-r-lg;
+    @apply absolute top-[8%] -right-[0.78rem] h-[76%] w-[0.82rem] rounded-r-lg;
     background: #343c46;
     transform: translateZ(-6px);
   }
@@ -1273,7 +1256,7 @@
   }
 
   .hero-phone-device__camera {
-    @apply absolute left-1/2 top-3 z-20 flex h-6 w-[5.6rem] -translate-x-1/2 items-center justify-end rounded-full bg-[#111419] pr-2.5;
+    @apply absolute top-3 left-1/2 z-20 flex h-6 w-[5.6rem] -translate-x-1/2 items-center justify-end rounded-full bg-[#111419] pr-2.5;
   }
 
   .hero-phone-device__camera span {
@@ -1336,7 +1319,7 @@
   }
 
   .how-steps-rail__number {
-    @apply flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/12 text-sm font-semibold tabular-nums text-primary;
+    @apply flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/12 text-sm font-semibold text-primary tabular-nums;
   }
 
   .how-steps-rail__content {
@@ -1387,14 +1370,16 @@
   }
 
   .how-rally-rail {
-    @apply absolute bottom-12 left-[1.1rem] top-10 hidden w-px origin-top lg:block;
+    @apply absolute top-10 bottom-12 left-[1.1rem] hidden w-px origin-top lg:block;
     background: #00b7ff;
   }
 
   .how-rally-ball {
-    @apply absolute left-[0.6rem] top-10 z-20 hidden size-[1.125rem] rounded-full lg:block;
+    @apply absolute top-10 left-[0.6rem] z-20 hidden size-[1.125rem] rounded-full lg:block;
     background: #00b7ff;
-    box-shadow: 0 0 0 5px #f6edda, 0 0 24px rgb(0 183 255 / 0.78);
+    box-shadow:
+      0 0 0 5px #f6edda,
+      0 0 24px rgb(0 183 255 / 0.78);
   }
 
   .how-rally-stage {
@@ -1415,14 +1400,14 @@
 
   .how-rally-stage::before {
     content: "";
-    @apply absolute left-0 top-5 hidden size-[2.25rem] rounded-full border-[6px] lg:block;
+    @apply absolute top-5 left-0 hidden size-[2.25rem] rounded-full border-[6px] lg:block;
     background: #f6edda;
     border-color: #00b7ff;
   }
 
   .how-rally-stage::after {
     content: "";
-    @apply absolute left-0 top-[2.1rem] hidden h-px w-0 lg:block;
+    @apply absolute top-[2.1rem] left-0 hidden h-px w-0 lg:block;
     background: #17140f;
     transition: width 500ms cubic-bezier(0.22, 1, 0.36, 1);
   }
@@ -1449,7 +1434,7 @@
   }
 
   .how-rally-step-kicker {
-    @apply mb-2 text-sm font-bold uppercase tracking-[0.14em];
+    @apply mb-2 text-sm font-bold tracking-[0.14em] uppercase;
     color: #0078c7;
   }
 
@@ -1474,7 +1459,7 @@
   }
 
   .how-rally-link {
-    @apply mt-6 inline-flex items-center gap-2 border-b-2 pb-1 text-sm font-bold transition hover:gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#17140f] focus-visible:ring-offset-4 focus-visible:ring-offset-[#f6edda];
+    @apply mt-6 inline-flex items-center gap-2 border-b-2 pb-1 text-sm font-bold transition hover:gap-3 focus-visible:ring-2 focus-visible:ring-[#17140f] focus-visible:ring-offset-4 focus-visible:ring-offset-[#f6edda] focus-visible:outline-none;
     border-color: #17140f;
   }
 
@@ -1536,7 +1521,7 @@
   }
 
   .locations-atlas__intro p:last-child {
-    @apply text-xs font-bold uppercase tracking-[0.14em];
+    @apply text-xs font-bold tracking-[0.14em] uppercase;
     color: #0078c7;
   }
 
@@ -1583,12 +1568,12 @@
   }
 
   .locations-atlas__map-label {
-    @apply absolute left-6 top-6 z-10 text-[0.62rem] font-bold uppercase tracking-[0.18em];
+    @apply absolute top-6 left-6 z-10 text-[0.62rem] font-bold tracking-[0.18em] uppercase;
     color: rgb(255 245 218 / 0.6);
   }
 
   .locations-atlas__map-status {
-    @apply absolute right-6 top-6 z-10 flex items-center gap-2 text-[0.62rem] font-bold uppercase tracking-[0.16em];
+    @apply absolute top-6 right-6 z-10 flex items-center gap-2 text-[0.62rem] font-bold tracking-[0.16em] uppercase;
     color: rgb(255 245 218 / 0.66);
   }
 
@@ -1599,11 +1584,11 @@
   }
 
   .locations-atlas__featured {
-    @apply absolute left-6 top-1/2 z-20 w-[min(19rem,calc(100%-3rem))] -translate-y-1/2 border-l-2 border-[#00b7ff] pl-5;
+    @apply absolute top-1/2 left-6 z-20 w-[min(19rem,calc(100%-3rem))] -translate-y-1/2 border-l-2 border-[#00b7ff] pl-5;
   }
 
   .locations-atlas__featured > p {
-    @apply text-[0.62rem] font-bold uppercase tracking-[0.18em];
+    @apply text-[0.62rem] font-bold tracking-[0.18em] uppercase;
     color: #00b7ff;
   }
 
@@ -1617,7 +1602,7 @@
   }
 
   .locations-atlas__featured-action {
-    @apply mt-5 inline-flex items-center gap-2 border-b border-[#fff5da]/50 pb-1 text-xs font-bold uppercase tracking-[0.14em] text-[#fff5da] transition hover:gap-3 hover:border-[#00b7ff] hover:text-[#00b7ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00b7ff] focus-visible:ring-offset-4 focus-visible:ring-offset-[#151914];
+    @apply mt-5 inline-flex items-center gap-2 border-b border-[#fff5da]/50 pb-1 text-xs font-bold tracking-[0.14em] text-[#fff5da] uppercase transition hover:gap-3 hover:border-[#00b7ff] hover:text-[#00b7ff] focus-visible:ring-2 focus-visible:ring-[#00b7ff] focus-visible:ring-offset-4 focus-visible:ring-offset-[#151914] focus-visible:outline-none;
   }
 
   .locations-atlas__featured-action svg {
@@ -1625,7 +1610,7 @@
   }
 
   .locations-atlas__pulse {
-    @apply pointer-events-none absolute left-[calc(100%+4.7rem)] top-1/2 size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#00b7ff];
+    @apply pointer-events-none absolute top-1/2 left-[calc(100%+4.7rem)] size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#00b7ff];
   }
 
   .locations-atlas__pulse--two {
@@ -1633,7 +1618,7 @@
   }
 
   .locations-atlas__marker {
-    @apply absolute z-20 inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 text-xs font-bold text-[#fff5da] transition hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00b7ff] focus-visible:ring-offset-4 focus-visible:ring-offset-[#151914];
+    @apply absolute z-20 inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 text-xs font-bold text-[#fff5da] transition hover:scale-105 focus-visible:ring-2 focus-visible:ring-[#00b7ff] focus-visible:ring-offset-4 focus-visible:ring-offset-[#151914] focus-visible:outline-none;
   }
 
   .locations-atlas__marker-dot {
@@ -1650,7 +1635,7 @@
   }
 
   .locations-atlas__row {
-    @apply grid grid-cols-[2.5rem_minmax(0,1fr)] gap-x-3 border-b border-[#17140f]/25 py-5 transition hover:bg-[#00b7ff]/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00b7ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#f6edda] sm:grid-cols-[3rem_minmax(0,1fr)_auto] sm:items-center sm:gap-x-4;
+    @apply grid grid-cols-[2.5rem_minmax(0,1fr)] gap-x-3 border-b border-[#17140f]/25 py-5 transition hover:bg-[#00b7ff]/8 focus-visible:ring-2 focus-visible:ring-[#00b7ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#f6edda] focus-visible:outline-none sm:grid-cols-[3rem_minmax(0,1fr)_auto] sm:items-center sm:gap-x-4;
   }
 
   .locations-atlas__index {
@@ -1667,7 +1652,7 @@
   }
 
   .locations-atlas__row-title em {
-    @apply not-italic text-[0.6rem] font-bold uppercase tracking-[0.14em];
+    @apply text-[0.6rem] font-bold tracking-[0.14em] uppercase not-italic;
     color: #0078c7;
   }
 
@@ -1677,7 +1662,7 @@
   }
 
   .locations-atlas__row-action {
-    @apply col-start-2 mt-3 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-[0.12em] sm:col-start-auto sm:mt-0;
+    @apply col-start-2 mt-3 inline-flex items-center gap-1 text-xs font-bold tracking-[0.12em] uppercase sm:col-start-auto sm:mt-0;
     color: #0078c7;
   }
 
@@ -1799,7 +1784,7 @@
   }
 
   .hero-phone-stage__glow {
-    @apply pointer-events-none absolute left-1/2 top-1/2 size-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/20 blur-3xl;
+    @apply pointer-events-none absolute top-1/2 left-1/2 size-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/20 blur-3xl;
   }
 
   .hero-phone-frame {

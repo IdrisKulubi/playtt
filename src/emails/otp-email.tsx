@@ -4,36 +4,36 @@ import {
   Head,
   Heading,
   Html,
+  Img,
   Preview,
   Section,
   Text,
-} from "@react-email/components";
+} from "@react-email/components"
 
 export type OtpEmailPurpose =
   | "email-verification"
   | "forget-password"
   | "sign-in"
   | "change-email"
-  | "two-factor";
+  | "two-factor"
 
 interface OtpEmailProps {
-  otp?: string;
-  purpose?: OtpEmailPurpose;
-  name?: string;
-  email?: string;
+  otp?: string
+  purpose?: OtpEmailPurpose
+  name?: string
+  email?: string
 }
 
 const fontFamily =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
 
 const colors = {
   background: "#ffffff",
   foreground: "#0a1628",
   secondary: "#6b7280",
   tertiary: "#86868b",
-  brand: "#00b7ff",
   codeSurface: "#f2f2f2",
-} as const;
+} as const
 
 function getEmailContent(purpose: OtpEmailPurpose) {
   switch (purpose) {
@@ -43,8 +43,9 @@ function getEmailContent(purpose: OtpEmailPurpose) {
         headline: "Reset your password on PlayTT",
         detailPrefix: "We received a password reset request for ",
         detailSuffix: ".",
-        instruction: "Enter the 6-digit code in PlayTT to choose a new password.",
-      };
+        instruction:
+          "Enter the 6-digit code in PlayTT to choose a new password.",
+      }
     case "sign-in":
       return {
         preview: "Your PlayTT sign-in code",
@@ -52,7 +53,7 @@ function getEmailContent(purpose: OtpEmailPurpose) {
         detailPrefix: "We received a sign-in attempt for ",
         detailSuffix: ".",
         instruction: "Enter the 6-digit code in PlayTT to continue.",
-      };
+      }
     case "change-email":
       return {
         preview: "Confirm your new PlayTT email",
@@ -60,7 +61,7 @@ function getEmailContent(purpose: OtpEmailPurpose) {
         detailPrefix: "Confirm the new email address ",
         detailSuffix: ".",
         instruction: "Enter the 6-digit code in PlayTT to confirm this change.",
-      };
+      }
     case "two-factor":
       return {
         preview: "Your PlayTT security code",
@@ -68,7 +69,7 @@ function getEmailContent(purpose: OtpEmailPurpose) {
         detailPrefix: "Two-factor authentication was requested for ",
         detailSuffix: ".",
         instruction: "Enter the 6-digit code in PlayTT to finish signing in.",
-      };
+      }
   }
 
   return {
@@ -77,42 +78,21 @@ function getEmailContent(purpose: OtpEmailPurpose) {
     detailPrefix: "Finish setting up your account for ",
     detailSuffix: ".",
     instruction: "Enter the 6-digit code in PlayTT to continue.",
-  };
+  }
 }
 
 function EmailBrandMark() {
   return (
     <Section style={{ marginBottom: "32px", textAlign: "center" }}>
-      <table
-        cellPadding={0}
-        cellSpacing={0}
-        role="presentation"
-        style={{ margin: "0 auto" }}
-      >
-        <tbody>
-          <tr>
-            <td
-              style={{
-                width: "44px",
-                height: "44px",
-                borderRadius: "9999px",
-                border: "1px solid #e5e5e5",
-                backgroundColor: colors.codeSurface,
-                textAlign: "center",
-                verticalAlign: "middle",
-                fontFamily,
-                fontSize: "14px",
-                fontWeight: 600,
-                color: colors.brand,
-              }}
-            >
-              TT
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <Img
+        src="https://www.theplaytt.com/brand/playtt-logo-primary.png"
+        alt="PlayTT"
+        width="168"
+        height="49"
+        style={{ display: "block", margin: "0 auto" }}
+      />
     </Section>
-  );
+  )
 }
 
 const bodyTextStyle = {
@@ -122,7 +102,7 @@ const bodyTextStyle = {
   fontWeight: 400,
   lineHeight: "24px",
   color: colors.foreground,
-} as const;
+} as const
 
 export default function OtpEmail({
   otp = "123456",
@@ -130,9 +110,9 @@ export default function OtpEmail({
   name,
   email = "",
 }: OtpEmailProps) {
-  const content = getEmailContent(purpose);
-  const greeting = name?.trim() ? `Hello ${name.trim()},` : "Hello,";
-  const accountLabel = email.trim() || "your account";
+  const content = getEmailContent(purpose)
+  const greeting = name?.trim() ? `Hello ${name.trim()},` : "Hello,"
+  const accountLabel = email.trim() || "your account"
 
   return (
     <Html>
@@ -254,8 +234,8 @@ export default function OtpEmail({
               color: colors.tertiary,
             }}
           >
-            Do not share this code with anyone. PlayTT will never ask you to read
-            this code out loud.
+            Do not share this code with anyone. PlayTT will never ask you to
+            read this code out loud.
           </Text>
 
           <Text
@@ -268,11 +248,11 @@ export default function OtpEmail({
               color: colors.tertiary,
             }}
           >
-            Make sure you recognize this request before entering the code. Emails
-            from PlayTT will only come from theplaytt.com.
+            Make sure you recognize this request before entering the code.
+            Emails from PlayTT will only come from theplaytt.com.
           </Text>
         </Container>
       </Body>
     </Html>
-  );
+  )
 }
