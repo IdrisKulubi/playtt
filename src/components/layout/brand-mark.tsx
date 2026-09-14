@@ -1,15 +1,15 @@
-import Link from "next/link";
-import Image from "next/image";
+import Link from "next/link"
+import Image from "next/image"
 
-import { PLAYTT_TAGLINE } from "@/lib/brand";
-import { cn } from "@/lib/utils";
+import { PLAYTT_TAGLINE } from "@/lib/brand"
+import { cn } from "@/lib/utils"
 
 interface BrandMarkProps {
-  href?: string;
-  caption?: string;
-  size?: "default" | "compact";
-  tone?: "dark" | "light";
-  className?: string;
+  href?: string
+  caption?: string
+  size?: "default" | "compact"
+  tone?: "dark" | "light"
+  className?: string
 }
 
 export function BrandMark({
@@ -19,8 +19,11 @@ export function BrandMark({
   tone = "dark",
   className,
 }: BrandMarkProps) {
-  const compact = size === "compact";
-  const onLight = tone === "light";
+  const compact = size === "compact"
+  const onLight = tone === "light"
+  const logoSrc = onLight
+    ? "/brand/playtt-logo-primary.svg"
+    : "/brand/playtt-logo-reversed.svg"
 
   return (
     <Link
@@ -28,43 +31,36 @@ export function BrandMark({
       className={cn(
         "inline-flex items-center gap-3 transition hover:opacity-90",
         onLight ? "text-foreground" : "text-white",
-        className,
+        className
       )}
     >
       <span
         className={cn(
-          "inline-flex items-center justify-center overflow-hidden",
-          compact ? "size-9" : "size-11",
+          "inline-flex shrink-0 items-center justify-center overflow-hidden",
+          compact ? "w-24" : "w-32"
         )}
       >
         <Image
-          src="/logo.png"
-          alt=""
-          width={96}
-          height={96}
-          className="size-full object-contain"
+          src={logoSrc}
+          alt="PlayTT"
+          width={690}
+          height={200}
+          className="h-auto w-full object-contain"
           priority
         />
       </span>
-      <span className="min-w-0">
-        <span
-          className={cn(
-            "block font-semibold tracking-[0.24em]",
-            onLight ? "text-foreground" : "text-white",
-            compact ? "text-xs" : "text-sm",
-          )}
-        >
-          PLAYTT
+      {caption ? (
+        <span className="min-w-0">
+          <span
+            className={cn(
+              onLight ? "text-muted-foreground" : "text-white/50",
+              compact ? "text-[11px]" : "text-xs"
+            )}
+          >
+            {caption}
+          </span>
         </span>
-        <span
-          className={cn(
-            onLight ? "text-muted-foreground" : "text-white/50",
-            compact ? "text-[11px]" : "text-xs",
-          )}
-        >
-          {caption}
-        </span>
-      </span>
+      ) : null}
     </Link>
-  );
+  )
 }

@@ -1,23 +1,27 @@
-import type { ReactNode } from "react";
-import Link from "next/link";
-import { AuthShellMotion } from "@/components/auth/auth-shell-motion";
-import { BrandMark } from "@/components/layout/brand-mark";
-import { Button } from "@/components/ui/button";
+import type { ReactNode } from "react"
+import Link from "next/link"
+import { AuthShellMotion } from "@/components/auth/auth-shell-motion"
+import { BrandMark } from "@/components/layout/brand-mark"
+import { Button } from "@/components/ui/button"
 
 interface AuthShellProps {
-  children: ReactNode;
-  title: string;
-  description: string;
+  children: ReactNode
+  title: string
+  description: string
 }
 
-const trustSignals = ["Private pods", "Clear pricing", "Mobile booking"] as const;
+const trustSignals = [
+  "Private pods",
+  "Clear pricing",
+  "Mobile booking",
+] as const
 
 export function AuthShell({ children, title, description }: AuthShellProps) {
   return (
     <AuthShellMotion>
       <main className="dark auth-experience">
         <div className="auth-home-mark" data-auth-reveal>
-          <BrandMark tone="dark" />
+          <BrandMark tone="light" caption="" />
         </div>
 
         <div className="auth-experience__shell">
@@ -25,7 +29,11 @@ export function AuthShell({ children, title, description }: AuthShellProps) {
             <p className="auth-story__eyebrow" data-auth-reveal>
               Your table is waiting
             </p>
-            <h1 id="auth-story-heading" className="auth-story__headline" data-auth-reveal>
+            <h1
+              id="auth-story-heading"
+              className="auth-story__headline"
+              data-auth-reveal
+            >
               Create the account.
               <span>Keep the rally moving.</span>
             </h1>
@@ -54,7 +62,11 @@ export function AuthShell({ children, title, description }: AuthShellProps) {
 
             <div className="auth-panel__footer" data-auth-reveal>
               <span>PlayTT account</span>
-              <Button asChild variant="link" className="h-auto p-0 text-[#17140f]">
+              <Button
+                asChild
+                variant="link"
+                className="h-auto p-0 text-[#17140f]"
+              >
                 <Link href="/">Back to home</Link>
               </Button>
             </div>
@@ -62,5 +74,5 @@ export function AuthShell({ children, title, description }: AuthShellProps) {
         </div>
       </main>
     </AuthShellMotion>
-  );
+  )
 }
