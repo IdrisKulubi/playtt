@@ -1,4 +1,5 @@
 import { assertReplayClip } from "../ffmpeg/media-probe"
+import { H264_TRANSCODE_OUTPUT_ARGS } from "../ffmpeg/h264-output"
 import { runFfmpeg } from "../ffmpeg/runner"
 import { safeLog } from "../health/metrics"
 import { buildVigiPlaybackUrl } from "./vigi-urls"
@@ -126,12 +127,7 @@ export class VigiNvrPlaybackAdapter implements VideoAdapter {
       result = await runFfmpeg({
         args: [
           ...inputArgs,
-          "-c:v",
-          "libx264",
-          "-preset",
-          "veryfast",
-          "-crf",
-          "23",
+          ...H264_TRANSCODE_OUTPUT_ARGS,
           "-c:a",
           "aac",
           "-b:a",
