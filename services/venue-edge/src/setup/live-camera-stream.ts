@@ -5,6 +5,13 @@ import { resolveFfmpegBinary } from "../ffmpeg/runner"
 import { safeLog } from "../health/metrics"
 
 const LIVE_PREVIEW_MAX_MS = 10 * 60 * 1000
+const activeStreams = new Map<string, () => void>()
+
+export function stopAllLiveCameraStreams(): number {
+  const streams = [...activeStreams.values()]
+  for (const stop of streams) stop()
+  return streams.length
+}
 
 export function streamCameraAsMjpeg(input: {
   req: IncomingMessage
@@ -12,6 +19,11 @@ export function streamCameraAsMjpeg(input: {
   cameraId: string
   rtspUrl: string
 }): void {
+  // Browser image reloads are not guaranteed to close the previous HTTP stream
+  // immediately. Replace the existing process first so one camera can consume at
+  // most one recorder session, even across reloads or multiple wizard tabs.
+  activeStreams.get(input.cameraId)?.()
+
   const child = spawn(
     resolveFfmpegBinary(),
     [
@@ -50,9 +62,14 @@ export function streamCameraAsMjpeg(input: {
     if (stopped) return
     stopped = true
     clearTimeout(maxTimer)
+    if (activeStreams.get(input.cameraId) === stop) {
+      activeStreams.delete(input.cameraId)
+    }
     if (!child.killed) child.kill("SIGTERM")
+    if (!input.res.writableEnded) input.res.end()
   }
   const maxTimer = setTimeout(stop, LIVE_PREVIEW_MAX_MS)
+  activeStreams.set(input.cameraId, stop)
 
   input.res.statusCode = 200
   input.res.setHeader(

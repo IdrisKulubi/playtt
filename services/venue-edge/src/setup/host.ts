@@ -46,7 +46,10 @@ import {
   TopologyReviewError,
   type TopologyReviewManager,
 } from "./topology-review-manager"
-import { streamCameraAsMjpeg } from "./live-camera-stream"
+import {
+  stopAllLiveCameraStreams,
+  streamCameraAsMjpeg,
+} from "./live-camera-stream"
 
 export interface SetupHostDiagnosticsContext {
   env: VenueEdgeEnv
@@ -700,6 +703,14 @@ export async function startSetupHost(
       const liveCameraMatch = url.pathname.match(
         /^\/api\/setup\/cameras\/([^/]+)\/live\.mjpeg$/,
       )
+      if (
+        method === "POST" &&
+        url.pathname === "/api/setup/cameras/live/stop"
+      ) {
+        const stopped = stopAllLiveCameraStreams()
+        await sendNodeResponse(res, jsonResponse(200, { stopped }))
+        return
+      }
       if (liveCameraMatch && method === "GET" && options.localCameraManager) {
         const rtspUrl = await options.localCameraManager.resolveCameraRtspUrl(
           liveCameraMatch[1],
