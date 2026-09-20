@@ -767,5 +767,6 @@ test("setup wizard shows progress and polls until cloud config applies", () => {
   assert.match(html, /pollSetupStatus/)
   assert.match(html, /commissioningPollTimer/)
   assert.match(html, /Sync completion with PlayTT/)
+  assert.match(html, /\/api\/setup\/cameras\/live\/stop/)
   assert.match(html, /setTimeout/)
 })

@@ -443,6 +443,9 @@ export function renderSetupPage(input: {
             }
           }
         }
+        if (renderedStage === 3 && currentStage !== 3) {
+          void pauseLiveViews();
+        }
         document.querySelectorAll("[data-stage]").forEach((section) => {
           section.hidden = Number(section.dataset.stage) !== currentStage;
         });
@@ -823,7 +826,7 @@ export function renderSetupPage(input: {
         const message = document.getElementById("camera-message");
         button.disabled = true;
         try {
-          pauseLiveViews();
+          await pauseLiveViews();
           await new Promise((resolve) => setTimeout(resolve, 350));
           const data = await api("/api/setup/cameras");
           const selected = data.cameras.filter((camera) => camera.enabled);
@@ -847,6 +850,7 @@ export function renderSetupPage(input: {
         const data = await api("/api/setup/cameras");
         workflow.cameraCount = data.cameras.length;
         const list = document.getElementById("camera-list");
+        await pauseLiveViews();
         list.innerHTML = "";
         for (const camera of data.cameras) {
           const item = document.createElement("div");
@@ -960,7 +964,7 @@ export function renderSetupPage(input: {
       async function testCamera(id) {
         const message = document.getElementById("camera-message");
         message.textContent = "Closing the live view, then checking the camera…";
-        pauseLiveViews();
+        await pauseLiveViews();
         await new Promise((resolve) => setTimeout(resolve, 350));
         try {
           const result = await api("/api/setup/cameras/" + id + "/test", { method: "POST", body: "{}", timeoutMs: 180000 });
@@ -973,15 +977,20 @@ export function renderSetupPage(input: {
         }
       }
 
-      function pauseLiveViews() {
+      async function pauseLiveViews() {
         document.querySelectorAll(".camera-live img[src]").forEach((image) => image.removeAttribute("src"));
+        try {
+          await api("/api/setup/cameras/live/stop", { method: "POST", body: "{}" });
+        } catch {
+          // The browser-side source removal still releases previews on older agents.
+        }
       }
 
       // Recorders allow only a few simultaneous RTSP sessions, so live views must be
       // released before probing channels. Nesting keeps them closed for the whole scan.
       async function withLiveViewsPaused(run) {
         if (liveViewPauseDepth === 0) {
-          pauseLiveViews();
+          await pauseLiveViews();
           await new Promise((resolve) => setTimeout(resolve, 350));
         }
         liveViewPauseDepth += 1;
