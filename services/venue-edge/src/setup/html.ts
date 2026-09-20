@@ -1042,8 +1042,16 @@ export function renderSetupPage(input: {
         if (checklist.configApplied && currentStage === 5) currentStage = 6;
         document.getElementById("commissioning-checklist").textContent = lines.join("\\n");
         document.getElementById("commissioning-final-checklist").textContent = lines.join("\\n");
-        document.getElementById("commissioning-complete").disabled =
-          setupLocked || !checklist.canComplete;
+        const completeButton = document.getElementById("commissioning-complete");
+        if (checklist.completed) {
+          completeButton.dataset.mode = "sync";
+          completeButton.textContent = "Sync completion with PlayTT";
+          completeButton.disabled = setupLocked;
+        } else {
+          completeButton.dataset.mode = "complete";
+          completeButton.textContent = "Complete commissioning";
+          completeButton.disabled = setupLocked || !checklist.canComplete;
+        }
         const publishButton = document.getElementById("commissioning-publish");
         if (publishButton && publishButton.dataset.busy !== "true") {
           publishButton.disabled =
@@ -1119,12 +1127,21 @@ export function renderSetupPage(input: {
 
       document.getElementById("commissioning-complete")?.addEventListener("click", async () => {
         const completeBtn = document.getElementById("commissioning-complete");
+        const syncOnly = completeBtn.dataset.mode === "sync";
         completeBtn.disabled = true;
         completeBtn.dataset.busy = "true";
-        setCompleteStatus("Publishing final snapshot to PlayTT…", true);
+        setCompleteStatus(syncOnly ? "Syncing completion with PlayTT…" : "Publishing final snapshot to PlayTT…", true);
         try {
-          await api("/api/setup/commissioning/complete", { method: "POST", body: "{}" });
-          setCompleteStatus("Snapshot accepted. Refreshing local checklist…", true);
+          await api(
+            syncOnly ? "/api/setup/commissioning/publish" : "/api/setup/commissioning/complete",
+            { method: "POST", body: "{}" },
+          );
+          setCompleteStatus(
+            syncOnly
+              ? "Completion synced. PlayTT admin will update automatically."
+              : "Snapshot accepted. Refreshing local checklist…",
+            !syncOnly,
+          );
           await loadCommissioning();
         } catch (error) {
           setCompleteStatus(error.message, false);

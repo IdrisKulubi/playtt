@@ -19,3 +19,29 @@ test("applied topology ignores clocks and translated IDs but detects changed cap
   applied.sources[0].channelKey = "2"
   assert.notEqual(topologySignature(config), topologySignature(applied))
 })
+
+test("applied topology ignores JSON property insertion order", () => {
+  const config = {
+    configRevision: { publishedAt: "2026-01-01T00:00:00Z" },
+    recorders: [{ id: "nvr", localConnectionKey: "connection-1", enabled: true, label: "NVR", connection: { host: "192.168.0.82", rtspPort: 554 } }],
+    sources: [{ id: "camera", recorderId: "nvr", channelKey: "1", streamProfile: "main", label: "Table", enabled: true, codec: "h264" }],
+    resourcePolicies: [{
+      resourceId: "table-1",
+      selectionMode: "automatic",
+      manualSourceId: null,
+      failover: { autoFailback: true, cooldownSeconds: 15, failureThreshold: 2, healthyThreshold: 3 },
+      candidates: [{ sourceId: "camera", priority: 1, captureModes: ["edge_buffer"] }],
+    }],
+  }
+  const applied = structuredClone(config)
+  applied.resourcePolicies[0].failover = {
+    failureThreshold: 2,
+    cooldownSeconds: 15,
+    healthyThreshold: 3,
+    autoFailback: true,
+  }
+
+  assert.equal(topologySignature(config), topologySignature(applied))
+  applied.resourcePolicies[0].failover.failureThreshold = 4
+  assert.notEqual(topologySignature(config), topologySignature(applied))
+})

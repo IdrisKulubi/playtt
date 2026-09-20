@@ -539,6 +539,32 @@ test("publish surfaces cloud protocol errors", async () => {
   stack.database.close()
 })
 
+test("publishing a refreshed snapshot preserves completed commissioning", async () => {
+  const publishedPayloads = []
+  const stack = await createCommissioningStack({
+    client: {
+      async publishCommissioning(payload) {
+        publishedPayloads.push(payload)
+        return { publishedAt: new Date().toISOString() }
+      },
+    },
+  })
+  stack.repositories.updateCommissioningState({
+    completed: true,
+    completedAt: new Date().toISOString(),
+    reportVersion: 18,
+  })
+
+  await stack.commissioningManager.publish(true)
+
+  assert.equal(publishedPayloads.length, 1)
+  assert.equal(publishedPayloads[0].commissioned, true)
+  assert.equal(publishedPayloads[0].reportVersion, 19)
+  assert.equal(stack.repositories.getCommissioningState().completed, true)
+  assert.equal(stack.repositories.getCommissioningState().reportVersion, 19)
+  stack.database.close()
+})
+
 test("unpaired publish returns 409 through setup host", async () => {
   const stack = await createCommissioningStack({
     client: {
@@ -740,5 +766,6 @@ test("setup wizard shows progress and polls until cloud config applies", () => {
   assert.match(html, /Use for replay clips/)
   assert.match(html, /pollSetupStatus/)
   assert.match(html, /commissioningPollTimer/)
+  assert.match(html, /Sync completion with PlayTT/)
   assert.match(html, /setTimeout/)
 })

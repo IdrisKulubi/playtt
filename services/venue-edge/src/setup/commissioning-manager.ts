@@ -686,8 +686,12 @@ export class CommissioningManager {
       )
     }
 
-    const reportVersion = this.repositories.getCommissioningState().reportVersion + 1
-    const payload = this.buildRedactedPublishPayload(false, reportVersion)
+    const state = this.repositories.getCommissioningState()
+    const reportVersion = state.reportVersion + 1
+    // A topology refresh after commissioning must not silently decommission the
+    // cloud installation. Local topology mutations explicitly invalidate this
+    // state, so the durable local flag is the source of truth for the report.
+    const payload = this.buildRedactedPublishPayload(state.completed, reportVersion)
     try {
       await this.client.publishCommissioning(payload)
     } catch (error) {
