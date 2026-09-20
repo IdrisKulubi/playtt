@@ -19,6 +19,37 @@ test("camera probe reports the concrete failure and redacts RTSP credentials", (
   assert.doesNotMatch(diagnostic.output ?? "", /private-password/)
 })
 
+test("camera probe explains a recorder that refuses new RTSP sessions", () => {
+  // FFmpeg reports AVERROR_HTTP_SERVER_ERROR as this unsigned exit code on Windows.
+  const diagnostic = diagnoseCodecProbe({
+    codec: null,
+    compatible: false,
+    raw: "Could not open input",
+    exitCode: 2812791304,
+    timedOut: false,
+    cancelled: false,
+  })
+
+  assert.equal(diagnostic.code, "source_busy")
+  assert.match(diagnostic.summary, /5xx/)
+  assert.match(diagnostic.action, /simultaneous streams/)
+  assert.doesNotMatch(diagnostic.summary, /exit code/)
+})
+
+test("camera probe maps RTSP 404 to a channel configuration problem", () => {
+  const diagnostic = diagnoseCodecProbe({
+    codec: null,
+    compatible: false,
+    raw: "Could not open input",
+    exitCode: 3419392776,
+    timedOut: false,
+    cancelled: false,
+  })
+
+  assert.equal(diagnostic.code, "channel_not_found")
+  assert.match(diagnostic.action, /channel number/)
+})
+
 test("camera probe distinguishes timeout from an unsupported codec", () => {
   const timeout = diagnoseCodecProbe({ codec: null, compatible: false, raw: "", exitCode: null, timedOut: true, cancelled: false })
   const codec = diagnoseCodecProbe({ codec: "hevc", compatible: false, raw: "Video: hevc", exitCode: 0, timedOut: false, cancelled: false })

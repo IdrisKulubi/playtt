@@ -99,12 +99,84 @@ function safeProbeOutput(raw: string): string | null {
   return lines.length > 0 ? lines.slice(-12).join("\n").slice(-2_500) : null
 }
 
+// FFmpeg exits with its negative AVERROR code, which Windows reports as an
+// unsigned 32-bit value. FFERRTAG(a,b,c,d) = -(a | b<<8 | c<<16 | d<<24).
+function ffErrTagExitCode(lead: number, b: string, c: string, d: string): number {
+  const tag =
+    (lead |
+      (b.charCodeAt(0) << 8) |
+      (c.charCodeAt(0) << 16) |
+      (d.charCodeAt(0) << 24)) >>>
+    0
+  return (0x1_0000_0000 - tag) >>> 0
+}
+
+// RTSP replies are mapped onto FFmpeg's HTTP status AVERRORs, so the exit code
+// identifies why the recorder refused the stream.
+const RTSP_STATUS_DIAGNOSTICS = new Map<
+  number,
+  Pick<NvrProbeDiagnostic, "code" | "summary" | "action">
+>([
+  [
+    ffErrTagExitCode(0xf8, "5", "X", "X"),
+    {
+      code: "source_busy",
+      summary: "The recorder refused a new RTSP session and returned a 5xx error.",
+      action: "This recorder allows only a few simultaneous streams. Close live views and any other viewer, wait a few seconds, then try again.",
+    },
+  ],
+  [
+    ffErrTagExitCode(0xf8, "4", "0", "4"),
+    {
+      code: "channel_not_found",
+      summary: "The recorder has no stream at this channel and stream profile.",
+      action: "Confirm the channel number and that its main stream is enabled on the recorder, then try again.",
+    },
+  ],
+  [
+    ffErrTagExitCode(0xf8, "4", "0", "3"),
+    {
+      code: "source_auth_failed",
+      summary: "The recorder refused access to this channel.",
+      action: "Confirm the dedicated NVR account may view this channel, then try again.",
+    },
+  ],
+  [
+    ffErrTagExitCode(0xf8, "4", "0", "1"),
+    {
+      code: "source_auth_failed",
+      summary: "The recorder rejected the RTSP username or password.",
+      action: "Re-enter the dedicated NVR credentials, then test again.",
+    },
+  ],
+  [
+    ffErrTagExitCode(0xf8, "4", "0", "0"),
+    {
+      code: "source_request_rejected",
+      summary: "The recorder rejected the RTSP request as malformed.",
+      action: "Confirm the channel number and stream profile, then try again.",
+    },
+  ],
+  [
+    ffErrTagExitCode(0xf8, "4", "X", "X"),
+    {
+      code: "source_request_rejected",
+      summary: "The recorder rejected the RTSP request with a 4xx error.",
+      action: "Confirm the channel number and stream profile, then try again.",
+    },
+  ],
+])
+
 export function diagnoseCodecProbe(probe: CodecProbeResult): NvrProbeDiagnostic {
   const base = { exitCode: probe.exitCode, timedOut: probe.timedOut, detectedCodec: probe.codec, output: safeProbeOutput(probe.raw) }
   if (authFailed(probe.raw)) return { ...base, code: "source_auth_failed", summary: "The NVR rejected the RTSP username or password.", action: "Re-enter the dedicated NVR credentials, then test again." }
   if (probe.timedOut) return { ...base, code: "probe_timed_out", summary: "The stream produced no video within 15 seconds.", action: "Stop other live viewers, confirm the camera is online, then test again." }
   if (probe.cancelled) return { ...base, code: "probe_cancelled", summary: "The camera check was cancelled before video arrived.", action: "Run the camera check again." }
-  if (probe.exitCode !== 0) return { ...base, code: "ffmpeg_failed", summary: `FFmpeg could not open the camera stream (exit code ${probe.exitCode ?? "unknown"}).`, action: "Open Technical details and use the final FFmpeg lines to correct the stream or channel settings." }
+  if (probe.exitCode !== 0) {
+    const rtspStatus = probe.exitCode === null ? undefined : RTSP_STATUS_DIAGNOSTICS.get(probe.exitCode)
+    if (rtspStatus) return { ...base, ...rtspStatus }
+    return { ...base, code: "ffmpeg_failed", summary: `FFmpeg could not open the camera stream (exit code ${probe.exitCode ?? "unknown"}).`, action: "Open Technical details and use the final FFmpeg lines to correct the stream or channel settings." }
+  }
   if (!probe.codec) return { ...base, code: "video_stream_missing", summary: "The RTSP connection returned no detectable video track.", action: "Confirm the channel and main stream are enabled on the NVR, then test again." }
   if (!probe.compatible) return { ...base, code: "codec_incompatible", summary: `The stream uses ${probe.codec.toUpperCase()}, but replay capture currently requires H.264.`, action: "Change this camera's main stream encoding to H.264 on the NVR, then test again." }
   return { ...base, code: "ok", summary: `Live ${probe.codec.toUpperCase()} video was detected.`, action: "No action is needed." }
