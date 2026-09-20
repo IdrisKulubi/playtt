@@ -263,6 +263,7 @@ export function renderSetupPage(input: {
       let setupStatusPollTimer = null;
       let camerasReady = false;
       let preparingCameras = false;
+      let liveViewPauseDepth = 0;
       let renderedStage = null;
       const toastNodes = new Map();
       const toastTimers = new Map();
@@ -770,41 +771,45 @@ export function renderSetupPage(input: {
       async function enumerateCameras(nvrId) {
         const message = document.getElementById("camera-message");
         message.dataset.state = "checking";
-        message.textContent = "Checking NVR channels for live video…";
-        try {
-          const result = await api("/api/setup/nvrs/" + nvrId + "/cameras/enumerate", {
-            method: "POST",
-            body: "{}",
-            timeoutMs: 240000,
-          });
-          await loadCameras();
-          const found = result.created.length + result.updated.length;
-          if (found === 0) {
-            const firstFailure = result.failures?.[0];
+        message.textContent = "Closing live views, then checking NVR channels for live video…";
+        return withLiveViewsPaused(async () => {
+          try {
+            const result = await api("/api/setup/nvrs/" + nvrId + "/cameras/enumerate", {
+              method: "POST",
+              body: "{}",
+              timeoutMs: 240000,
+            });
+            await loadCameras();
+            const found = result.created.length + result.updated.length;
+            if (found === 0) {
+              const firstFailure = result.failures?.[0];
+              message.dataset.state = "error";
+              message.textContent = firstFailure
+                ? "No cameras found. Channel " + firstFailure.channelKey + ": " + firstFailure.summary + " " + firstFailure.action
+                : "No cameras found. Check that camera channels are enabled on the NVR.";
+            } else {
+              message.dataset.state = "success";
+              message.textContent =
+                "Scan finished. Found " + found + " camera(s); " +
+                result.skipped + " channel(s) did not return video.";
+            }
+          } catch (error) {
             message.dataset.state = "error";
-            message.textContent = firstFailure
-              ? "No cameras found. Channel " + firstFailure.channelKey + ": " + firstFailure.summary + " " + firstFailure.action
-              : "No cameras found. Check that camera channels are enabled on the NVR.";
-          } else {
-            message.dataset.state = "success";
-            message.textContent =
-              "Scan finished. Found " + found + " camera(s); " +
-              result.skipped + " channel(s) did not return video.";
+            message.setAttribute("role", "alert");
+            message.textContent = error.message;
+            throw error;
           }
-        } catch (error) {
-          message.dataset.state = "error";
-          message.setAttribute("role", "alert");
-          message.textContent = error.message;
-          throw error;
-        }
+        });
       }
 
       async function discoverAllCameras() {
         const button = document.getElementById("scan-cameras");
         button.disabled = true;
         try {
-          const data = await api("/api/setup/nvrs");
-          for (const nvr of data.nvrs.filter((nvr) => nvr.enabled)) await enumerateCameras(nvr.id);
+          await withLiveViewsPaused(async () => {
+            const data = await api("/api/setup/nvrs");
+            for (const nvr of data.nvrs.filter((nvr) => nvr.enabled)) await enumerateCameras(nvr.id);
+          });
         } catch (error) {
           document.getElementById("camera-message").textContent = error.message;
         } finally { button.disabled = setupLocked; }
@@ -970,6 +975,22 @@ export function renderSetupPage(input: {
 
       function pauseLiveViews() {
         document.querySelectorAll(".camera-live img[src]").forEach((image) => image.removeAttribute("src"));
+      }
+
+      // Recorders allow only a few simultaneous RTSP sessions, so live views must be
+      // released before probing channels. Nesting keeps them closed for the whole scan.
+      async function withLiveViewsPaused(run) {
+        if (liveViewPauseDepth === 0) {
+          pauseLiveViews();
+          await new Promise((resolve) => setTimeout(resolve, 350));
+        }
+        liveViewPauseDepth += 1;
+        try {
+          return await run();
+        } finally {
+          liveViewPauseDepth -= 1;
+          if (liveViewPauseDepth === 0) resumeLiveViews();
+        }
       }
 
       function resumeLiveViews() {
