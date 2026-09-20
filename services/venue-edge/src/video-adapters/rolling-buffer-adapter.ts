@@ -2,6 +2,7 @@ import { mkdir } from "node:fs/promises"
 import { dirname, join, relative } from "node:path"
 
 import type { CameraSourceConfig } from "../cameras/source"
+import { H264_TRANSCODE_OUTPUT_ARGS } from "../ffmpeg/h264-output"
 import { assertReplayClip } from "../ffmpeg/media-probe"
 import { runFfmpeg } from "../ffmpeg/runner"
 import { safeLog } from "../health/metrics"
@@ -195,25 +196,20 @@ export class RollingBufferVideoAdapter implements VideoAdapter {
       "64k",
     ]
     const transcodeOutputArgs = [
-      "-c:v",
-      "libx264",
-      "-preset",
-      "veryfast",
-      "-crf",
-      "23",
+      ...H264_TRANSCODE_OUTPUT_ARGS,
       "-c:a",
       "aac",
       "-b:a",
       "64k",
     ]
-    let extractionMethod =
-      closedSegments.length > 1 ? "transcode" : "stream_copy"
+    // MPEG-TS segments normally concatenate without re-encoding. Try that fast
+    // path first and let strict media validation decide whether a transcode is
+    // actually necessary.
+    let extractionMethod = "stream_copy"
     let result = await runFfmpeg({
       args: [
         ...concatInput,
-        ...(extractionMethod === "transcode"
-          ? transcodeOutputArgs
-          : copyOutputArgs),
+        ...copyOutputArgs,
         "-movflags",
         "+faststart",
         "-y",
