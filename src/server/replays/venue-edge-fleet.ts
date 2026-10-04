@@ -28,6 +28,7 @@ import {
 } from "@/server/replays/venue-edge-topology"
 import type { TenantContext } from "@/server/tenancy/types"
 import { isCommissioningRevisionCurrent } from "@/server/replays/venue-edge-report-lineage"
+import { commissioningReportMatchesConfig } from "@/server/replays/venue-edge-report-config"
 
 export type VenueEdgeFleetConnectivity =
   | "online"
@@ -674,7 +675,10 @@ export async function listVenueEdgeInstallations(
       hostSleepRisk: sleepRisk.hostSleepRisk,
       configStatus: configApplication?.status ?? null,
       diagnostic: configDiagnostic,
-      latestReportPublished: isCommissioningRevisionCurrent({
+      latestReportPublished: (Boolean(row.installation.commissionedAt) &&
+        publishedRevision?.commissioningInstallationId === row.installation.id &&
+        publishedRevision?.version === lastAppliedRevision?.version &&
+        commissioningReportMatchesConfig(row.installation.commissioningSnapshotJson, publishedRevision?.snapshot)) || isCommissioningRevisionCurrent({
         installationId: row.installation.id,
         reportVersion: row.installation.lastReportVersion,
         reportChecksumSha256: row.installation.lastReportChecksumSha256,

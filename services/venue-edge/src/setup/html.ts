@@ -225,8 +225,8 @@ export function renderSetupPage(input: {
           </section>
 
           <section class="stage" data-stage="6" hidden>
-            <div class="stage-intro"><h2>Complete commissioning</h2><p class="muted">Finish after every preview and failover check passes and the latest cloud configuration is applied on this PC.</p></div>
-            <div class="panel"><h3>Final readiness check</h3><pre id="commissioning-final-checklist" class="muted"></pre><div class="actions"><button type="button" id="commissioning-complete" ${disabledAttr}>Complete commissioning</button><button type="button" id="lock-btn" class="secondary" ${disabledAttr}>Lock setup and close</button></div><p class="muted busy-row" aria-live="polite"><span id="complete-spinner" class="spinner" hidden></span><span id="complete-status"></span></p></div>
+            <div class="stage-intro"><h2 id="completion-heading">Complete commissioning</h2><p id="completion-description" class="muted">Finish after every preview and failover check passes and the latest cloud configuration is applied on this PC.</p></div>
+            <div class="panel"><h3 id="completion-panel-heading">Final readiness check</h3><pre id="commissioning-final-checklist" class="muted"></pre><p id="completion-success" role="status" hidden>Camera previews and failover checks passed. Your PlayTT configuration is applied on this PC. VenueEdge is ready to capture replays.</p><div class="actions"><button type="button" id="commissioning-complete" ${disabledAttr}>Complete commissioning</button><button type="button" id="lock-btn" class="secondary" ${disabledAttr}>Lock setup and close</button></div><p class="muted busy-row" aria-live="polite"><span id="complete-spinner" class="spinner" hidden></span><span id="complete-status"></span></p></div>
           </section>
         </main>
         <nav class="footer-actions" aria-label="Stage navigation">
@@ -239,7 +239,7 @@ export function renderSetupPage(input: {
 
     <script>
       const token = ${JSON.stringify(input.setupToken)};
-      const setupLocked = ${JSON.stringify(input.setupLocked)};
+      let setupLocked = ${JSON.stringify(input.setupLocked)};
       const cloudDashboardUrl = ${JSON.stringify(input.cloudDashboardUrl)};
       const initialEnrollmentStatus = ${JSON.stringify(input.enrollmentStatus)};
       const workflow = {
@@ -455,7 +455,7 @@ export function renderSetupPage(input: {
         });
         document.querySelectorAll("[data-step-item]").forEach((item) => {
           const step = Number(item.dataset.stepItem);
-          const state = step === currentStage ? "current" : stageComplete(step) ? "complete" : "upcoming";
+          const state = workflow.completed && stageComplete(step) ? "complete" : step === currentStage ? "current" : stageComplete(step) ? "complete" : "upcoming";
           item.dataset.state = state;
           const dot = item.querySelector(".step-dot");
           const detail = item.querySelector("small");
@@ -1044,6 +1044,15 @@ export function renderSetupPage(input: {
         workflow.published = checklist.published;
         workflow.configApplied = checklist.configApplied;
         workflow.completed = checklist.completed;
+        document.getElementById("completion-heading").textContent = checklist.completed ? "Setup complete" : "Complete commissioning";
+        document.getElementById("completion-description").textContent = checklist.completed
+          ? "This venue PC has completed commissioning. You can lock setup and close this tab; VenueEdge keeps running."
+          : "Finish after every preview and failover check passes and the latest cloud configuration is applied on this PC.";
+        document.getElementById("completion-panel-heading").textContent = checklist.completed ? "✓ VenueEdge is ready" : "Final readiness check";
+        document.getElementById("completion-success").hidden = !checklist.completed;
+        document.getElementById("commissioning-final-checklist").hidden = checklist.completed;
+        document.getElementById("commissioning-complete").classList.toggle("secondary", checklist.completed);
+        document.getElementById("lock-btn").classList.toggle("secondary", !checklist.completed);
         workflow.enabledCameraCount = checklist.enabledCameraCount;
         workflow.camerasTested = checklist.allEnabledCamerasTested;
         workflow.camerasPreviewed = checklist.allEnabledCamerasPreviewed;
@@ -1528,6 +1537,9 @@ export function renderSetupPage(input: {
         setCompleteStatus("Locking setup…", true);
         try {
           await api("/api/setup/lock", { method: "POST", body: "{}" });
+          setupLocked = true;
+          document.getElementById("commissioning-complete").disabled = true;
+          lockBtn.textContent = "Setup locked";
           setCompleteStatus("Setup locked. You can close this tab. VenueEdge keeps running.", false);
         } catch (error) {
           setCompleteStatus(error.message, false);
