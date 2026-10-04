@@ -105,6 +105,14 @@ venue-edge/installers/pilot/0.2.0/<SHA256>/PlayTTVenueEdge-Setup-0.2.0.exe
 Never overwrite an existing object. Publish a new version when the installer
 changes.
 
+The installer version comes from `services/venue-edge/packaging/pins.json`
+(`packageVersion`). Increment it before releasing changed installer contents.
+If registration reports "already registered with a different artifact", that
+version is already reserved for another checksum. Commit a new package version
+and start a new workflow run from that commit. Re-running the failed job uses
+the old commit and will not pick up the version bump. For a retry of the same
+version, reuse the exact original installer rather than rebuilding it.
+
 ## Part 2: Create the release-registration secret
 
 Generate a high-entropy secret once. For example, on an administrator Windows
