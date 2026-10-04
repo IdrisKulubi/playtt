@@ -15,6 +15,7 @@ import Link from "next/link"
 import { useCallback, useEffect, useState, useTransition } from "react"
 
 import { Badge } from "@/components/ui/badge"
+import { setupPresentation, type InstallationSetupSummary } from "@/components/nvr/nvr-setup-state"
 import { Button } from "@/components/ui/button"
 import type { VenueEdgeInstallerArtifactMetadata } from "@/server/replays/venue-edge-installer-metadata"
 import type { VenueEdgePairingSessionView } from "@/server/replays/venue-edge-pairing-sessions"
@@ -88,12 +89,14 @@ export function NvrOnboardingPanel({
   installer,
   initialSessions,
   initialInstallationHref,
+  initialInstallation,
 }: {
   selectedVenueId: string
   canManage: boolean
   installer: VenueEdgeInstallerArtifactMetadata
   initialSessions: VenueEdgePairingSessionView[]
   initialInstallationHref: string | null
+  initialInstallation: InstallationSetupSummary | null
 }) {
   const [sessions, setSessions] =
     useState<VenueEdgePairingSessionView[]>(initialSessions)
@@ -106,6 +109,8 @@ export function NvrOnboardingPanel({
   const [installationHref, setInstallationHref] = useState(
     initialInstallationHref
   )
+  const [installation, setInstallation] = useState(initialInstallation)
+  const setup = setupPresentation(installation)
   const [copied, setCopied] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -122,15 +127,6 @@ export function NvrOnboardingPanel({
   }, [selectedVenueId])
 
   useEffect(() => {
-    setFreshPairingCode(null)
-    setFreshPairingExpiresAt(null)
-    setPilotAcknowledged(false)
-    setDownloadStarted(false)
-    setInstallationHref(initialInstallationHref)
-    setSessions(initialSessions)
-  }, [initialInstallationHref, initialSessions, selectedVenueId])
-
-  useEffect(() => {
     async function refreshSetupState() {
       await refreshSessions()
       const response = await fetch(
@@ -138,13 +134,14 @@ export function NvrOnboardingPanel({
       )
       if (!response.ok) return
       const payload = (await response.json()) as {
-        data?: { installations?: Array<{ connectivity: string; nextAction: { href: string } }> }
+        data?: { installations?: Array<InstallationSetupSummary & { connectivity: string }> }
       }
       const installations = payload.data?.installations ?? []
       const preferred =
         installations.find((installation) => installation.connectivity === "online") ??
         installations[0]
       setInstallationHref(preferred?.nextAction.href ?? null)
+      setInstallation(preferred ?? null)
     }
     const timer = setInterval(() => void refreshSetupState(), 8_000)
     return () => clearInterval(timer)
@@ -256,7 +253,7 @@ export function NvrOnboardingPanel({
             Set up a venue PC
           </h2>
           {hasInstallation ? (
-            <Badge variant="secondary">VenueEdge detected</Badge>
+            <Badge variant="secondary">{setup.complete ? "Setup complete" : "VenueEdge detected"}</Badge>
           ) : null}
         </div>
         <p className="text-sm leading-6 text-muted-foreground">
@@ -403,13 +400,13 @@ export function NvrOnboardingPanel({
                 weight="fill"
               />
               <div>
-                <p className="font-medium">VenueEdge is connected</p>
+                <p className="font-medium">{setup.title}</p>
                 <p className="mt-1 text-sm leading-5">
-                  Continue setup from the installation row above.
+                  {setup.detail}
                 </p>
                 {installationHref ? (
                   <Button asChild size="sm" className="mt-3">
-                    <Link href={installationHref}>Continue setup</Link>
+                    <Link href={installationHref}>{setup.action}</Link>
                   </Button>
                 ) : null}
               </div>

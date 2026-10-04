@@ -18,6 +18,41 @@ function host(value: unknown) {
   try { return new URL(trimmed).hostname } catch { return trimmed }
 }
 
+function stableTopology(topology: Row): Row | null {
+  if (!Array.isArray(topology.recorders) || !Array.isArray(topology.sources) || !Array.isArray(topology.resourcePolicies)) return null
+  const recorderKeys = new Map<unknown, string>()
+  const sourceKeys = new Map<unknown, string>()
+  const identities = new Set<string>()
+  const recorders = rows(topology.recorders).map((recorder) => {
+    if (typeof recorder.localConnectionKey !== "string" || identities.has(recorder.localConnectionKey) || recorderKeys.has(recorder.id)) return null
+    identities.add(recorder.localConnectionKey)
+    recorderKeys.set(recorder.id, recorder.localConnectionKey)
+    const connection = recorder.connection as Row | undefined
+    return { ...recorder, id: recorder.localConnectionKey, connection: { ...connection, host: host(connection?.host).toLowerCase() } }
+  })
+  identities.clear()
+  const sources = rows(topology.sources).map((source) => {
+    const recorderKey = recorderKeys.get(source.recorderId)
+    if (!recorderKey) return null
+    const key = JSON.stringify([recorderKey, source.channelKey, source.streamProfile])
+    if (identities.has(key) || sourceKeys.has(source.id)) return null
+    identities.add(key)
+    sourceKeys.set(source.id, key)
+    return { ...source, id: key, recorderId: recorderKey }
+  })
+  const policies = rows(topology.resourcePolicies).map((policy) => {
+    const candidates = rows(policy.candidates).map((candidate) => {
+      const sourceKey = sourceKeys.get(candidate.sourceId)
+      return sourceKey ? { ...candidate, sourceId: sourceKey } : null
+    })
+    const manualSourceId = policy.manualSourceId ? sourceKeys.get(policy.manualSourceId) : null
+    if (candidates.includes(null) || (policy.manualSourceId && !manualSourceId)) return null
+    return { ...policy, manualSourceId, candidates }
+  })
+  if (recorders.includes(null) || sources.includes(null) || policies.includes(null)) return null
+  return { recorders, sources, resourcePolicies: policies }
+}
+
 // Reports also include completion, test results and live health. Only compare
 // the settings actually delivered in Config v2, never camera/NVR counts alone.
 export function commissioningReportMatchesConfig(report: Row | null | undefined, config: Row | null | undefined): boolean {
@@ -39,5 +74,9 @@ export function commissioningReportMatchesConfig(report: Row | null | undefined,
       return { resourceId, selectionMode: manualSourceId ? "manual" : "automatic", manualSourceId, failover: { failureThreshold: policy?.failureThreshold ?? 3, cooldownSeconds: policy?.cooldownSeconds ?? 60, healthyThreshold: policy?.healthyThreshold ?? 2, autoFailback: policy?.autoFailback ?? true }, candidates }
     }),
   }
-  return canonical(projected) === canonical({ recorders: config.recorders, sources: config.sources, resourcePolicies: config.resourcePolicies })
+  // Reconciliation reuses existing cloud IDs while the local wizard retains its
+  // own IDs. Compare the same connection/channel identities used by VenueEdge.
+  const reportedTopology = stableTopology(projected)
+  const publishedTopology = stableTopology(config)
+  return reportedTopology !== null && publishedTopology !== null && canonical(reportedTopology) === canonical(publishedTopology)
 }

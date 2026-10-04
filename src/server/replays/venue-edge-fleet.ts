@@ -279,13 +279,14 @@ function deriveWorkflow(input: {
   }
 
   const next = blockers[0]
+  const setupComplete = input.commissioned && blockers.every((blocker) => blocker.code === "HOST_SLEEP_RISK")
   const lifecycleStage = next?.stage ?? "complete_commissioning"
   return {
     lifecycleStage,
     readiness: blockers.length === 0 ? ("ready" as const) : ("action_required" as const),
     checklistBlockers: blockers,
     nextAction: {
-      label: next ? "Continue setup" : "View installation",
+      label: next && !setupComplete ? "Continue setup" : "View installation",
       detail: next?.label ?? "VenueEdge is ready for replay capture.",
       href: `/nvr/${input.installationId}#${lifecycleStage}`,
     },

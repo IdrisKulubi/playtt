@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, CircleIcon, CloudArrowUpIcon, WrenchIcon } from "@phosphor-icons/react"
 
+import { isSetupStageComplete, setupPresentation } from "@/components/nvr/nvr-setup-state"
 import { NvrConfigStatus } from "@/components/nvr/nvr-config-status"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -59,6 +60,7 @@ export function NvrInstallationDetail({ installation: initialInstallation, canMa
   const currentStageIndex = Math.max(0, STAGES.findIndex((stage) => stage.id === installation.lifecycleStage))
   const stage = STAGES[activeIndex] ?? STAGES[0]
   const snapshot = installation.commissioningSnapshot
+  const setupComplete = setupPresentation(installation).complete
 
   const refreshDetail = useCallback(async () => {
     const response = await fetch(`/api/operator/venue-edge/installations/${installation.id}`, { cache: "no-store" })
@@ -68,7 +70,7 @@ export function NvrInstallationDetail({ installation: initialInstallation, canMa
     if (nextInstallation) {
       const nextStageIndex = Math.max(0, STAGES.findIndex((stage) => stage.id === nextInstallation.lifecycleStage))
       setInstallation(nextInstallation)
-      setActiveIndex((value) => nextInstallation.readiness === "ready" ? STAGES.length - 1 : Math.min(value, nextStageIndex))
+      setActiveIndex((value) => setupPresentation(nextInstallation).complete ? STAGES.length - 1 : Math.min(value, nextStageIndex))
       setUpdateChannel(nextInstallation.updateChannel)
       setPinnedVersion(nextInstallation.pinnedVersion ?? "")
     }
@@ -168,20 +170,20 @@ export function NvrInstallationDetail({ installation: initialInstallation, canMa
         <div className="flex items-center gap-2"><Badge variant={installation.readiness === "ready" ? "default" : "outline"}>{installation.readiness === "ready" ? "Ready" : "Action required"}</Badge><Badge variant="outline">{installation.connectivity}</Badge></div>
       </div>
 
-      {installation.readiness === "ready" ? <div role="status" className="flex items-start gap-3 rounded-2xl bg-emerald-50 p-5 text-emerald-950 dark:bg-emerald-950 dark:text-emerald-100"><CheckIcon className="mt-1 shrink-0" size={24} weight="bold" /><div><h2 className="text-xl font-semibold tracking-tight">Setup complete</h2><p className="mt-1 text-sm leading-6">VenueEdge is commissioned and configuration v{installation.desiredTopology.revisionVersion} is applied on the venue PC.</p><p className="mt-1 text-sm">You can review the setup below or return to the fleet.</p><Button asChild variant="outline" className="mt-3"><Link href={`/nvr?venueId=${installation.locationId}`}>View fleet<ArrowRightIcon /></Link></Button></div></div> : null}
+      {setupComplete ? <div role="status" className="flex items-start gap-3 rounded-2xl bg-emerald-50 p-5 text-emerald-950 dark:bg-emerald-950 dark:text-emerald-100"><CheckIcon className="mt-1 shrink-0" size={24} weight="bold" /><div><h2 className="text-xl font-semibold tracking-tight">Setup complete</h2><p className="mt-1 text-sm leading-6">VenueEdge is commissioned and configuration v{installation.desiredTopology.revisionVersion} is applied on the venue PC.</p><p className="mt-1 text-sm">You can review the setup below or return to the fleet.</p><Button asChild variant="outline" className="mt-3"><Link href={`/nvr?venueId=${installation.locationId}`}>View fleet<ArrowRightIcon /></Link></Button></div></div> : null}
 
       <div className="lg:hidden" aria-label="Setup progress"><div className="mb-2 flex items-center justify-between text-sm"><span className="font-medium">Step {activeIndex + 1} of {STAGES.length}</span><span className="text-muted-foreground">{stage.label}</span></div><div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary transition-[width] duration-200 motion-reduce:transition-none" style={{ width: `${((activeIndex + 1) / STAGES.length) * 100}%` }} /></div></div>
 
       <div className="grid gap-5 lg:grid-cols-[17rem_minmax(0,1fr)]">
         <nav className="hidden rounded-2xl bg-muted/45 p-3 lg:block" aria-label="VenueEdge setup stages">
-          <ol className="space-y-1">{STAGES.map((item, index) => { const complete = index < currentStageIndex || installation.readiness === "ready"; const active = index === activeIndex; return <li key={item.id}><button className={`flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-colors ${active ? "bg-background shadow-sm" : "hover:bg-background/70"}`} onClick={() => setActiveIndex(index)}><span className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-full ${complete ? "bg-emerald-600 text-white" : active ? "bg-primary text-primary-foreground" : "text-muted-foreground ring-1 ring-border"}`}>{complete ? <CheckIcon size={14} weight="bold" /> : <CircleIcon size={12} weight="fill" />}</span><span><span className="block text-sm font-semibold">{item.label}</span><span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span></span></button></li> })}</ol>
+          <ol className="space-y-1">{STAGES.map((item, index) => { const complete = isSetupStageComplete(installation, item.id); const active = index === activeIndex; return <li key={item.id}><button className={`flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-colors ${active ? "bg-background shadow-sm" : "hover:bg-background/70"}`} onClick={() => setActiveIndex(index)}><span className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-full ${complete ? "bg-emerald-600 text-white" : active ? "bg-primary text-primary-foreground" : "text-muted-foreground ring-1 ring-border"}`}>{complete ? <CheckIcon size={14} weight="bold" /> : <CircleIcon size={12} weight="fill" />}</span><span><span className="block text-sm font-semibold">{item.label}</span><span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span></span></button></li> })}</ol>
         </nav>
 
         <main className="min-w-0 rounded-2xl bg-card p-5 ring-1 ring-border sm:p-7" id={stage.id}>
           <div className="border-b pb-5"><p className="text-sm font-medium text-primary">Step {activeIndex + 1} of {STAGES.length}</p><h2 className="mt-1 text-xl font-semibold tracking-tight text-balance">{stage.label}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{stage.description}</p></div>
 
           <div className="py-6">
-            {activeBlockers.length ? <div className="space-y-3">{activeBlockers.map((blocker) => <div key={blocker.code} className="rounded-xl bg-amber-50 p-4 text-amber-950"><p className="font-semibold">{blocker.label}</p><p className="mt-1 text-sm leading-6">{blocker.detail}</p></div>)}</div> : <div className="rounded-xl bg-emerald-50 p-4 text-emerald-950"><p className="font-semibold">This stage is complete</p><p className="mt-1 text-sm">{installation.readiness === "ready" && stage.id === "complete_commissioning" ? "All setup steps are complete. VenueEdge is ready to capture replays." : "You can review it here or move to the next stage."}</p></div>}
+            {activeBlockers.length ? <div className="space-y-3">{activeBlockers.map((blocker) => <div key={blocker.code} className="rounded-xl bg-amber-50 p-4 text-amber-950"><p className="font-semibold">{blocker.label}</p><p className="mt-1 text-sm leading-6">{blocker.detail}</p></div>)}</div> : <div className="rounded-xl bg-emerald-50 p-4 text-emerald-950"><p className="font-semibold">This stage is complete</p><p className="mt-1 text-sm">{installation.readiness === "ready" && stage.id === "complete_commissioning" ? "All setup steps are complete. VenueEdge is ready to capture replays." : "Review the completed settings here."}</p></div>}
 
             {stage.id === "pair_device" ? <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-muted-foreground">Installation</dt><dd className="font-medium">{installation.displayName}</dd></div><div><dt className="text-muted-foreground">Last heartbeat</dt><dd>{formatDate(installation.lastHeartbeatAt)}</dd></div></dl> : null}
             {stage.id === "add_nvr" || stage.id === "review_cameras" || stage.id === "map_tables" ? <div className="mt-5"><h3 className="font-semibold">Local report</h3><p className="mt-1 text-sm text-muted-foreground">{installation.reportedTopology.topology.nvrCount} NVR · {installation.reportedTopology.topology.enabledCameraCount} enabled of {installation.reportedTopology.topology.cameraCount} cameras · {snapshot?.resourceRoutes?.length ?? 0} table routes</p><p className="mt-2 text-xs text-muted-foreground">Reported {formatDate(installation.reportedTopology.observedAt)}. Recorder passwords stay on the venue PC.</p></div> : null}
@@ -189,7 +191,7 @@ export function NvrInstallationDetail({ installation: initialInstallation, canMa
             {stage.id === "complete_commissioning" && !installation.commissionedAt ? <div className="mt-5 space-y-3 text-sm"><p>Return to the local VenueEdge loopback wizard, run preview and failover checks, then choose <strong>Complete commissioning</strong>.</p><p className="text-muted-foreground">This cloud page will update automatically when the local agent reports completion.</p></div> : null}
           </div>
 
-          <div className="flex items-center justify-between border-t pt-5"><Button variant="outline" disabled={activeIndex === 0} onClick={() => setActiveIndex((value) => Math.max(0, value - 1))}><ArrowLeftIcon />Back</Button>{installation.readiness === "ready" && activeIndex === STAGES.length - 1 ? <Button asChild><Link href={`/nvr?venueId=${installation.locationId}`}>View fleet<ArrowRightIcon /></Link></Button> : <Button variant="outline" disabled={activeIndex === STAGES.length - 1 || (installation.readiness !== "ready" && activeIndex >= currentStageIndex)} onClick={() => setActiveIndex((value) => Math.min(STAGES.length - 1, value + 1))}>Continue<ArrowRightIcon /></Button>}</div>
+          <div className="flex items-center justify-between border-t pt-5"><Button variant="outline" disabled={activeIndex === 0} onClick={() => setActiveIndex((value) => Math.max(0, value - 1))}><ArrowLeftIcon />Back</Button>{setupComplete && activeIndex === STAGES.length - 1 ? <Button asChild><Link href={`/nvr?venueId=${installation.locationId}`}>View fleet<ArrowRightIcon /></Link></Button> : <Button variant="outline" disabled={activeIndex === STAGES.length - 1 || (!isSetupStageComplete(installation, stage.id) && activeIndex >= currentStageIndex)} onClick={() => setActiveIndex((value) => Math.min(STAGES.length - 1, value + 1))}>Continue<ArrowRightIcon /></Button>}</div>
         </main>
       </div>
 
