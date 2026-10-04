@@ -73,11 +73,13 @@ export default async function NvrOnboardingPage({ searchParams }: PageProps) {
         />
         <div className="admin-dashboard-card p-5">
           <NvrOnboardingPanel
+            key={selectedVenueId}
             selectedVenueId={selectedVenueId}
             canManage={canManage}
             installer={installer}
             initialSessions={sessions}
             initialInstallationHref={preferredInstallation?.nextAction.href ?? null}
+            initialInstallation={preferredInstallation ?? null}
           />
         </div>
       </div>

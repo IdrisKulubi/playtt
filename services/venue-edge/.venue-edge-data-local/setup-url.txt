@@ -1,1 +1,1 @@
-http://127.0.0.1:18765/?setup_token=LGHs5070Tg3Tuv-yKjCb1jTo9PFT3FAkFq1qWlutVuM
+http://127.0.0.1:18765/?setup_token=JGrMNc8XbH3Sm9nNURAkOujcocFGPvi4VyH3zCBaBSE

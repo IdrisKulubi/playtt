@@ -2,8 +2,24 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import assert from "node:assert/strict"
 import test from "node:test"
+import { isSetupStageComplete, setupPresentation } from "./nvr-setup-state.ts"
 
 const repoRoot = join(import.meta.dirname, "..", "..", "..")
+
+test("completed setup uses an installation action even with an operational warning", () => {
+  const installation = { commissionedAt: "2026-10-04T10:00:00Z", readiness: "action_required", checklistBlockers: [{ code: "HOST_SLEEP_RISK", stage: "complete_commissioning" }], nextAction: { label: "Continue setup" } }
+  assert.equal(setupPresentation(installation).title, "Setup complete")
+  assert.equal(setupPresentation(installation).action, "View installation")
+  assert.equal(isSetupStageComplete(installation, "complete_commissioning"), true)
+})
+
+test("individual stages retain completion even while another stage needs attention", () => {
+  const installation = { commissionedAt: "2026-10-04T10:00:00Z", connectivity: "online", reportedTopology: { topology: { nvrCount: 1, enabledCameraCount: 2 } }, commissioningSnapshot: { resourceRoutes: [{ enabled: true }] }, desiredTopology: { revisionVersion: 29 }, appliedTopology: { revisionVersion: 29 }, configApplicationStatus: "applied", checklistBlockers: [{ code: "PUBLISH_CONFIG", stage: "publish_config" }], nextAction: { label: "Continue setup" } }
+  for (const stage of ["pair_device", "add_nvr", "review_cameras", "map_tables", "complete_commissioning"]) assert.equal(isSetupStageComplete(installation, stage), true)
+  assert.equal(isSetupStageComplete(installation, "publish_config"), false)
+  assert.equal(setupPresentation(installation).complete, false)
+  assert.equal(setupPresentation({ ...installation, commissionedAt: null }).action, "Continue setup")
+})
 
 test("nvr onboarding page and installer metadata exist", () => {
   const page = readFileSync(join(repoRoot, "src/app/nvr/page.tsx"), "utf8")
