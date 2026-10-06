@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { AppleLogo } from 'phosphor-react-native/src/icons/AppleLogo';
-import { GoogleLogo } from 'phosphor-react-native/src/icons/GoogleLogo';
+
+import { GoogleBrandIcon } from '@/components/auth/google-brand-icon';
 import {
   ActivityIndicator,
   Pressable,
@@ -58,7 +59,7 @@ export function SocialAuthButton({
       ) : (
         <View style={styles.content}>
           {provider === 'google' ? (
-            <GoogleLogo size={18} weight="bold" color={theme.foreground} />
+            <GoogleBrandIcon size={18} />
           ) : (
             <AppleLogo size={18} weight="fill" color={theme.foreground} />
           )}

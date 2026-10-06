@@ -19,7 +19,7 @@ export function BrandMark({
 }: BrandMarkProps) {
   const colorScheme = useColorScheme()
   const isCompact = size === "compact"
-  const logoWidth = layout === "auth" ? 142 : isCompact ? 140 : 168
+  const logoWidth = layout === "auth" ? 200 : isCompact ? 140 : 168
   const logoHeight = logoWidth / LOGO_ASPECT
   const logoSource =
     (appearance ?? colorScheme) === "dark"
