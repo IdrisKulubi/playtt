@@ -90,6 +90,7 @@ Use **`npm start`**, not `npx expo start`. On Windows, `npx expo` may resolve to
 - **SDK 56+ navigation imports**: application code imports navigation helpers from `expo-router/react-navigation` and `expo-router/js-tabs`, not `@react-navigation/*`.
 - **Empty `node_modules/.bin`**: run `npm install` to regenerate CLI shims.
 - **Expo version mismatch warnings**: align packages with `npx expo install <package>` from `playtt-mobile/`.
+- **`Cannot find native module 'ExpoAsset'`** plus `No native ExponentConstants module found` and `"main" has not been registered` after a reload: Metro's module map is stale, often after installing a package while the dev server was running. `ExpoAsset` is just the first native module the bundle touches. Stop the server, run `npm start` again, and reload Expo Go.
 
 ## VenueEdge (`services/venue-edge/`)
 

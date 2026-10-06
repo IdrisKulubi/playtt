@@ -3,17 +3,20 @@ import { useMemo } from 'react';
 
 import { GlassTabBar } from '@/components/navigation/glass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors, resolveColorScheme } from '@/constants/theme';
+import { resolveColorScheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
   const colorScheme = resolveColorScheme(useColorScheme());
-  const palette = Colors[colorScheme];
 
   const screenOptions = useMemo(
     () => ({
-      tabBarActiveTintColor: palette.tabIconSelected,
-      tabBarInactiveTintColor: palette.tabIconDefault,
+      tabBarActiveTintColor:
+        colorScheme === 'dark' ? '#FFFFFF' : '#0A1628',
+      tabBarInactiveTintColor:
+        colorScheme === 'dark'
+          ? 'rgba(255, 255, 255, 0.55)'
+          : 'rgba(10, 22, 40, 0.48)',
       headerShown: false,
       tabBarStyle: {
         position: 'absolute' as const,
@@ -22,7 +25,7 @@ export default function TabLayout() {
         elevation: 0,
       },
     }),
-    [palette.tabIconDefault, palette.tabIconSelected],
+    [colorScheme],
   );
 
   return (

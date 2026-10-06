@@ -10,12 +10,14 @@ import {
 } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { IconSymbol } from "@/components/ui/icon-symbol"
 import {
-  LiquidGlassFallback,
-  liquidGlassFallbackFill,
-} from "@/components/ui/liquid-glass-fallback"
-import { Colors, resolveColorScheme } from "@/constants/theme"
+  TabBarGlassSurface,
+  tabBarGlassFill,
+  useNativeTabBarGlass,
+} from "@/components/navigation/tab-bar-glass-surface"
+import { IconSymbol } from "@/components/ui/icon-symbol"
+import type { AppColorScheme } from "@/constants/theme"
+import { resolveColorScheme } from "@/constants/theme"
 import {
   PlayTTFontFamilies,
   PlayTTRadius,
@@ -31,8 +33,7 @@ const VISIBLE_TAB_NAMES = [
   "account",
 ] as const
 
-const TAB_ICON_SIZE = 20
-const ACTIVE_ICON_RING_SIZE = 36
+const TAB_ICON_SIZE = 22
 
 const TAB_SYSTEM_ICONS = {
   index: "house.fill",
@@ -41,6 +42,19 @@ const TAB_SYSTEM_ICONS = {
   community: "person.2.fill",
   account: "person.fill",
 } as const
+
+function tabBarIconColor(colorScheme: AppColorScheme, focused: boolean) {
+  if (colorScheme === "dark") {
+    return focused ? "#FFFFFF" : "rgba(255, 255, 255, 0.55)"
+  }
+  return focused ? "#0A1628" : "rgba(10, 22, 40, 0.48)"
+}
+
+function selectionChipColor(colorScheme: AppColorScheme) {
+  return colorScheme === "dark"
+    ? "rgba(255, 255, 255, 0.16)"
+    : "rgba(10, 22, 40, 0.1)"
+}
 
 type TabBarOptions = {
   title?: string
@@ -58,7 +72,7 @@ function isVisibleTab(routeName: string): routeName is (typeof VISIBLE_TAB_NAMES
 export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets()
   const colorScheme = resolveColorScheme(useColorScheme())
-  const palette = Colors[colorScheme]
+  const nativeGlass = useNativeTabBarGlass()
 
   const visibleRoutes = useMemo(
     () =>
@@ -87,60 +101,56 @@ export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProp
           borderWidth: StyleSheet.hairlineWidth,
           borderColor:
             colorScheme === "dark"
-              ? "rgba(255, 255, 255, 0.12)"
-              : "rgba(10, 22, 40, 0.08)",
-          ...Platform.select({
-            ios: {
-              shadowColor: colorScheme === "dark" ? "#000000" : "#0a1628",
-              shadowOffset: { width: 0, height: 6 },
-              shadowOpacity: colorScheme === "dark" ? 0.35 : 0.1,
-              shadowRadius: 16,
-            },
-            android: {
-              elevation: 10,
-            },
-            default: {},
-          }),
+              ? "rgba(255, 255, 255, 0.1)"
+              : "rgba(10, 22, 40, 0.06)",
+          ...(!nativeGlass
+            ? Platform.select({
+                ios: {
+                  shadowColor: colorScheme === "dark" ? "#000000" : "#0a1628",
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: colorScheme === "dark" ? 0.35 : 0.1,
+                  shadowRadius: 16,
+                },
+                android: {
+                  elevation: 10,
+                },
+                default: {},
+              })
+            : {}),
         },
         row: {
           flexDirection: "row",
-          alignItems: "flex-end",
-          justifyContent: "space-around",
-          paddingVertical: 6,
-          paddingHorizontal: PlayTTSpacing.xs,
-          minHeight: 44,
+          alignItems: "stretch",
+          justifyContent: "space-between",
+          paddingVertical: 5,
+          paddingHorizontal: 4,
+          minHeight: 56,
         },
         tab: {
           flex: 1,
           alignItems: "center",
-          justifyContent: "flex-end",
+          justifyContent: "center",
         },
-        iconSlot: {
-          width: ACTIVE_ICON_RING_SIZE,
-          height: ACTIVE_ICON_RING_SIZE,
+        chip: {
           alignItems: "center",
           justifyContent: "center",
-          borderRadius: ACTIVE_ICON_RING_SIZE / 2,
+          paddingVertical: 6,
+          paddingHorizontal: 6,
+          borderRadius: 22,
+          minWidth: 52,
+          minHeight: 46,
         },
-        iconSlotActive: {
-          backgroundColor:
-            colorScheme === "dark"
-              ? "rgba(255, 255, 255, 0.14)"
-              : "rgba(10, 22, 40, 0.1)",
+        chipActive: {
+          backgroundColor: selectionChipColor(colorScheme),
         },
         label: {
-          marginTop: 2,
-          fontSize: 9,
+          marginTop: 3,
+          fontSize: 10,
           fontFamily: PlayTTFontFamilies.medium,
-          color: palette.tabIconDefault,
           textAlign: "center",
         },
-        labelActive: {
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: palette.tabIconSelected,
-        },
       }),
-    [colorScheme, palette.tabIconDefault, palette.tabIconSelected],
+    [colorScheme, nativeGlass],
   )
 
   const bottomPadding = Math.max(insets.bottom, PlayTTSpacing.sm)
@@ -177,11 +187,7 @@ export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProp
   return (
     <View style={[styles.wrapper, { paddingBottom: bottomPadding }]}>
       <View style={styles.pill}>
-        <LiquidGlassFallback
-          colorScheme={colorScheme}
-          intensity={95}
-          style={liquidGlassFallbackFill}
-        />
+        <TabBarGlassSurface colorScheme={colorScheme} style={tabBarGlassFill} />
 
         <View style={styles.row}>
           {visibleRoutes.map((route) => {
@@ -191,9 +197,8 @@ export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProp
             const label = tabOptions.title ?? route.name
             const isFocused = state.index === routeIndex
 
-            const iconColor = isFocused
-              ? palette.tabIconSelected
-              : palette.tabIconDefault
+            const iconColor = tabBarIconColor(colorScheme, isFocused)
+            const labelColor = iconColor
 
             return (
               <Pressable
@@ -207,7 +212,7 @@ export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProp
                 onLongPress={() => handleTabLongPress(route.key)}
                 style={styles.tab}
               >
-                <View style={[styles.iconSlot, isFocused && styles.iconSlotActive]}>
+                <View style={[styles.chip, isFocused && styles.chipActive]}>
                   {tabOptions.tabBarIcon?.({
                     focused: isFocused,
                     color: iconColor,
@@ -219,15 +224,15 @@ export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProp
                       color={iconColor}
                     />
                   )}
+                  <Text
+                    style={[styles.label, { color: labelColor }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.85}
+                  >
+                    {label}
+                  </Text>
                 </View>
-                <Text
-                  style={[styles.label, isFocused && styles.labelActive]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.85}
-                >
-                  {label}
-                </Text>
               </Pressable>
             )
           })}
