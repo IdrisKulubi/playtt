@@ -3,6 +3,11 @@ import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { EnvelopeSimple } from 'phosphor-react-native/src/icons/EnvelopeSimple';
+import { LockSimple } from 'phosphor-react-native/src/icons/LockSimple';
+import { User } from 'phosphor-react-native/src/icons/User';
+import { Eye } from 'phosphor-react-native/src/icons/Eye';
+import { EyeSlash } from 'phosphor-react-native/src/icons/EyeSlash';
 
 import { SocialAuthButton } from '@/components/auth/social-auth-button';
 import { Button } from '@/components/ui/button';
@@ -23,6 +28,7 @@ import { getApiBaseUrl } from '@/lib/env';
 import { toast } from '@/lib/toast';
 import { authClient, refreshSession } from '@/lib/auth-client';
 import { storeAppleSession, waitForStoredAuth } from '@/lib/auth-helpers';
+import { acceptAuthenticatedSession } from '@/lib/auth-session-state';
 import {
   goToResetPassword,
   goToVerifyEmail,
@@ -66,14 +72,21 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
 
   const isSignIn = mode === 'sign-in';
   const isIos = Platform.OS === 'ios';
-  const [appleAvailable, setAppleAvailable] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState<boolean | null>(isIos ? null : false);
 
   useEffect(() => {
     if (!isIos) {
       return;
     }
 
-    void isAppleSignInAvailable().then(setAppleAvailable);
+    let mounted = true;
+    void isAppleSignInAvailable().then((available) => {
+      if (mounted) setAppleAvailable(available);
+    }).catch((error) => {
+      authDebugError('apple-availability:failed', error);
+      if (mounted) setAppleAvailable(false);
+    });
+    return () => { mounted = false; };
   }, [isIos]);
 
   function handleModeChange(nextMode: AuthMode) {
@@ -83,7 +96,11 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
 
   async function completeSignIn() {
     authDebug('complete-sign-in:start');
-    await refreshSession();
+    const result = await refreshSession();
+    if (!result.data?.session) {
+      throw new Error('Your sign in could not be confirmed. Please try again.');
+    }
+    await acceptAuthenticatedSession();
     const stored = await waitForStoredAuth();
     authDebug('complete-sign-in:stored-auth', {
       found: Boolean(stored?.token),
@@ -103,24 +120,25 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
     setSignInErrors({});
     setIsLoading(true);
 
-    await authClient.signIn.email(
-      { email: parsed.data.email, password: parsed.data.password },
-      {
-        onSuccess: async (ctx) => {
-          if (ctx.data.twoFactorRedirect) {
-            setShowTwoFactor(true);
-            toast.info('Two-factor verification is required.');
-          } else {
-            await completeSignIn();
-          }
-          setIsLoading(false);
-        },
-        onError: (ctx) => {
-          toast.error(formatAuthError(ctx.error.message || 'Failed to sign in.'));
-          setIsLoading(false);
-        },
-      },
-    );
+    try {
+      const { data, error } = await authClient.signIn.email({
+        email: parsed.data.email, password: parsed.data.password,
+      });
+      if (error) {
+        toast.error(formatAuthError(error.message || 'Failed to sign in.'));
+        return;
+      }
+      if (data && 'twoFactorRedirect' in data && data.twoFactorRedirect) {
+        setShowTwoFactor(true);
+        toast.info('Two-factor verification is required.');
+      } else {
+        await completeSignIn();
+      }
+    } catch (error) {
+      toast.apiError(error, 'Failed to sign in.');
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   async function handleSignUp() {
@@ -184,13 +202,18 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
   }
 
   async function handleGoogleSignIn() {
+    await handleSocialSignIn('google');
+  }
+
+  async function handleSocialSignIn(provider: 'google' | 'apple') {
+    const providerLabel = provider === 'google' ? 'Google' : 'Apple';
     setIsLoading(true);
 
     try {
       const callbackURL = Platform.OS === 'web'
         ? '/'
         : Linking.createURL('/', { scheme: 'playtt' });
-      authDebug('google-flow:start', {
+      authDebug(`${provider}-flow:start`, {
         callbackURL,
         apiBaseURL: getApiBaseUrl(),
         executionEnvironment: Constants.executionEnvironment,
@@ -199,18 +222,18 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
       // The Expo plugin opens the browser in its success hook. Wait for all
       // hooks before refreshing or routing, otherwise stale auth can interrupt it.
       const { error } = await authClient.signIn.social({
-        provider: 'google',
+        provider,
         callbackURL,
       });
       if (error) {
-        authDebugError('google-flow:rejected', new Error(error.message || 'Google sign in failed.'), {
+        authDebugError(`${provider}-flow:rejected`, new Error(error.message || `${providerLabel} sign in failed.`), {
           code: error.code,
           callbackURL,
           apiBaseURL: getApiBaseUrl(),
         });
         toast.error(error.code === 'INVALID_CALLBACK_URL'
-          ? 'Google sign in could not return to this app. Please try another sign-in method.'
-          : formatAuthError(error.message || 'Google sign in failed.'));
+          ? `${providerLabel} sign in could not return to this app. Please try another sign-in method.`
+          : formatAuthError(error.message || `${providerLabel} sign in failed.`));
         return;
       }
       const result = await refreshSession();
@@ -220,13 +243,17 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
       }
       await completeSignIn();
     } catch (error) {
-      toast.apiError(error, 'Google sign in failed.');
+      toast.apiError(error, `${providerLabel} sign in failed.`);
     } finally {
       setIsLoading(false);
     }
   }
 
   async function handleAppleSignIn() {
+    if (!isIos || !appleAvailable) {
+      await handleSocialSignIn('apple');
+      return;
+    }
     setIsLoading(true);
     authDebug('apple-flow:start');
 
@@ -266,6 +293,15 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
 
   const fieldProps = { variant: 'auth' as const, authTheme: theme, compact: true };
   const inputProps = { variant: 'auth' as const, authTheme: theme };
+  const passwordVisibility = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+      onPress={() => setShowPassword((current) => !current)}
+      style={styles.visibilityButton}>
+      {showPassword ? <Eye size={20} color={theme.muted} /> : <EyeSlash size={20} color={theme.muted} />}
+    </Pressable>
+  );
 
   if (showTwoFactor) {
     return (
@@ -302,6 +338,8 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
           <FormField label="Email" error={signInErrors.email} {...fieldProps}>
             <Input
               {...inputProps}
+              accessibilityLabel="Email"
+              leadingIcon={<EnvelopeSimple size={18} color={theme.muted} />}
               value={signInValues.email}
               onChangeText={(email) =>
                 setSignInValues((current) => ({ ...current, email }))
@@ -318,20 +356,12 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
             label="Password"
             error={signInErrors.password}
             {...fieldProps}
-            accessory={
-              <View style={styles.passwordAccessory}>
-                <Pressable onPress={goToResetPassword}>
-                  <Text style={[styles.inlineLink, { color: theme.link }]}>Forgot?</Text>
-                </Pressable>
-                <Pressable onPress={() => setShowPassword((current) => !current)}>
-                  <Text style={[styles.inlineLink, { color: theme.link }]}>
-                    {showPassword ? 'Hide' : 'Show'}
-                  </Text>
-                </Pressable>
-              </View>
-            }>
+            >
             <Input
               {...inputProps}
+              accessibilityLabel="Password"
+              leadingIcon={<LockSimple size={18} color={theme.muted} />}
+              trailingAccessory={passwordVisibility}
               value={signInValues.password}
               onChangeText={(password) =>
                 setSignInValues((current) => ({ ...current, password }))
@@ -342,12 +372,17 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
               hasError={Boolean(signInErrors.password)}
             />
           </FormField>
+          <Pressable accessibilityRole="button" onPress={goToResetPassword} style={styles.forgotButton}>
+            <Text style={[styles.inlineLink, { color: theme.link }]}>Forgot password?</Text>
+          </Pressable>
         </>
       ) : (
         <>
           <FormField label="Full name" error={signUpErrors.name} {...fieldProps}>
             <Input
               {...inputProps}
+              accessibilityLabel="Full name"
+              leadingIcon={<User size={18} color={theme.muted} />}
               value={signUpValues.name}
               onChangeText={(name) => setSignUpValues((current) => ({ ...current, name }))}
               placeholder="Your name"
@@ -359,6 +394,8 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
           <FormField label="Email" error={signUpErrors.email} {...fieldProps}>
             <Input
               {...inputProps}
+              accessibilityLabel="Email"
+              leadingIcon={<EnvelopeSimple size={18} color={theme.muted} />}
               value={signUpValues.email}
               onChangeText={(email) =>
                 setSignUpValues((current) => ({ ...current, email }))
@@ -375,15 +412,12 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
             label="Password"
             error={signUpErrors.password}
             {...fieldProps}
-            accessory={
-              <Pressable onPress={() => setShowPassword((current) => !current)}>
-                <Text style={[styles.inlineLink, { color: theme.link }]}>
-                  {showPassword ? 'Hide' : 'Show'}
-                </Text>
-              </Pressable>
-            }>
+            >
             <Input
               {...inputProps}
+              accessibilityLabel="Password"
+              leadingIcon={<LockSimple size={18} color={theme.muted} />}
+              trailingAccessory={passwordVisibility}
               value={signUpValues.password}
               onChangeText={(password) =>
                 setSignUpValues((current) => ({ ...current, password }))
@@ -398,7 +432,7 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
       )}
 
       <Button
-        label={isSignIn ? 'Sign in' : 'Continue'}
+        label={isSignIn ? 'Sign in' : 'Create account'}
         surface="auth"
         authTheme={theme}
         onPress={isSignIn ? handleEmailSignIn : handleSignUp}
@@ -421,20 +455,21 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
             loading={isLoading}
           />
         </View>
-        {isIos && appleAvailable ? (
           <View style={styles.socialButtonSlot}>
             <SocialAuthButton
               provider="apple"
               theme={theme}
               onPress={handleAppleSignIn}
               loading={isLoading}
+              disabled={isIos && appleAvailable === null}
             />
           </View>
-        ) : null}
       </View>
 
       <Pressable
         accessibilityRole="button"
+        disabled={isLoading}
+        style={styles.modeButton}
         onPress={() => handleModeChange(isSignIn ? 'sign-up' : 'sign-in')}>
         <Text style={[styles.modePrompt, { color: theme.muted }]}>
           {isSignIn ? 'New here? ' : 'Existing user? '}
@@ -449,12 +484,11 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
 
 const styles = StyleSheet.create({
   form: {
-    gap: PlayTTSpacing.md,
+    gap: 16,
   },
-  passwordAccessory: {
-    flexDirection: 'row',
-    gap: 10,
-  },
+  visibilityButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  forgotButton: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', marginTop: -12, marginBottom: -4 },
+  modeButton: { minHeight: 44, justifyContent: 'center', marginTop: 12 },
   inlineLink: {
     fontSize: 12,
     fontFamily: PlayTTFontFamilies.semiBold,

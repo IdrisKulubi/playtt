@@ -5,6 +5,15 @@ import { authDebug, authDebugError } from "@/lib/auth-debug"
 import { AUTHENTICATED_HOME } from "@/lib/auth-navigation"
 import { getCachedSessionRoute, setCachedSessionRoute } from "@/lib/session-cache"
 import { isTransientApiError } from "@/lib/api-errors"
+import { ApiError } from "@/lib/api-error"
+import { getStoredAuth } from "@/lib/auth-helpers"
+import { getSessionRevision } from "@/lib/auth-session-state"
+
+async function assertCurrentSession(revision: number) {
+  if (revision !== getSessionRevision() || !(await getStoredAuth())?.token) {
+    throw new ApiError({ status: 401, code: "UNAUTHENTICATED", message: "Please sign in again." })
+  }
+}
 
 export type UserAuthMethods = {
   providers: ("credential" | "google" | "apple")[]
@@ -51,9 +60,11 @@ export async function fetchCurrentUser() {
 
 export async function resolvePostAuthRoute() {
   authDebug("resolve-post-auth-route:start")
+  const revision = getSessionRevision()
 
   try {
     const response = await fetchCurrentUser()
+    await assertCurrentSession(revision)
     const route = response.data?.route ?? AUTHENTICATED_HOME
 
     await setCachedSessionRoute({
@@ -61,11 +72,15 @@ export async function resolvePostAuthRoute() {
       route,
     })
 
+    await assertCurrentSession(revision)
+
     authDebug("resolve-post-auth-route:done", { route })
     return route
   } catch (error) {
     if (isTransientApiError(error)) {
+      await assertCurrentSession(revision)
       const cached = await getCachedSessionRoute()
+      await assertCurrentSession(revision)
       const route = cached?.route ?? AUTHENTICATED_HOME
       authDebug("resolve-post-auth-route:offline-fallback", { route })
       return route
@@ -77,9 +92,11 @@ export async function resolvePostAuthRoute() {
 
 export async function routeAfterAuth() {
   authDebug("route-after-auth:start")
+  const revision = getSessionRevision()
 
   try {
     const response = await fetchCurrentUser()
+    await assertCurrentSession(revision)
     const route = response.data?.route ?? AUTHENTICATED_HOME
 
     authDebug("route-after-auth:resolved", {
@@ -92,6 +109,8 @@ export async function routeAfterAuth() {
       userId: response.data?.user?.id,
       route,
     })
+
+    await assertCurrentSession(revision)
 
     authDebug("route-after-auth:navigate", { route })
     router.replace(route as never)
