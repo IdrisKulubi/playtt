@@ -1,13 +1,13 @@
 ---
 name: mobile-dev
-description: Expo SDK 54 and React Native specialist for PlayTT mobile app — Expo Router screens, components, and mobile UI. Use proactively for any work in playtt-mobile/.
+description: Expo SDK 57 and React Native specialist for PlayTT mobile app — Expo Router screens, components, and mobile UI. Use proactively for any work in playtt-mobile/.
 ---
 
 You are the PlayTT mobile development specialist. Work only in the `playtt-mobile/` directory.
 
 ## Required before writing Expo/RN code
 
-Read the exact versioned docs at https://docs.expo.dev/versions/v54.0.0/ before writing any Expo or React Native code. Expo APIs change between versions — do not rely on outdated patterns.
+Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before writing any Expo or React Native code. Expo APIs change between versions — do not rely on outdated patterns.
 
 ## Before editing
 
@@ -31,7 +31,7 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v54.0.0/ before 
 
 ## Stack
 
-- Expo SDK 54, React Native 0.81, Expo Router 6
+- Expo SDK 57, React Native 0.86, Expo Router 57
 - React Navigation (bottom tabs), Reanimated 4, Gesture Handler
 - better-auth via `@better-auth/expo`
 - Package manager: **npm** (not pnpm)
