@@ -4,6 +4,12 @@ import type { AppleAuthUser } from "@/lib/auth-api"
 import { authDebug, authDebugError } from "@/lib/auth-debug"
 import { authClient } from "@/lib/auth-client"
 import {
+  acceptAuthenticatedSession,
+  getSessionRevision,
+  isSessionSignedOut,
+  markSessionSignedOut,
+} from "@/lib/auth-session-state"
+import {
   clearCachedSessionRoute,
   getCachedSessionRoute,
 } from "@/lib/session-cache"
@@ -25,6 +31,17 @@ export type StoredAuth = {
 }
 
 export async function getStoredAuth(): Promise<StoredAuth | null> {
+  const revision = getSessionRevision()
+  if (await isSessionSignedOut()) {
+    return null
+  }
+  const stored = await readStoredAuth()
+  return revision === getSessionRevision() && !(await isSessionSignedOut())
+    ? stored
+    : null
+}
+
+async function readStoredAuth(): Promise<StoredAuth | null> {
   // Let the Expo plugin decode its JSON cookie jar and storage chunks. Its
   // current cookie must take precedence over cached or custom Apple sessions.
   const cookieToken = extractTokenFromCookie(authClient.getCookie())
@@ -104,6 +121,7 @@ export async function storeAppleSession(user: AppleAuthUser, token: string) {
   )
   await SecureStore.setItemAsync(AUTH_KEYS.sessionToken, token)
   await SecureStore.setItemAsync(AUTH_KEYS.userId, user.id)
+  await acceptAuthenticatedSession()
 
   const stored = await getStoredAuth()
   authDebug("store-apple-session:done", {
@@ -132,6 +150,9 @@ export async function getCurrentUserId() {
 
 export async function clearSession() {
   authDebug("clear-session:start")
+  // An in-flight Better Auth refresh may finish after storage is deleted.
+  // Keep its restored cookie/cache unusable until a new sign-in succeeds.
+  await markSessionSignedOut()
 
   try {
     await authClient.signOut()

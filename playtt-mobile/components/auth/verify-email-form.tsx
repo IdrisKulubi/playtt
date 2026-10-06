@@ -10,6 +10,8 @@ import { useAuthTheme } from '@/hooks/use-auth-theme';
 import { sendVerificationOtp } from '@/lib/auth-api';
 import { authClient, refreshSession } from '@/lib/auth-client';
 import { waitForStoredAuth } from '@/lib/auth-helpers';
+import { acceptAuthenticatedSession } from '@/lib/auth-session-state';
+import { goToSignIn } from '@/lib/auth-navigation';
 import { verifyEmailSchema, type VerifyEmailValues } from '@/lib/auth-schemas';
 import { mapZodErrors, type FieldErrors } from '@/lib/form-errors';
 import { toast } from '@/lib/toast';
@@ -53,7 +55,14 @@ export function VerifyEmailForm() {
       return;
     }
 
-    await refreshSession();
+    const session = await refreshSession();
+    if (!session.data?.session) {
+      toast.success('Email verified successfully. Please sign in.');
+      goToSignIn();
+      setIsLoading(false);
+      return;
+    }
+    await acceptAuthenticatedSession();
     await waitForStoredAuth();
     toast.success('Email verified successfully.');
     await routeAfterAuth();

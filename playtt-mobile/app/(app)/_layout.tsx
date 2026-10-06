@@ -22,6 +22,10 @@ export default function AppLayout() {
 
     try {
       const response = await fetchCurrentUser()
+      if (!(await getStoredAuth())?.token) {
+        setGate("auth")
+        return
+      }
 
       if (!response.data?.user?.onboardingCompletedAt) {
         setGate("onboarding")

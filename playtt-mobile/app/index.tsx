@@ -6,7 +6,8 @@ import { AuthShell } from "@/components/auth/auth-shell"
 import { useSplashHold } from "@/hooks/use-splash-hold"
 import { useSession } from "@/lib/auth-client"
 import { authDebug, authDebugError } from "@/lib/auth-debug"
-import { getStoredAuth, waitForStoredAuth } from "@/lib/auth-helpers"
+import { getStoredAuth } from "@/lib/auth-helpers"
+import { getSessionRevision } from "@/lib/auth-session-state"
 import { toast } from "@/lib/toast"
 import { resolvePostAuthRoute } from "@/lib/user-api"
 import { getHasSeenWelcome } from "@/lib/welcome-storage"
@@ -54,14 +55,18 @@ export default function IndexScreen() {
   }, [])
 
   useEffect(() => {
-    if (isPending || didNavigateRef.current) {
+    if (isPending) {
       return
     }
 
     let mounted = true
 
     async function resolveRoute() {
-      const stored = session ? await waitForStoredAuth() : await getStoredAuth()
+      const revision = getSessionRevision()
+      const stored = await getStoredAuth()
+      if (!mounted) {
+        return
+      }
 
       authDebug("index:resolve-route", {
         hasBetterAuthSession: Boolean(session),
@@ -70,9 +75,15 @@ export default function IndexScreen() {
       })
 
       if (!stored?.token) {
+        didNavigateRef.current = false
         if (mounted) {
+          setIsRedirecting(false)
           setIsResolvingRoute(false)
         }
+        return
+      }
+
+      if (didNavigateRef.current) {
         return
       }
 
@@ -84,7 +95,7 @@ export default function IndexScreen() {
         const route = await resolvePostAuthRoute()
         authDebug("index:resolve-route-success", { route })
 
-        if (!mounted || didNavigateRef.current) {
+        if (!mounted || didNavigateRef.current || revision !== getSessionRevision()) {
           return
         }
 
@@ -124,7 +135,7 @@ export default function IndexScreen() {
     return null
   }
 
-  if (!hasSeenWelcome) {
+  if (!hasSeenWelcome && !modeParam) {
     return <Redirect href="/welcome" />
   }
 
@@ -132,7 +143,7 @@ export default function IndexScreen() {
     mode === "sign-in" ? "Sign in to PlayTT" : "Create your PlayTT account"
 
   return (
-    <AuthShell subtitle={subtitle}>
+    <AuthShell headline={mode === "sign-in" ? "Welcome back." : "Your next game starts here."} subtitle={subtitle}>
       <AuthForm initialMode={initialMode} onModeChange={setMode} />
     </AuthShell>
   )

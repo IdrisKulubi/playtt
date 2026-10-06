@@ -1,5 +1,6 @@
 import type { AuthThemeColors } from '@/constants/auth-theme';
-import { forwardRef, useRef, useState } from 'react';
+import { forwardRef, useRef, useState, type ReactNode } from 'react';
+import { AuthGlass } from '@/components/auth/auth-glass';
 import {
   Pressable,
   StyleSheet,
@@ -21,6 +22,8 @@ type InputProps = TextInputProps & {
   compact?: boolean;
   variant?: 'product' | 'auth';
   authTheme?: AuthThemeColors;
+  leadingIcon?: ReactNode;
+  trailingAccessory?: ReactNode;
 };
 
 export const Input = forwardRef<TextInput, InputProps>(function Input(
@@ -30,6 +33,8 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
     compact = false,
     variant = 'product',
     authTheme,
+    leadingIcon,
+    trailingAccessory,
     placeholderTextColor,
     onFocus,
     onBlur,
@@ -61,6 +66,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
           backgroundColor: isFocused
             ? authTheme.fieldFillFocused
             : authTheme.fieldFill,
+          borderColor: isFocused ? authTheme.link : 'rgba(181, 230, 255, 0.5)',
         },
         hasError && styles.authWrapperError,
       ]
@@ -72,12 +78,14 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
       ];
 
   const inputStyle = isAuth
-    ? [styles.authInput, { color: authTheme.foreground }, style]
+    ? [styles.authInput, Boolean(leadingIcon || trailingAccessory) && styles.authInputWithIcon, { color: authTheme.foreground }, style]
     : [styles.input, compact && styles.inputCompact, style];
 
   return (
     <Pressable onPress={focusInput}>
       <View pointerEvents="box-none" style={wrapperStyle}>
+        {isAuth ? <AuthGlass /> : null}
+        {isAuth && leadingIcon ? <View pointerEvents="none" style={styles.leadingIcon}>{leadingIcon}</View> : null}
         <TextInput
           ref={setRefs}
           placeholderTextColor={
@@ -94,6 +102,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
           }}
           {...props}
         />
+        {isAuth && trailingAccessory ? <View style={styles.trailingAccessory}>{trailingAccessory}</View> : null}
       </View>
     </Pressable>
   );
@@ -126,11 +135,16 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   authWrapper: {
-    borderRadius: PlayTTRadius.md,
-    minHeight: 44,
+    borderRadius: PlayTTRadius.pill,
+    minHeight: 54,
+    borderWidth: 1,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   authWrapperError: {
     backgroundColor: 'rgba(255, 59, 48, 0.12)',
+    borderColor: '#ffb7ae',
   },
   input: {
     ...PlayTTTypography.body,
@@ -155,8 +169,11 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontFamily: PlayTTFontFamilies.regular,
     width: '100%',
-    minHeight: 44,
-    paddingHorizontal: PlayTTSpacing.md,
-    paddingVertical: PlayTTSpacing.sm,
+    minHeight: 52,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
   },
+  authInputWithIcon: { flex: 1, minWidth: 0, width: undefined, paddingLeft: 12 },
+  leadingIcon: { marginLeft: 20 },
+  trailingAccessory: { marginRight: 6 },
 });

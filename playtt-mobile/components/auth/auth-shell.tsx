@@ -1,6 +1,8 @@
-import { ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { BlurTargetView } from 'expo-blur';
 import {
   KeyboardAvoidingView,
+  AccessibilityInfo,
   Platform,
   ScrollView,
   StyleSheet,
@@ -11,6 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
 import { BrandMark } from '@/components/brand/brand-mark';
+import { AuthBackdrop } from '@/components/auth/auth-backdrop';
+import { AuthGlassContext } from '@/components/auth/auth-glass';
 import {
   PlayTTFontFamilies,
   PlayTTSpacing,
@@ -26,13 +30,30 @@ type AuthShellProps = {
 
 export function AuthShell({
   children,
-  headline = 'Your booking space.',
+  headline = 'Your next game starts here.',
   subtitle,
 }: AuthShellProps) {
   const theme = useAuthTheme();
+  const target = useRef<View | null>(null);
+  const [reduceTransparency, setReduceTransparency] = useState(false);
+  const glassContext = useMemo(() => ({ target, reduceTransparency }), [reduceTransparency]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    let mounted = true;
+    void AccessibilityInfo.isReduceTransparencyEnabled().then((enabled) => {
+      if (mounted) setReduceTransparency(enabled);
+    });
+    const subscription = AccessibilityInfo.addEventListener('reduceTransparencyChanged', setReduceTransparency);
+    return () => { mounted = false; subscription.remove(); };
+  }, []);
 
   return (
+    <AuthGlassContext.Provider value={glassContext}>
     <View style={[styles.root, { backgroundColor: theme.pageBackground }]}>
+      <BlurTargetView ref={target} style={StyleSheet.absoluteFill}>
+        <AuthBackdrop />
+      </BlurTargetView>
       <SafeAreaView style={styles.safeArea}>
         <StatusBar style={theme.statusBar} />
         <KeyboardAvoidingView
@@ -46,7 +67,7 @@ export function AuthShell({
             showsVerticalScrollIndicator={false}
             bounces={false}>
             <View style={styles.header}>
-              <BrandMark layout="auth" />
+              <BrandMark layout="auth" appearance="dark" />
               <Text style={[styles.headline, { color: theme.foreground }]}>
                 {headline}
               </Text>
@@ -66,6 +87,7 @@ export function AuthShell({
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
+    </AuthGlassContext.Provider>
   );
 }
 
@@ -81,33 +103,35 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: PlayTTSpacing.lg,
-    paddingTop: PlayTTSpacing.xl,
-    paddingBottom: PlayTTSpacing.lg,
-    gap: PlayTTSpacing.lg,
+    paddingHorizontal: 28,
+    paddingTop: 48,
+    paddingBottom: 24,
+    gap: 32,
   },
   header: {
     alignItems: 'center',
-    gap: PlayTTSpacing.md,
+    gap: 12,
     paddingHorizontal: PlayTTSpacing.sm,
   },
   headline: {
     ...PlayTTTypography.headline,
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 30,
+    lineHeight: 36,
+    letterSpacing: -0.6,
     fontFamily: PlayTTFontFamilies.semiBold,
     textAlign: 'center',
+    marginTop: 32,
   },
   subtitle: {
     ...PlayTTTypography.body,
-    fontSize: 15,
+    fontSize: 14,
     lineHeight: 22,
     fontFamily: PlayTTFontFamilies.medium,
     textAlign: 'center',
   },
   formArea: {
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 380,
     alignSelf: 'center',
     gap: PlayTTSpacing.md,
   },
@@ -118,8 +142,8 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
   },
   legal: {
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: 12,
+    lineHeight: 18,
     fontFamily: PlayTTFontFamilies.regular,
     textAlign: 'center',
     paddingHorizontal: PlayTTSpacing.md,

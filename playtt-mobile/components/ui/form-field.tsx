@@ -37,7 +37,7 @@ export function FormField({
           style={[
             styles.label,
             compact && styles.labelCompact,
-            isAuth && { color: authTheme.muted },
+            isAuth && { color: authTheme.foreground, fontSize: 13, fontFamily: PlayTTFontFamilies.medium },
           ]}>
           {label}
         </Text>

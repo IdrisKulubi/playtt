@@ -1,5 +1,6 @@
 import type { AuthThemeColors } from '@/constants/auth-theme';
 import type { ProductThemeColors } from '@/constants/product-theme';
+import { AuthGlass } from '@/components/auth/auth-glass';
 import * as Haptics from 'expo-haptics';
 import {
   ActivityIndicator,
@@ -75,6 +76,7 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled: Boolean(isDisabled), busy: loading }}
       disabled={isDisabled}
       onPress={onPress}
       onPressIn={(event) => {
@@ -97,6 +99,7 @@ export function Button({
         style as ViewStyle,
       ]}
       {...props}>
+      {isAuth && variant === 'primary' ? <AuthGlass luminous /> : null}
       {loading ? (
         <ActivityIndicator color={spinnerColor} />
       ) : (
@@ -133,9 +136,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   authBase: {
-    minHeight: 44,
-    borderRadius: PlayTTRadius.md,
-    paddingVertical: 12,
+    minHeight: 54,
+    borderRadius: PlayTTRadius.pill,
+    paddingVertical: 15,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(205, 246, 255, 0.8)',
   },
   baseCompact: {
     minHeight: 44,

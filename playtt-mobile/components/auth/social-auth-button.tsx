@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import type { AuthThemeColors } from '@/constants/auth-theme';
+import { AuthGlass } from '@/components/auth/auth-glass';
 import { PlayTTFontFamilies, PlayTTRadius, PlayTTSpacing } from '@/constants/playtt-tokens';
 
 type SocialProvider = 'google' | 'apple';
@@ -35,7 +36,8 @@ export function SocialAuthButton({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ disabled: isDisabled }}
+      accessibilityLabel={`Continue with ${label}`}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
       onPress={onPress}
       onPressIn={() => {
@@ -50,6 +52,7 @@ export function SocialAuthButton({
           opacity: isDisabled ? 0.45 : pressed ? 0.88 : 1,
         },
       ]}>
+      <AuthGlass />
       {loading ? (
         <ActivityIndicator color={theme.foreground} />
       ) : (
@@ -69,8 +72,11 @@ export function SocialAuthButton({
 const styles = StyleSheet.create({
   base: {
     width: '100%',
-    minHeight: 44,
-    borderRadius: PlayTTRadius.md,
+    minHeight: 52,
+    borderRadius: PlayTTRadius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(181, 230, 255, 0.45)',
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: PlayTTSpacing.md,
