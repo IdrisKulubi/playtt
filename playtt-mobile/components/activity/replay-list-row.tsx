@@ -1,6 +1,7 @@
 import { useMemo } from "react"
 import { Pressable, StyleSheet, Text, View } from "react-native"
 
+import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconSymbol } from "@/components/ui/icon-symbol"
 import {
   PlayTTFontFamilies,
@@ -12,26 +13,16 @@ import type { ReplaySummary } from "@/lib/replay-types"
 type ReplayListRowProps = {
   replay: ReplaySummary
   onPress: () => void
-  isLast?: boolean
 }
 
-export function ReplayListRow({
-  replay,
-  onPress,
-  isLast = false,
-}: ReplayListRowProps) {
+export function ReplayListRow({ replay, onPress }: ReplayListRowProps) {
   const theme = useProductTheme()
 
   const styles = useMemo(
     () =>
       StyleSheet.create({
-        container: {
-          paddingVertical: PlayTTSpacing.md,
-          borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
-          borderBottomColor: theme.border,
-        },
         pressed: {
-          opacity: 0.7,
+          opacity: 0.85,
         },
         row: {
           flexDirection: "row",
@@ -53,29 +44,34 @@ export function ReplayListRow({
           fontFamily: PlayTTFontFamilies.regular,
           color: theme.muted,
         },
+        panelContent: {
+          paddingVertical: PlayTTSpacing.sm,
+          paddingHorizontal: PlayTTSpacing.md,
+        },
       }),
-    [isLast, theme],
+    [theme],
   )
 
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.container, pressed && styles.pressed]}
+      style={({ pressed }) => [pressed && styles.pressed]}
     >
-      <View style={styles.row}>
-        <View style={styles.copy}>
-          <Text style={styles.title}>{replay.title}</Text>
-          <Text style={styles.meta}>
-            {replay.durationSeconds}s ·{" "}
-            {new Date(replay.recordedAt).toLocaleDateString("en-KE", {
-              day: "numeric",
-              month: "short",
-            })}
-            {replay.coachReviewed ? " · Reviewed" : ""}
-          </Text>
+      <GlassPanel contentStyle={styles.panelContent}>
+        <View style={styles.row}>
+          <View style={styles.copy}>
+            <Text style={styles.title}>{replay.title}</Text>
+            <Text style={styles.meta}>
+              {replay.durationSeconds}s ·{" "}
+              {new Date(replay.recordedAt).toLocaleDateString("en-KE", {
+                day: "numeric",
+                month: "short",
+              })}
+            </Text>
+          </View>
+          <IconSymbol name="chevron.right" size={18} color={theme.muted} />
         </View>
-        <IconSymbol name="chevron.right" size={18} color={theme.muted} />
-      </View>
+      </GlassPanel>
     </Pressable>
   )
 }

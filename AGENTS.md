@@ -7,7 +7,7 @@ This repo contains three independent apps. Read the skills below before making c
 | Directory | Role |
 |-----------|------|
 | Repo root (`src/`, `db/`, `auth.ts`, …) | Next.js web app, API, auth, bookings, database |
-| `playtt-mobile/` | Expo mobile app |
+| `playtt-mobile/` | Expo mobile app (UI shell; calls web `src/app/api/*`) |
 | `services/venue-edge/` | VenueEdge replay capture service (one per venue) |
 
 There is no root workspace orchestrator. Install and run each app from its own directory.
@@ -18,6 +18,7 @@ There is no root workspace orchestrator. Install and run each app from its own d
 |-------|------|-------------|
 | Run project | `.cursor/skills/run-project/SKILL.md` | Starting dev servers, builds, database setup |
 | Code structure | `.cursor/skills/code-structure/SKILL.md` | Finding files, adding features, onboarding |
+| Liquid glass UI | `.cursor/skills/liquid-glass-ui/SKILL.md` | **Required** for `playtt-mobile/` tab bars, segments, glass panels, or floating chrome |
 | Self-improving | `.cursor/skills/self-improving/SKILL.md` | After fixing outdated docs or discovering new conventions |
 
 ## Subagent routing

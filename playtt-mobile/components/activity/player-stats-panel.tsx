@@ -2,6 +2,7 @@ import { useMemo } from "react"
 import { StyleSheet, Text, View } from "react-native"
 
 import { createActivityHeaderStyles } from "@/components/activity/activity-screen-styles"
+import { GlassPanel } from "@/components/ui/glass-panel"
 import {
   PlayTTColors,
   PlayTTFontFamilies,
@@ -127,30 +128,32 @@ export function PlayerStatsPanel() {
 
   return (
     <View style={styles.root}>
-      <View>
+      <GlassPanel>
         <Text style={sharedStyles.leadHeadline}>
           {stats.hoursPlayed} hours on the table
         </Text>
         <Text style={sharedStyles.leadSubline}>
           {stats.sessionsPlayed} sessions
         </Text>
-      </View>
+      </GlassPanel>
 
-      <View style={styles.monthSection}>
-        <Text style={styles.monthTitle}>By month</Text>
-        <View style={styles.monthRow}>
-          {stats.monthlySessions.map((item) => (
-            <MonthDotRow
-              key={item.month}
-              month={item.month}
-              count={item.count}
-              maxCount={maxMonthCount}
-            />
-          ))}
+      <GlassPanel>
+        <View style={styles.monthSection}>
+          <Text style={styles.monthTitle}>By month</Text>
+          <View style={styles.monthRow}>
+            {stats.monthlySessions.map((item) => (
+              <MonthDotRow
+                key={item.month}
+                month={item.month}
+                count={item.count}
+                maxCount={maxMonthCount}
+              />
+            ))}
+          </View>
         </View>
-      </View>
+      </GlassPanel>
 
-      <View>
+      <GlassPanel>
         <View style={sharedStyles.hairlineRow}>
           <Text style={sharedStyles.hairlineLabel}>Peak sessions</Text>
           <Text style={sharedStyles.hairlineValue}>{stats.peakSessions}</Text>
@@ -161,14 +164,16 @@ export function PlayerStatsPanel() {
             {stats.offPeakSessions}
           </Text>
         </View>
-      </View>
+      </GlassPanel>
 
-      <View style={sharedStyles.spendFooter}>
-        <Text style={sharedStyles.spendLabel}>Spending</Text>
-        <Text style={sharedStyles.spendValue}>
-          {formatKes(String(stats.totalSpendKes), "KES")} total
-        </Text>
-      </View>
+      <GlassPanel>
+        <View style={sharedStyles.spendFooter}>
+          <Text style={sharedStyles.spendLabel}>Spending</Text>
+          <Text style={sharedStyles.spendValue}>
+            {formatKes(String(stats.totalSpendKes), "KES")} total
+          </Text>
+        </View>
+      </GlassPanel>
     </View>
   )
 }

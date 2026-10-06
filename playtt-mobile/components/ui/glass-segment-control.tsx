@@ -1,11 +1,17 @@
 import { useMemo } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native"
 
 import {
-  LiquidGlassFallback,
-  liquidGlassFallbackFill,
-} from "@/components/ui/liquid-glass-fallback"
-import { Colors, resolveColorScheme } from "@/constants/theme"
+  liquidGlassLabelColor,
+  liquidGlassPillBorderColor,
+  liquidGlassSelectionChipColor,
+} from "@/components/ui/liquid-glass-chrome"
+import {
+  LiquidGlassSurface,
+  liquidGlassFill,
+  useNativeLiquidGlass,
+} from "@/components/ui/liquid-glass-surface"
+import { resolveColorScheme } from "@/constants/theme"
 import {
   PlayTTFontFamilies,
   PlayTTRadius,
@@ -24,7 +30,7 @@ export function GlassSegmentControl<T extends string>({
   onChange,
 }: GlassSegmentControlProps<T>) {
   const colorScheme = resolveColorScheme(useColorScheme())
-  const palette = Colors[colorScheme]
+  const nativeGlass = useNativeLiquidGlass()
 
   const styles = useMemo(
     () =>
@@ -33,64 +39,80 @@ export function GlassSegmentControl<T extends string>({
           borderRadius: PlayTTRadius.pill,
           overflow: "hidden",
           borderWidth: StyleSheet.hairlineWidth,
-          borderColor:
-            colorScheme === "dark"
-              ? "rgba(255, 255, 255, 0.12)"
-              : "rgba(10, 22, 40, 0.08)",
+          borderColor: liquidGlassPillBorderColor(colorScheme),
+          ...(!nativeGlass
+            ? Platform.select({
+                ios: {
+                  shadowColor: colorScheme === "dark" ? "#000000" : "#0a1628",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: colorScheme === "dark" ? 0.25 : 0.08,
+                  shadowRadius: 12,
+                },
+                android: {
+                  elevation: 6,
+                },
+                default: {},
+              })
+            : {}),
         },
         row: {
           flexDirection: "row",
-          padding: 3,
+          padding: 4,
           gap: 2,
-          minHeight: 32,
+          minHeight: 40,
         },
         segment: {
           flex: 1,
-          paddingVertical: 5,
-          paddingHorizontal: 6,
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        chip: {
+          width: "100%",
+          paddingVertical: 8,
+          paddingHorizontal: 8,
           borderRadius: PlayTTRadius.pill,
           alignItems: "center",
           justifyContent: "center",
         },
-        segmentActive: {
-          backgroundColor:
-            colorScheme === "dark"
-              ? "rgba(255, 255, 255, 0.14)"
-              : "rgba(10, 22, 40, 0.1)",
+        chipActive: {
+          backgroundColor: liquidGlassSelectionChipColor(colorScheme),
         },
         label: {
-          fontSize: 12,
+          fontSize: 13,
           fontFamily: PlayTTFontFamilies.medium,
-          color: palette.tabIconDefault,
         },
         labelActive: {
           fontFamily: PlayTTFontFamilies.semiBold,
-          color: palette.tabIconSelected,
         },
       }),
-    [colorScheme, palette.tabIconDefault, palette.tabIconSelected],
+    [colorScheme, nativeGlass],
   )
 
   return (
     <View style={styles.pill}>
-      <LiquidGlassFallback
-        colorScheme={colorScheme}
-        intensity={80}
-        style={liquidGlassFallbackFill}
-      />
+      <LiquidGlassSurface colorScheme={colorScheme} style={liquidGlassFill} />
 
       <View style={styles.row}>
         {options.map((option) => {
           const active = option.value === value
+          const labelColor = liquidGlassLabelColor(colorScheme, active)
           return (
             <Pressable
               key={option.value}
               onPress={() => onChange(option.value)}
-              style={[styles.segment, active && styles.segmentActive]}
+              style={styles.segment}
             >
-              <Text style={[styles.label, active && styles.labelActive]}>
-                {option.label}
-              </Text>
+              <View style={[styles.chip, active && styles.chipActive]}>
+                <Text
+                  style={[
+                    styles.label,
+                    active && styles.labelActive,
+                    { color: labelColor },
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </View>
             </Pressable>
           )
         })}

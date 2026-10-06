@@ -5,5 +5,8 @@ export const USE_MOCK_PLAYER_DATA = true
 export const USE_LIVE_REPLAY_LIBRARY =
   process.env.EXPO_PUBLIC_LIVE_REPLAY_LIBRARY !== "false"
 
+/** Activity highlights + clip balance (does not change Coach/Community mock defaults). */
+export const USE_LIVE_ACTIVITY_CLIPS = USE_LIVE_REPLAY_LIBRARY
+
 export const MOCK_PREVIEW_LABEL = "Preview"
 export const MOCK_SAMPLE_LABEL = "Sample"

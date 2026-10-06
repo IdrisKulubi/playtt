@@ -1,16 +1,15 @@
 import { apiFetch } from "@/lib/api-client"
 import type { PurchaseInitResult, ReplayCreditsStatus } from "@/lib/coach-types"
-import { USE_MOCK_PLAYER_DATA } from "@/lib/mock/mock-config"
+import {
+  USE_LIVE_ACTIVITY_CLIPS,
+  USE_MOCK_PLAYER_DATA,
+} from "@/lib/mock/mock-config"
 import { MOCK_REPLAY_CREDITS } from "@/lib/mock/mock-replay-credits"
 
 type CreditsResponse = { data?: { credits: ReplayCreditsStatus } }
 type PurchaseResponse = { data?: PurchaseInitResult }
 
-export async function fetchReplayCredits(): Promise<ReplayCreditsStatus> {
-  if (USE_MOCK_PLAYER_DATA) {
-    return MOCK_REPLAY_CREDITS
-  }
-
+async function fetchReplayCreditsFromApi(): Promise<ReplayCreditsStatus> {
   const response = await apiFetch<CreditsResponse>("/api/replays/credits")
   return (
     response.data?.credits ?? {
@@ -20,6 +19,23 @@ export async function fetchReplayCredits(): Promise<ReplayCreditsStatus> {
       lastPurchasedAt: null,
     }
   )
+}
+
+/** Activity screen clip balance — live when `USE_LIVE_ACTIVITY_CLIPS`. */
+export async function fetchActivityReplayCredits(): Promise<ReplayCreditsStatus> {
+  if (!USE_LIVE_ACTIVITY_CLIPS) {
+    return MOCK_REPLAY_CREDITS
+  }
+
+  return fetchReplayCreditsFromApi()
+}
+
+export async function fetchReplayCredits(): Promise<ReplayCreditsStatus> {
+  if (USE_MOCK_PLAYER_DATA) {
+    return MOCK_REPLAY_CREDITS
+  }
+
+  return fetchReplayCreditsFromApi()
 }
 
 export async function initiateReplayPackPurchase(): Promise<PurchaseInitResult> {

@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api-client"
 import type { ReplaySummary, ReplayStatus } from "@/lib/replay-types"
-import { USE_LIVE_REPLAY_LIBRARY } from "@/lib/mock/mock-config"
+import { USE_LIVE_ACTIVITY_CLIPS } from "@/lib/mock/mock-config"
 import { MOCK_REPLAYS } from "@/lib/mock/mock-replays"
 
 type ReplaysMineResponse = {
@@ -49,7 +49,7 @@ function mapReplay(row: NonNullable<ReplaysMineResponse["data"]>["replays"][numb
 }
 
 export async function fetchUserReplays(): Promise<ReplaySummary[]> {
-  if (!USE_LIVE_REPLAY_LIBRARY) {
+  if (!USE_LIVE_ACTIVITY_CLIPS) {
     return MOCK_REPLAYS.map((replay) => ({
       ...replay,
       status: "ready" as const,

@@ -12,7 +12,7 @@ import { GlassSegmentControl } from "@/components/ui/glass-segment-control"
 import { FLOATING_TAB_BAR_CLEARANCE } from "@/constants/navigation-layout"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useProductTheme } from "@/hooks/use-product-theme"
-import { fetchReplayCredits } from "@/lib/replay-credits-api"
+import { fetchActivityReplayCredits } from "@/lib/replay-credits-api"
 
 type ActivitySegment = "highlights" | "stats"
 
@@ -24,7 +24,7 @@ export default function ActivityScreen() {
   const [clipSheetOpen, setClipSheetOpen] = useState(false)
 
   const loadCredits = useCallback(() => {
-    void fetchReplayCredits()
+    void fetchActivityReplayCredits()
       .then((credits) => setClipBalance(credits.balance))
       .catch(() => setClipBalance(null))
   }, [])
