@@ -86,6 +86,8 @@ Use **`npm start`**, not `npx expo start`. On Windows, `npx expo` may resolve to
 ### Mobile troubleshooting
 
 - **`Cannot find module '@expo/schema-utils'`** or legacy expo-cli warning: run `npm install` in `playtt-mobile/` and use `npm start` instead of `npx expo start`.
+- **`Cannot find module 'expo-router/internal/routing'`**: `expo` and `expo-router` are on different SDKs. Keep every `expo-*` package, React, and React Native on the versions bundled with the installed SDK (currently SDK 57). Do not bump only `expo`. Align with `npx expo install expo@^57.0.0 --fix` from `playtt-mobile/`.
+- **SDK 56+ navigation imports**: application code imports navigation helpers from `expo-router/react-navigation` and `expo-router/js-tabs`, not `@react-navigation/*`.
 - **Empty `node_modules/.bin`**: run `npm install` to regenerate CLI shims.
 - **Expo version mismatch warnings**: align packages with `npx expo install <package>` from `playtt-mobile/`.
 

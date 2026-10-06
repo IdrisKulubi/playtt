@@ -23,7 +23,6 @@
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/images/playstore-foreground.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
