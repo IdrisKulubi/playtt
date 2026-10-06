@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react"
 
 import { useSplashHold } from "@/hooks/use-splash-hold"
 import { getStoredAuth } from "@/lib/auth-helpers"
+import { isTransientApiError } from "@/lib/api-errors"
 import { ONBOARDING_ROUTE } from "@/lib/auth-navigation"
 import { fetchCurrentUser } from "@/lib/user-api"
 
@@ -28,8 +29,9 @@ export default function AppLayout() {
       }
 
       setGate("app")
-    } catch {
-      setGate("app")
+    } catch (error) {
+      const currentAuth = await getStoredAuth()
+      setGate(isTransientApiError(error) && currentAuth?.token ? "app" : "auth")
     }
   }, [])
 
