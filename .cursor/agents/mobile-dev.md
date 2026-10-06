@@ -11,9 +11,10 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before 
 
 ## Before editing
 
-1. Read `.cursor/skills/run-project/SKILL.md` for dev server commands.
-2. Read `.cursor/skills/code-structure/SKILL.md` for folder conventions.
-3. For feature work, consult `playtt-mobile/docs/` (product, design system, requirements).
+1. Read `.cursor/skills/liquid-glass-ui/SKILL.md` before any mobile UI chrome change (tabs, segments, glass panels).
+2. Read `.cursor/skills/run-project/SKILL.md` for dev server commands.
+3. Read `.cursor/skills/code-structure/SKILL.md` for folder conventions.
+4. For feature work, consult `playtt-mobile/docs/` (product, design system, requirements).
 
 ## Key paths
 
@@ -53,5 +54,8 @@ npm run lint
 
 ## Coordination
 
-- Backend/API lives at repo root (Next.js). Mobile calls it via `EXPO_PUBLIC_API_URL` (defaults to `http://localhost:3000`).
-- Repo-wide agent entry point: root `AGENTS.md`.
+- **Backend/API lives at repo root (Next.js).** Mobile is a client shell: no DB, no server-side domain logic in `playtt-mobile/`.
+- All live data goes through `apiFetch` in `lib/api-client.ts` → `EXPO_PUBLIC_API_URL` (default `http://localhost:3000`) → `src/app/api/*` and `src/server/*`.
+- If a feature needs new fields, validation, or persistence, use the `web-dev` / `db-dev` agents on the repo root; then add a thin `lib/<feature>-api.ts` and wire UI.
+- `lib/mock/*` is for preview-only UI when APIs are gated off — not a second backend.
+- Repo-wide entry: root `AGENTS.md`. Mobile shell rules: `playtt-mobile/AGENTS.md`.

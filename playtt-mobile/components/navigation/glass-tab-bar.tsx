@@ -16,7 +16,11 @@ import {
   useNativeTabBarGlass,
 } from "@/components/navigation/tab-bar-glass-surface"
 import { IconSymbol } from "@/components/ui/icon-symbol"
-import type { AppColorScheme } from "@/constants/theme"
+import {
+  liquidGlassLabelColor,
+  liquidGlassPillBorderColor,
+  liquidGlassSelectionChipColor,
+} from "@/components/ui/liquid-glass-chrome"
 import { resolveColorScheme } from "@/constants/theme"
 import {
   PlayTTFontFamilies,
@@ -42,19 +46,6 @@ const TAB_SYSTEM_ICONS = {
   community: "person.2.fill",
   account: "person.fill",
 } as const
-
-function tabBarIconColor(colorScheme: AppColorScheme, focused: boolean) {
-  if (colorScheme === "dark") {
-    return focused ? "#FFFFFF" : "rgba(255, 255, 255, 0.55)"
-  }
-  return focused ? "#0A1628" : "rgba(10, 22, 40, 0.48)"
-}
-
-function selectionChipColor(colorScheme: AppColorScheme) {
-  return colorScheme === "dark"
-    ? "rgba(255, 255, 255, 0.16)"
-    : "rgba(10, 22, 40, 0.1)"
-}
 
 type TabBarOptions = {
   title?: string
@@ -99,10 +90,7 @@ export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProp
           borderRadius: PlayTTRadius.pill,
           overflow: "hidden",
           borderWidth: StyleSheet.hairlineWidth,
-          borderColor:
-            colorScheme === "dark"
-              ? "rgba(255, 255, 255, 0.1)"
-              : "rgba(10, 22, 40, 0.06)",
+          borderColor: liquidGlassPillBorderColor(colorScheme),
           ...(!nativeGlass
             ? Platform.select({
                 ios: {
@@ -141,7 +129,7 @@ export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProp
           minHeight: 46,
         },
         chipActive: {
-          backgroundColor: selectionChipColor(colorScheme),
+          backgroundColor: liquidGlassSelectionChipColor(colorScheme),
         },
         label: {
           marginTop: 3,
@@ -197,7 +185,7 @@ export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProp
             const label = tabOptions.title ?? route.name
             const isFocused = state.index === routeIndex
 
-            const iconColor = tabBarIconColor(colorScheme, isFocused)
+            const iconColor = liquidGlassLabelColor(colorScheme, isFocused)
             const labelColor = iconColor
 
             return (

@@ -6,11 +6,12 @@ import { FeaturedReplay } from "@/components/activity/featured-replay"
 import { ReplayDetailSheet } from "@/components/activity/replay-detail-sheet"
 import { ReplayListRow } from "@/components/activity/replay-list-row"
 import {
+  PlayTTColors,
   PlayTTFontFamilies,
   PlayTTSpacing,
 } from "@/constants/playtt-tokens"
 import { useProductTheme } from "@/hooks/use-product-theme"
-import { USE_LIVE_REPLAY_LIBRARY } from "@/lib/mock/mock-config"
+import { USE_LIVE_ACTIVITY_CLIPS } from "@/lib/mock/mock-config"
 import type { ReplaySummary } from "@/lib/replay-types"
 import { fetchUserReplays } from "@/lib/replays-api"
 
@@ -32,14 +33,16 @@ function statusLabel(status: ReplaySummary["status"]) {
 export function ReplayLibrary() {
   const theme = useProductTheme()
   const [replays, setReplays] = useState<ReplaySummary[]>([])
-  const [loading, setLoading] = useState(USE_LIVE_REPLAY_LIBRARY)
+  const [loading, setLoading] = useState(USE_LIVE_ACTIVITY_CLIPS)
   const [error, setError] = useState<string | null>(null)
   const [selectedReplay, setSelectedReplay] = useState<ReplaySummary | null>(
     null,
   )
 
   const loadReplays = useCallback(() => {
-    if (!USE_LIVE_REPLAY_LIBRARY) {
+    if (!USE_LIVE_ACTIVITY_CLIPS) {
+      setLoading(false)
+      setError(null)
       void fetchUserReplays().then(setReplays)
       return
     }
@@ -78,6 +81,7 @@ export function ReplayLibrary() {
           color: theme.muted,
           textTransform: "uppercase",
           letterSpacing: 0.5,
+          marginBottom: PlayTTSpacing.sm,
         },
         center: {
           alignItems: "center",
@@ -93,6 +97,9 @@ export function ReplayLibrary() {
           fontFamily: PlayTTFontFamilies.medium,
           color: theme.muted,
         },
+        list: {
+          gap: PlayTTSpacing.sm,
+        },
       }),
     [theme],
   )
@@ -100,7 +107,7 @@ export function ReplayLibrary() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={theme.primary} />
+        <ActivityIndicator color={PlayTTColors.primary} />
       </View>
     )
   }
@@ -138,14 +145,15 @@ export function ReplayLibrary() {
       {moreReplays.length > 0 ? (
         <View>
           <Text style={styles.sectionLabel}>Earlier clips</Text>
-          {moreReplays.map((replay, index) => (
-            <ReplayListRow
-              key={replay.id}
-              replay={replay}
-              onPress={() => setSelectedReplay(replay)}
-              isLast={index === moreReplays.length - 1}
-            />
-          ))}
+          <View style={styles.list}>
+            {moreReplays.map((replay) => (
+              <ReplayListRow
+                key={replay.id}
+                replay={replay}
+                onPress={() => setSelectedReplay(replay)}
+              />
+            ))}
+          </View>
         </View>
       ) : null}
 

@@ -10,7 +10,7 @@ description: Maps PlayTT folders, conventions, and where to add new code. Use wh
 | Directory | Stack | Role |
 |-----------|-------|------|
 | Repo root | Next.js 16, React 19, Drizzle, better-auth, pnpm | Web, admin, API, database |
-| `playtt-mobile/` | Expo 57, React Native, Expo Router, npm | Mobile app |
+| `playtt-mobile/` | Expo 57, React Native, Expo Router, npm | Mobile **client shell** (UI + `apiFetch` only; no DB) |
 | `services/venue-edge/` | Node 22, SQLite, FFmpeg | Venue-local replay capture |
 
 There is no shared package or root workspace orchestrator.
@@ -41,7 +41,7 @@ There is no shared package or root workspace orchestrator.
 | `app/sign-in.tsx`, `app/sign-up.tsx` | Auth screens |
 | `app/book.tsx`, `app/index.tsx` | Booking and marketing |
 | `components/` | auth, brand, layout, ui, themed primitives |
-| `lib/` | auth-client, auth-schemas, auth-navigation, env |
+| `lib/` | `api-client.ts`, `*-api.ts` (thin HTTP to web), auth-client, env; `mock/` for preview-only |
 | `hooks/` | Color scheme and theme hooks |
 | `constants/` | `playtt-tokens.ts`, `theme.ts` |
 | `docs/` | Product, design system, requirements |
@@ -56,6 +56,7 @@ There is no shared package or root workspace orchestrator.
 | New booking UI | `src/components/bookings/` |
 | New email template | `src/emails/` |
 | New mobile screen | `playtt-mobile/app/` (Expo Router) |
+| New mobile data feature | API + `src/server/` on repo root first; then `playtt-mobile/lib/<name>-api.ts` + screen |
 | Schema change | `db/schema.ts` + migration (use `db-dev` agent) |
 | shadcn component | `npx shadcn@latest add <name>` → `src/components/ui/` |
 

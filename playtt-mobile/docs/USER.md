@@ -83,7 +83,8 @@ Stack screens (pushed from tabs):
 | Profile | `GET /api/user/me` |
 | Replay credits | `GET /api/replays/credits` |
 | Buy clip pack | `POST /api/replays/credits/purchase` |
-| Replay library | `GET /api/replays/mine` |
+| Replay library (Activity highlights) | `GET /api/replays/mine` when `USE_LIVE_ACTIVITY_CLIPS` (default on) |
+| Activity clip balance | `GET /api/replays/credits` via `fetchActivityReplayCredits()` when `USE_LIVE_ACTIVITY_CLIPS` |
 | Coach status | `GET /api/coach/status` |
 | Coach subscribe | `POST /api/coach/subscribe` |
 | Coach insights | `GET /api/coach/insights` |
@@ -94,11 +95,11 @@ Stack screens (pushed from tabs):
 
 | Surface | Module | Label in UI |
 |---------|--------|-------------|
-| Player stats | `lib/mock/mock-player-stats.ts` | "Preview" |
-| Replay library | `lib/mock/mock-replays.ts` | "Sample" |
+| Player stats (Activity) | `lib/mock/mock-player-stats.ts` | "Preview" on Stats segment |
+| Replay library (Activity) | `lib/mock/mock-replays.ts` | "Sample" only when `USE_LIVE_ACTIVITY_CLIPS` is false |
 | Home stats teaser | mock-player-stats | "Preview" |
 | Community players / requests | `lib/mock/mock-community.ts` | "Preview" |
-| Clip balance | `lib/mock/mock-replay-credits.ts` | "Preview" |
+| Clip balance (Coach / global) | `lib/mock/mock-replay-credits.ts` | "Preview" when `USE_MOCK_PLAYER_DATA` |
 | Coach insights / training | `lib/mock/mock-coach.ts` | "Preview" |
 | Coach chat | `lib/mock/mock-coach-chat.ts` | "Preview" |
 
@@ -115,7 +116,7 @@ Stack screens (pushed from tabs):
 
 1. All mock surfaces show a visible **Preview** or **Sample** badge — never hidden.
 2. Mock modules live under `playtt-mobile/lib/mock/`.
-3. `USE_MOCK_PLAYER_DATA` in `mock-config.ts` gates mock stats/replays (default `true`).
+3. `USE_MOCK_PLAYER_DATA` gates Coach/community mocks and global clip credits (default `true`). Activity highlights use `USE_LIVE_ACTIVITY_CLIPS` (default tied to `USE_LIVE_REPLAY_LIBRARY`).
 4. Entry codes are never mock data, cached persistently, logged, or placed in notification payloads.
 
 ---

@@ -5,6 +5,7 @@ import { Play } from "phosphor-react-native/src/icons/Play"
 import {
   PlayTTColors,
   PlayTTFontFamilies,
+  PlayTTRadius,
   PlayTTSpacing,
 } from "@/constants/playtt-tokens"
 import { useProductTheme } from "@/hooks/use-product-theme"
@@ -30,10 +31,10 @@ export function ReplayThumb({
         thumb: {
           width: "100%",
           aspectRatio,
-          borderRadius: 14,
+          borderRadius: PlayTTRadius.lg,
           backgroundColor: theme.elevated,
           borderWidth: StyleSheet.hairlineWidth,
-          borderColor: theme.border,
+          borderColor: "rgba(255, 255, 255, 0.08)",
           overflow: "hidden",
           alignItems: "center",
           justifyContent: "center",
