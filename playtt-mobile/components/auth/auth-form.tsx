@@ -1,4 +1,6 @@
 import type { AuthMode } from '@/constants/auth-theme';
+import Constants from 'expo-constants';
+import * as Linking from 'expo-linking';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -17,6 +19,7 @@ import {
 import { sendVerificationOtp, signInWithAppleApi } from '@/lib/auth-api';
 import { authDebug, authDebugError } from '@/lib/auth-debug';
 import { formatAuthError } from '@/lib/auth-errors';
+import { getApiBaseUrl } from '@/lib/env';
 import { toast } from '@/lib/toast';
 import { authClient, refreshSession } from '@/lib/auth-client';
 import { storeAppleSession, waitForStoredAuth } from '@/lib/auth-helpers';
@@ -184,21 +187,41 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
     setIsLoading(true);
 
     try {
-      await authClient.signIn.social(
-        { provider: 'google', callbackURL: '/' },
-        {
-          onSuccess: async () => {
-            await completeSignIn();
-            setIsLoading(false);
-          },
-          onError: (ctx) => {
-            toast.error(formatAuthError(ctx.error.message || 'Google sign in failed.'));
-            setIsLoading(false);
-          },
-        },
-      );
+      const callbackURL = Platform.OS === 'web'
+        ? '/'
+        : Linking.createURL('/', { scheme: 'playtt' });
+      authDebug('google-flow:start', {
+        callbackURL,
+        apiBaseURL: getApiBaseUrl(),
+        executionEnvironment: Constants.executionEnvironment,
+        platform: Platform.OS,
+      });
+      // The Expo plugin opens the browser in its success hook. Wait for all
+      // hooks before refreshing or routing, otherwise stale auth can interrupt it.
+      const { error } = await authClient.signIn.social({
+        provider: 'google',
+        callbackURL,
+      });
+      if (error) {
+        authDebugError('google-flow:rejected', new Error(error.message || 'Google sign in failed.'), {
+          code: error.code,
+          callbackURL,
+          apiBaseURL: getApiBaseUrl(),
+        });
+        toast.error(error.code === 'INVALID_CALLBACK_URL'
+          ? 'Google sign in could not return to this app. Please try another sign-in method.'
+          : formatAuthError(error.message || 'Google sign in failed.'));
+        return;
+      }
+      const result = await refreshSession();
+      // Canceling the browser also resolves the social request successfully.
+      if (!result.data?.session) {
+        return;
+      }
+      await completeSignIn();
     } catch (error) {
       toast.apiError(error, 'Google sign in failed.');
+    } finally {
       setIsLoading(false);
     }
   }

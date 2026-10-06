@@ -25,6 +25,17 @@ export type StoredAuth = {
 }
 
 export async function getStoredAuth(): Promise<StoredAuth | null> {
+  // Let the Expo plugin decode its JSON cookie jar and storage chunks. Its
+  // current cookie must take precedence over cached or custom Apple sessions.
+  const cookieToken = extractTokenFromCookie(authClient.getCookie())
+  if (cookieToken) {
+    return {
+      token: cookieToken,
+      userId: await getCurrentUserId(),
+      source: "cookie",
+    }
+  }
+
   const sessionData = await readJson(AUTH_KEYS.sessionData)
   const sessionDataToken = extractToken(sessionData)
 
@@ -44,17 +55,6 @@ export async function getStoredAuth(): Promise<StoredAuth | null> {
       token: customSessionToken,
       userId: extractUserId(customSession),
       source: "session",
-    }
-  }
-
-  const cookie = await SecureStore.getItemAsync(AUTH_KEYS.cookie)
-  const cookieToken = extractTokenFromCookie(cookie)
-
-  if (cookieToken) {
-    return {
-      token: cookieToken,
-      userId: await getCurrentUserId(),
-      source: "cookie",
     }
   }
 
@@ -148,7 +148,7 @@ export async function clearSession() {
 }
 
 export async function getLastKnownAuthenticatedRoute() {
-  return (await getCachedSessionRoute()) || "/(app)/(tabs)"
+  return (await getCachedSessionRoute())?.route || "/(app)/(tabs)"
 }
 
 export async function waitForStoredAuth(timeoutMs = 3000) {
@@ -261,14 +261,18 @@ function extractTokenFromCookie(cookie: string | null) {
   const matchingCookie = cookie
     .split(";")
     .map((part) => part.trim())
-    .find((part) => /session|token/i.test(part.split("=")[0] ?? ""))
+    .find((part) => /(?:^|\.)session_token$/.test(part.split("=")[0] ?? ""))
 
   if (!matchingCookie) {
     return null
   }
 
-  const [, value] = matchingCookie.split("=")
-  return normalizeSessionToken(value ? decodeURIComponent(value) : null)
+  const value = matchingCookie.slice(matchingCookie.indexOf("=") + 1)
+  try {
+    return normalizeSessionToken(value ? decodeURIComponent(value) : null)
+  } catch {
+    return null
+  }
 }
 
 function normalizeSessionToken(value: string | null | undefined) {

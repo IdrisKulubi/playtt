@@ -6,7 +6,7 @@ import { AuthShell } from "@/components/auth/auth-shell"
 import { useSplashHold } from "@/hooks/use-splash-hold"
 import { useSession } from "@/lib/auth-client"
 import { authDebug, authDebugError } from "@/lib/auth-debug"
-import { getStoredAuth, getLastKnownAuthenticatedRoute, waitForStoredAuth } from "@/lib/auth-helpers"
+import { getStoredAuth, waitForStoredAuth } from "@/lib/auth-helpers"
 import { toast } from "@/lib/toast"
 import { resolvePostAuthRoute } from "@/lib/user-api"
 import { getHasSeenWelcome } from "@/lib/welcome-storage"
@@ -26,7 +26,6 @@ export default function IndexScreen() {
   const [hasSeenWelcome, setHasSeenWelcomeState] = useState(true)
   const [isRedirecting, setIsRedirecting] = useState(false)
   const didNavigateRef = useRef(false)
-  const isResolvingRef = useRef(false)
 
   useEffect(() => {
     let mounted = true
@@ -55,12 +54,11 @@ export default function IndexScreen() {
   }, [])
 
   useEffect(() => {
-    if (isPending || isResolvingRef.current || didNavigateRef.current) {
+    if (isPending || didNavigateRef.current) {
       return
     }
 
     let mounted = true
-    isResolvingRef.current = true
 
     async function resolveRoute() {
       const stored = session ? await waitForStoredAuth() : await getStoredAuth()
@@ -75,7 +73,6 @@ export default function IndexScreen() {
         if (mounted) {
           setIsResolvingRoute(false)
         }
-        isResolvingRef.current = false
         return
       }
 
@@ -97,14 +94,6 @@ export default function IndexScreen() {
       } catch (error) {
         authDebugError("index:resolve-route-failed", error)
 
-        if (mounted && stored?.token) {
-          const route = await getLastKnownAuthenticatedRoute()
-          didNavigateRef.current = true
-          setIsRedirecting(true)
-          router.replace(route as never)
-          return
-        }
-
         if (mounted) {
           toast.apiError(error, "Could not load your account. Try again.")
         }
@@ -113,7 +102,6 @@ export default function IndexScreen() {
         if (mounted) {
           setIsResolvingRoute(false)
         }
-        isResolvingRef.current = false
       }
     }
 
