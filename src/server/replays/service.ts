@@ -25,14 +25,20 @@ import {
   getOrCreateCreditBalance,
   getUserEmail,
   insertProductPayment,
+  getReplayOwnedByUser,
   listReplaysForUser,
+  setReplayArchivedAt,
+  setReplayFavoriteAt,
 } from "@/server/replays/repository"
 import { getPlaySessionByBookingId } from "@/server/sessions/play-sessions"
 import { enqueueCoachAnalysis } from "@/server/coach/analysis"
 import { enqueueNvrClip } from "@/server/replays/nvr-worker"
 import { isLegacyReplayUrl } from "@/server/media/content-policy"
 import { isPrivateMediaEnabledForTenant } from "@/server/media/feature-policy"
-import { createPlaybackGrantForMediaAsset } from "@/server/media/service"
+import {
+  createPlaybackGrantForMediaAsset,
+  requestMediaDeletion,
+} from "@/server/media/service"
 import { listMediaAssetsByIds } from "@/server/media/repository"
 import { authorize } from "@/server/tenancy/authorize-context.mjs"
 import type { TenantContext } from "@/server/tenancy/types"
@@ -245,6 +251,7 @@ export async function listUserReplays(context: TenantContext, userId: string) {
         durationSeconds: REPLAY_CLIP_DURATION_SECONDS,
         locationName: row.locationName,
         status: row.status,
+        isFavorite: Boolean(row.favoritedAt),
         videoUrl,
         bookingId: row.bookingId,
         ...(mediaId ? { mediaId } : {}),
@@ -252,6 +259,104 @@ export async function listUserReplays(context: TenantContext, userId: string) {
       }
     }),
   )
+}
+
+export async function updateReplayFavorite(
+  context: TenantContext,
+  userId: string,
+  replayId: string,
+  favorite: boolean,
+) {
+  authorize(context, "account.read")
+  const row = await setReplayFavoriteAt(
+    context,
+    userId,
+    replayId,
+    favorite ? new Date() : null,
+  )
+
+  if (!row) {
+    throw new ReplayServiceError(
+      "REPLAY_NOT_FOUND",
+      "Clip not found.",
+      404,
+    )
+  }
+
+  return {
+    id: row.id,
+    isFavorite: Boolean(row.favoritedAt),
+  }
+}
+
+export async function archiveUserReplay(
+  context: TenantContext,
+  userId: string,
+  replayId: string,
+) {
+  authorize(context, "account.read")
+  const owned = await getReplayOwnedByUser(context, userId, replayId)
+
+  if (!owned || owned.archivedAt) {
+    throw new ReplayServiceError(
+      "REPLAY_NOT_FOUND",
+      "Clip not found.",
+      404,
+    )
+  }
+
+  const row = await setReplayArchivedAt(
+    context,
+    userId,
+    replayId,
+    new Date(),
+  )
+
+  if (!row) {
+    throw new ReplayServiceError(
+      "REPLAY_NOT_FOUND",
+      "Clip not found.",
+      404,
+    )
+  }
+
+  return { id: row.id, archived: true as const }
+}
+
+export async function deleteUserReplay(
+  context: TenantContext,
+  userId: string,
+  replayId: string,
+) {
+  const owned = await getReplayOwnedByUser(context, userId, replayId)
+
+  if (!owned || owned.archivedAt) {
+    throw new ReplayServiceError(
+      "REPLAY_NOT_FOUND",
+      "Clip not found.",
+      404,
+    )
+  }
+
+  const mediaAssetId = owned.mediaAssetId
+  const archived = await archiveUserReplay(context, userId, replayId)
+
+  if (mediaAssetId) {
+    const privateMediaEnabled = await isPrivateMediaEnabledForTenant(context)
+    if (privateMediaEnabled) {
+      try {
+        await requestMediaDeletion({
+          context,
+          userId,
+          mediaId: mediaAssetId,
+        })
+      } catch {
+        // Clip is hidden from library; media cleanup may complete asynchronously.
+      }
+    }
+  }
+
+  return archived
 }
 
 export async function markReplayReady(input: {

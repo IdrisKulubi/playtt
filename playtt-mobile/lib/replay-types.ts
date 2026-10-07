@@ -17,4 +17,5 @@ export interface ReplaySummary {
   mediaId?: string
   playbackExpiresAt?: string
   coachReviewed?: boolean
+  isFavorite?: boolean
 }

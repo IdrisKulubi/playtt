@@ -135,7 +135,7 @@ export function ReplayPlayer({ replay, autoPlay = false }: ReplayPlayerProps) {
       <View style={{ position: "relative" }}>
         <ReplayThumb
           durationSeconds={replay.durationSeconds}
-          onPress={() => {
+          onPlayPress={() => {
             void startPlayback()
           }}
         />

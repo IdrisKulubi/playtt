@@ -32,6 +32,8 @@ const MAPPING = {
   'square.and.arrow.up': 'share',
   'arrow.down.circle.fill': 'file-download',
   link: 'link',
+  ellipsis: 'more-horiz',
+  'star.fill': 'star',
 } as IconMapping;
 
 /**

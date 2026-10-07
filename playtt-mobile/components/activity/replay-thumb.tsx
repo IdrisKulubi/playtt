@@ -14,14 +14,14 @@ type ReplayThumbProps = {
   durationSeconds: number
   aspectRatio?: number
   style?: ViewStyle
-  onPress?: () => void
+  onPlayPress?: () => void
 }
 
 export function ReplayThumb({
   durationSeconds,
   aspectRatio = 16 / 9,
   style,
-  onPress,
+  onPlayPress,
 }: ReplayThumbProps) {
   const theme = useProductTheme()
 
@@ -63,38 +63,35 @@ export function ReplayThumb({
           fontFamily: PlayTTFontFamilies.semiBold,
           color: theme.foreground,
         },
-        pressed: {
+        playPressed: {
           opacity: 0.85,
         },
       }),
     [aspectRatio, theme],
   )
 
-  const content = (
-    <>
-      <View style={styles.playCircle}>
-        <Play size={24} color={PlayTTColors.primary} weight="fill" />
-      </View>
-      <View style={styles.duration}>
+  return (
+    <View style={[styles.thumb, style]} pointerEvents="box-none">
+      {onPlayPress ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Play clip"
+          onPress={onPlayPress}
+          style={({ pressed }) => [
+            styles.playCircle,
+            pressed && styles.playPressed,
+          ]}
+        >
+          <Play size={24} color={PlayTTColors.primary} weight="fill" />
+        </Pressable>
+      ) : (
+        <View style={styles.playCircle}>
+          <Play size={24} color={PlayTTColors.primary} weight="fill" />
+        </View>
+      )}
+      <View style={styles.duration} pointerEvents="none">
         <Text style={styles.durationText}>{durationSeconds}s</Text>
       </View>
-    </>
+    </View>
   )
-
-  if (onPress) {
-    return (
-      <Pressable
-        onPress={onPress}
-        style={({ pressed }) => [
-          styles.thumb,
-          style,
-          pressed && styles.pressed,
-        ]}
-      >
-        {content}
-      </Pressable>
-    )
-  }
-
-  return <View style={[styles.thumb, style]}>{content}</View>
 }
