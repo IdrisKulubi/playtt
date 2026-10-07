@@ -69,7 +69,11 @@ export function ReplayListRow({ replay, onPress }: ReplayListRowProps) {
               })}
             </Text>
           </View>
-          <IconSymbol name="chevron.right" size={18} color={theme.muted} />
+          <IconSymbol
+            name={replay.status === "ready" ? "play.circle.fill" : "chevron.right"}
+            size={22}
+            color={theme.muted}
+          />
         </View>
       </GlassPanel>
     </Pressable>

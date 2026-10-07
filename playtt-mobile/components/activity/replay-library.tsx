@@ -38,6 +38,7 @@ export function ReplayLibrary() {
   const [selectedReplay, setSelectedReplay] = useState<ReplaySummary | null>(
     null,
   )
+  const [sheetAutoPlay, setSheetAutoPlay] = useState(false)
 
   const loadReplays = useCallback(() => {
     if (!USE_LIVE_ACTIVITY_CLIPS) {
@@ -68,6 +69,16 @@ export function ReplayLibrary() {
       loadReplays()
     }, [loadReplays]),
   )
+
+  const openReplay = useCallback((replay: ReplaySummary, autoPlay: boolean) => {
+    setSheetAutoPlay(autoPlay)
+    setSelectedReplay(replay)
+  }, [])
+
+  const closeSheet = useCallback(() => {
+    setSelectedReplay(null)
+    setSheetAutoPlay(false)
+  }, [])
 
   const styles = useMemo(
     () =>
@@ -133,10 +144,7 @@ export function ReplayLibrary() {
 
   return (
     <View style={styles.root}>
-      <FeaturedReplay
-        replay={featured}
-        onPress={() => setSelectedReplay(featured)}
-      />
+      <FeaturedReplay replay={featured} />
 
       {featured.status !== "ready" ? (
         <Text style={styles.statusPill}>{statusLabel(featured.status)}</Text>
@@ -150,7 +158,7 @@ export function ReplayLibrary() {
               <ReplayListRow
                 key={replay.id}
                 replay={replay}
-                onPress={() => setSelectedReplay(replay)}
+                onPress={() => openReplay(replay, true)}
               />
             ))}
           </View>
@@ -160,7 +168,8 @@ export function ReplayLibrary() {
       <ReplayDetailSheet
         replay={selectedReplay}
         visible={selectedReplay !== null}
-        onClose={() => setSelectedReplay(null)}
+        autoPlay={sheetAutoPlay}
+        onClose={closeSheet}
       />
     </View>
   )

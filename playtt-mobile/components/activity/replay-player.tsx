@@ -1,5 +1,5 @@
 import { useVideoPlayer, VideoView } from "expo-video"
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   StyleSheet,
@@ -21,15 +21,18 @@ import type { ReplaySummary } from "@/lib/replay-types"
 
 type ReplayPlayerProps = {
   replay: ReplaySummary
+  /** Start loading and playing as soon as the player mounts (e.g. list row tap). */
+  autoPlay?: boolean
 }
 
-export function ReplayPlayer({ replay }: ReplayPlayerProps) {
+export function ReplayPlayer({ replay, autoPlay = false }: ReplayPlayerProps) {
   const theme = useProductTheme()
-  const [sourceUrl, setSourceUrl] = useState<string | null>(null)
+  const [showVideo, setShowVideo] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const autoPlayStarted = useRef(false)
 
-  const player = useVideoPlayer(sourceUrl, (instance) => {
+  const player = useVideoPlayer(null, (instance) => {
     instance.loop = false
   })
 
@@ -39,12 +42,17 @@ export function ReplayPlayer({ replay }: ReplayPlayerProps) {
         root: {
           gap: PlayTTSpacing.sm,
         },
-        video: {
+        videoShell: {
+          position: "relative",
           width: "100%",
           aspectRatio: 16 / 9,
           borderRadius: PlayTTRadius.lg,
           overflow: "hidden",
           backgroundColor: theme.elevated,
+        },
+        video: {
+          width: "100%",
+          height: "100%",
         },
         error: {
           fontSize: 14,
@@ -58,7 +66,6 @@ export function ReplayPlayer({ replay }: ReplayPlayerProps) {
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: "rgba(4, 16, 25, 0.55)",
-          borderRadius: PlayTTRadius.lg,
         },
       }),
     [theme],
@@ -66,7 +73,9 @@ export function ReplayPlayer({ replay }: ReplayPlayerProps) {
 
   const startPlayback = useCallback(async () => {
     if (!USE_LIVE_ACTIVITY_CLIPS) {
-      setError("Sample clips cannot be played. Turn on live replays to stream from your account.")
+      setError(
+        "Sample clips cannot be played. Turn on live replays to stream from your account.",
+      )
       return
     }
 
@@ -75,31 +84,48 @@ export function ReplayPlayer({ replay }: ReplayPlayerProps) {
       return
     }
 
+    if (loading) return
+
     setError(null)
     setLoading(true)
+    setShowVideo(true)
 
     try {
       const url = await resolveReplayPlaybackUrl(replay)
-      setSourceUrl(url)
       player.replace(url)
       player.play()
     } catch {
+      setShowVideo(false)
       setError("Could not start playback. Try again in a moment.")
     } finally {
       setLoading(false)
     }
-  }, [player, replay])
+  }, [loading, player, replay])
 
-  if (sourceUrl) {
+  useEffect(() => {
+    if (!autoPlay || autoPlayStarted.current) return
+    autoPlayStarted.current = true
+    void startPlayback()
+  }, [autoPlay, startPlayback])
+
+  if (showVideo) {
     return (
       <View style={styles.root}>
-        <VideoView
-          style={styles.video}
-          player={player}
-          nativeControls
-          contentFit="contain"
-          allowsFullscreen
-        />
+        <View style={styles.videoShell}>
+          <VideoView
+            style={styles.video}
+            player={player}
+            nativeControls
+            contentFit="contain"
+            allowsFullscreen
+          />
+          {loading ? (
+            <View style={styles.loadingOverlay} pointerEvents="none">
+              <ActivityIndicator color={PlayTTColors.primary} />
+            </View>
+          ) : null}
+        </View>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>
     )
   }
@@ -114,7 +140,10 @@ export function ReplayPlayer({ replay }: ReplayPlayerProps) {
           }}
         />
         {loading ? (
-          <View style={styles.loadingOverlay} pointerEvents="none">
+          <View
+            style={[styles.loadingOverlay, { borderRadius: PlayTTRadius.lg }]}
+            pointerEvents="none"
+          >
             <ActivityIndicator color={PlayTTColors.primary} />
           </View>
         ) : null}
