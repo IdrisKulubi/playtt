@@ -1,10 +1,10 @@
 import { useFocusEffect } from "expo-router"
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
 
-import { FeaturedReplay } from "@/components/activity/featured-replay"
+import { ReplayClipActionsSheet } from "@/components/activity/replay-clip-actions-sheet"
 import { ReplayDetailSheet } from "@/components/activity/replay-detail-sheet"
-import { ReplayListRow } from "@/components/activity/replay-list-row"
+import { ReplayGridCard } from "@/components/activity/replay-grid-card"
 import {
   PlayTTColors,
   PlayTTFontFamilies,
@@ -13,38 +13,64 @@ import {
 import { useProductTheme } from "@/hooks/use-product-theme"
 import { USE_LIVE_ACTIVITY_CLIPS } from "@/lib/mock/mock-config"
 import type { ReplaySummary } from "@/lib/replay-types"
-import { fetchUserReplays } from "@/lib/replays-api"
+import {
+  archiveReplay,
+  deleteReplay,
+  fetchUserReplays,
+  patchReplayFavorite,
+} from "@/lib/replays-api"
+import { toast } from "@/lib/toast"
 
-function statusLabel(status: ReplaySummary["status"]) {
-  switch (status) {
-    case "queued":
-      return "Queued"
-    case "processing":
-      return "Processing"
-    case "ready":
-      return "Ready"
-    case "failed":
-      return "Failed"
-    default:
-      return "Unknown"
-  }
+type ReplayLibraryProps = {
+  onSelectedReplayChange?: (replay: ReplaySummary | null) => void
 }
 
-export function ReplayLibrary() {
+export function ReplayLibrary({ onSelectedReplayChange }: ReplayLibraryProps) {
   const theme = useProductTheme()
   const [replays, setReplays] = useState<ReplaySummary[]>([])
   const [loading, setLoading] = useState(USE_LIVE_ACTIVITY_CLIPS)
   const [error, setError] = useState<string | null>(null)
-  const [selectedReplay, setSelectedReplay] = useState<ReplaySummary | null>(
-    null,
-  )
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const selectedIdRef = useRef<string | null>(null)
+  const [sheetReplay, setSheetReplay] = useState<ReplaySummary | null>(null)
   const [sheetAutoPlay, setSheetAutoPlay] = useState(false)
+  const [actionsReplay, setActionsReplay] = useState<ReplaySummary | null>(null)
+
+  const clearSelection = useCallback(() => {
+    selectedIdRef.current = null
+    setSelectedId(null)
+    onSelectedReplayChange?.(null)
+  }, [onSelectedReplayChange])
+
+  const applyReplays = useCallback(
+    (rows: ReplaySummary[]) => {
+      setReplays(rows)
+
+      if (rows.length === 0) {
+        clearSelection()
+        return
+      }
+
+      const previousId = selectedIdRef.current
+      if (previousId && rows.some((row) => row.id === previousId)) {
+        const replay = rows.find((row) => row.id === previousId) ?? null
+        setSelectedId(previousId)
+        onSelectedReplayChange?.(replay)
+        return
+      }
+
+      if (previousId) {
+        clearSelection()
+      }
+    },
+    [clearSelection, onSelectedReplayChange],
+  )
 
   const loadReplays = useCallback(() => {
     if (!USE_LIVE_ACTIVITY_CLIPS) {
       setLoading(false)
       setError(null)
-      void fetchUserReplays().then(setReplays)
+      void fetchUserReplays().then(applyReplays)
       return
     }
 
@@ -52,17 +78,15 @@ export function ReplayLibrary() {
     setError(null)
 
     void fetchUserReplays()
-      .then((rows) => {
-        setReplays(rows)
-      })
+      .then(applyReplays)
       .catch(() => {
         setError("Could not load your clips right now.")
-        setReplays([])
+        applyReplays([])
       })
       .finally(() => {
         setLoading(false)
       })
-  }, [])
+  }, [applyReplays])
 
   useFocusEffect(
     useCallback(() => {
@@ -70,29 +94,141 @@ export function ReplayLibrary() {
     }, [loadReplays]),
   )
 
-  const openReplay = useCallback((replay: ReplaySummary, autoPlay: boolean) => {
+  const removeReplayFromList = useCallback(
+    (replayId: string) => {
+      setReplays((current) => current.filter((row) => row.id !== replayId))
+      if (selectedIdRef.current === replayId) {
+        clearSelection()
+      }
+    },
+    [clearSelection],
+  )
+
+  const toggleSelectReplay = useCallback(
+    (replay: ReplaySummary) => {
+      if (selectedIdRef.current === replay.id) {
+        clearSelection()
+        return
+      }
+
+      selectedIdRef.current = replay.id
+      setSelectedId(replay.id)
+      onSelectedReplayChange?.(replay)
+    },
+    [clearSelection, onSelectedReplayChange],
+  )
+
+  const openSheet = useCallback((replay: ReplaySummary, autoPlay: boolean) => {
     setSheetAutoPlay(autoPlay)
-    setSelectedReplay(replay)
+    setSheetReplay(replay)
   }, [])
 
   const closeSheet = useCallback(() => {
-    setSelectedReplay(null)
+    setSheetReplay(null)
     setSheetAutoPlay(false)
   }, [])
+
+  const handleToggleFavorite = useCallback(
+    (replay: ReplaySummary) => {
+      const nextFavorite = !replay.isFavorite
+
+      const applyLocal = () => {
+        setReplays((current) =>
+          current.map((row) =>
+            row.id === replay.id
+              ? { ...row, isFavorite: nextFavorite }
+              : row,
+          ),
+        )
+        if (selectedIdRef.current === replay.id) {
+          onSelectedReplayChange?.({
+            ...replay,
+            isFavorite: nextFavorite,
+          })
+        }
+      }
+
+      if (!USE_LIVE_ACTIVITY_CLIPS) {
+        applyLocal()
+        toast.success(nextFavorite ? "Added to favorites." : "Removed from favorites.")
+        return
+      }
+
+      void patchReplayFavorite(replay.id, nextFavorite)
+        .then(() => {
+          applyLocal()
+          toast.success(
+            nextFavorite ? "Added to favorites." : "Removed from favorites.",
+          )
+        })
+        .catch(() => {
+          toast.error("Could not update favorite.")
+        })
+    },
+    [onSelectedReplayChange],
+  )
+
+  const handleArchive = useCallback(
+    (replay: ReplaySummary) => {
+      if (!USE_LIVE_ACTIVITY_CLIPS) {
+        removeReplayFromList(replay.id)
+        toast.success("Clip archived.")
+        return
+      }
+
+      void archiveReplay(replay.id)
+        .then(() => {
+          removeReplayFromList(replay.id)
+          toast.success("Clip archived.")
+        })
+        .catch(() => {
+          toast.error("Could not archive this clip.")
+        })
+    },
+    [removeReplayFromList],
+  )
+
+  const handleDelete = useCallback(
+    (replay: ReplaySummary) => {
+      if (!USE_LIVE_ACTIVITY_CLIPS) {
+        removeReplayFromList(replay.id)
+        toast.success("Clip deleted.")
+        return
+      }
+
+      void deleteReplay(replay.id)
+        .then(() => {
+          removeReplayFromList(replay.id)
+          toast.success("Clip deleted.")
+        })
+        .catch(() => {
+          toast.error("Could not delete this clip.")
+        })
+    },
+    [removeReplayFromList],
+  )
 
   const styles = useMemo(
     () =>
       StyleSheet.create({
         root: {
-          gap: PlayTTSpacing.lg,
+          gap: PlayTTSpacing.md,
         },
-        sectionLabel: {
-          fontSize: 13,
+        sectionHeader: {
+          flexDirection: "row",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          gap: PlayTTSpacing.sm,
+        },
+        sectionTitle: {
+          fontSize: 17,
           fontFamily: PlayTTFontFamilies.semiBold,
+          color: theme.foreground,
+        },
+        sectionCount: {
+          fontSize: 14,
+          fontFamily: PlayTTFontFamilies.medium,
           color: theme.muted,
-          textTransform: "uppercase",
-          letterSpacing: 0.5,
-          marginBottom: PlayTTSpacing.sm,
         },
         center: {
           alignItems: "center",
@@ -103,13 +239,15 @@ export function ReplayLibrary() {
           fontFamily: PlayTTFontFamilies.regular,
           color: theme.muted,
         },
-        statusPill: {
-          fontSize: 12,
-          fontFamily: PlayTTFontFamilies.medium,
-          color: theme.muted,
-        },
-        list: {
+        grid: {
+          flexDirection: "row",
+          flexWrap: "wrap",
           gap: PlayTTSpacing.sm,
+        },
+        cell: {
+          width: "48%",
+          flexGrow: 1,
+          maxWidth: "48%",
         },
       }),
     [theme],
@@ -131,45 +269,53 @@ export function ReplayLibrary() {
     )
   }
 
-  const featured = replays[0]
-  const moreReplays = replays.slice(1)
-
-  if (!featured) {
+  if (replays.length === 0) {
     return (
       <View style={styles.center}>
-        <Text style={styles.muted}>No clips yet. Capture one during your next session.</Text>
+        <Text style={styles.muted}>
+          No clips yet. Capture one during your next session.
+        </Text>
       </View>
     )
   }
 
+  const clipCountLabel =
+    replays.length === 1 ? "1 clip" : `${replays.length} clips`
+
   return (
     <View style={styles.root}>
-      <FeaturedReplay replay={featured} />
-
-      {featured.status !== "ready" ? (
-        <Text style={styles.statusPill}>{statusLabel(featured.status)}</Text>
-      ) : null}
-
-      {moreReplays.length > 0 ? (
-        <View>
-          <Text style={styles.sectionLabel}>Earlier clips</Text>
-          <View style={styles.list}>
-            {moreReplays.map((replay) => (
-              <ReplayListRow
-                key={replay.id}
-                replay={replay}
-                onPress={() => openReplay(replay, true)}
-              />
-            ))}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Your clips</Text>
+        <Text style={styles.sectionCount}>{clipCountLabel}</Text>
+      </View>
+      <View style={styles.grid}>
+        {replays.map((replay) => (
+          <View key={replay.id} style={styles.cell}>
+            <ReplayGridCard
+              replay={replay}
+              selected={replay.id === selectedId}
+              onSelect={() => toggleSelectReplay(replay)}
+              onPlay={() => openSheet(replay, true)}
+              onMenu={() => setActionsReplay(replay)}
+            />
           </View>
-        </View>
-      ) : null}
+        ))}
+      </View>
 
       <ReplayDetailSheet
-        replay={selectedReplay}
-        visible={selectedReplay !== null}
+        replay={sheetReplay}
+        visible={sheetReplay !== null}
         autoPlay={sheetAutoPlay}
         onClose={closeSheet}
+      />
+
+      <ReplayClipActionsSheet
+        replay={actionsReplay}
+        visible={actionsReplay !== null}
+        onClose={() => setActionsReplay(null)}
+        onToggleFavorite={handleToggleFavorite}
+        onArchive={handleArchive}
+        onDelete={handleDelete}
       />
     </View>
   )

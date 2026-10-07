@@ -14,6 +14,7 @@ type ReplayMineRow = {
   bookingId?: string
   mediaId?: string
   playbackExpiresAt?: string
+  isFavorite?: boolean
 }
 
 type ReplaysMineResponse = {
@@ -47,7 +48,33 @@ function mapReplay(row: ReplayMineRow): ReplaySummary {
     bookingId: row.bookingId,
     mediaId: row.mediaId,
     playbackExpiresAt: row.playbackExpiresAt,
+    isFavorite: row.isFavorite ?? false,
   }
+}
+
+export async function patchReplayFavorite(
+  replayId: string,
+  favorite: boolean,
+): Promise<boolean> {
+  const response = await apiFetch<{
+    data?: { replay?: { isFavorite?: boolean } }
+  }>(`/api/replays/${encodeURIComponent(replayId)}/library`, {
+    method: "PATCH",
+    body: JSON.stringify({ favorite }),
+  })
+  return response.data?.replay?.isFavorite ?? favorite
+}
+
+export async function archiveReplay(replayId: string): Promise<void> {
+  await apiFetch(`/api/replays/${encodeURIComponent(replayId)}/archive`, {
+    method: "POST",
+  })
+}
+
+export async function deleteReplay(replayId: string): Promise<void> {
+  await apiFetch(`/api/replays/${encodeURIComponent(replayId)}`, {
+    method: "DELETE",
+  })
 }
 
 type ReplayPlaybackResponse = {

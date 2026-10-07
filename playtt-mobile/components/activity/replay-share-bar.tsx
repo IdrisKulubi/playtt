@@ -1,19 +1,35 @@
 import { useMemo } from "react"
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
+  type StyleProp,
+  type ViewStyle,
 } from "react-native"
 
-import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconSymbol } from "@/components/ui/icon-symbol"
 import {
-  PlayTTColors,
+  liquidGlassLabelColor,
+  liquidGlassPillBorderColor,
+  liquidGlassSelectionChipColor,
+} from "@/components/ui/liquid-glass-chrome"
+import {
+  LiquidGlassSurface,
+  liquidGlassFill,
+  useNativeLiquidGlass,
+} from "@/components/ui/liquid-glass-surface"
+import type { AppColorScheme } from "@/constants/theme"
+import { resolveColorScheme } from "@/constants/theme"
+import {
   PlayTTFontFamilies,
+  PlayTTRadius,
   PlayTTSpacing,
 } from "@/constants/playtt-tokens"
+import { getFloatingTabBarInset } from "@/constants/navigation-layout"
+import { useColorScheme } from "@/hooks/use-color-scheme"
 import {
   type ReplayShareAction,
   useReplayShare,
@@ -22,185 +38,299 @@ import { useProductTheme } from "@/hooks/use-product-theme"
 import { USE_LIVE_ACTIVITY_CLIPS } from "@/lib/mock/mock-config"
 import type { ReplaySummary } from "@/lib/replay-types"
 
-type ReplayShareBarProps = {
-  replay: ReplaySummary
-}
+/** Fixed share dock height (toolbar + vertical margins). */
+export const REPLAY_SHARE_DOCK_HEIGHT = 52
 
 type ShareActionConfig = {
   id: ReplayShareAction
   label: string
   icon: "square.and.arrow.up" | "arrow.down.circle.fill" | "link"
-  primary?: boolean
   accessibilityLabel: string
   onPress: () => void
 }
 
-function ShareActionButton({
-  config,
-  disabled,
-  busy,
-  theme,
-}: {
-  config: ShareActionConfig
+type ReplayShareToolbarProps = {
+  colorScheme: AppColorScheme
   disabled: boolean
-  busy: boolean
-  theme: ReturnType<typeof useProductTheme>
-}) {
+  busyAction: ReplayShareAction | null
+  actions: ShareActionConfig[]
+}
+
+function ReplayShareToolbar({
+  colorScheme,
+  disabled,
+  busyAction,
+  actions,
+}: ReplayShareToolbarProps) {
+  const nativeGlass = useNativeLiquidGlass()
+
   const styles = useMemo(
     () =>
       StyleSheet.create({
-        pressable: {
+        pill: {
+          borderRadius: PlayTTRadius.pill,
+          overflow: "hidden",
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: liquidGlassPillBorderColor(colorScheme),
+          ...(!nativeGlass
+            ? Platform.select({
+                ios: {
+                  shadowColor: colorScheme === "dark" ? "#000000" : "#0a1628",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: colorScheme === "dark" ? 0.25 : 0.08,
+                  shadowRadius: 12,
+                },
+                android: {
+                  elevation: 6,
+                },
+                default: {},
+              })
+            : {}),
+        },
+        pillDisabled: {
+          opacity: 0.45,
+        },
+        row: {
+          flexDirection: "row",
+          padding: 4,
+          gap: 2,
+          minHeight: 44,
+        },
+        segmentSlot: {
           flex: 1,
+          flexDirection: "row",
+          alignItems: "stretch",
+        },
+        divider: {
+          width: StyleSheet.hairlineWidth,
+          alignSelf: "stretch",
+          marginVertical: 8,
+          backgroundColor: liquidGlassPillBorderColor(colorScheme),
+        },
+        segmentPressable: {
+          flex: 1,
+        },
+        chip: {
+          flex: 1,
+          flexDirection: "row",
           alignItems: "center",
           justifyContent: "center",
-          gap: PlayTTSpacing["2xs"],
-          paddingVertical: PlayTTSpacing.sm,
-          paddingHorizontal: PlayTTSpacing.xs,
-          opacity: disabled ? 0.45 : 1,
+          gap: 6,
+          paddingVertical: 8,
+          paddingHorizontal: 6,
+          borderRadius: PlayTTRadius.pill,
+          minHeight: 36,
         },
-        iconWrap: {
-          width: 44,
-          height: 44,
-          borderRadius: 22,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: config.primary
-            ? PlayTTColors.primaryGlow
-            : theme.elevated,
+        chipPressed: {
+          backgroundColor: liquidGlassSelectionChipColor(colorScheme),
         },
-        label: {
-          fontSize: 12,
+        segmentLabel: {
+          fontSize: 13,
           fontFamily: PlayTTFontFamilies.medium,
-          color: config.primary ? PlayTTColors.primary : theme.foreground,
-          textAlign: "center",
         },
-        busyLabel: {
-          fontSize: 11,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-          textAlign: "center",
+        segmentLabelPressed: {
+          fontFamily: PlayTTFontFamilies.semiBold,
         },
       }),
-    [config.primary, disabled, theme],
+    [colorScheme, nativeGlass],
   )
 
-  const iconColor = config.primary ? PlayTTColors.primary : theme.foreground
-
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={config.accessibilityLabel}
-      accessibilityState={{ disabled, busy }}
-      disabled={disabled || busy}
-      onPress={config.onPress}
-      style={({ pressed }) => [
-        styles.pressable,
-        pressed && !disabled && !busy && { opacity: 0.85 },
-      ]}
-    >
-      <View style={styles.iconWrap}>
-        {busy ? (
-          <ActivityIndicator size="small" color={iconColor} />
-        ) : (
-          <IconSymbol name={config.icon} size={22} color={iconColor} />
-        )}
+    <View style={[styles.pill, disabled && styles.pillDisabled]}>
+      <LiquidGlassSurface colorScheme={colorScheme} style={liquidGlassFill} />
+      <View style={styles.row}>
+        {actions.map((action, index) => {
+          const busy = busyAction === action.id
+          return (
+            <View key={action.id} style={styles.segmentSlot}>
+              {index > 0 ? <View style={styles.divider} /> : null}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={action.accessibilityLabel}
+                accessibilityState={{ disabled, busy }}
+                disabled={disabled}
+                onPress={action.onPress}
+                style={styles.segmentPressable}
+              >
+                {({ pressed }) => {
+                  const highlighted = pressed && !disabled
+                  const labelColor = liquidGlassLabelColor(
+                    colorScheme,
+                    highlighted,
+                  )
+                  return (
+                    <View
+                      style={[
+                        styles.chip,
+                        highlighted && styles.chipPressed,
+                      ]}
+                    >
+                      {busy ? (
+                        <ActivityIndicator size="small" color={labelColor} />
+                      ) : (
+                        <IconSymbol
+                          name={action.icon}
+                          size={17}
+                          color={labelColor}
+                        />
+                      )}
+                      <Text
+                        style={[
+                          styles.segmentLabel,
+                          highlighted && styles.segmentLabelPressed,
+                          { color: labelColor },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {busy ? "…" : action.label}
+                      </Text>
+                    </View>
+                  )
+                }}
+              </Pressable>
+            </View>
+          )
+        })}
       </View>
-      <Text style={styles.label}>
-        {busy ? "Preparing…" : config.label}
-      </Text>
-      {busy ? (
-        <Text style={styles.busyLabel}>Downloading clip</Text>
-      ) : null}
-    </Pressable>
+    </View>
   )
 }
 
-export function ReplayShareBar({ replay }: ReplayShareBarProps) {
-  const theme = useProductTheme()
+function useShareActions(replay: ReplaySummary) {
   const { busyAction, onShare, onSave, onCopyLink } = useReplayShare(replay)
+
+  const actions: ShareActionConfig[] = useMemo(
+    () => [
+      {
+        id: "share",
+        label: "Share",
+        icon: "square.and.arrow.up",
+        accessibilityLabel: "Share clip",
+        onPress: onShare,
+      },
+      {
+        id: "save",
+        label: "Save",
+        icon: "arrow.down.circle.fill",
+        accessibilityLabel: "Save to Photos",
+        onPress: onSave,
+      },
+      {
+        id: "link",
+        label: "Copy link",
+        icon: "link",
+        accessibilityLabel: "Copy PlayTT link",
+        onPress: onCopyLink,
+      },
+    ],
+    [onCopyLink, onSave, onShare],
+  )
 
   const canShare =
     USE_LIVE_ACTIVITY_CLIPS && replay.status === "ready"
   const disabled = !canShare || busyAction !== null
 
-  const styles = useMemo(
+  return { actions, busyAction, disabled, canShare }
+}
+
+type ReplayShareBarProps = {
+  replay: ReplaySummary
+  variant?: "inline"
+}
+
+export function ReplayShareBar({ replay }: ReplayShareBarProps) {
+  const theme = useProductTheme()
+  const colorScheme = resolveColorScheme(useColorScheme())
+  const { actions, busyAction, disabled, canShare } = useShareActions(replay)
+
+  const hintStyle = useMemo(
     () =>
       StyleSheet.create({
-        root: {
-          gap: PlayTTSpacing.xs,
-        },
-        row: {
-          flexDirection: "row",
-          alignItems: "stretch",
-        },
         hint: {
           fontSize: 13,
           fontFamily: PlayTTFontFamilies.regular,
           color: theme.muted,
           lineHeight: 18,
-          paddingHorizontal: PlayTTSpacing.xs,
         },
       }),
     [theme],
   )
 
-  const actions: ShareActionConfig[] = [
-    {
-      id: "share",
-      label: "Share",
-      icon: "square.and.arrow.up",
-      primary: true,
-      accessibilityLabel: "Share clip",
-      onPress: onShare,
-    },
-    {
-      id: "save",
-      label: "Save",
-      icon: "arrow.down.circle.fill",
-      accessibilityLabel: "Save to Photos",
-      onPress: onSave,
-    },
-    {
-      id: "link",
-      label: "Link",
-      icon: "link",
-      accessibilityLabel: "Copy PlayTT link",
-      onPress: onCopyLink,
-    },
-  ]
-
   if (!USE_LIVE_ACTIVITY_CLIPS) {
     return (
-      <Text style={styles.hint}>
+      <Text style={hintStyle.hint}>
         Share and save unlock when live session clips are enabled.
       </Text>
     )
   }
 
+  const statusHint =
+    !canShare &&
+    (replay.status === "ready"
+      ? "This clip cannot be shared right now."
+      : "Sharing is available when your clip is ready.")
+
   return (
-    <View style={styles.root}>
-      <GlassPanel contentStyle={styles.row}>
-        {actions.map((action) => (
-          <ShareActionButton
-            key={action.id}
-            config={action}
-            disabled={disabled}
-            busy={busyAction === action.id}
-            theme={theme}
-          />
-        ))}
-      </GlassPanel>
-      {!canShare ? (
-        <Text style={styles.hint}>
-          {replay.status === "ready"
-            ? "This clip cannot be shared right now."
-            : "Sharing is available when your clip is ready."}
-        </Text>
-      ) : (
-        <Text style={styles.hint}>
-          Share to WhatsApp, Instagram, and more — or save to your gallery.
-        </Text>
-      )}
+    <View style={{ gap: PlayTTSpacing.xs }}>
+      <ReplayShareToolbar
+        colorScheme={colorScheme}
+        disabled={disabled}
+        busyAction={busyAction}
+        actions={actions}
+      />
+      {statusHint ? <Text style={hintStyle.hint}>{statusHint}</Text> : null}
     </View>
+  )
+}
+
+type ReplayShareDockProps = {
+  replay: ReplaySummary
+  bottomInset: number
+  style?: StyleProp<ViewStyle>
+}
+
+export function ReplayShareDock({
+  replay,
+  bottomInset,
+  style,
+}: ReplayShareDockProps) {
+  const colorScheme = resolveColorScheme(useColorScheme())
+  const { actions, busyAction, disabled } = useShareActions(replay)
+
+  const dockStyles = useMemo(
+    () =>
+      StyleSheet.create({
+        dock: {
+          position: "absolute",
+          left: PlayTTSpacing.md,
+          right: PlayTTSpacing.md,
+          bottom: bottomInset + PlayTTSpacing.sm,
+        },
+      }),
+    [bottomInset],
+  )
+
+  if (!USE_LIVE_ACTIVITY_CLIPS) {
+    return null
+  }
+
+  return (
+    <View style={[dockStyles.dock, style]} pointerEvents="box-none">
+      <ReplayShareToolbar
+        colorScheme={colorScheme}
+        disabled={disabled}
+        busyAction={busyAction}
+        actions={actions}
+      />
+    </View>
+  )
+}
+
+export function getReplayShareDockScrollPadding(bottomSafeArea: number) {
+  return (
+    getFloatingTabBarInset(bottomSafeArea) +
+    PlayTTSpacing.sm +
+    REPLAY_SHARE_DOCK_HEIGHT +
+    PlayTTSpacing.md
   )
 }

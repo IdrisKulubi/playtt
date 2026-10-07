@@ -4235,6 +4235,8 @@ export const replays = pgTable(
       .defaultNow()
       .notNull(),
     readyAt: timestamp("ready_at", { withTimezone: true }),
+    favoritedAt: timestamp("favorited_at", { withTimezone: true }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()

@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm"
+import { and, desc, eq, isNull } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import {
@@ -410,6 +410,7 @@ export async function listReplaysForUser(
       mediaAssetId: replays.mediaAssetId,
       requestedAt: replays.requestedAt,
       readyAt: replays.readyAt,
+      favoritedAt: replays.favoritedAt,
       locationName: locations.name,
       bookingId: replays.bookingId,
     })
@@ -420,9 +421,80 @@ export async function listReplaysForUser(
         eq(replays.tenantId, context.tenantId),
         eq(locations.tenantId, context.tenantId),
         eq(replays.userId, userId),
+        isNull(replays.archivedAt),
       ),
     )
     .orderBy(desc(replays.requestedAt))
+}
+
+export async function getReplayOwnedByUser(
+  context: TenantContext,
+  userId: string,
+  replayId: string,
+) {
+  const [row] = await db
+    .select({
+      id: replays.id,
+      userId: replays.userId,
+      mediaAssetId: replays.mediaAssetId,
+      archivedAt: replays.archivedAt,
+      favoritedAt: replays.favoritedAt,
+    })
+    .from(replays)
+    .where(
+      and(
+        eq(replays.tenantId, context.tenantId),
+        eq(replays.id, replayId),
+        eq(replays.userId, userId),
+      ),
+    )
+    .limit(1)
+
+  return row ?? null
+}
+
+export async function setReplayFavoriteAt(
+  context: TenantContext,
+  userId: string,
+  replayId: string,
+  favoritedAt: Date | null,
+) {
+  const [row] = await db
+    .update(replays)
+    .set({ favoritedAt })
+    .where(
+      and(
+        eq(replays.tenantId, context.tenantId),
+        eq(replays.id, replayId),
+        eq(replays.userId, userId),
+        isNull(replays.archivedAt),
+      ),
+    )
+    .returning({ id: replays.id, favoritedAt: replays.favoritedAt })
+
+  return row ?? null
+}
+
+export async function setReplayArchivedAt(
+  context: TenantContext,
+  userId: string,
+  replayId: string,
+  archivedAt: Date,
+) {
+  const [row] = await db
+    .update(replays)
+    .set({ archivedAt })
+    .where(
+      and(
+        eq(replays.tenantId, context.tenantId),
+        eq(replays.id, replayId),
+        eq(replays.userId, userId),
+        isNull(replays.archivedAt),
+      ),
+    )
+    .returning({ id: replays.id })
+
+  return row ?? null
 }
 
 export async function getUserEmail(userId: string) {

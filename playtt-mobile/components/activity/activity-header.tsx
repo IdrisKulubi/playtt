@@ -1,12 +1,9 @@
 import { useMemo } from "react"
-import { Pressable, Text, View } from "react-native"
+import { Text, View } from "react-native"
 
+import { ClipBalanceBar } from "@/components/activity/clip-balance-bar"
 import { createActivityHeaderStyles } from "@/components/activity/activity-screen-styles"
 import { PreviewBadge } from "@/components/ui/preview-badge"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-} from "@/constants/playtt-tokens"
 import { useProductTheme } from "@/hooks/use-product-theme"
 import {
   MOCK_PREVIEW_LABEL,
@@ -46,33 +43,16 @@ export function ActivityHeader({
   const styles = useMemo(() => createActivityHeaderStyles(theme), [theme])
   const previewLabel = previewBadgeForSegment(segment)
 
-  const clipLabel =
-    clipBalance === null || clipBalance === undefined
-      ? null
-      : clipBalance === 1
-        ? "1 clip left"
-        : `${clipBalance} clips left`
-
   return (
     <View style={styles.band}>
       <View style={styles.topRow}>
-        <Text style={styles.intro}>{INTRO_COPY[segment]}</Text>
+        <Text style={styles.leadHeadline}>Activity</Text>
         {previewLabel ? <PreviewBadge label={previewLabel} /> : null}
       </View>
+      <Text style={styles.intro}>{INTRO_COPY[segment]}</Text>
 
-      {segment === "highlights" && clipLabel && onBuyClips ? (
-        <Pressable onPress={onBuyClips} style={styles.hairlineRow}>
-          <Text style={styles.hairlineLabel}>{clipLabel}</Text>
-          <Text
-            style={{
-              fontSize: 14,
-              fontFamily: PlayTTFontFamilies.semiBold,
-              color: PlayTTColors.primary,
-            }}
-          >
-            Buy clips
-          </Text>
-        </Pressable>
+      {segment === "highlights" && onBuyClips ? (
+        <ClipBalanceBar balance={clipBalance ?? null} onBuyClips={onBuyClips} />
       ) : null}
     </View>
   )
