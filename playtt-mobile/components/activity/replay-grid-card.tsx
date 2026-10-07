@@ -19,6 +19,9 @@ type ReplayGridCardProps = {
   onMenu: () => void
 }
 
+const THUMB_ASPECT = 16 / 10
+const THUMB_RADIUS = 16
+
 function formatRecordedDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-KE", {
     day: "numeric",
@@ -42,15 +45,13 @@ export function ReplayGridCard({
           gap: PlayTTSpacing.xs,
         },
         thumbShell: {
-          borderRadius: 12,
-          borderWidth: selected ? 2 : StyleSheet.hairlineWidth,
-          borderColor: selected
-            ? PlayTTColors.primary
-            : "rgba(255, 255, 255, 0.08)",
+          borderRadius: THUMB_RADIUS,
+          borderWidth: selected ? 2 : 0,
+          borderColor: selected ? PlayTTColors.primary : "transparent",
           overflow: "hidden",
         },
         thumbInner: {
-          borderRadius: selected ? 10 : 12,
+          borderRadius: selected ? THUMB_RADIUS - 2 : THUMB_RADIUS,
           borderWidth: 0,
         },
         footer: {
@@ -61,6 +62,7 @@ export function ReplayGridCard({
         copyPressable: {
           flex: 1,
           gap: 2,
+          minWidth: 0,
         },
         titleRow: {
           flexDirection: "row",
@@ -102,7 +104,7 @@ export function ReplayGridCard({
         <View style={styles.thumbShell}>
           <ReplayThumb
             durationSeconds={replay.durationSeconds}
-            aspectRatio={4 / 5}
+            aspectRatio={THUMB_ASPECT}
             style={styles.thumbInner}
             onPlayPress={onPlay}
           />

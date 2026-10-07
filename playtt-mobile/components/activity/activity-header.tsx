@@ -1,9 +1,13 @@
 import { useMemo } from "react"
-import { Text, View } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
 
 import { ClipBalanceBar } from "@/components/activity/clip-balance-bar"
-import { createActivityHeaderStyles } from "@/components/activity/activity-screen-styles"
 import { PreviewBadge } from "@/components/ui/preview-badge"
+import {
+  PlayTTFontFamilies,
+  PlayTTSpacing,
+  PlayTTTypography,
+} from "@/constants/playtt-tokens"
 import { useProductTheme } from "@/hooks/use-product-theme"
 import {
   MOCK_PREVIEW_LABEL,
@@ -40,11 +44,41 @@ export function ActivityHeader({
   onBuyClips,
 }: ActivityHeaderProps) {
   const theme = useProductTheme()
-  const styles = useMemo(() => createActivityHeaderStyles(theme), [theme])
   const previewLabel = previewBadgeForSegment(segment)
 
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        root: {
+          gap: PlayTTSpacing.xs,
+        },
+        topRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: PlayTTSpacing.sm,
+        },
+        leadHeadline: {
+          ...PlayTTTypography.headline,
+          fontFamily: PlayTTFontFamilies.semiBold,
+          color: theme.foreground,
+        },
+        intro: {
+          fontSize: 15,
+          fontFamily: PlayTTFontFamilies.regular,
+          color: theme.muted,
+          lineHeight: 20,
+          marginBottom: PlayTTSpacing["2xs"],
+        },
+        clipBar: {
+          marginTop: PlayTTSpacing["2xs"],
+        },
+      }),
+    [theme],
+  )
+
   return (
-    <View style={styles.band}>
+    <View style={styles.root}>
       <View style={styles.topRow}>
         <Text style={styles.leadHeadline}>Activity</Text>
         {previewLabel ? <PreviewBadge label={previewLabel} /> : null}
@@ -52,7 +86,12 @@ export function ActivityHeader({
       <Text style={styles.intro}>{INTRO_COPY[segment]}</Text>
 
       {segment === "highlights" && onBuyClips ? (
-        <ClipBalanceBar balance={clipBalance ?? null} onBuyClips={onBuyClips} />
+        <View style={styles.clipBar}>
+          <ClipBalanceBar
+            balance={clipBalance ?? null}
+            onBuyClips={onBuyClips}
+          />
+        </View>
       ) : null}
     </View>
   )

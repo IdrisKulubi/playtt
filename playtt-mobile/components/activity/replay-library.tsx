@@ -1,16 +1,15 @@
 import { useFocusEffect } from "expo-router"
+import { MapPin } from "phosphor-react-native/src/icons/MapPin"
 import { useCallback, useMemo, useRef, useState } from "react"
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
+
+import { ReplayClipGridSkeleton } from "@/components/ui/skeleton"
 
 import { ReplayClipActionsSheet } from "@/components/activity/replay-clip-actions-sheet"
 import { ReplayDetailSheet } from "@/components/activity/replay-detail-sheet"
 import { ReplayGridCard } from "@/components/activity/replay-grid-card"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useProductTheme, useSkeletonSurface } from "@/hooks/use-product-theme"
 import { USE_LIVE_ACTIVITY_CLIPS } from "@/lib/mock/mock-config"
 import type { ReplaySummary } from "@/lib/replay-types"
 import {
@@ -25,8 +24,17 @@ type ReplayLibraryProps = {
   onSelectedReplayChange?: (replay: ReplaySummary | null) => void
 }
 
+function sharedLocationName(replays: ReplaySummary[]) {
+  if (replays.length === 0) {
+    return null
+  }
+  const first = replays[0].locationName
+  return replays.every((row) => row.locationName === first) ? first : null
+}
+
 export function ReplayLibrary({ onSelectedReplayChange }: ReplayLibraryProps) {
   const theme = useProductTheme()
+  const skeletonSurface = useSkeletonSurface()
   const [replays, setReplays] = useState<ReplaySummary[]>([])
   const [loading, setLoading] = useState(USE_LIVE_ACTIVITY_CLIPS)
   const [error, setError] = useState<string | null>(null)
@@ -212,7 +220,17 @@ export function ReplayLibrary({ onSelectedReplayChange }: ReplayLibraryProps) {
     () =>
       StyleSheet.create({
         root: {
-          gap: PlayTTSpacing.md,
+          gap: PlayTTSpacing.sm,
+        },
+        locationRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 6,
+        },
+        locationText: {
+          fontSize: 13,
+          fontFamily: PlayTTFontFamilies.regular,
+          color: theme.muted,
         },
         sectionHeader: {
           flexDirection: "row",
@@ -254,11 +272,7 @@ export function ReplayLibrary({ onSelectedReplayChange }: ReplayLibraryProps) {
   )
 
   if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={PlayTTColors.primary} />
-      </View>
-    )
+    return <ReplayClipGridSkeleton surface={skeletonSurface} />
   }
 
   if (error) {
@@ -281,9 +295,16 @@ export function ReplayLibrary({ onSelectedReplayChange }: ReplayLibraryProps) {
 
   const clipCountLabel =
     replays.length === 1 ? "1 clip" : `${replays.length} clips`
+  const venueLabel = sharedLocationName(replays)
 
   return (
     <View style={styles.root}>
+      {venueLabel ? (
+        <View style={styles.locationRow}>
+          <MapPin size={14} color={theme.muted} weight="fill" />
+          <Text style={styles.locationText}>{venueLabel}</Text>
+        </View>
+      ) : null}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Your clips</Text>
         <Text style={styles.sectionCount}>{clipCountLabel}</Text>
