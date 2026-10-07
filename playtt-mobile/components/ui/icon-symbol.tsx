@@ -23,11 +23,15 @@ const MAPPING = {
   'person.2.fill': 'people',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  'play.circle.fill': 'play-circle-filled',
   'chevron.left': 'arrow-back',
   'checkmark.circle.fill': 'check-circle',
   'xmark.circle.fill': 'cancel',
   'info.circle.fill': 'info',
   xmark: 'close',
+  'square.and.arrow.up': 'share',
+  'arrow.down.circle.fill': 'file-download',
+  link: 'link',
 } as IconMapping;
 
 /**

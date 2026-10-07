@@ -1,7 +1,8 @@
 import { useMemo } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
 
 import { ReplayPlayer } from "@/components/activity/replay-player"
+import { ReplayShareBar } from "@/components/activity/replay-share-bar"
 import {
   PlayTTFontFamilies,
   PlayTTSpacing,
@@ -11,7 +12,6 @@ import type { ReplaySummary } from "@/lib/replay-types"
 
 type FeaturedReplayProps = {
   replay: ReplaySummary
-  onPress: () => void
 }
 
 function formatRecordedDate(iso: string) {
@@ -21,7 +21,7 @@ function formatRecordedDate(iso: string) {
   })
 }
 
-export function FeaturedReplay({ replay, onPress }: FeaturedReplayProps) {
+export function FeaturedReplay({ replay }: FeaturedReplayProps) {
   const theme = useProductTheme()
 
   const styles = useMemo(
@@ -43,25 +43,20 @@ export function FeaturedReplay({ replay, onPress }: FeaturedReplayProps) {
           fontFamily: PlayTTFontFamilies.regular,
           color: theme.muted,
         },
-        pressed: {
-          opacity: 0.92,
-        },
       }),
     [theme],
   )
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.root, pressed && styles.pressed]}
-    >
+    <View style={styles.root}>
       <ReplayPlayer key={replay.id} replay={replay} />
+      <ReplayShareBar replay={replay} />
       <View style={styles.copy}>
         <Text style={styles.title}>{replay.title}</Text>
         <Text style={styles.meta}>
           {replay.locationName} · {formatRecordedDate(replay.recordedAt)}
         </Text>
       </View>
-    </Pressable>
+    </View>
   )
 }

@@ -14,7 +14,8 @@
       "usesAppleSignIn": true,
       "supportsTablet": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryAddUsageDescription": "PlayTT saves your session clips to your photo library when you choose Save."
       }
     },
     "android": {
@@ -45,7 +46,16 @@
           }
         }
       ],
-      "expo-video"
+      "expo-video",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "PlayTT can access your photos to save session clips.",
+          "savePhotosPermission": "PlayTT saves your session clips to your photo library when you choose Save.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,

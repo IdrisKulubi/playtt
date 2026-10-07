@@ -2,6 +2,7 @@ import { useMemo } from "react"
 import { StyleSheet, Text, View } from "react-native"
 
 import { ReplayPlayer } from "@/components/activity/replay-player"
+import { ReplayShareBar } from "@/components/activity/replay-share-bar"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { PreviewBadge } from "@/components/ui/preview-badge"
 import {
@@ -15,12 +16,14 @@ import type { ReplaySummary } from "@/lib/replay-types"
 type ReplayDetailSheetProps = {
   replay: ReplaySummary | null
   visible: boolean
+  autoPlay?: boolean
   onClose: () => void
 }
 
 export function ReplayDetailSheet({
   replay,
   visible,
+  autoPlay = false,
   onClose,
 }: ReplayDetailSheetProps) {
   const theme = useProductTheme()
@@ -63,10 +66,15 @@ export function ReplayDetailSheet({
   return (
     <BottomSheet visible={visible} title={replay.title} onClose={onClose}>
       <View style={styles.root}>
-        <ReplayPlayer key={replay.id} replay={replay} />
+        <ReplayPlayer
+          key={`${replay.id}-${autoPlay ? "autoplay" : "manual"}`}
+          replay={replay}
+          autoPlay={autoPlay}
+        />
         <Text style={styles.meta}>
           {replay.locationName} · {replay.durationSeconds}s · {recordedLabel}
         </Text>
+        <ReplayShareBar replay={replay} />
         <View style={styles.badgeRow}>
           {showLiveBadge ? (
             <PreviewBadge
@@ -85,7 +93,9 @@ export function ReplayDetailSheet({
         <Text style={styles.footnote}>
           {showLiveBadge
             ? replay.status === "ready"
-              ? "Tap play to stream your clip. Links may expire; tap play again to refresh."
+              ? autoPlay
+                ? "Streaming your clip. Use the player controls to pause or go fullscreen."
+                : "Tap play to stream your clip."
               : "This clip is still being prepared on the venue edge."
             : "Real replays will sync here after each session."}
         </Text>
