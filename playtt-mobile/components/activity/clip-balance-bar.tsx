@@ -49,8 +49,8 @@ export function ClipBalanceBar({ balance, onBuyClips }: ClipBalanceBarProps) {
           gap: PlayTTSpacing.sm,
         },
         iconShell: {
-          width: 40,
-          height: 40,
+          width: 36,
+          height: 36,
           borderRadius: PlayTTRadius.md,
           alignItems: "center",
           justifyContent: "center",
@@ -64,27 +64,27 @@ export function ClipBalanceBar({ balance, onBuyClips }: ClipBalanceBarProps) {
           minWidth: 0,
         },
         title: {
-          fontSize: 16,
+          fontSize: 15,
           fontFamily: PlayTTFontFamilies.semiBold,
           color: theme.foreground,
         },
         hint: {
-          fontSize: 13,
+          fontSize: 12,
           fontFamily: PlayTTFontFamilies.regular,
           color: theme.muted,
-          lineHeight: 18,
+          lineHeight: 16,
         },
       }),
     [theme],
   )
 
   return (
-    <GlassPanel contentStyle={{ padding: PlayTTSpacing.md }}>
+    <GlassPanel contentStyle={{ paddingVertical: 12, paddingHorizontal: 14 }}>
       <View style={styles.row}>
         <View style={styles.iconShell}>
           <IconSymbol
             name="play.circle.fill"
-            size={22}
+            size={20}
             color={PlayTTColors.primary}
           />
         </View>

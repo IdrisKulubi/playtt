@@ -180,6 +180,46 @@ export function UpcomingCardSkeleton({ surface = "dark" }: PresetProps) {
   return <HomeTicketSkeleton surface={surface} />
 }
 
+const REPLAY_CLIP_THUMB_HEIGHT = 108
+
+function ReplayClipCardSkeleton({ surface }: PresetProps) {
+  return (
+    <View style={styles.replayClipCell}>
+      <Skeleton
+        width="100%"
+        height={REPLAY_CLIP_THUMB_HEIGHT}
+        borderRadius={16}
+        surface={surface}
+      />
+      <Skeleton width="72%" height={14} surface={surface} />
+      <Skeleton width="42%" height={12} surface={surface} />
+    </View>
+  )
+}
+
+export function ReplayClipGridSkeleton({
+  surface = "product",
+  cardCount = 4,
+}: PresetProps & { cardCount?: number }) {
+  return (
+    <SkeletonGroup gap="sm" style={styles.replayClipGrid}>
+      <View style={styles.replayLocationRow}>
+        <Skeleton width={14} height={14} borderRadius={7} surface={surface} />
+        <Skeleton width={128} height={13} surface={surface} />
+      </View>
+      <View style={styles.replaySectionHeader}>
+        <Skeleton width={96} height={17} surface={surface} />
+        <Skeleton width={52} height={14} surface={surface} />
+      </View>
+      <View style={styles.replayGrid}>
+        {Array.from({ length: cardCount }, (_, index) => (
+          <ReplayClipCardSkeleton key={index} surface={surface} />
+        ))}
+      </View>
+    </SkeletonGroup>
+  )
+}
+
 type HomeTicketSkeletonProps = PresetProps & {
   embedded?: boolean
 }
@@ -299,5 +339,30 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
+  },
+  replayClipGrid: {
+    width: "100%",
+  },
+  replayLocationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  replaySectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: PlayTTSpacing.sm,
+  },
+  replayGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: PlayTTSpacing.sm,
+  },
+  replayClipCell: {
+    width: "48%",
+    flexGrow: 1,
+    maxWidth: "48%",
+    gap: PlayTTSpacing.xs,
   },
 })

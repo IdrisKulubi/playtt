@@ -40,9 +40,9 @@ export function ReplayThumb({
           justifyContent: "center",
         },
         playCircle: {
-          width: 52,
-          height: 52,
-          borderRadius: 26,
+          width: 44,
+          height: 44,
+          borderRadius: 22,
           backgroundColor: "rgba(4, 16, 25, 0.72)",
           alignItems: "center",
           justifyContent: "center",
@@ -82,11 +82,11 @@ export function ReplayThumb({
             pressed && styles.playPressed,
           ]}
         >
-          <Play size={24} color={PlayTTColors.primary} weight="fill" />
+          <Play size={20} color={PlayTTColors.primary} weight="fill" />
         </Pressable>
       ) : (
         <View style={styles.playCircle}>
-          <Play size={24} color={PlayTTColors.primary} weight="fill" />
+          <Play size={20} color={PlayTTColors.primary} weight="fill" />
         </View>
       )}
       <View style={styles.duration} pointerEvents="none">

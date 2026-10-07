@@ -1,7 +1,7 @@
 import { useFocusEffect } from "expo-router"
 import { useCallback, useMemo, useState } from "react"
-import { ScrollView } from "react-native"
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
+import { ScrollView, View } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { ActivityHeader } from "@/components/activity/activity-header"
 import { PlayerStatsPanel } from "@/components/activity/player-stats-panel"
@@ -60,13 +60,22 @@ export default function ActivityScreen() {
     [],
   )
 
+  const scrollContentStyle = useMemo(
+    () => ({
+      paddingTop: insets.top + PlayTTSpacing.sm,
+      paddingHorizontal: 20,
+      paddingBottom: scrollPaddingBottom,
+      gap: PlayTTSpacing.md,
+    }),
+    [insets.top, scrollPaddingBottom],
+  )
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { gap: PlayTTSpacing.lg, paddingBottom: scrollPaddingBottom },
-        ]}
+        contentContainerStyle={scrollContentStyle}
+        contentInsetAdjustmentBehavior="never"
+        showsVerticalScrollIndicator={false}
       >
         <ActivityHeader
           segment={segment}
@@ -102,6 +111,6 @@ export default function ActivityScreen() {
         onClose={() => setClipSheetOpen(false)}
         onPurchased={loadCredits}
       />
-    </SafeAreaView>
+    </View>
   )
 }
