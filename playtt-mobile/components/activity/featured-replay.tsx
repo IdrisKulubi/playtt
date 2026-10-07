@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import { Pressable, StyleSheet, Text, View } from "react-native"
 
-import { ReplayThumb } from "@/components/activity/replay-thumb"
+import { ReplayPlayer } from "@/components/activity/replay-player"
 import {
   PlayTTFontFamilies,
   PlayTTSpacing,
@@ -55,7 +55,7 @@ export function FeaturedReplay({ replay, onPress }: FeaturedReplayProps) {
       onPress={onPress}
       style={({ pressed }) => [styles.root, pressed && styles.pressed]}
     >
-      <ReplayThumb durationSeconds={replay.durationSeconds} />
+      <ReplayPlayer key={replay.id} replay={replay} />
       <View style={styles.copy}>
         <Text style={styles.title}>{replay.title}</Text>
         <Text style={styles.meta}>
