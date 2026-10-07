@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import { StyleSheet, Text, View } from "react-native"
 
-import { ReplayThumb } from "@/components/activity/replay-thumb"
+import { ReplayPlayer } from "@/components/activity/replay-player"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { PreviewBadge } from "@/components/ui/preview-badge"
 import {
@@ -9,7 +9,7 @@ import {
   PlayTTSpacing,
 } from "@/constants/playtt-tokens"
 import { useProductTheme } from "@/hooks/use-product-theme"
-import { USE_LIVE_REPLAY_LIBRARY } from "@/lib/mock/mock-config"
+import { USE_LIVE_ACTIVITY_CLIPS } from "@/lib/mock/mock-config"
 import type { ReplaySummary } from "@/lib/replay-types"
 
 type ReplayDetailSheetProps = {
@@ -58,15 +58,17 @@ export function ReplayDetailSheet({
     timeStyle: "short",
   })
 
+  const showLiveBadge = USE_LIVE_ACTIVITY_CLIPS
+
   return (
     <BottomSheet visible={visible} title={replay.title} onClose={onClose}>
       <View style={styles.root}>
-        <ReplayThumb durationSeconds={replay.durationSeconds} />
+        <ReplayPlayer key={replay.id} replay={replay} />
         <Text style={styles.meta}>
           {replay.locationName} · {replay.durationSeconds}s · {recordedLabel}
         </Text>
         <View style={styles.badgeRow}>
-          {USE_LIVE_REPLAY_LIBRARY ? (
+          {showLiveBadge ? (
             <PreviewBadge
               label={
                 replay.status === "ready"
@@ -81,9 +83,9 @@ export function ReplayDetailSheet({
           )}
         </View>
         <Text style={styles.footnote}>
-          {USE_LIVE_REPLAY_LIBRARY
+          {showLiveBadge
             ? replay.status === "ready"
-              ? "Open this clip while your playback link is active."
+              ? "Tap play to stream your clip. Links may expire; tap play again to refresh."
               : "This clip is still being prepared on the venue edge."
             : "Real replays will sync here after each session."}
         </Text>

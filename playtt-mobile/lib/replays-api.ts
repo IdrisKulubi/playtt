@@ -3,20 +3,22 @@ import type { ReplaySummary, ReplayStatus } from "@/lib/replay-types"
 import { USE_LIVE_ACTIVITY_CLIPS } from "@/lib/mock/mock-config"
 import { MOCK_REPLAYS } from "@/lib/mock/mock-replays"
 
+type ReplayMineRow = {
+  id: string
+  title: string
+  recordedAt: string
+  durationSeconds: number
+  locationName: string
+  status: string
+  videoUrl?: string
+  bookingId?: string
+  mediaId?: string
+  playbackExpiresAt?: string
+}
+
 type ReplaysMineResponse = {
   data?: {
-    replays?: Array<{
-      id: string
-      title: string
-      recordedAt: string
-      durationSeconds: number
-      locationName: string
-      status: string
-      videoUrl?: string
-      bookingId?: string
-      mediaId?: string
-      playbackExpiresAt?: string
-    }>
+    replays?: ReplayMineRow[]
   }
 }
 
@@ -33,7 +35,7 @@ function normalizeReplayStatus(status: string): ReplayStatus {
   return "unknown"
 }
 
-function mapReplay(row: NonNullable<ReplaysMineResponse["data"]>["replays"][number]): ReplaySummary {
+function mapReplay(row: ReplayMineRow): ReplaySummary {
   return {
     id: row.id,
     title: row.title,
@@ -46,6 +48,45 @@ function mapReplay(row: NonNullable<ReplaysMineResponse["data"]>["replays"][numb
     mediaId: row.mediaId,
     playbackExpiresAt: row.playbackExpiresAt,
   }
+}
+
+type ReplayPlaybackResponse = {
+  data?: {
+    playback?: {
+      grant?: {
+        url?: string
+        expiresAt?: string
+      }
+    }
+  }
+}
+
+export async function fetchReplayPlaybackUrl(
+  replayId: string,
+): Promise<string> {
+  const response = await apiFetch<ReplayPlaybackResponse>(
+    `/api/replays/${encodeURIComponent(replayId)}/playback`,
+  )
+  const url = response.data?.playback?.grant?.url
+  if (!url) {
+    throw new Error("Playback URL missing from server response.")
+  }
+  return url
+}
+
+function playbackGrantStillValid(expiresAt?: string) {
+  if (!expiresAt) return true
+  return new Date(expiresAt).getTime() > Date.now() + 5000
+}
+
+/** Prefer list payload URL when fresh; otherwise request a new grant from the web API. */
+export async function resolveReplayPlaybackUrl(
+  replay: Pick<ReplaySummary, "id" | "videoUrl" | "playbackExpiresAt">,
+): Promise<string> {
+  if (replay.videoUrl && playbackGrantStillValid(replay.playbackExpiresAt)) {
+    return replay.videoUrl
+  }
+  return fetchReplayPlaybackUrl(replay.id)
 }
 
 export async function fetchUserReplays(): Promise<ReplaySummary[]> {
