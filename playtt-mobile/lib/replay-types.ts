@@ -13,6 +13,8 @@ export interface ReplaySummary {
   locationName: string
   status: ReplayStatus
   videoUrl?: string
+  posterUrl?: string
+  posterExpiresAt?: string
   bookingId?: string
   mediaId?: string
   playbackExpiresAt?: string

@@ -1,3 +1,4 @@
+import { Image } from "expo-image"
 import { useMemo } from "react"
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native"
 import { Play } from "phosphor-react-native/src/icons/Play"
@@ -14,6 +15,7 @@ type ReplayThumbProps = {
   durationSeconds: number
   aspectRatio?: number
   style?: ViewStyle
+  posterUri?: string | null
   onPlayPress?: () => void
 }
 
@@ -21,6 +23,7 @@ export function ReplayThumb({
   durationSeconds,
   aspectRatio = 16 / 9,
   style,
+  posterUri,
   onPlayPress,
 }: ReplayThumbProps) {
   const theme = useProductTheme()
@@ -66,12 +69,31 @@ export function ReplayThumb({
         playPressed: {
           opacity: 0.85,
         },
+        poster: {
+          ...StyleSheet.absoluteFillObject,
+        },
+        posterScrim: {
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: "rgba(4, 16, 25, 0.18)",
+        },
       }),
     [aspectRatio, theme],
   )
 
   return (
     <View style={[styles.thumb, style]} pointerEvents="box-none">
+      {posterUri ? (
+        <>
+          <Image
+            source={{ uri: posterUri }}
+            style={styles.poster}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            accessibilityElementsHidden
+          />
+          <View style={styles.posterScrim} pointerEvents="none" />
+        </>
+      ) : null}
       {onPlayPress ? (
         <Pressable
           accessibilityRole="button"

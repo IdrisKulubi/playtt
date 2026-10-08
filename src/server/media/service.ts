@@ -405,6 +405,42 @@ export async function createPlaybackGrantForMediaAsset(input: {
   return result.grant
 }
 
+export function deriveReplayPreviewObjectKey(sourceObjectKey: string) {
+  if (!sourceObjectKey.endsWith("source.mp4")) {
+    return null
+  }
+
+  return sourceObjectKey.replace(/source\.mp4$/, "preview.jpg")
+}
+
+/** Signed JPEG URL when `preview.jpg` exists beside `source.mp4` in object storage. */
+export async function createPosterGrantForSourceVideoObjectKey(input: {
+  context: TenantContext
+  sourceObjectKey: string
+}) {
+  await requirePrivateMediaEnabled(input.context)
+
+  const previewKey = deriveReplayPreviewObjectKey(input.sourceObjectKey)
+  if (!previewKey) {
+    return null
+  }
+
+  const store = getMediaStore()
+  const head = await store.headObject(previewKey)
+  if (!head) {
+    return null
+  }
+
+  try {
+    return await store.createDownloadGrant({
+      objectKey: previewKey,
+      expiresInSeconds: MEDIA_DOWNLOAD_GRANT_TTL_SECONDS,
+    })
+  } catch {
+    return null
+  }
+}
+
 export async function createPlaybackGrantForReadyMedia(input: {
   context: TenantContext
   mediaId: string
