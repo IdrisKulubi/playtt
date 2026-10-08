@@ -37,6 +37,7 @@ import { isLegacyReplayUrl } from "@/server/media/content-policy"
 import { isPrivateMediaEnabledForTenant } from "@/server/media/feature-policy"
 import {
   createPlaybackGrantForMediaAsset,
+  createPosterGrantForSourceVideoObjectKey,
   requestMediaDeletion,
 } from "@/server/media/service"
 import { listMediaAssetsByIds } from "@/server/media/repository"
@@ -222,6 +223,8 @@ export async function listUserReplays(context: TenantContext, userId: string) {
       let videoUrl = row.videoUrl
       let mediaId: string | undefined
       let playbackExpiresAt: string | undefined
+      let posterUrl: string | undefined
+      let posterExpiresAt: string | undefined
 
       if (privateMediaEnabled && row.mediaAssetId) {
         const asset = mediaById.get(row.mediaAssetId)
@@ -238,6 +241,17 @@ export async function listUserReplays(context: TenantContext, userId: string) {
             playbackExpiresAt = grant.expiresAt
           } catch {
             videoUrl = row.videoUrl
+          }
+
+          if (asset.objectKey) {
+            const posterGrant = await createPosterGrantForSourceVideoObjectKey({
+              context,
+              sourceObjectKey: asset.objectKey,
+            })
+            if (posterGrant) {
+              posterUrl = posterGrant.url
+              posterExpiresAt = posterGrant.expiresAt
+            }
           }
         }
       } else if (isLegacyReplayUrl(row.videoUrl)) {
@@ -256,6 +270,8 @@ export async function listUserReplays(context: TenantContext, userId: string) {
         bookingId: row.bookingId,
         ...(mediaId ? { mediaId } : {}),
         ...(playbackExpiresAt ? { playbackExpiresAt } : {}),
+        ...(posterUrl ? { posterUrl } : {}),
+        ...(posterExpiresAt ? { posterExpiresAt } : {}),
       }
     }),
   )

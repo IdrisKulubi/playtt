@@ -11,6 +11,8 @@ type ReplayMineRow = {
   locationName: string
   status: string
   videoUrl?: string
+  posterUrl?: string
+  posterExpiresAt?: string
   bookingId?: string
   mediaId?: string
   playbackExpiresAt?: string
@@ -45,6 +47,8 @@ function mapReplay(row: ReplayMineRow): ReplaySummary {
     locationName: row.locationName,
     status: normalizeReplayStatus(row.status),
     videoUrl: row.videoUrl,
+    posterUrl: row.posterUrl,
+    posterExpiresAt: row.posterExpiresAt,
     bookingId: row.bookingId,
     mediaId: row.mediaId,
     playbackExpiresAt: row.playbackExpiresAt,
