@@ -8,7 +8,6 @@ import {
   PlayTTFontFamilies,
   PlayTTSpacing,
 } from "@/constants/playtt-tokens"
-import { useReplayPoster } from "@/hooks/use-replay-poster"
 import { useProductTheme } from "@/hooks/use-product-theme"
 import type { ReplaySummary } from "@/lib/replay-types"
 
@@ -38,8 +37,6 @@ export function ReplayGridCard({
   onMenu,
 }: ReplayGridCardProps) {
   const theme = useProductTheme()
-  const posterUri = useReplayPoster(replay)
-
   const styles = useMemo(
     () =>
       StyleSheet.create({
@@ -105,10 +102,10 @@ export function ReplayGridCard({
       >
         <View style={styles.thumbShell}>
           <ReplayThumb
+            replay={replay}
             durationSeconds={replay.durationSeconds}
             aspectRatio={THUMB_ASPECT}
             style={styles.thumbInner}
-            posterUri={posterUri}
             onPlayPress={onPlay}
           />
         </View>
