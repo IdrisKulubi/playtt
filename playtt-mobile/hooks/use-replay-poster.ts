@@ -21,12 +21,19 @@ function posterFromReplay(replay: ReplaySummary) {
   return getCachedReplayPoster(replay.id)
 }
 
-export function useReplayPoster(replay: ReplaySummary) {
+export function useReplayPoster(
+  replay: ReplaySummary | null,
+  enabled: boolean,
+) {
   const [posterUri, setPosterUri] = useState<string | null>(() =>
-    posterFromReplay(replay),
+    replay ? posterFromReplay(replay) : null,
   )
 
   useEffect(() => {
+    if (!replay || !enabled) {
+      return
+    }
+
     const immediate = posterFromReplay(replay)
     if (immediate) {
       setPosterUri(immediate)
@@ -44,14 +51,15 @@ export function useReplayPoster(replay: ReplaySummary) {
       cancelled = true
     }
   }, [
-    replay.id,
-    replay.status,
-    replay.posterUrl,
-    replay.posterExpiresAt,
-    replay.videoUrl,
-    replay.playbackExpiresAt,
-    replay.durationSeconds,
+    enabled,
+    replay?.id,
+    replay?.status,
+    replay?.posterUrl,
+    replay?.posterExpiresAt,
+    replay?.videoUrl,
+    replay?.playbackExpiresAt,
+    replay?.durationSeconds,
   ])
 
-  return posterUri
+  return enabled ? posterUri : null
 }

@@ -9,7 +9,7 @@ import { resolveReplayPlaybackUrl } from "@/lib/replays-api"
 const posterCache = new Map<string, string>()
 const inFlight = new Map<string, Promise<string | null>>()
 
-const MAX_CONCURRENT = 3
+const MAX_CONCURRENT = 2
 let activeJobs = 0
 const slotWaiters: Array<() => void> = []
 
@@ -47,32 +47,40 @@ function posterTimeMs(durationSeconds: number) {
   return Math.min(1500, Math.max(400, durationSeconds * 120))
 }
 
+function canExtractPoster(replay: ReplaySummary) {
+  if (!USE_LIVE_ACTIVITY_CLIPS) {
+    return false
+  }
+  if (replay.status === "failed" || replay.status === "queued") {
+    return false
+  }
+  return true
+}
+
 async function extractThumbnailUri(videoUri: string, timeMs: number) {
   const { uri } = await VideoThumbnails.getThumbnailAsync(videoUri, {
     time: timeMs,
-    quality: 0.75,
+    quality: 0.8,
   })
   return uri
 }
 
-async function thumbnailFromRemoteUrl(replay: ReplaySummary, remoteUrl: string) {
+async function thumbnailFromPlaybackUrl(replay: ReplaySummary, remoteUrl: string) {
   const timeMs = posterTimeMs(replay.durationSeconds)
+  const cachePath = `${FileSystem.cacheDirectory}replay-src-${replay.id}.mp4`
+  const info = await FileSystem.getInfoAsync(cachePath)
 
-  try {
-    return await extractThumbnailUri(remoteUrl, timeMs)
-  } catch {
-    const cachePath = `${FileSystem.cacheDirectory}replay-${replay.id}.mp4`
-    const info = await FileSystem.getInfoAsync(cachePath)
-
-    if (!info.exists) {
-      const download = await FileSystem.downloadAsync(remoteUrl, cachePath)
-      if (download.status !== 200) {
-        throw new Error("Clip download failed.")
-      }
+  if (!info.exists) {
+    const download = await FileSystem.downloadAsync(remoteUrl, cachePath)
+    if (download.status !== 200) {
+      throw new Error(`Clip download failed (${download.status}).`)
     }
-
-    return extractThumbnailUri(cachePath, timeMs)
   }
+
+  const localUri =
+    cachePath.startsWith("file://") ? cachePath : `file://${cachePath}`
+
+  return extractThumbnailUri(localUri, timeMs)
 }
 
 async function capturePoster(replay: ReplaySummary) {
@@ -83,10 +91,11 @@ async function capturePoster(replay: ReplaySummary) {
   await acquireSlot()
   try {
     const playbackUrl = await resolveReplayPlaybackUrl(replay)
-    const uri = await thumbnailFromRemoteUrl(replay, playbackUrl)
+    const uri = await thumbnailFromPlaybackUrl(replay, playbackUrl)
     posterCache.set(replay.id, uri)
     return uri
-  } catch {
+  } catch (error) {
+    console.warn("[replay-poster] failed", replay.id, error)
     return null
   } finally {
     releaseSlot()
@@ -106,7 +115,7 @@ export function loadReplayPoster(
     return Promise.resolve(replay.posterUrl)
   }
 
-  if (!USE_LIVE_ACTIVITY_CLIPS || replay.status !== "ready") {
+  if (!canExtractPoster(replay)) {
     return Promise.resolve(null)
   }
 
