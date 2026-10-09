@@ -4,6 +4,15 @@ import { Platform } from "react-native"
 
 import { registerPushToken, revokePushToken } from "@/lib/notification-api"
 
+export async function isPushPermissionGranted(): Promise<boolean> {
+  if (Platform.OS === "web") {
+    return false
+  }
+
+  const current = await Notifications.getPermissionsAsync()
+  return current.status === Notifications.PermissionStatus.GRANTED
+}
+
 async function getDevicePushToken() {
   if (Platform.OS === "web") {
     throw new Error("Push notifications require the PlayTT mobile app.")

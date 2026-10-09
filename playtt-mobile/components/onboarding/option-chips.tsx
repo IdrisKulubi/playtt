@@ -1,7 +1,9 @@
 import { Pressable, StyleSheet, Text, View } from "react-native"
 
 import type { AuthThemeColors } from "@/constants/auth-theme"
+import type { ProductThemeColors } from "@/constants/product-theme"
 import {
+  PlayTTColors,
   PlayTTFontFamilies,
   PlayTTRadius,
   PlayTTSpacing,
@@ -16,7 +18,8 @@ type OptionChipsProps = {
   options: readonly OptionChip[]
   value: string | null
   onChange: (value: string) => void
-  theme: AuthThemeColors
+  theme?: AuthThemeColors
+  productTheme?: ProductThemeColors
 }
 
 export function OptionChips({
@@ -24,7 +27,32 @@ export function OptionChips({
   value,
   onChange,
   theme,
+  productTheme,
 }: OptionChipsProps) {
+  const chipTheme = productTheme
+    ? {
+        selectedBg: PlayTTColors.primary,
+        selectedFg: PlayTTColors.primaryForeground,
+        idleBg: productTheme.elevated,
+        idleFg: productTheme.foreground,
+        border: productTheme.border,
+        selectedBorder: PlayTTColors.primary,
+      }
+    : theme
+      ? {
+          selectedBg: theme.primary,
+          selectedFg: theme.primaryForeground,
+          idleBg: theme.socialFill,
+          idleFg: theme.foreground,
+          border: theme.divider,
+          selectedBorder: theme.primary,
+        }
+      : null
+
+  if (!chipTheme) {
+    return null
+  }
+
   return (
     <View style={styles.wrap}>
       {options.map((option) => {
@@ -39,15 +67,17 @@ export function OptionChips({
             style={[
               styles.chip,
               {
-                backgroundColor: selected ? theme.primary : theme.socialFill,
-                borderColor: selected ? theme.primary : theme.divider,
+                backgroundColor: selected ? chipTheme.selectedBg : chipTheme.idleBg,
+                borderColor: selected ? chipTheme.selectedBorder : chipTheme.border,
               },
             ]}
           >
             <Text
               style={[
                 styles.label,
-                { color: selected ? theme.primaryForeground : theme.foreground },
+                {
+                  color: selected ? chipTheme.selectedFg : chipTheme.idleFg,
+                },
               ]}
             >
               {option.label}

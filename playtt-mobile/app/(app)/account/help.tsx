@@ -1,9 +1,8 @@
 import { useMemo } from "react"
-import { ScrollView, StyleSheet, Text, View } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { StyleSheet, Text } from "react-native"
 
-import { AccountScreenHeader } from "@/components/account/account-screen-header"
-import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
+import { AccountStackScreen } from "@/components/account/account-stack-screen"
+import { GlassPanel } from "@/components/ui/glass-panel"
 import {
   PlayTTFontFamilies,
   PlayTTSpacing,
@@ -19,7 +18,7 @@ const FAQ = [
   {
     question: "Can I change my booking?",
     answer:
-      "Yes — open your booking and tap Edit. You can change time or add players up to 2 hours before start.",
+      "Yes. Open your booking and tap Edit. You can change time or add players up to 2 hours before start.",
   },
   {
     question: "How do I get into the pod?",
@@ -44,16 +43,9 @@ const FAQ = [
 
 export default function HelpScreen() {
   const theme = useProductTheme()
-  const screenStyles = useMemo(() => createAppScreenStyles(theme), [theme])
   const styles = useMemo(
     () =>
       StyleSheet.create({
-        item: {
-          gap: PlayTTSpacing.xs,
-          paddingVertical: PlayTTSpacing.md,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: theme.border,
-        },
         question: {
           fontSize: 15,
           fontFamily: PlayTTFontFamilies.semiBold,
@@ -64,22 +56,26 @@ export default function HelpScreen() {
           fontFamily: PlayTTFontFamilies.regular,
           color: theme.muted,
           lineHeight: 20,
+          marginTop: PlayTTSpacing.xs,
+        },
+        card: {
+          gap: PlayTTSpacing.xs,
         },
       }),
     [theme],
   )
 
   return (
-    <SafeAreaView style={screenStyles.safeArea}>
-      <AccountScreenHeader title="Help" />
-      <ScrollView contentContainerStyle={screenStyles.scroll}>
-        {FAQ.map((item) => (
-          <View key={item.question} style={styles.item}>
-            <Text style={styles.question}>{item.question}</Text>
-            <Text style={styles.answer}>{item.answer}</Text>
-          </View>
-        ))}
-      </ScrollView>
-    </SafeAreaView>
+    <AccountStackScreen
+      title="Help"
+      description="Quick answers about bookings, access, clips, and Coach."
+    >
+      {FAQ.map((item) => (
+        <GlassPanel key={item.question} contentStyle={styles.card}>
+          <Text style={styles.question}>{item.question}</Text>
+          <Text style={styles.answer}>{item.answer}</Text>
+        </GlassPanel>
+      ))}
+    </AccountStackScreen>
   )
 }

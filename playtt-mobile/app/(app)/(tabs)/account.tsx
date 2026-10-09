@@ -1,15 +1,14 @@
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { Alert, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { AccountProfilePanel } from "@/components/account/account-profile-panel"
 import { AccountSettingsPanel } from "@/components/account/account-settings-panel"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
-import {
-  AccountSubnav,
-  type AccountTab,
-} from "@/components/navigation/account-subnav"
+import type { AccountTab } from "@/components/navigation/account-subnav"
+import { GlassSegmentControl } from "@/components/ui/glass-segment-control"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { clearSession } from "@/lib/auth-helpers"
 import { goToSignIn } from "@/lib/auth-navigation"
 import { fetchCurrentUser, type UserProfile } from "@/lib/user-api"
@@ -35,10 +34,6 @@ export default function AccountScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const hasLoadedRef = useRef(false)
-
-  useEffect(() => {
-    setAccountTab(parseAccountTab(accountTabParam))
-  }, [accountTabParam])
 
   const loadProfile = useCallback(async (silent = false) => {
     if (silent) {
@@ -104,9 +99,27 @@ export default function AccountScreen() {
     setIsSigningOut(false)
   }
 
+  const hubPadding = useMemo(
+    () => ({
+      paddingHorizontal: 20,
+      paddingTop: PlayTTSpacing.sm,
+      gap: PlayTTSpacing.md,
+    }),
+    [],
+  )
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
-      <AccountSubnav value={accountTab} onChange={setAccountTab} />
+      <View style={hubPadding}>
+        <GlassSegmentControl
+          value={accountTab}
+          options={[
+            { value: "account", label: "Profile" },
+            { value: "settings", label: "Settings" },
+          ]}
+          onChange={setAccountTab}
+        />
+      </View>
 
       <View style={{ flex: 1 }}>
         {accountTab === "account" ? (

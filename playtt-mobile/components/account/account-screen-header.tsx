@@ -5,6 +5,7 @@ import { ScreenBackButton } from "@/components/navigation/screen-back-button"
 import {
   PlayTTFontFamilies,
   PlayTTSpacing,
+  PlayTTTypography,
 } from "@/constants/playtt-tokens"
 import type { ProductThemeColors } from "@/constants/product-theme"
 import { useProductTheme } from "@/hooks/use-product-theme"
@@ -19,11 +20,12 @@ function createStyles(theme: ProductThemeColors) {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingHorizontal: PlayTTSpacing.lg,
+      paddingHorizontal: 20,
       paddingTop: PlayTTSpacing.sm,
+      paddingBottom: PlayTTSpacing.md,
     },
     headerTitle: {
-      fontSize: 16,
+      ...PlayTTTypography.title,
       fontFamily: PlayTTFontFamilies.semiBold,
       color: theme.foreground,
     },

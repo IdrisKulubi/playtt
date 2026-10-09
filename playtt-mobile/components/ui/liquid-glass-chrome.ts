@@ -7,7 +7,7 @@ export function liquidGlassLabelColor(
   if (colorScheme === "dark") {
     return active ? "#FFFFFF" : "rgba(255, 255, 255, 0.55)"
   }
-  return active ? "#0A1628" : "rgba(10, 22, 40, 0.48)"
+  return active ? "#0A1628" : "rgba(10, 22, 40, 0.62)"
 }
 
 export function liquidGlassSelectionChipColor(colorScheme: AppColorScheme) {

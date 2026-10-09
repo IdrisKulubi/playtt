@@ -1,11 +1,12 @@
 import { router, useLocalSearchParams } from "expo-router"
-import { useEffect, useMemo, useState } from "react"
-import { ScrollView, Text, View } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { useCallback, useEffect, useState } from "react"
+import { Text, View } from "react-native"
 
-import { AccountScreenHeader } from "@/components/account/account-screen-header"
+import { AccountGlassSection } from "@/components/account/account-glass-section"
+import { AccountStackScreen } from "@/components/account/account-stack-screen"
 import { AccountVerifyEmailForm } from "@/components/account/account-verify-email-form"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
+import { Button } from "@/components/ui/button"
 import { AuthFormSkeleton } from "@/components/ui/skeleton"
 import { sendVerificationOtp } from "@/lib/auth-api"
 import { toast } from "@/lib/toast"
@@ -18,16 +19,53 @@ import {
 export default function AccountVerifyEmailScreen() {
   const theme = useProductTheme()
   const skeletonSurface = useSkeletonSurface()
-  const styles = useMemo(() => createAppScreenStyles(theme), [theme])
+  const styles = createAppScreenStyles(theme)
 
   const { email: emailParam } = useLocalSearchParams<{ email?: string }>()
   const [email, setEmail] = useState("")
   const [isBootstrapping, setIsBootstrapping] = useState(true)
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null)
+
+  const bootstrap = useCallback(async () => {
+    setBootstrapError(null)
+    setIsBootstrapping(true)
+
+    let resolvedEmail = typeof emailParam === "string" ? emailParam : ""
+
+    if (!resolvedEmail) {
+      try {
+        const response = await fetchCurrentUser()
+        resolvedEmail = response.data?.user?.email ?? ""
+      } catch (error) {
+        toast.apiError(error, "Could not start email verification.")
+        setBootstrapError("Could not load your email address.")
+        setIsBootstrapping(false)
+        return
+      }
+    }
+
+    if (!resolvedEmail) {
+      setBootstrapError("No email address is on file for this account.")
+      setIsBootstrapping(false)
+      return
+    }
+
+    setEmail(resolvedEmail)
+
+    const result = await sendVerificationOtp(resolvedEmail)
+    if (!result.success) {
+      setBootstrapError(result.message)
+      setIsBootstrapping(false)
+      return
+    }
+
+    setIsBootstrapping(false)
+  }, [emailParam])
 
   useEffect(() => {
     let mounted = true
 
-    async function bootstrap() {
+    async function run() {
       let resolvedEmail = typeof emailParam === "string" ? emailParam : ""
 
       if (!resolvedEmail) {
@@ -35,57 +73,77 @@ export default function AccountVerifyEmailScreen() {
           const response = await fetchCurrentUser()
           resolvedEmail = response.data?.user?.email ?? ""
         } catch (error) {
-          toast.apiError(error, "Could not start email verification.")
-          if (mounted) {
-            setIsBootstrapping(false)
+          if (!mounted) {
+            return
           }
+          toast.apiError(error, "Could not start email verification.")
+          setBootstrapError("Could not load your email address.")
+          setIsBootstrapping(false)
           return
         }
       }
 
-      if (!mounted || !resolvedEmail) {
-        if (mounted) {
-          setIsBootstrapping(false)
-        }
+      if (!mounted) {
+        return
+      }
+
+      if (!resolvedEmail) {
+        setBootstrapError("No email address is on file for this account.")
+        setIsBootstrapping(false)
         return
       }
 
       setEmail(resolvedEmail)
 
       const result = await sendVerificationOtp(resolvedEmail)
-      if (!result.success && mounted) {
-        toast.error(result.message)
+      if (!mounted) {
+        return
       }
 
-      if (mounted) {
-        setIsBootstrapping(false)
+      if (!result.success) {
+        setBootstrapError(result.message)
       }
+
+      setIsBootstrapping(false)
     }
 
-    void bootstrap()
+    void run()
 
     return () => {
       mounted = false
     }
   }, [emailParam])
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <AccountScreenHeader title="Verify email" />
+  const description =
+    email && !isBootstrapping && !bootstrapError
+      ? `We sent a 6-digit code to ${email}. Enter it below.`
+      : undefined
 
-      <ScrollView contentContainerStyle={styles.stackScroll}>
-        {isBootstrapping ? (
-          <View style={styles.empty}>
-            <Text style={styles.stackDescription}>Sending code…</Text>
-            <AuthFormSkeleton surface={skeletonSurface} />
-          </View>
-        ) : email ? (
+  return (
+    <AccountStackScreen title="Verify email" description={description}>
+      {isBootstrapping ? (
+        <View style={styles.empty}>
+          <Text style={styles.stackDescription}>Sending code…</Text>
+          <AuthFormSkeleton surface={skeletonSurface} />
+        </View>
+      ) : bootstrapError ? (
+        <View style={styles.empty}>
+          <Text style={styles.stackDescription}>{bootstrapError}</Text>
+          <Button
+            label="Try again"
+            surface="product"
+            productTheme={theme}
+            onPress={() => void bootstrap()}
+          />
+        </View>
+      ) : email ? (
+        <AccountGlassSection>
           <AccountVerifyEmailForm
             email={email}
             onVerified={() => router.back()}
           />
-        ) : null}
-      </ScrollView>
-    </SafeAreaView>
+        </AccountGlassSection>
+      ) : null}
+    </AccountStackScreen>
   )
 }

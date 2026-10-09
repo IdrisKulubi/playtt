@@ -1,19 +1,26 @@
 import { useEffect, useMemo, useState } from "react"
-import { ScrollView, StyleSheet, Switch, Text, View } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { StyleSheet, Switch, Text, View } from "react-native"
 
-import { AccountScreenHeader } from "@/components/account/account-screen-header"
-import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
+import { AccountGlassSection } from "@/components/account/account-glass-section"
+import { AccountStackScreen } from "@/components/account/account-stack-screen"
 import { Button } from "@/components/ui/button"
+import { AuthFormSkeleton } from "@/components/ui/skeleton"
 import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import {
+  useProductTheme,
+  useSkeletonSurface,
+} from "@/hooks/use-product-theme"
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   fetchNotificationPreferences,
   updateNotificationPreferences,
   type NotificationPreferences,
 } from "@/lib/notification-api"
-import { disablePushNotifications, enablePushNotifications } from "@/lib/push-notifications"
+import {
+  disablePushNotifications,
+  enablePushNotifications,
+  isPushPermissionGranted,
+} from "@/lib/push-notifications"
 import { toast } from "@/lib/toast"
 
 type PrefKey = keyof NotificationPreferences
@@ -29,38 +36,61 @@ const PREF_ROWS: { key: PrefKey; title: string; description: string }[] = [
 
 export default function NotificationsScreen() {
   const theme = useProductTheme()
-  const screenStyles = useMemo(() => createAppScreenStyles(theme), [theme])
+  const skeletonSurface = useSkeletonSurface()
   const [prefs, setPrefs] = useState(DEFAULT_NOTIFICATION_PREFERENCES)
   const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
+  const [isPushLoading, setIsPushLoading] = useState(true)
+  const [isPushSaving, setIsPushSaving] = useState(false)
+  const [savingPrefKey, setSavingPrefKey] = useState<PrefKey | null>(null)
   const [pushEnabled, setPushEnabled] = useState(false)
 
   useEffect(() => {
     let mounted = true
-    fetchNotificationPreferences()
-      .then((value) => { if (mounted) setPrefs(value) })
-      .catch((error) => toast.apiError(error, "Could not load notification settings."))
-      .finally(() => { if (mounted) setIsLoading(false) })
-    return () => { mounted = false }
+
+    async function load() {
+      try {
+        const [preferences, granted] = await Promise.all([
+          fetchNotificationPreferences(),
+          isPushPermissionGranted(),
+        ])
+        if (mounted) {
+          setPrefs(preferences)
+          setPushEnabled(granted)
+        }
+      } catch (error) {
+        toast.apiError(error, "Could not load notification settings.")
+      } finally {
+        if (mounted) {
+          setIsLoading(false)
+          setIsPushLoading(false)
+        }
+      }
+    }
+
+    void load()
+
+    return () => {
+      mounted = false
+    }
   }, [])
 
   async function updatePref(key: PrefKey, value: boolean) {
     const previous = prefs
     const next = { ...prefs, [key]: value }
     setPrefs(next)
-    setIsSaving(true)
+    setSavingPrefKey(key)
     try {
       setPrefs(await updateNotificationPreferences(next))
     } catch (error) {
       setPrefs(previous)
       toast.apiError(error, "Could not save notification settings.")
     } finally {
-      setIsSaving(false)
+      setSavingPrefKey(null)
     }
   }
 
   async function togglePush() {
-    setIsSaving(true)
+    setIsPushSaving(true)
     try {
       if (pushEnabled) {
         await disablePushNotifications()
@@ -74,39 +104,114 @@ export default function NotificationsScreen() {
     } catch (error) {
       toast.apiError(error, "Could not update push notifications.")
     } finally {
-      setIsSaving(false)
+      setIsPushSaving(false)
     }
   }
 
-  const styles = useMemo(() => StyleSheet.create({
-    intro: { fontSize: 14, fontFamily: PlayTTFontFamilies.regular, color: theme.muted, lineHeight: 20, marginBottom: PlayTTSpacing.md },
-    row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: PlayTTSpacing.md, paddingVertical: PlayTTSpacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border },
-    copy: { flex: 1, gap: 2 },
-    title: { fontSize: 16, fontFamily: PlayTTFontFamilies.medium, color: theme.foreground },
-    description: { fontSize: 13, fontFamily: PlayTTFontFamilies.regular, color: theme.muted, lineHeight: 18 },
-    section: { gap: PlayTTSpacing.sm, marginBottom: PlayTTSpacing.lg },
-    note: { fontSize: 12, fontFamily: PlayTTFontFamilies.regular, color: theme.muted, lineHeight: 18 },
-  }), [theme])
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        row: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: PlayTTSpacing.md,
+          paddingVertical: PlayTTSpacing.md,
+          paddingHorizontal: PlayTTSpacing.md,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: theme.border,
+        },
+        rowLast: {
+          borderBottomWidth: 0,
+        },
+        copy: { flex: 1, gap: 2 },
+        title: {
+          fontSize: 16,
+          fontFamily: PlayTTFontFamilies.semiBold,
+          color: theme.foreground,
+        },
+        description: {
+          fontSize: 13,
+          fontFamily: PlayTTFontFamilies.regular,
+          color: theme.muted,
+          lineHeight: 18,
+        },
+        pushBlock: {
+          gap: PlayTTSpacing.md,
+          paddingHorizontal: PlayTTSpacing.md,
+          paddingVertical: PlayTTSpacing.md,
+        },
+        note: {
+          fontSize: 12,
+          fontFamily: PlayTTFontFamilies.regular,
+          color: theme.muted,
+          lineHeight: 18,
+          paddingHorizontal: PlayTTSpacing["2xs"],
+        },
+      }),
+    [theme],
+  )
 
   return (
-    <SafeAreaView style={screenStyles.safeArea}>
-      <AccountScreenHeader title="Notifications" />
-      <ScrollView contentContainerStyle={screenStyles.scroll}>
-        <View style={styles.section}>
-          <Text style={styles.intro}>Choose what PlayTT sends you. Entry codes are never included in notifications; open the authenticated booking to reveal one.</Text>
-          <Button label={pushEnabled ? "Disable push on this device" : "Enable push on this device"} surface="product" productTheme={theme} variant={pushEnabled ? "outline" : "primary"} loading={isSaving} onPress={() => void togglePush()} />
+    <AccountStackScreen
+      title="Notifications"
+      description="Choose what PlayTT sends you. Entry codes are never included in notifications; open the authenticated booking to reveal one."
+    >
+      <AccountGlassSection title="This device">
+        <View style={styles.pushBlock}>
+          {isPushLoading ? (
+            <AuthFormSkeleton surface={skeletonSurface} />
+          ) : (
+            <Button
+              label={
+                pushEnabled
+                  ? "Disable push on this device"
+                  : "Enable push on this device"
+              }
+              surface="product"
+              productTheme={theme}
+              variant={pushEnabled ? "outline" : "primary"}
+              loading={isPushSaving}
+              onPress={() => void togglePush()}
+            />
+          )}
         </View>
-        {PREF_ROWS.map((row) => (
-          <View key={row.key} style={styles.row}>
-            <View style={styles.copy}>
-              <Text style={styles.title}>{row.title}</Text>
-              <Text style={styles.description}>{row.description}</Text>
-            </View>
-            <Switch value={prefs[row.key]} disabled={isLoading || isSaving} onValueChange={(value) => void updatePref(row.key, value)} />
+      </AccountGlassSection>
+
+      <AccountGlassSection title="Alerts">
+        {isLoading ? (
+          <View style={styles.pushBlock}>
+            <AuthFormSkeleton surface={skeletonSurface} />
           </View>
-        ))}
-        <Text style={styles.note}>If push is unavailable, booking access remains available by refreshing your booking.</Text>
-      </ScrollView>
-    </SafeAreaView>
+        ) : (
+          PREF_ROWS.map((row, index) => (
+            <View
+              key={row.key}
+              style={[
+                styles.row,
+                index === PREF_ROWS.length - 1 && styles.rowLast,
+              ]}
+            >
+              <View style={styles.copy}>
+                <Text style={styles.title}>{row.title}</Text>
+                <Text style={styles.description}>{row.description}</Text>
+              </View>
+              <Switch
+                value={prefs[row.key]}
+                disabled={savingPrefKey === row.key}
+                accessibilityLabel={row.title}
+                accessibilityHint={row.description}
+                onValueChange={(value) => void updatePref(row.key, value)}
+              />
+            </View>
+          ))
+        )}
+      </AccountGlassSection>
+
+      <Text style={styles.note}>
+        If push is unavailable, booking access remains available by refreshing
+        your booking.
+      </Text>
+    </AccountStackScreen>
   )
 }

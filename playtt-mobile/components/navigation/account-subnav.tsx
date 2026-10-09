@@ -8,7 +8,7 @@ type AccountSubnavProps = {
 }
 
 const TABS: { value: AccountTab; label: string }[] = [
-  { value: "account", label: "Account" },
+  { value: "account", label: "Profile" },
   { value: "settings", label: "Settings" },
 ]
 

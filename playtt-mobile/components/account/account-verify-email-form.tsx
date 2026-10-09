@@ -1,12 +1,15 @@
-import { router } from "expo-router"
 import { useState } from "react"
 import { Pressable, StyleSheet, Text, View } from "react-native"
 
 import { Button } from "@/components/ui/button"
 import { FormField } from "@/components/ui/form-field"
 import { Input } from "@/components/ui/input"
-import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useAuthTheme } from "@/hooks/use-auth-theme"
+import {
+  PlayTTColors,
+  PlayTTFontFamilies,
+  PlayTTSpacing,
+} from "@/constants/playtt-tokens"
+import { useProductTheme } from "@/hooks/use-product-theme"
 import { sendVerificationOtp } from "@/lib/auth-api"
 import { authClient, refreshSession } from "@/lib/auth-client"
 import { verifyEmailSchema, type VerifyEmailValues } from "@/lib/auth-schemas"
@@ -22,9 +25,7 @@ export function AccountVerifyEmailForm({
   email,
   onVerified,
 }: AccountVerifyEmailFormProps) {
-  const theme = useAuthTheme()
-  const fieldProps = { variant: "auth" as const, authTheme: theme, compact: true }
-  const inputProps = { variant: "auth" as const, authTheme: theme }
+  const productTheme = useProductTheme()
 
   const [isLoading, setIsLoading] = useState(false)
   const [values, setValues] = useState<VerifyEmailValues>({ otp: "" })
@@ -77,16 +78,12 @@ export function AccountVerifyEmailForm({
 
   return (
     <View style={styles.form}>
-      <Text style={[styles.description, { color: theme.muted }]}>
-        We sent a 6-digit code to {email}. Enter it below to verify your email.
-      </Text>
-
-      <FormField label="Verification code" error={fieldErrors.otp} {...fieldProps}>
+      <FormField label="Verification code" error={fieldErrors.otp} compact>
         <Input
-          {...inputProps}
+          compact
           value={values.otp}
           onChangeText={(otp) => setValues({ otp })}
-          placeholder="123456"
+          placeholder="6-digit code"
           keyboardType="number-pad"
           autoComplete="one-time-code"
           hasError={Boolean(fieldErrors.otp)}
@@ -95,18 +92,20 @@ export function AccountVerifyEmailForm({
 
       <Button
         label="Verify email"
-        surface="auth"
-        authTheme={theme}
+        surface="product"
+        productTheme={productTheme}
         onPress={handleVerify}
         loading={isLoading}
       />
 
-      <Pressable onPress={handleResend}>
-        <Text style={[styles.link, { color: theme.link }]}>Resend code</Text>
-      </Pressable>
-
-      <Pressable onPress={() => router.back()}>
-        <Text style={[styles.cancel, { color: theme.muted }]}>Cancel</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Resend verification code"
+        onPress={handleResend}
+        disabled={isLoading}
+        hitSlop={8}
+      >
+        <Text style={styles.link}>Resend code</Text>
       </Pressable>
     </View>
   )
@@ -116,20 +115,11 @@ const styles = StyleSheet.create({
   form: {
     gap: PlayTTSpacing.md,
   },
-  description: {
-    fontSize: 14,
-    fontFamily: PlayTTFontFamilies.regular,
-    lineHeight: 20,
-  },
   link: {
     fontSize: 14,
     fontFamily: PlayTTFontFamilies.semiBold,
     textAlign: "center",
     textDecorationLine: "underline",
-  },
-  cancel: {
-    fontSize: 14,
-    fontFamily: PlayTTFontFamilies.regular,
-    textAlign: "center",
+    color: PlayTTColors.primary,
   },
 })

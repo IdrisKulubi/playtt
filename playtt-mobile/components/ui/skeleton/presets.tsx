@@ -158,20 +158,33 @@ export function BookingDetailSkeleton({ surface = "dark" }: PresetProps) {
 
 export function AccountHubSkeleton({ surface = "dark" }: PresetProps) {
   return (
-    <SkeletonGroup gap="lg" style={styles.accountHub}>
-      <SkeletonGroup gap="xs" style={styles.accountHeaderFlat}>
-        <Skeleton width={64} height={64} borderRadius={32} surface={surface} />
-        <Skeleton width="50%" height={20} surface={surface} />
-        <Skeleton width="70%" height={14} surface={surface} />
-        <Skeleton width="35%" height={13} surface={surface} />
-      </SkeletonGroup>
-      <Skeleton width="22%" height={12} surface={surface} />
-      <SkeletonGroup gap="sm">
-        <Skeleton width="55%" height={16} surface={surface} />
-        <Skeleton width="80%" height={13} surface={surface} />
-      </SkeletonGroup>
-      <Skeleton width="25%" height={12} surface={surface} />
-      <Skeleton width="45%" height={16} surface={surface} />
+    <SkeletonGroup gap="lg" style={styles.accountHubFlat}>
+      <Skeleton
+        width="100%"
+        height={168}
+        borderRadius={PlayTTRadius.lg}
+        surface={surface}
+      />
+      <Skeleton width="28%" height={12} surface={surface} />
+      <Skeleton
+        width="100%"
+        height={72}
+        borderRadius={PlayTTRadius.lg}
+        surface={surface}
+      />
+      <Skeleton width="32%" height={12} surface={surface} />
+      <Skeleton
+        width="100%"
+        height={72}
+        borderRadius={PlayTTRadius.lg}
+        surface={surface}
+      />
+      <Skeleton
+        width="100%"
+        height={52}
+        borderRadius={PlayTTRadius.pill}
+        surface={surface}
+      />
     </SkeletonGroup>
   )
 }
@@ -332,6 +345,10 @@ const styles = StyleSheet.create({
   accountHub: {
     paddingHorizontal: PlayTTSpacing.xl,
     paddingTop: PlayTTSpacing.lg,
+  },
+  accountHubFlat: {
+    width: "100%",
+    gap: PlayTTSpacing.md,
   },
   accountHeaderFlat: {
     alignItems: "flex-start",
