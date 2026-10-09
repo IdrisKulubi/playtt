@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { FormField } from "@/components/ui/form-field"
 import { Input } from "@/components/ui/input"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useAuthTheme } from "@/hooks/use-auth-theme"
+import { useProductTheme } from "@/hooks/use-product-theme"
 import { changePassword } from "@/lib/auth-api"
 import {
   changePasswordSchema,
@@ -19,9 +19,7 @@ type ChangePasswordFormProps = {
 }
 
 export function ChangePasswordForm({ onSaved }: ChangePasswordFormProps) {
-  const theme = useAuthTheme()
-  const fieldProps = { variant: "auth" as const, authTheme: theme, compact: true }
-  const inputProps = { variant: "auth" as const, authTheme: theme }
+  const productTheme = useProductTheme()
 
   const [isLoading, setIsLoading] = useState(false)
   const [values, setValues] = useState<ChangePasswordValues>({
@@ -65,10 +63,10 @@ export function ChangePasswordForm({ onSaved }: ChangePasswordFormProps) {
       <FormField
         label="Current password"
         error={fieldErrors.currentPassword}
-        {...fieldProps}
+        compact
       >
         <Input
-          {...inputProps}
+          compact
           value={values.currentPassword}
           onChangeText={(currentPassword) =>
             setValues((current) => ({ ...current, currentPassword }))
@@ -83,10 +81,10 @@ export function ChangePasswordForm({ onSaved }: ChangePasswordFormProps) {
       <FormField
         label="New password"
         error={fieldErrors.newPassword}
-        {...fieldProps}
+        compact
       >
         <Input
-          {...inputProps}
+          compact
           value={values.newPassword}
           onChangeText={(newPassword) =>
             setValues((current) => ({ ...current, newPassword }))
@@ -101,10 +99,10 @@ export function ChangePasswordForm({ onSaved }: ChangePasswordFormProps) {
       <FormField
         label="Confirm new password"
         error={fieldErrors.confirmPassword}
-        {...fieldProps}
+        compact
       >
         <Input
-          {...inputProps}
+          compact
           value={values.confirmPassword}
           onChangeText={(confirmPassword) =>
             setValues((current) => ({ ...current, confirmPassword }))
@@ -118,8 +116,8 @@ export function ChangePasswordForm({ onSaved }: ChangePasswordFormProps) {
 
       <Button
         label="Update password"
-        surface="auth"
-        authTheme={theme}
+        surface="product"
+        productTheme={productTheme}
         onPress={handleSave}
         loading={isLoading}
       />

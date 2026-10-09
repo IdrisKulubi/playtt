@@ -99,6 +99,9 @@ export function GlassSegmentControl<T extends string>({
           return (
             <Pressable
               key={option.value}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={option.label}
               onPress={() => onChange(option.value)}
               style={styles.segment}
             >

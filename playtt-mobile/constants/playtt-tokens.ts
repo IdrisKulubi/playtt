@@ -10,6 +10,7 @@ export const PlayTTColors = {
   mutedText: '#92a6bf',
   foreground: '#ffffff',
   destructive: '#ff3b30',
+  productDestructive: '#c41c14',
   success: '#00ff66',
   warning: '#ffb800',
   // Light product surface (auth/booking)

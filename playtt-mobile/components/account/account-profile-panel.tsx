@@ -1,18 +1,20 @@
 import { router } from "expo-router"
 import { useMemo } from "react"
 import {
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native"
+import { User } from "phosphor-react-native/src/icons/User"
+import { Lock } from "phosphor-react-native/src/icons/Lock"
 
-import { AccountProfileHeader } from "@/components/account/account-profile-header"
-import { AccountRow } from "@/components/account/account-row"
-import { AccountSection } from "@/components/account/account-section"
+import { AccountGlassRow } from "@/components/account/account-glass-row"
+import { AccountGlassSection } from "@/components/account/account-glass-section"
+import { AccountProfileHero } from "@/components/account/account-profile-hero"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
+import { AccountSignOutButton } from "@/components/account/account-sign-out-button"
 import { Button } from "@/components/ui/button"
 import {
   AccountHubSkeleton,
@@ -55,14 +57,33 @@ export function AccountProfilePanel({
 
   const oauthLabel = getOAuthProviderLabel(profile?.authMethods)
   const showChangePassword = canChangePassword(profile?.authMethods)
-  const showSecuritySection = showChangePassword || Boolean(oauthLabel)
+
+  const scrollStyles = useMemo(
+    () =>
+      StyleSheet.create({
+        scroll: {
+          paddingHorizontal: 20,
+          paddingTop: 8,
+          paddingBottom: FLOATING_TAB_BAR_CLEARANCE,
+          gap: 20,
+        },
+        provider: {
+          color: theme.muted,
+          fontFamily: PlayTTFontFamilies.regular,
+          fontSize: 13,
+        },
+        emptyTitle: {
+          fontSize: 16,
+          fontFamily: PlayTTFontFamilies.medium,
+          color: theme.foreground,
+        },
+      }),
+    [theme],
+  )
 
   return (
     <ScrollView
-      contentContainerStyle={[
-        styles.accountScroll,
-        { paddingBottom: FLOATING_TAB_BAR_CLEARANCE },
-      ]}
+      contentContainerStyle={scrollStyles.scroll}
       refreshControl={
         <RefreshControl
           refreshing={isRefreshing}
@@ -70,6 +91,7 @@ export function AccountProfilePanel({
           tintColor={PlayTTColors.primary}
         />
       }
+      showsVerticalScrollIndicator={false}
     >
       <SkeletonGate
         loading={isLoading && !profile}
@@ -77,65 +99,55 @@ export function AccountProfilePanel({
       >
         {profile ? (
           <>
-            <AccountProfileHeader
+            <AccountProfileHero
               profile={profile}
               onVerifyPress={
                 profile.emailVerified ? undefined : onVerifyEmail
               }
             />
 
-            <AccountSection title="Profile">
-              <AccountRow
+            <AccountGlassSection title="Your account">
+              <AccountGlassRow
                 title="Personal details"
                 subtitle={formatPersonalDetailsPreview(profile)}
+                icon={<User size={20} color={theme.foreground} weight="regular" />}
                 onPress={() => router.push("/(app)/account/edit-profile")}
                 accessibilityHint="Edit your name, phone, and skill level"
-                isLast
+                isLast={!showChangePassword}
               />
-            </AccountSection>
 
-            {showSecuritySection ? (
-              <AccountSection
-                title="Security"
-                description={
-                  !showChangePassword && oauthLabel ? oauthLabel : undefined
-                }
-              >
-                {showChangePassword ? (
-                  <AccountRow
-                    title="Change password"
-                    subtitle="Update your sign-in password"
-                    onPress={() =>
-                      router.push("/(app)/account/change-password")
-                    }
-                    accessibilityHint="Opens the change password screen"
-                    isLast
-                  />
-                ) : null}
-              </AccountSection>
+              {showChangePassword ? (
+                <AccountGlassRow
+                  title="Change password"
+                  subtitle="Update your sign-in password"
+                  icon={<Lock size={20} color={theme.foreground} weight="regular" />}
+                  onPress={() => router.push("/(app)/account/change-password")}
+                  accessibilityHint="Opens the change password screen"
+                  isLast
+                />
+              ) : null}
+            </AccountGlassSection>
+            {!showChangePassword && oauthLabel ? (
+              <Text style={scrollStyles.provider}>
+                {oauthLabel}
+              </Text>
             ) : null}
 
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Sign out"
-              accessibilityState={{ disabled: isSigningOut }}
+            <AccountSignOutButton
+              label={isSigningOut ? "Signing out…" : "Sign out"}
               disabled={isSigningOut}
               onPress={onSignOutPress}
-              style={styles.signOut}
-            >
-              <Text style={styles.signOutLabel}>
-                {isSigningOut ? "Signing out…" : "Sign out"}
-              </Text>
-            </Pressable>
+            />
           </>
         ) : (
           <View style={styles.empty}>
-            <Text style={[localStyles.emptyTitle, { color: theme.foreground }]}>
+            <Text style={scrollStyles.emptyTitle}>
               Could not load your account.
             </Text>
             <Button
               label="Try again"
               surface="product"
+              productTheme={theme}
               onPress={onRetry}
             />
           </View>
@@ -144,10 +156,3 @@ export function AccountProfilePanel({
     </ScrollView>
   )
 }
-
-const localStyles = StyleSheet.create({
-  emptyTitle: {
-    fontSize: 16,
-    fontFamily: PlayTTFontFamilies.medium,
-  },
-})

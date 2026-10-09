@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { FormField } from "@/components/ui/form-field"
 import { Input } from "@/components/ui/input"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useAuthTheme } from "@/hooks/use-auth-theme"
+import { useProductTheme } from "@/hooks/use-product-theme"
 import {
   SKILL_LEVEL_OPTIONS,
   type SkillLevel,
@@ -27,9 +27,7 @@ export function ProfileEditForm({
   initialSkillLevel,
   onSaved,
 }: ProfileEditFormProps) {
-  const theme = useAuthTheme()
-  const fieldProps = { variant: "auth" as const, authTheme: theme, compact: true }
-  const inputProps = { variant: "auth" as const, authTheme: theme }
+  const productTheme = useProductTheme()
 
   const [name, setName] = useState(initialName)
   const [phone, setPhone] = useState(initialPhone)
@@ -73,9 +71,9 @@ export function ProfileEditForm({
 
   return (
     <View style={styles.form}>
-      <FormField label="Display name" {...fieldProps}>
+      <FormField label="Display name" compact>
         <Input
-          {...inputProps}
+          compact
           value={name}
           onChangeText={setName}
           placeholder="Your name"
@@ -83,18 +81,18 @@ export function ProfileEditForm({
         />
       </FormField>
 
-      <FormField label="Skill level" {...fieldProps}>
+      <FormField label="Skill level" compact>
         <OptionChips
-          theme={theme}
+          productTheme={productTheme}
           options={SKILL_LEVEL_OPTIONS}
           value={skillLevel}
           onChange={(value) => setSkillLevel(value as SkillLevel)}
         />
       </FormField>
 
-      <FormField label="Phone number" {...fieldProps}>
+      <FormField label="Phone number" compact>
         <Input
-          {...inputProps}
+          compact
           value={phone}
           onChangeText={setPhone}
           placeholder="07XX XXX XXX"
@@ -105,8 +103,8 @@ export function ProfileEditForm({
 
       <Button
         label="Save changes"
-        surface="auth"
-        authTheme={theme}
+        surface="product"
+        productTheme={productTheme}
         onPress={handleSave}
         loading={isLoading}
       />
