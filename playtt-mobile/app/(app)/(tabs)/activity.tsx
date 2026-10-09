@@ -4,7 +4,8 @@ import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { ActivityHeader } from "@/components/activity/activity-header"
-import { PlayerStatsPanel } from "@/components/activity/player-stats-panel"
+import { ActivityStatsStickyChrome } from "@/components/activity/activity-stats-sticky-chrome"
+import { usePlayerStatsApi } from "@/components/activity/player-stats-panel"
 import { ReplayLibrary } from "@/components/activity/replay-library"
 import {
   getReplayShareDockScrollPadding,
@@ -33,13 +34,20 @@ export default function ActivityScreen() {
   const [clipBalance, setClipBalance] = useState<number | null>(null)
   const [clipSheetOpen, setClipSheetOpen] = useState(false)
   const [dockReplay, setDockReplay] = useState<ReplaySummary | null>(null)
+  const stats = usePlayerStatsApi()
 
   const showShareDock =
     segment === "highlights" && dockReplay !== null && USE_LIVE_ACTIVITY_CLIPS
 
-  const scrollPaddingBottom = showShareDock
-    ? getReplayShareDockScrollPadding(insets.bottom)
-    : FLOATING_TAB_BAR_CLEARANCE
+  const scrollPaddingBottom = useMemo(() => {
+    if (showShareDock) {
+      return getReplayShareDockScrollPadding(insets.bottom)
+    }
+    if (segment === "stats") {
+      return getFloatingTabBarInset(insets.bottom) + PlayTTSpacing.lg
+    }
+    return FLOATING_TAB_BAR_CLEARANCE
+  }, [insets.bottom, segment, showShareDock])
 
   const loadCredits = useCallback(() => {
     void fetchActivityReplayCredits()
@@ -70,12 +78,17 @@ export default function ActivityScreen() {
     [insets.top, scrollPaddingBottom],
   )
 
+  const stickyHeaderIndices =
+    segment === "stats" ? [2] : undefined
+
   return (
     <View style={styles.safeArea}>
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={scrollContentStyle}
         contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={stickyHeaderIndices}
       >
         <ActivityHeader
           segment={segment}
@@ -95,9 +108,15 @@ export default function ActivityScreen() {
         {segment === "highlights" ? (
           <ReplayLibrary onSelectedReplayChange={handleSelectedReplayChange} />
         ) : (
-          <PlayerStatsPanel />
+          <ActivityStatsStickyChrome>
+            {stats.renderStickyBar()}
+          </ActivityStatsStickyChrome>
         )}
+
+        {segment === "stats" ? stats.renderScrollContent() : null}
       </ScrollView>
+
+      {segment === "stats" ? stats.renderOverlays() : null}
 
       {showShareDock && dockReplay ? (
         <ReplayShareDock
