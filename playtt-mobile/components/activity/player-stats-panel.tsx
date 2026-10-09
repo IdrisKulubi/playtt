@@ -11,7 +11,11 @@ import { GlassPanel } from "@/components/ui/glass-panel"
 import { GlassSegmentControl } from "@/components/ui/glass-segment-control"
 import { PreviewBadge } from "@/components/ui/preview-badge"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton/skeleton"
-import { PlayTTColors, PlayTTFontFamilies } from "@/constants/playtt-tokens"
+import {
+  PlayTTColors,
+  PlayTTFontFamilies,
+  PlayTTSpacing,
+} from "@/constants/playtt-tokens"
 import { useProductTheme, useSkeletonSurface } from "@/hooks/use-product-theme"
 import {
   fetchActivityStats,
@@ -92,7 +96,7 @@ function sessionHour(s: StatsSession) {
   )
 }
 
-export function PlayerStatsPanel() {
+export function usePlayerStatsApi() {
   const theme = useProductTheme(),
     surface = useSkeletonSurface()
   const [period, setPeriod] = useState<StatsPeriod>("month"),
@@ -267,6 +271,7 @@ export function PlayerStatsPanel() {
           justifyContent: "center",
           gap: 10,
           padding: 12,
+          marginBottom: PlayTTSpacing.sm,
         },
         shareText: {
           fontFamily: PlayTTFontFamilies.semiBold,
@@ -442,53 +447,61 @@ export function PlayerStatsPanel() {
     )
     setPeriod(next)
   }
-  return (
-    <View style={styles.root}>
-      <GlassSegmentControl
-        value={period}
-        options={[
-          { value: "year", label: "Year" },
-          { value: "month", label: "Month" },
-          { value: "day", label: "Day" },
-        ]}
-        onChange={selectPeriod}
-      />
-      <View style={styles.row}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Previous ${period}`}
-          disabled={!canPrevious}
-          accessibilityState={{ disabled: !canPrevious }}
-          onPress={() => setDate(previousDate)}
-          style={[styles.button, !canPrevious && styles.disabled]}
-        >
-          <CaretLeftIcon size={20} color={theme.foreground} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Choose ${period}, ${periodLabel}`}
-          onPress={() => {
-            setPickerYear(Number(date.slice(0, 4)))
-            setPickerMonth(Number(date.slice(5, 7)) - 1)
-            setPickerOpen(true)
-          }}
-          style={styles.periodTitle}
-        >
-          <Text style={styles.title}>{periodLabel}</Text>
-          <CaretDownIcon size={16} color={theme.muted} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Next ${period}`}
-          accessibilityState={{ disabled: !canNext }}
-          disabled={!canNext}
-          onPress={() => setDate(nextDate)}
-          style={[styles.button, !canNext && styles.disabled]}
-        >
-          <CaretRightIcon size={20} color={theme.foreground} />
-        </Pressable>
-      </View>
-      {loading ? (
+  function renderStickyBar() {
+    return (
+      <>
+        <GlassSegmentControl
+          value={period}
+          options={[
+            { value: "year", label: "Year" },
+            { value: "month", label: "Month" },
+            { value: "day", label: "Day" },
+          ]}
+          onChange={selectPeriod}
+        />
+        <View style={styles.row}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Previous ${period}`}
+            disabled={!canPrevious}
+            accessibilityState={{ disabled: !canPrevious }}
+            onPress={() => setDate(previousDate)}
+            style={[styles.button, !canPrevious && styles.disabled]}
+          >
+            <CaretLeftIcon size={20} color={theme.foreground} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Choose ${period}, ${periodLabel}`}
+            onPress={() => {
+              setPickerYear(Number(date.slice(0, 4)))
+              setPickerMonth(Number(date.slice(5, 7)) - 1)
+              setPickerOpen(true)
+            }}
+            style={styles.periodTitle}
+          >
+            <Text style={styles.title}>{periodLabel}</Text>
+            <CaretDownIcon size={16} color={theme.muted} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Next ${period}`}
+            accessibilityState={{ disabled: !canNext }}
+            disabled={!canNext}
+            onPress={() => setDate(nextDate)}
+            style={[styles.button, !canNext && styles.disabled]}
+          >
+            <CaretRightIcon size={20} color={theme.foreground} />
+          </Pressable>
+        </View>
+      </>
+    )
+  }
+
+  function renderScrollContent() {
+    return (
+      <View style={styles.root}>
+        {loading ? (
         <SkeletonGroup gap="lg">
           <Skeleton width="100%" height={78} surface={surface} />
           <Skeleton width="100%" height={230} surface={surface} />
@@ -701,6 +714,16 @@ export function PlayerStatsPanel() {
               <PreviewBadge label="Sample" />
             </View>
           ) : null}
+        </>
+      ) : null}
+      </View>
+    )
+  }
+
+  function renderOverlays() {
+    return (
+      <>
+        {data ? (
           <StatsShareSheet
             visible={shareOpen}
             onClose={() => setShareOpen(false)}
@@ -712,9 +735,8 @@ export function PlayerStatsPanel() {
               preview: !USE_LIVE_PLAYER_STATS,
             }}
           />
-        </>
-      ) : null}
-      <BottomSheet
+        ) : null}
+        <BottomSheet
         visible={detailOpen}
         title={detailTitle}
         onClose={() => setDetailOpen(false)}
@@ -920,6 +942,27 @@ export function PlayerStatsPanel() {
           </Pressable>
         </View>
       </BottomSheet>
-    </View>
+      </>
+    )
+  }
+
+  return {
+    renderStickyBar,
+    renderScrollContent,
+    renderOverlays,
+  }
+}
+
+export function PlayerStatsPanel() {
+  const stats = usePlayerStatsApi()
+
+  return (
+    <>
+      <View style={{ gap: 20 }}>
+        {stats.renderStickyBar()}
+        {stats.renderScrollContent()}
+      </View>
+      {stats.renderOverlays()}
+    </>
   )
 }
