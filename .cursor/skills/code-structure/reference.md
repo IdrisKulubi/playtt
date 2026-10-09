@@ -99,6 +99,7 @@ The platform-wide target and delivery sequence live in `docs/platform/`. When an
 | Home tab (Play + Coach) | `playtt-mobile/app/(app)/(tabs)/index.tsx`     |
 | Bookings tab            | `playtt-mobile/app/(app)/(tabs)/bookings.tsx`  |
 | Activity tab            | `playtt-mobile/app/(app)/(tabs)/activity.tsx`  |
+| Player activity stats   | `src/app/api/activity/stats/route.ts` + `src/server/activity/`; mobile `components/activity/player-stats-panel.tsx` |
 | Community tab           | `playtt-mobile/app/(app)/(tabs)/community.tsx` |
 | Account tab             | `playtt-mobile/app/(app)/(tabs)/account.tsx`   |
 | Booking detail/edit     | `playtt-mobile/app/(app)/booking/[id]/`        |
