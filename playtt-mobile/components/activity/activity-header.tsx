@@ -10,9 +10,8 @@ import {
 } from "@/constants/playtt-tokens"
 import { useProductTheme } from "@/hooks/use-product-theme"
 import {
-  MOCK_PREVIEW_LABEL,
   USE_LIVE_ACTIVITY_CLIPS,
-  USE_MOCK_PLAYER_DATA,
+  USE_LIVE_PLAYER_STATS,
 } from "@/lib/mock/mock-config"
 
 type ActivitySegment = "highlights" | "stats"
@@ -25,15 +24,15 @@ type ActivityHeaderProps = {
 
 const INTRO_COPY: Record<ActivitySegment, string> = {
   highlights: "Clips from your sessions",
-  stats: "Your time on the table",
+  stats: "A closer look at your table time",
 }
 
 function previewBadgeForSegment(segment: ActivitySegment) {
   if (segment === "highlights" && !USE_LIVE_ACTIVITY_CLIPS) {
     return "Sample"
   }
-  if (segment === "stats" && USE_MOCK_PLAYER_DATA) {
-    return MOCK_PREVIEW_LABEL
+  if (segment === "stats" && !USE_LIVE_PLAYER_STATS) {
+    return "Sample"
   }
   return null
 }
@@ -74,7 +73,7 @@ export function ActivityHeader({
           marginTop: PlayTTSpacing["2xs"],
         },
       }),
-    [theme],
+    [theme]
   )
 
   return (

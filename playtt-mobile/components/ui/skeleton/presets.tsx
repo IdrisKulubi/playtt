@@ -156,7 +156,7 @@ export function BookingDetailSkeleton({ surface = "dark" }: PresetProps) {
   )
 }
 
-export function AccountHubSkeleton({ surface = "dark" }: PresetProps) {
+export function AccountHubSkeleton({ surface = "product" }: PresetProps) {
   return (
     <SkeletonGroup gap="lg" style={styles.accountHubFlat}>
       <Skeleton

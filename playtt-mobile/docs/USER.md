@@ -22,7 +22,7 @@ End-user **players** only. Admin and ops surfaces live on the web app.
 | Book and pay | [booking-ux.md](./design-system/booking-ux.md) |
 | Manage upcoming sessions | View, edit, cancel unpaid hold, pay |
 | Review past play | Past bookings list, session detail, receipt |
-| Understand my activity | Stats dashboard (preview data until API) |
+| Understand my activity | Live stats by year, month, and day; chart drill-down and branded image exports |
 | Know how to enter the pod | Live access status, required doors, validity window, and explicit code reveal |
 | Relive sessions | Replay library (sample clips until camera pipeline) |
 | Capture highlights | Buy clip packs; trigger replays at venue (credits gate) |
@@ -55,7 +55,7 @@ Stack screens (pushed from tabs):
 | Screen | Route | Data |
 |--------|-------|------|
 | Book | `(app)/book` | live |
-| Activity stats | `(app)/activity/stats` | mock |
+| Activity stats | `(app)/(tabs)/activity` → Stats | live; explicit offline sample mode |
 | Activity replays | `(app)/activity/replays` | mock |
 | Edit profile | `(app)/account/edit-profile` | live |
 | Notifications | `(app)/account/notifications` | live preferences and Expo push registration |
@@ -81,6 +81,7 @@ Stack screens (pushed from tabs):
 | Edit booking | modifications API |
 | Pay hold | payments API |
 | Profile | `GET /api/user/me` |
+| Activity stats | `GET /api/activity/stats` (year, month, or day; see [stats guide](activity-stats.md)) |
 | Replay credits | `GET /api/replays/credits` |
 | Buy clip pack | `POST /api/replays/credits/purchase` |
 | Replay library (Activity highlights) | `GET /api/replays/mine` when `USE_LIVE_ACTIVITY_CLIPS` (default on) |
@@ -95,7 +96,7 @@ Stack screens (pushed from tabs):
 
 | Surface | Module | Label in UI |
 |---------|--------|-------------|
-| Player stats (Activity) | `lib/mock/mock-player-stats.ts` | "Preview" on Stats segment |
+| Activity stats offline demo | `lib/mock/mock-activity-stats.ts` | "Sample"; only when `EXPO_PUBLIC_LIVE_PLAYER_STATS=false` |
 | Replay library (Activity) | `lib/mock/mock-replays.ts` | "Sample" only when `USE_LIVE_ACTIVITY_CLIPS` is false |
 | Home stats teaser | mock-player-stats | "Preview" |
 | Community players / requests | `lib/mock/mock-community.ts` | "Preview" |
@@ -148,7 +149,7 @@ Stack screens (pushed from tabs):
 - [x] Receipt block on booking detail
 - [x] Home: next-session hero + quick actions + stats teaser
 - [x] Activity tab visible with stats + replays
-- [x] Mock stats labeled Preview
+- [x] Home mock stats labelled Preview; Activity offline stats labelled Sample
 - [x] Mock replay library labeled Sample
 - [x] Access status and explicit code reveal on booking detail
 - [x] Expo push token registration and server-backed preferences

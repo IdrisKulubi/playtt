@@ -258,6 +258,26 @@
       "successFixture": "fixtures/coach.training.get.success.json",
       "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/coach-error.json"],
       "notes": ["This network path is dormant while USE_MOCK_PLAYER_DATA is true.", "insightId, durationMinutes, and completedAt are nullable."]
+    },
+    {
+      "id": "activity.stats.get",
+      "method": "GET",
+      "pathTemplate": "/api/activity/stats",
+      "routeFile": "src/app/api/activity/stats/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": [
+        "playtt-mobile/lib/activity-stats-api.ts"
+      ],
+      "successFixture": "fixtures/activity.stats.get.success.json",
+      "errorFixtures": [
+        "fixtures/errors/unauthenticated.json",
+        "fixtures/errors/validation-error.json"
+      ],
+      "notes": [
+        "Query period=year|month|day and date=YYYY-MM-DD use Africa/Nairobi boundaries.",
+        "Personal bookings and payments are both scoped to the authenticated user and resolved tenant.",
+        "Time is booked duration, not measured play. Spending excludes full refunds but partial refund amounts are unknown; notes disclose this."
+      ]
     }
   ],
   "producerConsumerDrift": [

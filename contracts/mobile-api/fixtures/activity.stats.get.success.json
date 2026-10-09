@@ -1,0 +1,273 @@
+{
+  "contractVersion": 1,
+  "endpoint": "activity.stats.get",
+  "case": "empty-month-success",
+  "request": {
+    "headers": {
+      "authorization": "Bearer <token>"
+    },
+    "query": {
+      "period": "month",
+      "date": "2026-03-01"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": {
+        "period": "month",
+        "date": "2026-03-01",
+        "label": "March 2026",
+        "timezone": "Africa/Nairobi",
+        "currency": "KES",
+        "totals": {
+          "sessions": 0,
+          "minutes": 0,
+          "spendKes": 0,
+          "completedSessions": 0,
+          "cancelledSessions": 0,
+          "bookings": 0,
+          "averageMinutes": 0,
+          "averageSpendKes": 0
+        },
+        "buckets": [
+          {
+            "date": "2026-03-01",
+            "label": "1",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-02",
+            "label": "2",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-03",
+            "label": "3",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-04",
+            "label": "4",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-05",
+            "label": "5",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-06",
+            "label": "6",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-07",
+            "label": "7",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-08",
+            "label": "8",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-09",
+            "label": "9",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-10",
+            "label": "10",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-11",
+            "label": "11",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-12",
+            "label": "12",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-13",
+            "label": "13",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-14",
+            "label": "14",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-15",
+            "label": "15",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-16",
+            "label": "16",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-17",
+            "label": "17",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-18",
+            "label": "18",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-19",
+            "label": "19",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-20",
+            "label": "20",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-21",
+            "label": "21",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-22",
+            "label": "22",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-23",
+            "label": "23",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-24",
+            "label": "24",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-25",
+            "label": "25",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-26",
+            "label": "26",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-27",
+            "label": "27",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-28",
+            "label": "28",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-29",
+            "label": "29",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-30",
+            "label": "30",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          },
+          {
+            "date": "2026-03-31",
+            "label": "31",
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0
+          }
+        ],
+        "sessions": [],
+        "previous": {
+          "label": "February 2026",
+          "totals": {
+            "sessions": 0,
+            "minutes": 0,
+            "spendKes": 0,
+            "completedSessions": 0,
+            "cancelledSessions": 0,
+            "bookings": 0,
+            "averageMinutes": 0,
+            "averageSpendKes": 0
+          }
+        },
+        "notes": [
+          "Time is booked table duration for completed or elapsed confirmed bookings, not measured playing time.",
+          "Spending is successful KES payments attributed to the booking date. Fully refunded payments are excluded; partial refund amounts are unavailable and remain included."
+        ]
+      }
+    }
+  }
+}

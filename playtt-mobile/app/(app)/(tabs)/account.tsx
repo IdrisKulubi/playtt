@@ -31,6 +31,7 @@ export default function AccountScreen() {
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [hasFetchedProfile, setHasFetchedProfile] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const hasLoadedRef = useRef(false)
@@ -52,10 +53,18 @@ export default function AccountScreen() {
     } finally {
       if (!silent) {
         setIsLoading(false)
+        setHasFetchedProfile(true)
       }
       setIsRefreshing(false)
     }
   }, [])
+
+  function handleAccountTabChange(tab: AccountTab) {
+    setAccountTab(tab)
+    if (tab === "account" && !hasFetchedProfile) {
+      void loadProfile(false)
+    }
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -117,7 +126,7 @@ export default function AccountScreen() {
             { value: "account", label: "Profile" },
             { value: "settings", label: "Settings" },
           ]}
-          onChange={setAccountTab}
+          onChange={handleAccountTabChange}
         />
       </View>
 
@@ -125,7 +134,7 @@ export default function AccountScreen() {
         {accountTab === "account" ? (
           <AccountProfilePanel
             profile={profile}
-            isLoading={isLoading}
+            isLoading={isLoading || !hasFetchedProfile}
             isRefreshing={isRefreshing}
             isSigningOut={isSigningOut}
             onRefresh={() => void loadProfile(true)}

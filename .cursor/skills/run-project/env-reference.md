@@ -104,6 +104,7 @@ Copy `playtt-mobile/.env.example` to `playtt-mobile/.env` (or set in your shell)
 | Variable              | Used in                    | Purpose                                                      |
 | --------------------- | -------------------------- | ------------------------------------------------------------ |
 | `EXPO_PUBLIC_API_URL` | `playtt-mobile/lib/env.ts` | Base URL of the web/API backend (Better Auth at `/api/auth`) |
+| `EXPO_PUBLIC_LIVE_PLAYER_STATS` | `playtt-mobile/lib/mock/mock-config.ts` | Live personal analytics by default; set `false` only for labelled offline sample stats |
 
 Defaults to `https://www.theplaytt.com`. For local dev, set `http://localhost:3000` or your LAN IP in `playtt-mobile/.env`.
 
