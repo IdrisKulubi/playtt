@@ -451,6 +451,7 @@ export function usePlayerStatsApi() {
     return (
       <>
         <GlassSegmentControl
+          variant="floating"
           value={period}
           options={[
             { value: "year", label: "Year" },
@@ -715,7 +716,12 @@ export function usePlayerStatsApi() {
             </View>
           ) : null}
         </>
-      ) : null}
+      ) : (
+        <View style={styles.error} accessibilityLiveRegion="polite">
+          <Text style={styles.title}>Loading your stats</Text>
+          <Text style={styles.body}>This should only take a moment.</Text>
+        </View>
+      )}
       </View>
     )
   }

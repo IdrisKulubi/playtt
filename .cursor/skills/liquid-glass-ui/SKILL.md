@@ -24,6 +24,10 @@ Use this system for floating bars, segment controls, and glass panels in `playtt
 
 Tab bar re-exports: `components/navigation/tab-bar-glass-surface.tsx` (thin wrapper; prefer `LiquidGlassSurface` for new code).
 
+## SDK 57 overlay positioning
+
+React Native 0.86 removed `StyleSheet.absoluteFillObject`. Use `StyleSheet.absoluteFill` (or explicit absolute positioning and zero edges) for decorative overlays. Spreading the removed property silently creates an empty style, leaving backgrounds in normal layout flow and potentially pushing screen content offscreen.
+
 ## Visual rules
 
 1. **Selection** — rounded chip behind the active item (icon+label or label only), not a cyan tint or icon-only circle.
