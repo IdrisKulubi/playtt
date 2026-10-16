@@ -4,8 +4,12 @@ import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { ActivityHeader } from "@/components/activity/activity-header"
-import { ActivityStatsStickyChrome } from "@/components/activity/activity-stats-sticky-chrome"
-import { usePlayerStatsApi } from "@/components/activity/player-stats-panel"
+import { ActivityStatsProvider } from "@/components/activity/activity-stats-context"
+import {
+  ActivityStatsOverlaysSlot,
+  ActivityStatsScrollSlot,
+  ActivityStatsStickySlot,
+} from "@/components/activity/activity-stats-slots"
 import { ReplayLibrary } from "@/components/activity/replay-library"
 import {
   getReplayShareDockScrollPadding,
@@ -34,8 +38,6 @@ export default function ActivityScreen() {
   const [clipBalance, setClipBalance] = useState<number | null>(null)
   const [clipSheetOpen, setClipSheetOpen] = useState(false)
   const [dockReplay, setDockReplay] = useState<ReplaySummary | null>(null)
-  const stats = usePlayerStatsApi()
-
   const showShareDock =
     segment === "highlights" && dockReplay !== null && USE_LIVE_ACTIVITY_CLIPS
 
@@ -81,42 +83,52 @@ export default function ActivityScreen() {
   const stickyHeaderIndices =
     segment === "stats" ? [2] : undefined
 
+  const scrollBody = (
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={scrollContentStyle}
+      contentInsetAdjustmentBehavior="never"
+      showsVerticalScrollIndicator={false}
+      stickyHeaderIndices={stickyHeaderIndices}
+    >
+      <ActivityHeader
+        segment={segment}
+        clipBalance={clipBalance}
+        onBuyClips={() => setClipSheetOpen(true)}
+      />
+
+      <GlassSegmentControl
+        value={segment}
+        options={[
+          { value: "highlights", label: "Highlights" },
+          { value: "stats", label: "Stats" },
+        ]}
+        onChange={setSegment}
+      />
+
+      {segment === "highlights" ? (
+        <ReplayLibrary onSelectedReplayChange={handleSelectedReplayChange} />
+      ) : (
+        // ScrollView clones this child with native style/onLayout props.
+        <View collapsable={false} testID="activity-stats-sticky-boundary">
+          <ActivityStatsStickySlot />
+        </View>
+      )}
+
+      {segment === "stats" ? <ActivityStatsScrollSlot /> : null}
+    </ScrollView>
+  )
+
   return (
     <View style={styles.safeArea}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={scrollContentStyle}
-        contentInsetAdjustmentBehavior="never"
-        showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={stickyHeaderIndices}
-      >
-        <ActivityHeader
-          segment={segment}
-          clipBalance={clipBalance}
-          onBuyClips={() => setClipSheetOpen(true)}
-        />
-
-        <GlassSegmentControl
-          value={segment}
-          options={[
-            { value: "highlights", label: "Highlights" },
-            { value: "stats", label: "Stats" },
-          ]}
-          onChange={setSegment}
-        />
-
-        {segment === "highlights" ? (
-          <ReplayLibrary onSelectedReplayChange={handleSelectedReplayChange} />
-        ) : (
-          <ActivityStatsStickyChrome>
-            {stats.renderStickyBar()}
-          </ActivityStatsStickyChrome>
-        )}
-
-        {segment === "stats" ? stats.renderScrollContent() : null}
-      </ScrollView>
-
-      {segment === "stats" ? stats.renderOverlays() : null}
+      {segment === "stats" ? (
+        <ActivityStatsProvider>
+          {scrollBody}
+          <ActivityStatsOverlaysSlot />
+        </ActivityStatsProvider>
+      ) : (
+        scrollBody
+      )}
 
       {showShareDock && dockReplay ? (
         <ReplayShareDock

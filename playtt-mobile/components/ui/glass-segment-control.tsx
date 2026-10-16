@@ -22,12 +22,15 @@ type GlassSegmentControlProps<T extends string> = {
   value: T
   options: { value: T; label: string }[]
   onChange: (value: T) => void
+  /** No outer glass pill; labels and selection chip only. */
+  variant?: "chrome" | "floating"
 }
 
 export function GlassSegmentControl<T extends string>({
   value,
   options,
   onChange,
+  variant = "chrome",
 }: GlassSegmentControlProps<T>) {
   const colorScheme = resolveColorScheme(useColorScheme())
   const nativeGlass = useNativeLiquidGlass()
@@ -61,6 +64,10 @@ export function GlassSegmentControl<T extends string>({
           gap: 2,
           minHeight: 40,
         },
+        rowFloating: {
+          padding: 0,
+          gap: 4,
+        },
         segment: {
           flex: 1,
           alignItems: "center",
@@ -88,38 +95,41 @@ export function GlassSegmentControl<T extends string>({
     [colorScheme, nativeGlass],
   )
 
+  const segments = options.map((option) => {
+    const active = option.value === value
+    const labelColor = liquidGlassLabelColor(colorScheme, active)
+    return (
+      <Pressable
+        key={option.value}
+        accessibilityRole="button"
+        accessibilityState={{ selected: active }}
+        accessibilityLabel={option.label}
+        onPress={() => onChange(option.value)}
+        style={styles.segment}
+      >
+        <View style={[styles.chip, active && styles.chipActive]}>
+          <Text
+            style={[
+              styles.label,
+              active && styles.labelActive,
+              { color: labelColor },
+            ]}
+          >
+            {option.label}
+          </Text>
+        </View>
+      </Pressable>
+    )
+  })
+
+  if (variant === "floating") {
+    return <View style={[styles.row, styles.rowFloating]}>{segments}</View>
+  }
+
   return (
     <View style={styles.pill}>
       <LiquidGlassSurface colorScheme={colorScheme} style={liquidGlassFill} />
-
-      <View style={styles.row}>
-        {options.map((option) => {
-          const active = option.value === value
-          const labelColor = liquidGlassLabelColor(colorScheme, active)
-          return (
-            <Pressable
-              key={option.value}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              accessibilityLabel={option.label}
-              onPress={() => onChange(option.value)}
-              style={styles.segment}
-            >
-              <View style={[styles.chip, active && styles.chipActive]}>
-                <Text
-                  style={[
-                    styles.label,
-                    active && styles.labelActive,
-                    { color: labelColor },
-                  ]}
-                >
-                  {option.label}
-                </Text>
-              </View>
-            </Pressable>
-          )
-        })}
-      </View>
+      <View style={styles.row}>{segments}</View>
     </View>
   )
 }
