@@ -1,0 +1,43 @@
+# EAS uploads the git root and, without this file, includes the shallow
+# clone's .git. That clone still contains tracked files such as
+# services/venue-edge/node_modules. Patterns are bare directory names so
+# they match on Windows, where EAS passes backslash paths.
+
+.git
+node_modules
+.pnpm-store
+.pnp
+.yarn
+.next
+out
+coverage
+.expo
+dist
+web-build
+.kotlin
+ios
+android
+.venue-edge-data
+.venue-edge-data-local
+managed_components
+
+# secrets and local env
+.env
+.env*.local
+*.pem
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# generated
+*.tsbuildinfo
+expo-env.d.ts
+next-env.d.ts
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+pnpm-debug.log*
+.DS_Store
