@@ -44,7 +44,7 @@ export async function getStoredAuth(): Promise<StoredAuth | null> {
 async function readStoredAuth(): Promise<StoredAuth | null> {
   // Let the Expo plugin decode its JSON cookie jar and storage chunks. Its
   // current cookie must take precedence over cached or custom Apple sessions.
-  const cookieToken = extractTokenFromCookie(await authClient.getCookie())
+  const cookieToken = extractTokenFromCookie(authClient.getCookie())
   if (cookieToken) {
     return {
       token: cookieToken,
