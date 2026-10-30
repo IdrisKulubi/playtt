@@ -19,39 +19,39 @@ describe("stored authentication", () => {
   })
 
   it("uses the new Google cookie ahead of a stale custom Apple session", async () => {
-    jest.mocked(authClient.getCookie).mockReturnValue(
+    jest.mocked(authClient.getCookie).mockResolvedValue(
       "better-auth.session_data=cached-data; __Secure-better-auth.session_token=new-google-token.signature",
     )
     expect(await getStoredAuth()).toMatchObject({ token: "new-google-token", source: "cookie" })
   })
 
   it("keeps custom Apple sessions usable when no Better Auth cookie exists", async () => {
-    jest.mocked(authClient.getCookie).mockReturnValue("")
+    jest.mocked(authClient.getCookie).mockResolvedValue("")
     expect(await getStoredAuth()).toMatchObject({ token: "old-apple-token", source: "session" })
   })
 
   it("ignores malformed cookie encoding without blocking the auth screen", async () => {
-    jest.mocked(authClient.getCookie).mockReturnValue("better-auth.session_token=%invalid")
+    jest.mocked(authClient.getCookie).mockResolvedValue("better-auth.session_token=%invalid")
     expect(await getStoredAuth()).toMatchObject({ token: "old-apple-token" })
   })
 
   it("does not restore auth when a late session refresh rewrites cookies after logout", async () => {
-    jest.mocked(authClient.getCookie).mockReturnValue("better-auth.session_token=old-token.signature")
+    jest.mocked(authClient.getCookie).mockResolvedValue("better-auth.session_token=old-token.signature")
     await clearSession()
     // Simulate the old get-session response restoring its cookie after deletion.
-    jest.mocked(authClient.getCookie).mockReturnValue("better-auth.session_token=old-token.signature")
+    jest.mocked(authClient.getCookie).mockResolvedValue("better-auth.session_token=old-token.signature")
     expect(await getStoredAuth()).toBeNull()
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith("playtt_signed_out", "1")
     expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("playtt_session_route_cache_v1")
 
-    jest.mocked(authClient.getCookie).mockReturnValue("better-auth.session_token=new-token.signature")
+    jest.mocked(authClient.getCookie).mockResolvedValue("better-auth.session_token=new-token.signature")
     await acceptAuthenticatedSession()
     expect(await getStoredAuth()).toMatchObject({ token: "new-token", source: "cookie" })
   })
 
   it("still signs out locally when revoking the remote session fails", async () => {
     jest.mocked(authClient.signOut).mockRejectedValue(new Error("Network request failed"))
-    jest.mocked(authClient.getCookie).mockReturnValue("better-auth.session_token=old-token.signature")
+    jest.mocked(authClient.getCookie).mockResolvedValue("better-auth.session_token=old-token.signature")
     await clearSession()
     expect(await getStoredAuth()).toBeNull()
     expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("playtt_session")
