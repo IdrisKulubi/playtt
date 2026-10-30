@@ -1,0 +1,218 @@
+[
+ {
+  "id": "s01",
+  "t0": 0.0,
+  "t1": 2.252,
+  "kind": "img",
+  "src": "I00",
+  "cap": "It started as a parlour game.",
+  "label": "Ping-Pong cartoon · 1902",
+  "fit": "cover"
+ },
+ {
+  "id": "s02",
+  "t0": 2.252,
+  "t1": 4.156,
+  "kind": "img",
+  "src": "I08",
+  "cap": "By 1902, it was a craze.",
+  "label": "Political Ping Pong · 1902",
+  "fit": "contain"
+ },
+ {
+  "id": "s03",
+  "t0": 4.156,
+  "t1": 6.06,
+  "kind": "img",
+  "src": "I05",
+  "cap": "Then it became a sport.",
+  "label": "Table tennis team · c. 1925",
+  "fit": "cover"
+ },
+ {
+  "id": "s04",
+  "t0": 6.06,
+  "t1": 7.964,
+  "kind": "img",
+  "src": "I04",
+  "cap": null,
+  "label": "Mária Mednyánszky · world champion · 1928",
+  "fit": "cover"
+ },
+ {
+  "id": "s05",
+  "t0": 7.964,
+  "t1": 9.868,
+  "kind": "vid",
+  "src": "C04.webm",
+  "cap": "The halls filled up.",
+  "label": "International match · 1934",
+  "n": 66
+ },
+ {
+  "id": "s06",
+  "t0": 9.868,
+  "t1": 11.772,
+  "kind": "vid",
+  "src": "C06.webm",
+  "cap": null,
+  "label": "Amsterdam · 1935",
+  "n": 67
+ },
+ {
+  "id": "s07",
+  "t0": 11.772,
+  "t1": 13.676,
+  "kind": "vid",
+  "src": "C06.webm",
+  "cap": null,
+  "label": null,
+  "n": 66
+ },
+ {
+  "id": "s08",
+  "t0": 13.676,
+  "t1": 15.58,
+  "kind": "vid",
+  "src": "C08.webm",
+  "cap": "Crowds came to watch.",
+  "label": "Dutch Open · 1949",
+  "n": 66
+ },
+ {
+  "id": "s09",
+  "t0": 15.58,
+  "t1": 17.484,
+  "kind": "img",
+  "src": "I06",
+  "cap": "It even helped bring nations together.",
+  "label": "Beijing · 1972",
+  "fit": "cover"
+ },
+ {
+  "id": "s10",
+  "t0": 17.484,
+  "t1": 19.388,
+  "kind": "vid",
+  "src": "C12.ogv",
+  "cap": null,
+  "label": "Netherlands v China · 1977",
+  "n": 66
+ },
+ {
+  "id": "s11",
+  "t0": 19.388,
+  "t1": 21.292,
+  "kind": "img",
+  "src": "I09",
+  "cap": "Today, the whole world plays.",
+  "label": "European Championships · 2022",
+  "fit": "cover"
+ },
+ {
+  "id": "s12",
+  "t0": 21.292,
+  "t1": 22.244,
+  "kind": "img",
+  "src": "I10",
+  "cap": null,
+  "label": "African Games, Accra · 2024",
+  "fit": "cover"
+ },
+ {
+  "id": "s13",
+  "t0": 22.244,
+  "t1": 24.64,
+  "kind": "vid",
+  "src": "C10.webm",
+  "cap": "But for most of us, finding a table is still hard.",
+  "label": null,
+  "n": 81
+ },
+ {
+  "id": "s14",
+  "t0": 24.64,
+  "t1": 25.1,
+  "kind": "card",
+  "src": "so",
+  "cap": null,
+  "label": null
+ },
+ {
+  "id": "s15",
+  "t0": 25.1,
+  "t1": 27.004,
+  "kind": "card",
+  "src": "logo",
+  "cap": null,
+  "label": null
+ },
+ {
+  "id": "s16",
+  "t0": 27.004,
+  "t1": 28.908,
+  "kind": "card",
+  "src": "book",
+  "cap": "Book a table from your phone.",
+  "label": null
+ },
+ {
+  "id": "s17",
+  "t0": 28.908,
+  "t1": 30.812,
+  "kind": "vid",
+  "src": "px29323695.mp4",
+  "cap": "Show up and play.",
+  "label": null,
+  "n": 66
+ },
+ {
+  "id": "s18",
+  "t0": 30.812,
+  "t1": 32.716,
+  "kind": "vid",
+  "src": "px992596.mp4",
+  "cap": "Find people to play with.",
+  "label": null,
+  "n": 66
+ },
+ {
+  "id": "s19",
+  "t0": 32.716,
+  "t1": 34.62,
+  "kind": "vid",
+  "src": "mk49021.mp4",
+  "cap": "Everyone is welcome.",
+  "label": null,
+  "n": 66
+ },
+ {
+  "id": "s20",
+  "t0": 34.62,
+  "t1": 36.524,
+  "kind": "vid",
+  "src": "px13373931.mp4",
+  "cap": "Build your community.",
+  "label": null,
+  "n": 66
+ },
+ {
+  "id": "s21",
+  "t0": 36.524,
+  "t1": 38.428,
+  "kind": "img",
+  "src": "I14",
+  "cap": "Table tennis, for everyone.",
+  "label": null,
+  "fit": "cover"
+ },
+ {
+  "id": "s22",
+  "t0": 38.428,
+  "t1": 45.0,
+  "kind": "card",
+  "src": "end",
+  "cap": null,
+  "label": null
+ }
+]

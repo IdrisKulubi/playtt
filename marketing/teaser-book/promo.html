@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PlayTT promo</title>
+<style>
+@font-face { font-family: SG; src: url(assets/space-grotesk-500.woff2) format("woff2"); font-weight: 500; }
+@font-face { font-family: SG; src: url(assets/space-grotesk-700.woff2) format("woff2"); font-weight: 700; }
+html, body { margin: 0; background: #000; }
+#stage { display: block; width: 1440px; height: 1440px; }
+#hud { position: fixed; left: 12px; bottom: 12px; font: 14px/1.4 monospace; color: #92a6bf; background: #0b1627cc; padding: 6px 10px; border-radius: 8px; }
+</style>
+</head>
+<body>
+<canvas id="stage" width="1440" height="1440"></canvas>
+<div id="hud">Space play/pause · ←/→ frame · R replay · <span id="tc">0.000</span></div>
+<script>
+// PlayTT "Book. Play. Replay." promo, 12 s. Pure function of t inside seek(t).
+const W = 1440, H = 1440, T = 12, FPS = 60;
+const C = { blue: "#00b7ff", lime: "#c6f432", coral: "#ff5a5f", sun: "#ffd23f", navy: "#07111d", ink: "#041019", white: "#ffffff",
+  violet: "#8b5cf6", muted: "#92a6bf", soft: "#eef3f8", tableTop: "#0d4a6b", wood: "#c68b59", rubberR: "#e63946", rubberB: "#1d1d1f" };
+const cv = document.getElementById("stage"), ctx = cv.getContext("2d");
+
+// ---------- math ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, k) => a + (b - a) * k;
+const out3 = k => 1 - Math.pow(1 - k, 3);
+const in2 = k => k * k;
+const io = k => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+function sp(t, f = 2.0, z = 0.78) {
+  if (t <= 0) return 0;
+  const w = 2 * Math.PI * f, wd = w * Math.sqrt(1 - z * z);
+  return 1 - Math.exp(-z * w * t) * (Math.cos(wd * t) + (z * w / wd) * Math.sin(wd * t));
+}
+const pop = (t, a, f = 2.6) => sp(t - a, f, 0.72);              // entrance with a small overshoot
+const bump = (t, a, d = 0.12, f = 3.2) => sp(t - a, f, 0.8) - sp(t - a - d, f, 0.8);
+function hex(c) { return [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16)); }
+function mix(a, b, k) { const A = hex(a), B = hex(b); return `rgb(${A.map((x, i) => Math.round(lerp(x, B[i], clamp(k)))).join(",")})`; }
+const rgba = (c, a) => { const [r, g, b] = hex(c); return `rgba(${r},${g},${b},${a})`; };
+
+// ---------- drawing helpers ----------
+function rr(x, y, w, h, r) { r = Math.max(0, Math.min(r, w / 2, h / 2)); ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+function text(s, x, y, size, color, weight = 700, align = "left", ls = 0) {
+  ctx.font = `${weight} ${size}px SG`; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = "middle";
+  ctx.letterSpacing = `${ls}px`; ctx.fillText(s, x, y); ctx.letterSpacing = "0px";
+}
+function tw(s, size, weight = 700) { ctx.font = `${weight} ${size}px SG`; return ctx.measureText(s).width; }
+// masked word rise (55 ms stagger), centred on x
+function headline(t, s, x, y, size, color, t0, weight = 700) {
+  const words = s.split(" "), gap = tw(" ", size, weight);
+  let cx = x - tw(s, size, weight) / 2;
+  ctx.save(); ctx.beginPath(); ctx.rect(0, y - size * 0.8, W, size * 1.6); ctx.clip();
+  words.forEach((wd, i) => {
+    const k = sp(t - t0 - i * 0.055, 2.6, 0.8);
+    if (k > 0.001) {
+      ctx.save(); ctx.translate(cx, y + (1 - k) * size * 1.15); ctx.rotate((1 - k) * 0.08);
+      text(wd, 0, 0, size, color, weight); ctx.restore();
+    }
+    cx += tw(wd, size, weight) + gap;
+  });
+  ctx.restore();
+}
+function tap(t, x, y, a) {                                       // touch ripple
+  const k = seg(t, a, a + 0.38);
+  if (k <= 0 || k >= 1) return;
+  ctx.save(); ctx.globalAlpha = 0.9 * (1 - k);
+  ctx.fillStyle = rgba("#ffffff", 0.35); ctx.beginPath(); ctx.arc(x, y, 34 * (1 - 0.3 * k), 0, 7); ctx.fill();
+  ctx.lineWidth = 5; ctx.strokeStyle = "#ffffff"; ctx.beginPath(); ctx.arc(x, y, 34 + 60 * out3(k), 0, 7); ctx.stroke();
+  ctx.restore();
+}
+function check(x, y, s, d, col, lw) {
+  ctx.lineWidth = lw; ctx.strokeStyle = col; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.setLineDash([2.2 * s * d, 4 * s]); ctx.beginPath();
+  ctx.moveTo(x - 0.55 * s, y); ctx.lineTo(x - 0.15 * s, y + 0.4 * s); ctx.lineTo(x + 0.6 * s, y - 0.45 * s); ctx.stroke(); ctx.setLineDash([]);
+}
+
+// ---------- phone ----------
+const PH = { w: 560, h: 1180, r: 78 };
+function phone(t, y, screenFn) {
+  const x = 720 - PH.w / 2;
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.16)"; rr(x + 18, y + 30, PH.w, PH.h, PH.r); ctx.fill();
+  ctx.fillStyle = "#111318"; rr(x, y, PH.w, PH.h, PH.r); ctx.fill();
+  rr(x + 16, y + 16, PH.w - 32, PH.h - 32, PH.r - 16); ctx.fillStyle = "#ffffff"; ctx.fill(); ctx.clip();
+  screenFn(x + 16, y + 16, PH.w - 32);
+  ctx.restore();
+  ctx.fillStyle = "#111318"; rr(720 - 70, y + 34, 140, 38, 19); ctx.fill();   // island
+}
+
+// ---------- scenes ----------
+// scene 1 · blue · book in a few taps
+const S1 = { tap1: 0.75, tap2: 1.25, done: 1.6 };
+function phoneY1(t) { return lerp(1500, 470, sp(t - 0.05, 2.0, 0.8)); }
+function bookBtn(t, top) {
+  const k = sp(t - S1.done, 2.8, 0.74);
+  return { x: 720, y: top + 760, w: lerp(480, 170, k) * (1 - 0.06 * bump(t, S1.tap2)), h: lerp(110, 170, k), k };
+}
+function scene1(t) {
+  ctx.fillStyle = C.blue; ctx.fillRect(0, 0, W, H);
+  headline(t, "Book in a few taps.", 720, 230, 96, C.navy, 0.12);
+  const y = phoneY1(t);
+  phone(t, y, (sx, sy, sw) => {
+    const L = sx + 36;
+    text("PlayTT", L, sy + 100, 30, C.blue, 700);
+    text("Tonight", L, sy + 170, 56, C.navy, 700);
+    ["18:00", "19:00", "20:00", "21:00"].forEach((s, i) => {
+      const x = L + i * 116, cy = sy + 265, sel = i === 2 ? sp(t - S1.tap1, 3.2, 0.78) : 0;
+      rr(x, cy - 34, 104, 68, 34); ctx.fillStyle = mix(C.soft, C.blue, sel); ctx.fill();
+      text(s, x + 52, cy + 1, 26, sel > 0.5 ? C.ink : C.navy, 700, "center");
+    });
+    rr(L, sy + 340, sw - 72, 280, 34); ctx.fillStyle = "#e6f7ff"; ctx.fill();
+    // little table illustration in the card
+    ctx.save(); ctx.translate(sx + sw / 2, sy + 470);
+    ctx.fillStyle = C.blue; ctx.beginPath(); ctx.moveTo(-150, -30); ctx.lineTo(150, -30); ctx.lineTo(190, 30); ctx.lineTo(-190, 30); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = C.navy; rr(-110, -48, 220, 14, 4); ctx.fill(); rr(-170, 34, 340, 12, 4); ctx.fill();
+    ctx.restore();
+    text("Table 1 · 60 min", L + 28, sy + 585, 28, C.navy, 700);
+  });
+  const b = bookBtn(t, y);
+  ctx.fillStyle = mix(C.navy, C.lime, b.k); rr(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h, b.h / 2); ctx.fill();
+  if (t < S1.tap2 + 0.12) text("Book table", b.x, b.y + 2, 40, C.white, 700, "center");
+  else if (t < S1.done) { ctx.lineWidth = 7; ctx.strokeStyle = C.white; ctx.lineCap = "round"; ctx.beginPath(); ctx.arc(b.x, b.y, 24, t * 9, t * 9 + 4.2); ctx.stroke(); }
+  else check(b.x, b.y + 4, 46, out3(seg(t, S1.done + 0.05, S1.done + 0.3)), C.navy, 13);
+  const ka = sp(t - 1.8, 2.6, 0.8);
+  if (ka > 0.01) { ctx.save(); ctx.globalAlpha = clamp(ka); text("Booked for 20:00", 720, b.y + 140 + (1 - ka) * 20, 34, C.navy, 700, "center"); ctx.restore(); }
+  tap(t, 720 - 264 + 36 + 2 * 116 + 52 + 20, y + 16 + 265, S1.tap1);
+  tap(t, 720, y + 760, S1.tap2);
+}
+// scene 2 · lime · show up and play
+const BALLS = [{ x: 430, c: "#ffffff", t0: 3.0 }, { x: 720, c: "#ff8c1a", t0: 3.1 }, { x: 1010, c: "#ffffff", t0: 3.2 }];
+function ballY(b, t) {                                           // bounces land on beats
+  const u = (t - 3.0) / 0.5;
+  return 1060 - 34 - 230 * Math.abs(Math.sin(Math.PI * u + (b.x === 720 ? Math.PI / 2 : 0)));
+}
+function paddle(x, y, rot, s, rubber) {
+  if (s <= 0.001) return;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(s, s);
+  ctx.fillStyle = "rgba(0,0,0,0.12)"; ctx.beginPath(); ctx.ellipse(14, 22, 150, 162, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = C.wood; rr(-32, 120, 64, 190, 26); ctx.fill();
+  ctx.fillStyle = "#a8703f"; rr(-32, 120, 64, 30, 10); ctx.fill();
+  ctx.fillStyle = C.wood; ctx.beginPath(); ctx.ellipse(0, 0, 150, 162, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = rubber; ctx.beginPath(); ctx.ellipse(0, 0, 140, 152, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.beginPath(); ctx.ellipse(-40, -50, 60, 40, -0.6, 0, 7); ctx.fill();
+  ctx.restore();
+}
+function scene2(t) {
+  ctx.fillStyle = C.lime; ctx.fillRect(0, 0, W, H);
+  headline(t, "Show up and play.", 720, 230, 96, C.navy, 2.55);
+  const sway = 0.05 * Math.sin((t - 2.75) * 2.4);
+  paddle(560, 700, -0.5 + sway, pop(t, 2.75), C.rubberR);
+  paddle(880, 700, 0.5 - sway, pop(t, 2.88), C.rubberB);
+  for (const b of BALLS) {
+    const s = pop(t, b.t0, 3);
+    if (s <= 0.001) continue;
+    let x = b.x, y = ballY(b, t), r = 34 * s;
+    if (b.x === 720) {                                            // the orange ball flies at the camera into the coral flood
+      const k = io(seg(t, 4.18, 4.5)); y = lerp(y, 700, k); r *= 1 + 5 * in2(seg(t, 4.18, 4.5));
+    }
+    ctx.fillStyle = "rgba(0,0,0,0.14)"; ctx.beginPath(); ctx.ellipse(x, 1066, 30 * s * (0.6 + 0.4 * (y - 796) / 230), 8, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = b.c; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    ctx.fillStyle = "rgba(0,0,0,0.08)"; ctx.beginPath(); ctx.arc(x + r * 0.25, y + r * 0.25, r * 0.75, 0, 7); ctx.fill();
+  }
+  headline(t, "Paddles and balls included.", 720, 1220, 54, C.navy, 3.3);
+}
+// scene 3 · coral · replay + share
+const S3 = { share: 5.5 };
+const BOUNCE = [[0.18, 0.3], [0.8, 0.62], [0.22, 0.75], [0.78, 0.28], [0.25, 0.5], [0.84, 0.7], [0.2, 0.25], [0.76, 0.55]];
+function ballAt(vt) {
+  const per = 0.6, n = Math.floor(vt / per), u = vt / per - n;
+  const A = BOUNCE[n % 8], B = BOUNCE[(n + 1) % 8];
+  return { x: lerp(A[0], B[0], u), y: lerp(A[1], B[1], u), z: Math.sin(Math.PI * u) };
+}
+function phoneY3(t) { return lerp(1500, 470, sp(t - 4.55, 2.0, 0.8)); }
+const FRIENDS = [
+  { x: 230, y: 700, c: C.violet, fg: "#ffffff", s: "AK", t0: 5.65 },
+  { x: 1210, y: 620, c: C.sun, fg: C.navy, s: "MW", t0: 5.75 },
+  { x: 225, y: 1040, c: C.lime, fg: C.navy, s: "JO", t0: 5.85 },
+];
+function scene3(t) {
+  ctx.fillStyle = C.coral; ctx.fillRect(0, 0, W, H);
+  headline(t, "Get your replay.", 720, 170, 84, C.white, 4.62);
+  headline(t, "Share it with friends.", 720, 275, 84, C.navy, 5.55);
+  const y = phoneY3(t), shareY = y + 16 + 620;
+  // beams from Share to each friend
+  for (const f of FRIENDS) {
+    const d = out3(seg(t, f.t0 - 0.12, f.t0 + 0.15));
+    if (d <= 0) continue;
+    ctx.save(); ctx.lineWidth = 5; ctx.strokeStyle = rgba("#ffffff", 0.75); ctx.setLineDash([16, 14]); ctx.lineDashOffset = -t * 60;
+    const mx = (720 + f.x) / 2, my = Math.min(shareY, f.y) - 160;
+    ctx.beginPath(); ctx.moveTo(720, shareY);
+    const ex = lerp(720, f.x, d), ey = lerp(shareY, f.y, d);
+    ctx.quadraticCurveTo(lerp(720, mx, d), lerp(shareY, my, d), ex, ey); ctx.stroke(); ctx.restore();
+  }
+  phone(t, y, (sx, sy, sw) => {
+    const L = sx + 36;
+    text("Your replay", L, sy + 110, 50, C.navy, 700);
+    const vx = L, vy = sy + 160, vw = sw - 72, vh = 290;
+    rr(vx, vy, vw, vh, 28); ctx.fillStyle = C.navy; ctx.fill();
+    ctx.save(); rr(vx, vy, vw, vh, 28); ctx.clip();
+    const tx = vx + 50, ty = vy + 50, tW = vw - 100, tH = vh - 100;
+    ctx.fillStyle = C.tableTop; ctx.fillRect(tx, ty, tW, tH);
+    ctx.lineWidth = 4; ctx.strokeStyle = "#ffffff"; ctx.strokeRect(tx, ty, tW, tH);
+    ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(tx, ty + tH / 2); ctx.lineTo(tx + tW, ty + tH / 2); ctx.stroke();
+    ctx.lineWidth = 5; ctx.strokeStyle = rgba("#ffffff", 0.7); ctx.beginPath(); ctx.moveTo(tx + tW / 2, ty - 14); ctx.lineTo(tx + tW / 2, ty + tH + 14); ctx.stroke();
+    const vt = Math.max(0, t - 4.7) + 1.3;
+    for (let i = 12; i >= 1; i--) {
+      const a = ballAt(Math.max(0, vt - i * 0.02)), b = ballAt(Math.max(0, vt - (i - 1) * 0.02));
+      ctx.lineWidth = 8 * (1 - i / 13); ctx.lineCap = "round"; ctx.strokeStyle = rgba(C.blue, 0.6 * (1 - i / 13));
+      ctx.beginPath(); ctx.moveTo(tx + a.x * tW, ty + a.y * tH); ctx.lineTo(tx + b.x * tW, ty + b.y * tH); ctx.stroke();
+    }
+    const b = ballAt(vt); ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(tx + b.x * tW, ty + b.y * tH, 9 + 5 * b.z, 0, 7); ctx.fill();
+    ctx.restore();
+    rr(vx, vy + vh - 8, vw * clamp((vt - 1.3) / 3.5), 8, 4); ctx.fillStyle = C.blue; ctx.fill();
+    text("Table 1 · Tonight 20:12", L, sy + 500, 28, C.muted, 500);
+    const sw2 = 480 * (1 - 0.06 * bump(t, S3.share));
+    rr(720 - sw2 / 2, sy + 620 - 55, sw2, 110, 55); ctx.fillStyle = C.blue; ctx.fill();
+    // share glyph: three linked dots
+    const gx = 720 - 70, gy = sy + 622;
+    ctx.lineWidth = 4; ctx.strokeStyle = C.ink; ctx.beginPath(); ctx.moveTo(gx - 14, gy); ctx.lineTo(gx + 12, gy - 14); ctx.moveTo(gx - 14, gy); ctx.lineTo(gx + 12, gy + 14); ctx.stroke();
+    ctx.fillStyle = C.ink; for (const [px, py] of [[gx - 14, gy], [gx + 12, gy - 14], [gx + 12, gy + 14]]) { ctx.beginPath(); ctx.arc(px, py, 8, 0, 7); ctx.fill(); }
+    text("Share", 720 + 20, sy + 622, 40, C.ink, 700, "center");
+  });
+  tap(t, 720, shareY, S3.share);
+  for (const f of FRIENDS) {
+    const s = pop(t, f.t0, 3);
+    if (s <= 0.001) continue;
+    ctx.save(); ctx.translate(f.x, f.y); ctx.scale(s, s);
+    ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(0, 0, 80, 0, 7); ctx.fill();
+    ctx.fillStyle = f.c; ctx.beginPath(); ctx.arc(0, 0, 70, 0, 7); ctx.fill();
+    text(f.s, 0, 3, 44, f.fg, 700, "center"); ctx.restore();
+  }
+  const bubble = (t0, x, y, s, bg, fg, right) => {
+    const k = pop(t, t0, 3);
+    if (k <= 0.001) return;
+    const w = tw(s, 34) + 56, h = 84;
+    ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
+    const bx = right ? -w : 0;
+    rr(bx, -h / 2, w, h, 30); ctx.fillStyle = bg; ctx.fill();
+    ctx.beginPath(); const tx = right ? -18 : 18; ctx.moveTo(tx - 14, h / 2 - 6); ctx.lineTo(tx + 14, h / 2 - 6); ctx.lineTo(right ? 6 : -6, h / 2 + 20); ctx.closePath(); ctx.fill();
+    text(s, bx + 28, 2, 34, fg, 700); ctx.restore();
+  };
+  bubble(6.05, 1340, 790, "Watch this rally!", "#ffffff", C.navy, true);
+  bubble(6.4, 95, 1190, "Rematch tonight?", C.lime, C.navy, false);
+}
+// scene 4 · sun · premium, affordable, 24/7
+const PILLS = [
+  { s: "Premium.", y: 540, bg: C.navy, fg: "#ffffff", t0: 7.5, rot: -0.05 },
+  { s: "Affordable.", y: 760, bg: C.blue, fg: C.ink, t0: 8.0, rot: 0.04 },
+  { s: "Open 24/7.", y: 980, bg: C.coral, fg: "#ffffff", t0: 8.5, rot: -0.03 },
+];
+function scene4(t) {
+  ctx.fillStyle = C.sun; ctx.fillRect(0, 0, W, H);
+  headline(t, "Table tennis that's", 720, 300, 72, C.navy, 7.1);
+  for (const p of PILLS) {
+    const k = pop(t, p.t0, 2.8);
+    if (k <= 0.001) continue;
+    const w = tw(p.s, 120) + 120, h = 190;
+    ctx.save(); ctx.translate(720, p.y); ctx.rotate(p.rot + (1 - k) * 0.25); ctx.scale(0.4 + 0.6 * k, 0.4 + 0.6 * k); ctx.globalAlpha = clamp(k * 2);
+    rr(-w / 2, -h / 2, w, h, h / 2); ctx.fillStyle = p.bg; ctx.fill();
+    text(p.s, 0, 4, 120, p.fg, 700, "center", -2); ctx.restore();
+  }
+}
+// scene 5 · navy · logo
+const L = { s: 1.6, x: 168, y: 380 };
+const LP = {
+  top1: new Path2D("M91 102h66l-14 31H62c-4 0-5-3-2-6l27-23c1-1 2-2 4-2Z"),
+  top2: new Path2D("M164 102h56c2 0 3 1 4 2l29 24c3 3 1 5-3 5H150l14-31Z"),
+  legs: new Path2D("M86 140h138c2 0 4 1 5 3l21 29c2 3 0 5-3 5h-13c-2 0-3-1-4-3l-15-23H95l-15 23c-1 2-2 3-4 3H63c-3 0-5-2-3-5l21-29c1-2 3-3 5-3Z"),
+  tr1: new Path2D("M143 76c17-23 38-31 68-29"),
+  tr2: new Path2D("M166 77c13-15 27-21 48-20"),
+};
+function scene5(t) {
+  ctx.fillStyle = C.navy; ctx.fillRect(0, 0, W, H);
+  const part = (a, anchorY, fn) => {
+    const k = sp(t - a, 2.4, 0.8);
+    if (k <= 0.002) return;
+    ctx.save(); ctx.globalAlpha = clamp(k * 1.5); ctx.translate(0, anchorY); ctx.scale(1, k); ctx.translate(0, -anchorY); fn(); ctx.restore();
+  };
+  ctx.save(); ctx.translate(L.x, L.y); ctx.scale(L.s, L.s); ctx.translate(0, 5); ctx.scale(0.95, 0.95);
+  part(9.08, 90, () => { ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.roundRect(96, 83, 126, 15, 4); ctx.fill(); });
+  part(9.13, 102, () => { ctx.fillStyle = C.blue; ctx.fill(LP.top1); ctx.fill(LP.top2); });
+  part(9.18, 140, () => { ctx.fillStyle = "#ffffff"; ctx.fill(LP.legs); });
+  const d = out3(seg(t, 9.2, 9.5));
+  if (d > 0.002) {
+    ctx.lineWidth = 7; ctx.lineCap = "round"; ctx.strokeStyle = C.blue;
+    for (const p of [LP.tr1, LP.tr2]) { ctx.setLineDash([90 * d, 200]); ctx.lineDashOffset = -90 * (1 - d); ctx.stroke(p); }
+    ctx.setLineDash([]);
+  }
+  const rk = pop(t, 9.05, 3);
+  if (rk > 0.002) { ctx.lineWidth = 7; ctx.strokeStyle = C.blue; ctx.beginPath(); ctx.arc(233, 49, 20 * rk, 0, 7); ctx.stroke(); }
+  ctx.restore();
+  const size = 82 * L.s, x0 = L.x + 278 * L.s, base = L.y + 132 * L.s;
+  ctx.save(); ctx.beginPath(); ctx.rect(x0 - 20, base - size * 0.95, 900, size * 1.25); ctx.clip();
+  ctx.font = `700 ${size}px Arial, Helvetica, sans-serif`; ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+  ctx.fillStyle = "#ffffff"; let x = x0;
+  [..."PlayTT"].forEach((ch, i) => {
+    const k = sp(t - 9.18 - i * 0.04, 2.6, 0.8);
+    ctx.fillText(ch, x, base + (1 - k) * size * 1.05); x += ctx.measureText(ch).width - 3 * L.s;
+  });
+  ctx.restore();
+  // tagline with coloured words
+  const words = [["Book.", "#ffffff"], ["Play.", C.lime], ["Replay.", C.blue]], size2 = 84, gap = 28;
+  const total = words.reduce((a, [w]) => a + tw(w, size2), 0) + gap * 2;
+  let cx = 720 - total / 2;
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 900 - 70, W, 140); ctx.clip();
+  words.forEach(([w, c], i) => {
+    const k = sp(t - 9.55 - i * 0.12, 2.6, 0.8);
+    if (k > 0.001) { ctx.save(); ctx.translate(cx, 900 + (1 - k) * 100); ctx.rotate((1 - k) * 0.08); text(w, 0, 0, size2, c, 700); ctx.restore(); }
+    cx += tw(w, size2) + gap;
+  });
+  ctx.restore();
+  headline(t, "Coming soon to Nairobi", 720, 1010, 40, C.muted, 10.0, 500);
+}
+
+// ---------- colour floods (each scene opens from the object that ends the last one) ----------
+const SCENES = [
+  { t: 0, fn: scene1 },
+  { t: 2.4, fn: scene2, x: 720, y: () => bookBtn(2.4, phoneY1(2.4)).y, lead: C.sun },
+  { t: 4.5, fn: scene3, x: 720, y: () => 700, lead: C.lime },
+  { t: 7.0, fn: scene4, x: 720, y: () => phoneY3(7.0) + 16 + 620, lead: C.blue },
+  { t: 9.0, fn: scene5, x: 720, y: () => 760, lead: C.blue },
+];
+const FD = 0.36;
+function frame(t) {
+  let k = 0; while (k + 1 < SCENES.length && SCENES[k + 1].t <= t) k++;
+  const s = SCENES[k];
+  if (k === 0 || t >= s.t + FD) { s.fn(t); return; }
+  SCENES[k - 1].fn(t);
+  const ox = s.x, oy = s.y(), far = Math.max(...[[0, 0], [W, 0], [0, H], [W, H]].map(([x, y]) => Math.hypot(x - ox, y - oy))) * 1.05;
+  const p = seg(t, s.t, s.t + FD), rLead = far * out3(seg(t, s.t, s.t + FD * 0.8)), r = far * io(p);
+  ctx.fillStyle = s.lead; ctx.beginPath(); ctx.arc(ox, oy, rLead, 0, 7); ctx.fill();
+  ctx.save(); ctx.beginPath(); ctx.arc(ox, oy, r, 0, 7); ctx.clip(); s.fn(t); ctx.restore();
+}
+function camera(t) {
+  let z = 1;
+  for (const b of [0, 4.5, 7.0]) if (t > b) z += 0.02 * Math.exp(-(t - b) * 6);
+  for (const b of [9.0]) if (t > b) z += 0.04 * Math.exp(-(t - b) * 5);
+  z += 0.035 * io(seg(t, 9.6, 12.0));                            // slow push on the end card (no frozen frame)
+  return z;
+}
+window.seek = async t => {
+  t = clamp(t, 0, T);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const z = camera(t);
+  ctx.translate(720, 720); ctx.scale(z, z); ctx.translate(-720, -720);
+  frame(t);
+  document.getElementById("tc").textContent = t.toFixed(3);
+};
+
+// ---------- preview controls ----------
+let now = 0, playing = false, last = 0;
+function loop(ts) { if (playing) { now = (now + (ts - last) / 1000) % T; window.seek(now); } last = ts; requestAnimationFrame(loop); }
+addEventListener("keydown", e => {
+  if (e.code === "Space") { playing = !playing; e.preventDefault(); }
+  if (e.code === "ArrowRight") { playing = false; now = Math.min(T, now + 1 / FPS); window.seek(now); }
+  if (e.code === "ArrowLeft") { playing = false; now = Math.max(0, now - 1 / FPS); window.seek(now); }
+  if (e.code === "KeyR") { now = 0; playing = true; }
+});
+Promise.all([document.fonts.load("700 40px SG"), document.fonts.load("500 40px SG")]).then(() => {
+  const q = new URLSearchParams(location.search).get("t");
+  now = q ? +q : 0; window.seek(now); window.ready = true; requestAnimationFrame(loop);
+});
+</script>
+</body>
+</html>

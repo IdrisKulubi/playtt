@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PlayTT teaser</title>
+<style>
+@font-face { font-family: SG; src: url(assets/space-grotesk-500.woff2) format("woff2"); font-weight: 500; }
+@font-face { font-family: SG; src: url(assets/space-grotesk-700.woff2) format("woff2"); font-weight: 700; }
+html, body { margin: 0; background: #000; }
+#stage { display: block; width: 1440px; height: 1440px; }
+#hud { position: fixed; left: 12px; bottom: 12px; font: 14px/1.4 monospace; color: #92a6bf; background: #0b1627cc; padding: 6px 10px; border-radius: 8px; }
+</style>
+</head>
+<body>
+<canvas id="stage" width="1440" height="1440"></canvas>
+<div id="hud">Space play/pause · ←/→ frame · R replay · <span id="tc">0.000</span></div>
+<script>
+// PlayTT 12 s teaser. Everything is a pure function of t inside seek(t): no timers, no transitions, no state.
+const W = 1440, H = 1440, T = 12, FPS = 60;
+const C = { bg: "#07111d", elev: "#0b1627", card: "#101b2b", border: "#203149", muted: "#92a6bf", acc: "#00b7ff",
+  accFg: "#041019", red: "#ff3b30", white: "#f4f8fc", screen: "#03070c", bezel: "#1a2638", tableTop: "#0d4a6b" };
+const cv = document.getElementById("stage"), ctx = cv.getContext("2d");
+
+// ---------- math ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, k) => a + (b - a) * k;
+const out3 = k => 1 - Math.pow(1 - k, 3);
+const in2 = k => k * k;
+const io = k => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+// closed-form spring step response 0 -> 1 (damping ratio z >= 0.72: tiny overshoot, never bouncy)
+function sp(t, f = 2.0, z = 0.78) {
+  if (t <= 0) return 0;
+  const w = 2 * Math.PI * f, wd = w * Math.sqrt(1 - z * z);
+  return 1 - Math.exp(-z * w * t) * (Math.cos(wd * t) + (z * w / wd) * Math.sin(wd * t));
+}
+// a value with many targets = sum of one spring per change
+const track = (keys, f, z) => t => {
+  let v = keys[0][1];
+  for (let i = 1; i < keys.length; i++) v += (keys[i][1] - keys[i - 1][1]) * sp(t - keys[i][0], keys[i][2] || f, z);
+  return v;
+};
+const bump = (t, a, d = 0.12, f = 3.2) => sp(t - a, f, 0.8) - sp(t - a - d, f, 0.8);
+function hex(c) { return [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16)); }
+function mix(a, b, k) { const A = hex(a), B = hex(b); return `rgb(${A.map((x, i) => Math.round(lerp(x, B[i], clamp(k)))).join(",")})`; }
+function mixRGB(a, b, k) { const A = hex(a), B = hex(b); return A.map((x, i) => Math.round(lerp(x, B[i], clamp(k)))); }
+const rgba = (c, a) => { const [r, g, b] = hex(c); return `rgba(${r},${g},${b},${a})`; };
+
+// ---------- drawing helpers ----------
+function rr(x, y, w, h, r) {
+  r = Math.max(0, Math.min(r, w / 2, h / 2));
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, r);
+}
+function text(s, x, y, size, color, weight = 700, align = "left", ls = 0) {
+  ctx.font = `${weight} ${size}px SG`; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = "middle";
+  ctx.letterSpacing = `${ls}px`; ctx.fillText(s, x, y); ctx.letterSpacing = "0px";
+}
+function tw(s, size, weight = 700) { ctx.font = `${weight} ${size}px SG`; return ctx.measureText(s).width; }
+// content swap window: alpha + blur for enter/exit
+function win(t, a, b, inD = 0.22, outD = 0.12) {
+  const p = out3(seg(t, a, a + inD)), q = seg(t, b - outD, b);
+  return { a: p * (1 - q), blur: 10 * (1 - p) + 6 * q, p, q };
+}
+function withFx(w, fn) {
+  if (w.a <= 0.001) return;
+  ctx.save(); ctx.globalAlpha *= w.a; if (w.blur > 0.3) ctx.filter = `blur(${w.blur.toFixed(2)}px)`;
+  fn(); ctx.restore();
+}
+
+// ---------- the shape (ball -> button -> card -> TV -> replay -> analytics -> logo ball) ----------
+const L = { s: 1.6, x: 168, y: 390 };                       // logo placement (svg units -> px)
+const lx = px => L.x + L.s * 0.95 * px, ly = py => L.y + L.s * (5 + 0.95 * py);
+const RING = { x: lx(233), y: ly(49), r: 20 * 0.95 * L.s, sw: 7 * 0.95 * L.s };
+const RO = RING.r + RING.sw / 2;
+const TL = 900;                                                 // table line y in the intro
+const S = {
+  cx: track([[0, 720], [1.0, 720], [10.0, RING.x, 4.2]], 2.0),
+  cy: track([[0, 845], [1.0, 720], [4.0, 520], [6.0, 690], [8.0, 720], [10.0, RING.y, 4.2]], 2.0),
+  w: track([[0, 110], [1.0, 520], [2.0, 900], [4.0, 1100], [6.0, 1040], [8.0, 1040], [10.0, RO * 2, 4.2]], 2.0),
+  h: track([[0, 110], [1.0, 130], [2.0, 980], [4.0, 619], [6.0, 820], [8.0, 960], [10.0, RO * 2, 4.2]], 2.0),
+  r: track([[0, 55], [1.0, 65], [2.0, 56], [4.0, 26], [6.0, 44], [8.0, 48], [10.0, RO, 4.2]], 2.0),
+  kCard: track([[0, 0], [2.0, 1], [10.0, 0, 4.2]], 2.4),
+  kTv: track([[0, 0], [4.0, 1], [6.0, 0]], 2.4),
+  bw: track([[0, 0], [2.0, 2], [4.0, 14], [6.0, 2], [10.0, 0, 4.2]], 2.4),
+  ring: track([[0, 0], [10.15, 1], [11.5, 0]], 2.6),
+};
+function shapeAt(t) {
+  if (t < 1.0) {                                                // intro: real gravity, contacts on beats 1 and 2
+    let y;
+    if (t < 0.5) y = -80 + 850 * t + 2000 * t * t;
+    else { const u = t - 0.5; y = 845 - 1000 * u + 2000 * u * u; }
+    let sx = 1;
+    for (const tc of [0.5, 1.0]) sx += 0.2 * Math.exp(-Math.abs(t - tc) * 28);
+    return { cx: 720, cy: y, w: 110 * sx, h: 110 / sx, r: 55, kCard: 0, kTv: 0, bw: 0, ring: 0 };
+  }
+  const o = {}; for (const k in S) o[k] = S[k](t);
+  o.r = Math.min(o.r, o.w / 2, o.h / 2);
+  // outro: ring fills back into a ball and launches up out of frame (frame 0 has it entering from above)
+  if (t > 11.62) { const k = in2(seg(t, 11.62, 12.0)); o.cy = lerp(RING.y, -140, k); o.cx = lerp(RING.x, 720, k * k); }
+  // button press
+  const press = 1 - 0.05 * bump(t, 1.5);
+  o.w *= press; o.h *= press;
+  return o;
+}
+function drawShape(sh) {
+  const x = sh.cx - sh.w / 2, y = sh.cy - sh.h / 2;
+  let col = mixRGB(C.acc, C.card, sh.kCard);
+  const scr = hex(C.screen); col = col.map((v, i) => Math.round(lerp(v, scr[i], clamp(sh.kTv))));
+  ctx.fillStyle = `rgb(${col.join(",")})`;
+  if (sh.ring > 0.002) {                                        // annulus: the ball in the logo
+    ctx.beginPath(); ctx.arc(sh.cx, sh.cy, sh.w / 2, 0, Math.PI * 2);
+    ctx.arc(sh.cx, sh.cy, Math.max(0, sh.ring * (sh.w / 2 - RING.sw)), 0, Math.PI * 2, true);
+    ctx.fill("evenodd"); return;
+  }
+  rr(x, y, sh.w, sh.h, sh.r); ctx.fill();
+  if (sh.bw > 0.3) {
+    ctx.lineWidth = sh.bw; ctx.strokeStyle = mix(C.border, C.bezel, sh.kTv);
+    rr(x + sh.bw / 2, y + sh.bw / 2, sh.w - sh.bw, sh.h - sh.bw, sh.r - sh.bw / 2); ctx.stroke();
+  }
+}
+function clipShape(sh) { rr(sh.cx - sh.w / 2, sh.cy - sh.h / 2, sh.w, sh.h, sh.r); ctx.clip(); }
+
+// ---------- cursor ----------
+const CUR = {
+  x: track([[0, 1180], [1.12, 790], [2.55, 450], [3.05, 860], [3.5, 1180], [6.2, 300], [6.62, 1015], [6.98, 640], [7.38, 1200],
+    [8.5, 900], [9.4, 1250]], 2.2, 0.82),
+  y: track([[0, 1180], [1.12, 750], [2.55, 920], [3.05, 1088], [3.5, 1300], [6.2, 1000], [6.62, 990], [6.98, 990], [7.38, 1220],
+    [8.5, 560], [9.4, 1300]], 2.2, 0.82),
+  vis: [[1.1, 3.62], [6.2, 7.5], [8.42, 9.5]],
+  clicks: [1.5, 3.0, 3.25, 6.5, 6.98],
+};
+// replay drag: the handle follows the cursor between press and release
+const DRAG = { a: 6.98, b: 7.38, x0: 640, x1: 455 };
+function cursorAt(t) {
+  let x = CUR.x(t), y = CUR.y(t);
+  if (t > DRAG.a && t < DRAG.b + 0.02) { x = lerp(DRAG.x0, DRAG.x1, io(seg(t, DRAG.a + 0.02, DRAG.b - 0.04))); y = 990; }
+  let a = 0;
+  for (const [s, e] of CUR.vis) a = Math.max(a, out3(seg(t, s, s + 0.15)) * (1 - seg(t, e - 0.15, e)));
+  let sc = 1; for (const c of CUR.clicks) sc -= 0.16 * bump(t, c - 0.04, 0.1);
+  if (t > DRAG.a && t < DRAG.b) sc = Math.min(sc, 0.9);
+  return { x, y, a, sc };
+}
+function drawCursor(c) {
+  if (c.a <= 0.001) return;
+  ctx.save(); ctx.globalAlpha = c.a; ctx.translate(c.x, c.y); ctx.scale(1.5 * c.sc, 1.5 * c.sc);
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 30); ctx.lineTo(7.5, 23); ctx.lineTo(12.5, 34); ctx.lineTo(17.5, 31.6);
+  ctx.lineTo(12.6, 21); ctx.lineTo(23, 21); ctx.closePath();
+  ctx.fillStyle = "#ffffff"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = C.accFg; ctx.lineJoin = "round"; ctx.stroke();
+  ctx.restore();
+}
+
+// ---------- state content ----------
+function drawButton(t, sh) {
+  withFx(win(t, 1.05, 2.05), () => text("Book a table", sh.cx, sh.cy + 2, 50, C.accFg, 700, "center", -0.5));
+}
+
+const SLOTS = Array.from({ length: 16 }, (_, i) => `${String(7 + i).padStart(2, "0")}:00`);
+function drawBooking(t, sh) {
+  const w = win(t, 2.05, 4.05, 0.25);
+  withFx(w, () => {
+    const top = sh.cy - 490, left = sh.cx - 390;
+    text("Book a table", left, top + 88, 48, C.white);
+    text("PlayTT · Table 1", left, top + 140, 28, C.muted, 500);
+    ["Today", "Tue", "Wed", "Thu"].forEach((d, i) => {
+      const k = out3(seg(t, 2.1 + i * 0.05, 2.35 + i * 0.05)), x = left + i * 200, y = top + 190 + (1 - k) * 18;
+      ctx.save(); ctx.globalAlpha *= k;
+      rr(x, y, 180, 70, 35);
+      if (i === 0) { ctx.fillStyle = C.acc; ctx.fill(); } else { ctx.lineWidth = 2; ctx.strokeStyle = C.border; ctx.stroke(); }
+      text(d, x + 90, y + 36, 28, i === 0 ? C.accFg : C.white, 700, "center");
+      ctx.restore();
+    });
+    SLOTS.forEach((s, i) => {
+      const r = Math.floor(i / 4), c = i % 4, t0 = 2.5 + i * 0.025;
+      const k = sp(t - t0, 3.0, 0.85), x = left + c * 200, y = top + 320 + r * 104 + (1 - k) * 26;
+      ctx.save(); ctx.globalAlpha *= clamp(k * 1.4);
+      const sel = i === 12 ? sp(t - 3.0, 3.2, 0.8) : 0;
+      rr(x, y, 180, 84, 20); ctx.fillStyle = mix(C.elev, C.acc, sel); ctx.fill();
+      if (sel < 0.5) { ctx.lineWidth = 2; ctx.strokeStyle = C.border; ctx.stroke(); }
+      text(s, x + 90, y + 43, 32, sel > 0.5 ? C.accFg : (i < 2 ? C.muted : C.white), 700, "center");
+      ctx.restore();
+    });
+    // pay -> spinner -> booked
+    const k = out3(seg(t, 2.75, 3.0)), py = top + 850 + (1 - k) * 24;
+    ctx.save(); ctx.globalAlpha *= k;
+    const pw = 780 - 40 * bump(t, 3.25);
+    rr(sh.cx - pw / 2, py - 50, pw, 100, 50); ctx.fillStyle = C.acc; ctx.fill();
+    withFx(win(t, 2.75, 3.32, 0.01, 0.08), () => text("Confirm and pay", sh.cx, py + 2, 36, C.accFg, 700, "center"));
+    withFx(win(t, 3.28, 3.55, 0.08, 0.08), () => {
+      ctx.lineWidth = 6; ctx.strokeStyle = C.accFg; ctx.lineCap = "round"; ctx.beginPath();
+      const a0 = t * 9; ctx.arc(sh.cx, py, 22, a0, a0 + 4.2); ctx.stroke();
+    });
+    withFx(win(t, 3.52, 4.05, 0.18), () => {
+      const label = "Booked · Table 1 · 19:00", lw = tw(label, 34), x0 = sh.cx - (lw + 54) / 2;
+      const d = out3(seg(t, 3.52, 3.75));
+      ctx.lineWidth = 6; ctx.strokeStyle = C.accFg; ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.setLineDash([40 * d, 60]); ctx.beginPath(); ctx.moveTo(x0, py + 2); ctx.lineTo(x0 + 11, py + 13); ctx.lineTo(x0 + 32, py - 12); ctx.stroke();
+      ctx.setLineDash([]);
+      text(label, x0 + 54, py + 2, 34, C.accFg);
+    });
+    ctx.restore();
+  });
+}
+
+// scoreboard on the wall TV, driven by the scoring buttons under the table
+const PRESS = [5.0, 5.5];
+function scoreAt(t) { return 9 + PRESS.filter(p => t >= p + 0.06).length; }
+function drawScore(t, sh) {
+  withFx(win(t, 4.08, 6.05, 0.25), () => {
+    const cx = sh.cx, cy = sh.cy;
+    ctx.fillStyle = C.red; ctx.beginPath(); ctx.arc(cx - 128, cy - 232, 8, 0, 7); ctx.fill();
+    text("TABLE 1 · LIVE", cx + 10, cy - 230, 26, C.muted, 700, "center", 3);
+    text("BLUE", cx - 270, cy - 140, 40, C.acc, 700, "center", 4);
+    text("RED", cx + 270, cy - 140, 40, C.red, 700, "center", 4);
+    text("·", cx, cy + 40, 120, C.muted, 700, "center");
+    text("9", cx + 270, cy + 50, 250, C.white, 700, "center");
+    // left score rolls up on each press
+    ctx.save(); ctx.beginPath(); ctx.rect(cx - 470, cy - 90, 400, 280); ctx.clip();
+    let cur = 9;
+    for (const p of PRESS) {
+      const k = out3(seg(t, p + 0.04, p + 0.3));
+      if (k <= 0) break;
+      if (k < 1) {
+        text(String(cur), cx - 270, cy + 50 - k * 280, 250, C.white, 700, "center");
+        text(String(cur + 1), cx - 270, cy + 50 + (1 - k) * 280, 250, C.white, 700, "center");
+        ctx.restore(); drawScoreFooter(t, cx, cy); return;
+      }
+      cur++;
+    }
+    text(String(cur), cx - 270, cy + 50, 250, C.white, 700, "center");
+    ctx.restore();
+    drawScoreFooter(t, cx, cy);
+  });
+}
+function drawScoreFooter(t, cx, cy) {
+  withFx(win(t, 4.1, 5.56, 0.2, 0.08), () => text("First to 11", cx, cy + 228, 30, C.muted, 500, "center"));
+  withFx(win(t, 5.56, 9, 0.22), () => text("Game · Blue", cx, cy + 228, 30, C.acc, 700, "center", 1));
+}
+// table edge + scoring button panel (appears under the TV)
+function drawTable(t) {
+  const k = sp(t - 4.35, 2.2, 0.82) - sp(t - 5.95, 2.6, 0.85);
+  if (k <= 0.002) return;
+  ctx.save(); ctx.globalAlpha = clamp(k); ctx.translate(0, (1 - k) * 160);
+  // table seen from the player's side
+  ctx.beginPath(); ctx.moveTo(330, 930); ctx.lineTo(1110, 930); ctx.lineTo(1190, 1010); ctx.lineTo(250, 1010); ctx.closePath();
+  ctx.fillStyle = C.tableTop; ctx.fill();
+  ctx.lineWidth = 4; ctx.strokeStyle = rgba("#ffffff", 0.85); ctx.stroke();
+  ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(720, 930); ctx.lineTo(720, 1010); ctx.stroke();
+  rr(250, 1010, 940, 22, 4); ctx.fillStyle = C.elev; ctx.fill();
+  // button panel hung under the edge
+  rr(500, 1040, 440, 190, 28); ctx.fillStyle = C.elev; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = C.border; ctx.stroke();
+  [[610, C.acc, "BLUE +1", PRESS], [830, C.red, "RED +1", []]].forEach(([x, col, lab, presses]) => {
+    let s = 1; for (const p of presses) s -= 0.12 * bump(t, p - 0.03, 0.1, 4);
+    for (const p of presses) {
+      const r = seg(t, p, p + 0.4);
+      if (r > 0 && r < 1) { ctx.lineWidth = 3; ctx.strokeStyle = rgba(col, 0.6 * (1 - r)); ctx.beginPath(); ctx.arc(x, 1115, 52 + 50 * out3(r), 0, 7); ctx.stroke(); }
+    }
+    ctx.beginPath(); ctx.arc(x, 1115, 52 * s, 0, 7); ctx.fillStyle = col; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, 1115 - 6 * s, 40 * s, 0, 7); ctx.fillStyle = rgba("#ffffff", 0.14); ctx.fill();
+    text(lab, x, 1195, 22, C.muted, 700, "center", 2);
+  });
+  ctx.restore();
+}
+
+// replay card: a coded top-down rally, play/pause morph, scrub by direct manipulation
+const VT0 = 3.2, CLIP = 12;
+function videoTime(t) {
+  if (t < 6.5) return VT0;
+  const playA = VT0 + (Math.min(t, DRAG.a) - 6.5);
+  if (t < DRAG.a) return playA;
+  const fromX = x => (x - 350) / 730 * CLIP;
+  if (t < DRAG.b) return fromX(cursorAt(t).x);
+  return fromX(DRAG.x1) + (t - DRAG.b);
+}
+const BOUNCE = [[0.18, 0.3], [0.8, 0.62], [0.22, 0.75], [0.78, 0.28], [0.25, 0.5], [0.84, 0.7], [0.2, 0.25], [0.76, 0.55]];
+function ballAt(vt) {
+  const per = 0.75, n = Math.floor(vt / per), u = vt / per - n;
+  const A = BOUNCE[n % 8], B = BOUNCE[(n + 1) % 8];
+  return { x: lerp(A[0], B[0], u), y: lerp(A[1], B[1], u), z: Math.sin(Math.PI * u) };
+}
+function drawReplay(t, sh) {
+  withFx(win(t, 6.08, 8.05, 0.25), () => {
+    const top = sh.cy - 410, vx = sh.cx - 496, vy = top + 24, vw = 992, vh = 558;
+    rr(vx, vy, vw, vh, 26); ctx.fillStyle = C.elev; ctx.fill();
+    ctx.save(); rr(vx, vy, vw, vh, 26); ctx.clip();
+    const tx = vx + 136, ty = vy + 99, tW = 720, tH = 360;
+    ctx.fillStyle = C.tableTop; ctx.fillRect(tx, ty, tW, tH);
+    ctx.lineWidth = 5; ctx.strokeStyle = "#ffffff"; ctx.strokeRect(tx, ty, tW, tH);
+    ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(tx, ty + tH / 2); ctx.lineTo(tx + tW, ty + tH / 2); ctx.stroke();
+    ctx.lineWidth = 6; ctx.strokeStyle = rgba("#ffffff", 0.7); ctx.beginPath(); ctx.moveTo(tx + tW / 2, ty - 18); ctx.lineTo(tx + tW / 2, ty + tH + 18); ctx.stroke();
+    const vt = videoTime(t);
+    for (let i = 14; i >= 1; i--) {
+      const b = ballAt(Math.max(0, vt - i * 0.022)), b2 = ballAt(Math.max(0, vt - (i - 1) * 0.022));
+      ctx.lineWidth = 10 * (1 - i / 15); ctx.lineCap = "round"; ctx.strokeStyle = rgba(C.acc, 0.5 * (1 - i / 15));
+      ctx.beginPath(); ctx.moveTo(tx + b.x * tW, ty + b.y * tH); ctx.lineTo(tx + b2.x * tW, ty + b2.y * tH); ctx.stroke();
+    }
+    const b = ballAt(vt);
+    ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.beginPath(); ctx.ellipse(tx + b.x * tW + 6 + 14 * b.z, ty + b.y * tH + 8 + 14 * b.z, 12, 9, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(tx + b.x * tW, ty + b.y * tH, 12 + 6 * b.z, 0, 7); ctx.fill();
+    ctx.restore();
+    rr(vx + 24, vy + 24, tw("REPLAY · LAST RALLY", 22) + 32 + 6 * 19, 44, 22); ctx.fillStyle = "rgba(3,7,12,0.7)"; ctx.fill();
+    text("REPLAY · LAST RALLY", vx + 40, vy + 47, 22, C.white, 700, "left", 2);
+    // controls
+    const cyc = top + 701;
+    const pl = sp(t - 6.5, 3.2, 0.82);
+    ctx.save(); ctx.translate(sh.cx - 440, cyc); ctx.scale(1 - 0.1 * bump(t, 6.47), 1 - 0.1 * bump(t, 6.47));
+    ctx.beginPath(); ctx.arc(0, 0, 44, 0, 7); ctx.fillStyle = C.acc; ctx.fill();
+    ctx.fillStyle = C.accFg;                                     // play triangle halves morph into pause bars
+    const P = (a, b) => [lerp(a[0], b[0], pl), lerp(a[1], b[1], pl)];
+    const halves = [
+      [[-12, -18], [4, -9], [4, 9], [-12, 18]].map((p, i) => P(p, [[-13, -16], [-4, -16], [-4, 16], [-13, 16]][i])),
+      [[4, -9], [20, 0], [20, 0], [4, 9]].map((p, i) => P(p, [[4, -16], [13, -16], [13, 16], [4, 16]][i])),
+    ];
+    for (const h of halves) { ctx.beginPath(); h.forEach((p, i) => (i ? ctx.lineTo(...p) : ctx.moveTo(...p))); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+    const bx = sh.cx - 370, bw = 730, prog = clamp(vt / CLIP);
+    rr(bx, cyc - 5, bw, 10, 5); ctx.fillStyle = C.border; ctx.fill();
+    rr(bx, cyc - 5, bw * prog, 10, 5); ctx.fillStyle = C.acc; ctx.fill();
+    const held = t > DRAG.a && t < DRAG.b ? 1 : 0, hs = 15 + 5 * (sp(t - DRAG.a, 4, 0.8) - sp(t - DRAG.b, 4, 0.8));
+    ctx.beginPath(); ctx.arc(bx + bw * prog, cyc, hs, 0, 7); ctx.fillStyle = "#ffffff"; ctx.fill();
+    const sec = Math.floor(clamp(vt, 0, CLIP));
+    text(`0:${String(sec).padStart(2, "0")} / 0:${CLIP}`, sh.cx + 480, cyc + 1, 26, C.muted, 500, "right");
+    void held;
+  });
+}
+function drawToast(t) {
+  const k = sp(t - 7.5, 2.6, 0.82), q = seg(t, 7.95, 8.15);
+  if (k <= 0.002 || q >= 1) return;
+  ctx.save(); ctx.globalAlpha = clamp(k) * (1 - q);
+  const y = 1205 + (1 - k) * 60 + q * 30, w = 600;
+  rr(720 - w / 2, y - 46, w, 92, 46); ctx.fillStyle = C.card; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = C.border; ctx.stroke();
+  ctx.beginPath(); ctx.arc(720 - w / 2 + 52, y, 22, 0, 7); ctx.fillStyle = C.acc; ctx.fill();
+  ctx.lineWidth = 5; ctx.strokeStyle = C.accFg; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  const d = out3(seg(t, 7.6, 7.8)); ctx.setLineDash([34 * d, 60]);
+  ctx.beginPath(); ctx.moveTo(720 - w / 2 + 42, y + 1); ctx.lineTo(720 - w / 2 + 50, y + 9); ctx.lineTo(720 - w / 2 + 63, y - 8); ctx.stroke(); ctx.setLineDash([]);
+  text("Saved to your replays", 720 - w / 2 + 96, y + 2, 32, C.white);
+  ctx.restore();
+}
+
+// AI analytics (illustrative numbers, labelled on screen)
+const HEAT = [[.10, .20, .30, .25, .40, .20], [.20, .45, .60, .50, .85, .40], [.15, .35, .50, .55, .98, .50], [.10, .25, .30, .35, .60, .30], [.05, .10, .15, .20, .30, .15]];
+const BARS = [3, 5, 8, 6, 11, 4, 7, 9];
+function drawAnalytics(t, sh) {
+  withFx(win(t, 8.08, 10.05, 0.25, 0.1), () => {
+    const top = sh.cy - 480, left = sh.cx - 472;
+    text("AI ANALYTICS", left, top + 72, 24, C.acc, 700, "left", 4);
+    text("Match insights", left, top + 122, 48, C.white);
+    // badge on beat 19
+    const bk = sp(t - 9.5, 3, 0.82);
+    if (bk > 0.002) {
+      ctx.save(); ctx.globalAlpha *= clamp(bk); const bw = tw("Coming soon", 26) + 48, bx = sh.cx + 472 - bw;
+      ctx.translate(bx + bw / 2, top + 100); ctx.scale(0.9 + 0.1 * bk, 0.9 + 0.1 * bk);
+      rr(-bw / 2, -28, bw, 56, 28); ctx.lineWidth = 2; ctx.strokeStyle = C.acc; ctx.stroke();
+      text("Coming soon", 0, 1, 26, C.acc, 700, "center"); ctx.restore();
+    }
+    // shot placement heatmap on a table half
+    const hx = left, hy = top + 200, cw = 80, ch = 92;
+    HEAT.forEach((row, r) => row.forEach((v, c) => {
+      const k = out3(seg(t, 8.15 + (r * 6 + c) * 0.012, 8.4 + (r * 6 + c) * 0.012));
+      ctx.fillStyle = rgba(C.acc, 0.08 + 0.85 * v * k); ctx.fillRect(hx + c * cw + 3, hy + r * ch + 3, cw - 6, ch - 6);
+    }));
+    ctx.lineWidth = 4; ctx.strokeStyle = rgba("#ffffff", 0.85); ctx.strokeRect(hx, hy, cw * 6, ch * 5);
+    ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(hx - 12, hy); ctx.lineTo(hx + cw * 6 + 12, hy); ctx.stroke();
+    text("Shot placement", hx, hy + ch * 5 + 50, 28, C.muted, 500);
+    // rally length bars draw in on beat 17
+    const bx0 = sh.cx + 60, by = hy + ch * 5, bh = ch * 5 - 20, bW = 412 / 8;
+    BARS.forEach((v, i) => {
+      const k = sp(t - 8.5 - i * 0.04, 2.6, 0.8), h = bh * v / 12 * k;
+      rr(bx0 + i * bW + 6, by - h, bW - 12, h, 8); ctx.fillStyle = v === 11 ? C.acc : rgba(C.acc, 0.35); ctx.fill();
+    });
+    ctx.lineWidth = 2; ctx.strokeStyle = C.border; ctx.beginPath(); ctx.moveTo(bx0, by); ctx.lineTo(bx0 + 412, by); ctx.stroke();
+    text("Rally length (shots)", bx0, hy + ch * 5 + 50, 28, C.muted, 500);
+    text("Example data", left, top + 900, 24, C.muted, 500);
+    // tooltip on hover (beat 18)
+    const tk = sp(t - 9.0, 3, 0.8);
+    if (tk > 0.002) {
+      const ax = hx + 4.5 * cw, ay = hy + 2 * ch + 10;
+      ctx.save(); ctx.globalAlpha *= clamp(tk); ctx.translate(ax, ay - 30 - 14 * tk);
+      const s = "Forehand 62%", w = tw(s, 30) + 44;
+      rr(-w / 2, -70, w, 64, 18); ctx.fillStyle = C.white; ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-12, -7); ctx.lineTo(12, -7); ctx.lineTo(0, 7); ctx.closePath(); ctx.fill();
+      text(s, 0, -37, 30, C.accFg, 700, "center"); ctx.restore();
+      ctx.lineWidth = 4; ctx.strokeStyle = rgba("#ffffff", clamp(tk)); ctx.strokeRect(hx + 4 * cw + 3, hy + 2 * ch + 3, cw - 6, ch - 6);
+    }
+  });
+}
+
+// ---------- logo build (drop) ----------
+const P = {
+  top1: new Path2D("M91 102h66l-14 31H62c-4 0-5-3-2-6l27-23c1-1 2-2 4-2Z"),
+  top2: new Path2D("M164 102h56c2 0 3 1 4 2l29 24c3 3 1 5-3 5H150l14-31Z"),
+  legs: new Path2D("M86 140h138c2 0 4 1 5 3l21 29c2 3 0 5-3 5h-13c-2 0-3-1-4-3l-15-23H95l-15 23c-1 2-2 3-4 3H63c-3 0-5-2-3-5l21-29c1-2 3-3 5-3Z"),
+  tr1: new Path2D("M143 76c17-23 38-31 68-29"),
+  tr2: new Path2D("M166 77c13-15 27-21 48-20"),
+};
+function logoT(fn) { ctx.save(); ctx.translate(L.x, L.y); ctx.scale(L.s, L.s); ctx.translate(0, 5); ctx.scale(0.95, 0.95); fn(); ctx.restore(); }
+function drawLogo(t) {
+  if (t < 10.0) return;
+  const ex = (a, d = 0.22) => seg(t, a, a + d);                 // exit progress
+  const part = (a, outA, anchorY, fn) => {
+    const k = sp(t - a, 2.4, 0.8) * (1 - io(ex(outA)));
+    if (k <= 0.002) return;
+    ctx.save(); ctx.globalAlpha = clamp(k * 1.5); ctx.translate(0, anchorY); ctx.scale(1, k); ctx.translate(0, -anchorY); fn(); ctx.restore();
+  };
+  logoT(() => {
+    part(10.05, 11.6, 90, () => { ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.roundRect(96, 83, 126, 15, 4); ctx.fill(); });
+    part(10.1, 11.58, 102, () => { ctx.fillStyle = C.acc; ctx.fill(P.top1); ctx.fill(P.top2); });
+    part(10.15, 11.55, 140, () => { ctx.fillStyle = "#ffffff"; ctx.fill(P.legs); });
+    const d = out3(seg(t, 10.12, 10.42)) * (1 - io(seg(t, 11.5, 11.68)));
+    if (d > 0.002) {
+      ctx.lineWidth = 7; ctx.lineCap = "round"; ctx.strokeStyle = C.acc;
+      for (const p of [P.tr1, P.tr2]) { ctx.setLineDash([90 * d, 200]); ctx.lineDashOffset = -90 * (1 - d); ctx.stroke(p); }
+      ctx.setLineDash([]);
+    }
+  });
+  // wordmark: masked letter rise, Arial bold like the logo file
+  const word = "PlayTT", size = 82 * L.s, x0 = L.x + 278 * L.s, base = L.y + 132 * L.s;
+  ctx.save(); ctx.beginPath(); ctx.rect(x0 - 20, base - size * 0.95, 900, size * 1.25); ctx.clip();
+  ctx.font = `700 ${size}px Arial, Helvetica, sans-serif`; ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+  ctx.letterSpacing = `${-3 * L.s}px`; ctx.fillStyle = "#ffffff";
+  let x = x0;
+  [...word].forEach((ch, i) => {
+    const kin = sp(t - 10.15 - i * 0.04, 2.6, 0.8), kout = in2(seg(t, 11.55 + (5 - i) * 0.025, 11.75 + (5 - i) * 0.025));
+    const dy = (1 - kin) * size * 1.05 + kout * size * 1.05;
+    ctx.fillText(ch, x, base + dy);
+    x += ctx.measureText(ch).width - 3 * L.s;
+  });
+  ctx.letterSpacing = "0px"; ctx.restore();
+}
+// tagline: masked word rise, word stagger 55 ms
+const LINES = [
+  { s: "Table tennis for anyone.", y: 840, size: 64, col: C.white, w: 700, t0: 10.25 },
+  { s: "Anytime. Any day.", y: 928, size: 64, col: C.acc, w: 700, t0: 10.72 },
+  { s: "Coming soon to Nairobi", y: 1030, size: 34, col: C.muted, w: 500, t0: 10.95 },
+];
+function drawLines(t) {
+  for (const ln of LINES) {
+    const words = ln.s.split(" "), sp_ = tw(" ", ln.size, ln.w), total = tw(ln.s, ln.size, ln.w);
+    let x = 720 - total / 2;
+    ctx.save(); ctx.beginPath(); ctx.rect(0, ln.y - ln.size * 0.75, W, ln.size * 1.5); ctx.clip();
+    words.forEach((wd, i) => {
+      const kin = sp(t - ln.t0 - i * 0.055, 2.6, 0.8), kout = in2(seg(t, 11.55 + i * 0.03, 11.78 + i * 0.03));
+      if (kin > 0.001 && kout < 1) {
+        const dy = (1 - kin) * ln.size * 1.1 + kout * ln.size * 1.1;
+        ctx.save(); ctx.translate(x, ln.y + dy); ctx.rotate((1 - kin) * 0.06);
+        text(wd, 0, 0, ln.size, ln.col, ln.w); ctx.restore();
+      }
+      x += tw(wd, ln.size, ln.w) + sp_;
+    });
+    ctx.restore();
+  }
+}
+
+// ---------- frame ----------
+function camera(t) {
+  let z = 1;
+  for (let b = 20; b < 24; b++) { const tb = b * 0.5; if (t > tb) z += (b === 20 ? 0.03 : 0.012) * Math.exp(-(t - tb) * 7); }
+  return { z, y: track([[0, 0], [4.35, -36], [5.95, 0]], 1.6, 0.85)(t) };
+}
+window.seek = async t => {
+  t = clamp(t, 0, T);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const g = ctx.createRadialGradient(720, 640, 80, 720, 720, 1100);
+  g.addColorStop(0, "#0b1829"); g.addColorStop(1, C.bg);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const cam = camera(t);
+  ctx.translate(720, 720); ctx.scale(cam.z, cam.z); ctx.translate(-720, -720 + cam.y);
+  // intro table line + ball shadow
+  const lw = 380 * out3(seg(t, 0, 0.4)) * (1 - io(seg(t, 1.0, 1.4)));
+  if (lw > 0.5) { ctx.lineWidth = 4; ctx.lineCap = "round"; ctx.strokeStyle = C.border; ctx.beginPath(); ctx.moveTo(720 - lw, TL); ctx.lineTo(720 + lw, TL); ctx.stroke(); }
+  const sh = shapeAt(t);
+  if (t < 1.1) {
+    const hgt = clamp((845 - sh.cy) / 900), a = 0.35 * (1 - hgt) * (1 - seg(t, 1.0, 1.1));
+    if (a > 0) { ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.beginPath(); ctx.ellipse(720, TL + 8, 60 * (1 - 0.5 * hgt), 9, 0, 0, 7); ctx.fill(); }
+  }
+  drawTable(t);
+  drawShape(sh);
+  ctx.save(); clipShape(sh);
+  if (t >= 1.0 && t < 2.1) drawButton(t, sh);
+  if (t >= 2.0 && t < 4.1) drawBooking(t, sh);
+  if (t >= 4.0 && t < 6.1) drawScore(t, sh);
+  if (t >= 6.0 && t < 8.1) drawReplay(t, sh);
+  if (t >= 8.0 && t < 10.1) drawAnalytics(t, sh);
+  ctx.restore();
+  drawToast(t);
+  drawLogo(t);
+  drawLines(t);
+  drawCursor(cursorAt(t));
+  document.getElementById("tc").textContent = t.toFixed(3);
+};
+
+// ---------- preview controls (the only place a clock exists; the render never uses it) ----------
+let now = 0, playing = false, last = 0;
+function loop(ts) { if (playing) { now = (now + (ts - last) / 1000) % T; window.seek(now); } last = ts; requestAnimationFrame(loop); }
+addEventListener("keydown", e => {
+  if (e.code === "Space") { playing = !playing; e.preventDefault(); }
+  if (e.code === "ArrowRight") { playing = false; now = Math.min(T, now + 1 / FPS); window.seek(now); }
+  if (e.code === "ArrowLeft") { playing = false; now = Math.max(0, now - 1 / FPS); window.seek(now); }
+  if (e.code === "KeyR") { now = 0; playing = true; }
+});
+Promise.all([document.fonts.load("700 40px SG"), document.fonts.load("500 40px SG")]).then(() => {
+  const q = new URLSearchParams(location.search).get("t");
+  now = q ? +q : 0; window.seek(now); window.ready = true; requestAnimationFrame(loop);
+});
+</script>
+</body>
+</html>
