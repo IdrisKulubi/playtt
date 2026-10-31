@@ -103,3 +103,12 @@ User/profile, Replay, and Coach routes map unexpected failures to stable 500
 responses with top-level `{ "code", "message" }` envelopes. Typed domain
 errors retain their documented codes, messages, and statuses; internal
 exception messages are never returned to clients.
+
+## Community endpoints
+
+The `community.*` endpoints (`/api/v1/community/...`) are documented in
+[docs/community/README.md](../community/README.md) and consumed by
+`playtt-mobile/lib/community-api.ts`. They share the error fixtures
+`player-not-found`, `community-profile-required`, `window-passed`,
+`cannot-target-self`, `rate-limited`, and `community-error` under
+`contracts/mobile-api/fixtures/errors/`.

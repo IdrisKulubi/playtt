@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"*","case":"rate-limited","request":{},"response":{"status":429,"body":{"code":"RATE_LIMITED","message":"Too many requests. Try again later."}}}

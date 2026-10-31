@@ -4682,6 +4682,227 @@ export const notifications = pgTable(
   ]
 )
 
+// --- Community (docs/community/README.md, M1) ---
+
+export const communityPlayStyleEnum = pgEnum("community_play_style", [
+  "attacker",
+  "defender",
+  "all_round",
+])
+
+export const communityHandednessEnum = pgEnum("community_handedness", [
+  "right",
+  "left",
+])
+
+export const communityRequestPolicyEnum = pgEnum("community_request_policy", [
+  "everyone",
+  "followers",
+  "rally_partners",
+])
+
+export const playAvailabilityWindowEnum = pgEnum("play_availability_window", [
+  "now",
+  "today",
+  "tonight",
+  "weekend",
+])
+
+export const communityReportReasonEnum = pgEnum("community_report_reason", [
+  "spam",
+  "harassment",
+  "inappropriate",
+  "no_show",
+  "other",
+])
+
+export const communityReportStatusEnum = pgEnum("community_report_status", [
+  "open",
+  "reviewed",
+  "actioned",
+])
+
+export const playerProfiles = pgTable(
+  "player_profiles",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => user.id, { onDelete: "cascade" }),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    communityVisible: boolean("community_visible").default(false).notNull(),
+    bio: text("bio"),
+    playStyle: communityPlayStyleEnum("play_style"),
+    handedness: communityHandednessEnum("handedness"),
+    usualTimes: text("usual_times").array().default(sql`'{}'::text[]`).notNull(),
+    requestPolicy: communityRequestPolicyEnum("request_policy")
+      .default("everyone")
+      .notNull(),
+    showAtVenue: boolean("show_at_venue").default(false).notNull(),
+    foundingPlayer: boolean("founding_player").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("player_profiles_tenant_visible_idx").on(
+      table.tenantId,
+      table.communityVisible
+    ),
+    check(
+      "player_profiles_bio_length",
+      sql`${table.bio} is null or char_length(${table.bio}) <= 140`
+    ),
+  ]
+)
+
+export const playAvailability = pgTable(
+  "play_availability",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
+    window: playAvailabilityWindowEnum("window").notNull(),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    note: text("note"),
+    lookingForDoubles: boolean("looking_for_doubles").default(false).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("play_availability_user_active_unique")
+      .on(table.userId)
+      .where(sql`${table.endedAt} is null`),
+    index("play_availability_location_ends_idx").on(
+      table.tenantId,
+      table.locationId,
+      table.endsAt
+    ),
+    check(
+      "play_availability_window_valid",
+      sql`${table.endsAt} > ${table.startsAt}`
+    ),
+    check(
+      "play_availability_note_length",
+      sql`${table.note} is null or char_length(${table.note}) <= 80`
+    ),
+  ]
+)
+
+export const follows = pgTable(
+  "follows",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    followerId: text("follower_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    followeeId: text("followee_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("follows_follower_followee_unique").on(
+      table.followerId,
+      table.followeeId
+    ),
+    index("follows_followee_idx").on(table.followeeId, table.createdAt),
+    check("follows_not_self", sql`${table.followerId} <> ${table.followeeId}`),
+  ]
+)
+
+export const userBlocks = pgTable(
+  "user_blocks",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    blockerId: text("blocker_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    blockedId: text("blocked_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("user_blocks_blocker_blocked_unique").on(
+      table.blockerId,
+      table.blockedId
+    ),
+    index("user_blocks_blocked_idx").on(table.blockedId),
+    check("user_blocks_not_self", sql`${table.blockerId} <> ${table.blockedId}`),
+  ]
+)
+
+export const communityReports = pgTable(
+  "community_reports",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    reporterId: text("reporter_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    targetUserId: text("target_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    // Plain uuid until chat messages exist (M3), then becomes an FK.
+    messageId: uuid("message_id"),
+    reason: communityReportReasonEnum("reason").notNull(),
+    note: text("note"),
+    status: communityReportStatusEnum("status").default("open").notNull(),
+    reviewedBy: text("reviewed_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("community_reports_status_created_idx").on(
+      table.tenantId,
+      table.status,
+      table.createdAt
+    ),
+    index("community_reports_target_idx").on(table.targetUserId),
+    check(
+      "community_reports_note_length",
+      sql`${table.note} is null or char_length(${table.note}) <= 500`
+    ),
+  ]
+)
+
 export const userRelations = relations(user, ({ many, one }) => ({
   sessions: many(session),
   accounts: many(account),

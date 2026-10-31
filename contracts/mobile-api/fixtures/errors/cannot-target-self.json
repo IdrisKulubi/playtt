@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"*","case":"cannot-target-self","request":{},"response":{"status":400,"body":{"code":"CANNOT_TARGET_SELF","message":"You can't do that to yourself."}}}

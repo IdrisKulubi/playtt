@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"*","case":"window-passed","request":{},"response":{"status":409,"body":{"code":"WINDOW_PASSED","message":"Tonight's window has ended. Choose Now instead."}}}

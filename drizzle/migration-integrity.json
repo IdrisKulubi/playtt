@@ -103,6 +103,12 @@
     },
     "0033_venue_edge_installer_delivery": {
       "sha256": "d0e99e464827562168fdd376d46c550f472257ac447c88da3db6d57ddf6b9be2"
+    },
+    "0034_replay_library": {
+      "sha256": "a850e4eb9e50c59a23f444a9a5413e6e46b80b5455603831e3d1c6082359221c"
+    },
+    "0035_community": {
+      "sha256": "2ea13554d4598ae083c890d2a77eec047ab2abbf9f0c98f2072126f185328dd3"
     }
   },
   "acknowledgedMetadataDrift": [],

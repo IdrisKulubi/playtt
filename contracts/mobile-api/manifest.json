@@ -278,6 +278,149 @@
         "Personal bookings and payments are both scoped to the authenticated user and resolved tenant.",
         "Time is booked duration, not measured play. Spending excludes full refunds but partial refund amounts are unknown; notes disclose this."
       ]
+    },
+    {
+      "id": "community.me.get",
+      "method": "GET",
+      "pathTemplate": "/api/v1/community/me",
+      "routeFile": "src/app/api/v1/community/me/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.me.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community M1 (docs/community/README.md). Names are always first name + last initial."]
+    },
+    {
+      "id": "community.me.patch",
+      "method": "PATCH",
+      "pathTemplate": "/api/v1/community/me",
+      "routeFile": "src/app/api/v1/community/me/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.me.patch.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community M1 (docs/community/README.md). Names are always first name + last initial."]
+    },
+    {
+      "id": "community.availability.post",
+      "method": "POST",
+      "pathTemplate": "/api/v1/community/availability",
+      "routeFile": "src/app/api/v1/community/availability/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.availability.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/community-profile-required.json", "fixtures/errors/window-passed.json", "fixtures/errors/rate-limited.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community M1 (docs/community/README.md). Names are always first name + last initial."]
+    },
+    {
+      "id": "community.availability.delete",
+      "method": "DELETE",
+      "pathTemplate": "/api/v1/community/availability",
+      "routeFile": "src/app/api/v1/community/availability/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.availability.delete.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community M1 (docs/community/README.md). Names are always first name + last initial."]
+    },
+    {
+      "id": "community.players.get",
+      "method": "GET",
+      "pathTemplate": "/api/v1/community/players?status={status}&skill={skill}&doubles={doubles}&following={following}&cursor={cursor}",
+      "routeFile": "src/app/api/v1/community/players/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.players.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community M1 (docs/community/README.md). Names are always first name + last initial."]
+    },
+    {
+      "id": "community.player.get",
+      "method": "GET",
+      "pathTemplate": "/api/v1/community/players/{userId}",
+      "routeFile": "src/app/api/v1/community/players/[userId]/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.player.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/player-not-found.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community M1 (docs/community/README.md). Names are always first name + last initial."]
+    },
+    {
+      "id": "community.player.follow.post",
+      "method": "POST",
+      "pathTemplate": "/api/v1/community/players/{userId}/follow",
+      "routeFile": "src/app/api/v1/community/players/[userId]/follow/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.player.follow.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/player-not-found.json", "fixtures/errors/cannot-target-self.json", "fixtures/errors/rate-limited.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community M1 (docs/community/README.md). Names are always first name + last initial."]
+    },
+    {
+      "id": "community.player.follow.delete",
+      "method": "DELETE",
+      "pathTemplate": "/api/v1/community/players/{userId}/follow",
+      "routeFile": "src/app/api/v1/community/players/[userId]/follow/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.player.follow.delete.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/cannot-target-self.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community M1 (docs/community/README.md). Names are always first name + last initial."]
+    },
+    {
+      "id": "community.player.followers.get",
+      "method": "GET",
+      "pathTemplate": "/api/v1/community/players/{userId}/followers?cursor={cursor}",
+      "routeFile": "src/app/api/v1/community/players/[userId]/followers/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.player.followers.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/player-not-found.json", "fixtures/errors/validation-error.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community M1 (docs/community/README.md). Names are always first name + last initial."]
+    },
+    {
+      "id": "community.player.following.get",
+      "method": "GET",
+      "pathTemplate": "/api/v1/community/players/{userId}/following?cursor={cursor}",
+      "routeFile": "src/app/api/v1/community/players/[userId]/following/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.player.following.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/player-not-found.json", "fixtures/errors/validation-error.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community M1 (docs/community/README.md). Names are always first name + last initial."]
+    },
+    {
+      "id": "community.player.block.post",
+      "method": "POST",
+      "pathTemplate": "/api/v1/community/players/{userId}/block",
+      "routeFile": "src/app/api/v1/community/players/[userId]/block/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.player.block.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/player-not-found.json", "fixtures/errors/cannot-target-self.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community M1 (docs/community/README.md). Names are always first name + last initial."]
+    },
+    {
+      "id": "community.player.block.delete",
+      "method": "DELETE",
+      "pathTemplate": "/api/v1/community/players/{userId}/block",
+      "routeFile": "src/app/api/v1/community/players/[userId]/block/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.player.block.delete.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/cannot-target-self.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community M1 (docs/community/README.md). Names are always first name + last initial."]
+    },
+    {
+      "id": "community.reports.post",
+      "method": "POST",
+      "pathTemplate": "/api/v1/community/reports",
+      "routeFile": "src/app/api/v1/community/reports/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.reports.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/player-not-found.json", "fixtures/errors/cannot-target-self.json", "fixtures/errors/rate-limited.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community M1 (docs/community/README.md). Names are always first name + last initial."]
     }
   ],
   "producerConsumerDrift": [

@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"*","case":"community-profile-required","request":{},"response":{"status":409,"body":{"code":"COMMUNITY_PROFILE_REQUIRED","message":"Create your community card before going open to play."}}}

@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"*","case":"community-error","request":{},"response":{"status":500,"body":{"code":"COMMUNITY_ERROR","message":"Something went wrong in Community. Please try again."}}}
