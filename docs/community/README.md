@@ -72,7 +72,7 @@ The usual-times preset keys are `weekday_mornings`, `weekday_lunch`, `weekday_ev
 | `errors.ts` | `CommunityError` with code + HTTP status |
 | `service.ts` | DB layer: my profile, go open / stop, player list + detail, follows, connections, block, report. Expired rows are filtered by `endsAt > now()` in queries, so no cron is needed. |
 | `http.ts` | Zod validators, `withCommunityUser` (session + tenant), JSON/error helpers |
-| `card-stats.ts` | **M2:** computes the 6 card stats, with a 60 s in-memory cache per user |
+| `card-stats.ts` | **M2:** pure card-stat math (MAT, HRS, STK from played sessions, Nairobi weeks). `service.ts` loads the sessions in one batched query per page, so there is no cache. WIN, REL and KUD stay `null` until M5/M4. |
 
 **Home venue:** `user.default_location_id` if it points to an active venue in the tenant, otherwise the tenant's first active venue (alphabetical). Players appear in a venue's list when it is their home venue or they are open to play there.
 
@@ -85,7 +85,7 @@ All routes require a session (same auth helper as the existing `src/app/api/user
 | `GET /community/me` · `PATCH /community/me` | My community profile (opt in, bio, style, usual times, policies) |
 | `POST /community/availability` · `DELETE /community/availability` | Go open (`window`, `note`, `lookingForDoubles`) / stop |
 | `GET /community/players?status=open\|all&skill=&doubles=&following=&cursor=` | Player list at my home venue; open players first, sorted by `endsAt` |
-| `GET /community/players/:userId` | Player profile + relationship (following, follows you, rally partner, blocked, can message). Card stats are added in M2. Hidden or blocked players return `404 PLAYER_NOT_FOUND`. |
+| `GET /community/players/:userId` | Player profile + relationship (following, follows you, rally partner, blocked, can message). Hidden or blocked players return `404 PLAYER_NOT_FOUND`. |
 | `POST /community/players/:userId/follow` · `DELETE …/follow` | Follow / unfollow |
 | `GET /community/players/:userId/followers` · `…/following` | Lists (cursor-paginated, 30 per page) |
 | `POST /community/players/:userId/block` · `DELETE …/block` | Block / unblock |
@@ -123,7 +123,7 @@ Floating "Open to play" button ... LiquidGlassSurface pill, bottom-right above t
 ```
 
 - **Open to play sheet** (`components/community/open-to-play-sheet.tsx`): pick the window (4 large chips), add an optional note (80 chars) and a "Looking for doubles" toggle, then **Go open**. Light haptic + confetti burst on success.
-- **Player profile** (`app/(app)/community/player/[userId].tsx`): full flippable card, **Let's play** (opens chat), Follow/Following, Followers/Following counts, overflow menu (Block, Report).
+- **Player profile** (`app/(app)/community/player/[userId]/index.tsx`): full flippable card, **Let's play** (opens chat), Follow/Following, Followers/Following counts, overflow menu (Block, Report).
 - **Followers / Following** (`app/(app)/community/player/[userId]/connections.tsx`): segment tabs with mini card rows.
 - **My community profile** (`app/(app)/account/community-profile.tsx`): opt-in switch, bio, play style, handedness, usual times chips, request policy, "Show me when I'm at the venue".
 - **First-time gate:** if `communityVisible` is false, the tab shows a short three-step intro ("Get your card → Go open → Play") and a **Create my card** button that opens the profile editor.
@@ -133,9 +133,20 @@ Floating "Open to play" button ... LiquidGlassSurface pill, bottom-right above t
 - Delete `lib/mock/mock-community.ts` and the old `community-player-row.tsx`, `open-requests-section.tsx` and `request-match-sheet.tsx` once nothing uses them.
 - Refetch the player list on focus and every 30 s while the tab is visible.
 
+### As built (M2)
+- Every player object (`me`, list rows, profile, followers/following) carries `stats: { matches, winRate, reliability, streakWeeks, kudos, hours }`; `null` means "show a dash".
+- A session counts once it is `completed`, or `confirmed` with `end_time` in the past, whether the player owned the booking or joined as a session participant (deduped per booking).
+- The card rating shows **NEW** for everyone until M5 ratings exist.
+- **Let's play** is not on the profile yet; it ships with chat in M3. The profile shows a "coming in the next update" line instead.
+- The usual-time filter chip is left for M4 with the other usual-time work; M2 ships skill and 2v2 chips.
+- Navigation to a player uses the URL `/community/player/<id>` (`communityPlayerHref`) because the generated typed routes list the dynamic screens as `…/[userId]/index`.
+- The account **Settings** tab has a **Player card** row that opens the editor.
+
 ### Tests (M2)
-- `player-card.test.tsx`: every tier/size, empty-stat dashes, accessibility label
-- `community-screen.test.tsx`: first-time gate, open status bar, filters
+- `components/community/player-card/player-card.test.tsx`: every tier/size, empty-stat dashes, Nairobi clock labels, accessibility label, card back
+- `components/community/community-screen.test.tsx`: first-time gate, open status bar + stop, segment and chip filters, card navigation
+- `src/server/community/card-stats.test.mjs` (in `pnpm test:community`): streaks across Nairobi week boundaries, dedupe of owner + participant rows, dashes for new players
+- Run with `cd playtt-mobile && npx jest components/community`. They use `playtt-mobile/test/reanimated-mock.js` because `react-native-reanimated/mock` does not load under jest-expo 58.
 
 ---
 
@@ -282,11 +293,11 @@ The web page `src/app/community/page.tsx` currently uses mock data. For this rel
 ## Build order checklist
 - [x] M1 schema + migration `0035_community.sql` + server module + routes + tests
 - [x] M1 contract update in `docs/contracts/mobile-api-v1.md`
-- [ ] M2 player card components + tests
-- [ ] M2 Community tab, Open to Play sheet, profile, connections, community profile editor
+- [x] M2 player card components + tests
+- [x] M2 Community tab, Open to Play sheet, profile, connections, community profile editor
 - [ ] M3 chat tables (`0036_community_chat.sql`), routes, notifications + preferences, mobile inbox + chat
 - [ ] M3 verify guest participant access/replay behavior before enabling **Add to booking**
 - [ ] M4 at-venue, Rally Partners, usual-time filters, kudos (`0037`), reliability + overrides, admin reports page
 - [ ] M5 groups/events, `match_players` + rating worker (`0038`), head-to-head, invites + landing page, card sharing
-- [ ] Remove `lib/mock/mock-community.ts` and legacy community components
+- [x] Remove `lib/mock/mock-community.ts` and legacy community components
 - [ ] `pnpm lint` + `pnpm test` (root) and `npm run lint` + `npm test` (`playtt-mobile/`) at the end of each milestone

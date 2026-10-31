@@ -38,6 +38,16 @@ export type CommunityRelationship = {
   canMessage: boolean
 }
 
+/** null = not enough data yet; the card shows a dash, never 0. */
+export type CommunityCardStats = {
+  matches: number | null
+  winRate: number | null
+  reliability: number | null
+  streakWeeks: number | null
+  kudos: number | null
+  hours: number | null
+}
+
 export type CommunityPlayer = {
   id: string
   displayName: string
@@ -50,6 +60,7 @@ export type CommunityPlayer = {
   foundingPlayer: boolean
   availability: CommunityAvailability | null
   relationship: CommunityRelationship
+  stats: CommunityCardStats
 }
 
 export type CommunityVenueRef = { id: string; name: string }
@@ -80,6 +91,7 @@ export type CommunityMe = {
   availability: CommunityAvailability | null
   homeVenue: CommunityVenueRef | null
   counts: CommunityCounts
+  stats: CommunityCardStats
 }
 
 export type CommunityProfilePatch = Partial<
@@ -106,4 +118,9 @@ export type CommunityPlayersFilters = {
 export type CommunityPlayerPage = {
   players: CommunityPlayer[]
   nextCursor: string | null
+}
+
+/** URL of a player's profile screen (app/(app)/community/player/[userId]). */
+export function communityPlayerHref(userId: string) {
+  return `/community/player/${encodeURIComponent(userId)}`
 }

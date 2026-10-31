@@ -3,6 +3,7 @@ import { useMemo } from "react"
 import { ScrollView, StyleSheet } from "react-native"
 import { Bell } from "phosphor-react-native/src/icons/Bell"
 import { FileText } from "phosphor-react-native/src/icons/FileText"
+import { IdentificationCard } from "phosphor-react-native/src/icons/IdentificationCard"
 import { Lifebuoy } from "phosphor-react-native/src/icons/Lifebuoy"
 import { Play } from "phosphor-react-native/src/icons/Play"
 
@@ -41,6 +42,13 @@ export function AccountSettingsPanel() {
           icon={<Bell size={20} color={iconColor} weight="regular" />}
           onPress={() => router.push("/(app)/account/notifications")}
           accessibilityHint="Choose which alerts PlayTT sends you"
+        />
+        <AccountGlassRow
+          title="Player card"
+          subtitle="Community profile and privacy"
+          icon={<IdentificationCard size={20} color={iconColor} weight="regular" />}
+          onPress={() => router.push("/(app)/account/community-profile")}
+          accessibilityHint="Edit what other players see in Community"
           isLast
         />
       </AccountGlassSection>

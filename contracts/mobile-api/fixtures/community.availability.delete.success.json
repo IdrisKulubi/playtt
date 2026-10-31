@@ -1,1 +1,53 @@
-{"contractVersion":1,"endpoint":"community.availability.delete","case":"success","request":{"headers":{"authorization":"Bearer <token>"}},"response":{"status":200,"body":{"data":{"me":{"id":"018f4d65-3c1a-7f1d-9d54-6f547f24a001","displayName":"Amani N.","image":null,"skillLevel":"intermediate","profile":{"communityVisible":true,"bio":"Looking for consistent rally partners.","playStyle":"attacker","handedness":"right","usualTimes":["weekday_evenings","sat_mornings"],"requestPolicy":"everyone","showAtVenue":false,"foundingPlayer":false},"availability":null,"homeVenue":{"id":"018f4d65-3c1a-7f1d-9d54-6f547f24b001","name":"PlayTT Parklands"},"counts":{"followers":4,"following":6}}}}}}
+{
+  "contractVersion": 1,
+  "endpoint": "community.availability.delete",
+  "case": "success",
+  "request": {
+    "headers": {
+      "authorization": "Bearer <token>"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": {
+        "me": {
+          "id": "018f4d65-3c1a-7f1d-9d54-6f547f24a001",
+          "displayName": "Amani N.",
+          "image": null,
+          "skillLevel": "intermediate",
+          "profile": {
+            "communityVisible": true,
+            "bio": "Looking for consistent rally partners.",
+            "playStyle": "attacker",
+            "handedness": "right",
+            "usualTimes": [
+              "weekday_evenings",
+              "sat_mornings"
+            ],
+            "requestPolicy": "everyone",
+            "showAtVenue": false,
+            "foundingPlayer": false
+          },
+          "availability": null,
+          "homeVenue": {
+            "id": "018f4d65-3c1a-7f1d-9d54-6f547f24b001",
+            "name": "PlayTT Parklands"
+          },
+          "counts": {
+            "followers": 4,
+            "following": 6
+          },
+          "stats": {
+            "matches": 42,
+            "winRate": null,
+            "reliability": null,
+            "streakWeeks": 3,
+            "kudos": null,
+            "hours": 31
+          }
+        }
+      }
+    }
+  }
+}

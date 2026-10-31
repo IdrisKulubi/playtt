@@ -112,3 +112,8 @@ The `community.*` endpoints (`/api/v1/community/...`) are documented in
 `player-not-found`, `community-profile-required`, `window-passed`,
 `cannot-target-self`, `rate-limited`, and `community-error` under
 `contracts/mobile-api/fixtures/errors/`.
+
+Every player object in these responses (including `me`) carries
+`stats: { matches, winRate, reliability, streakWeeks, kudos, hours }`.
+Each value is a number or `null`, where `null` means there is not enough data
+yet and the client shows a dash.

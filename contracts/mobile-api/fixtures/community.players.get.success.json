@@ -1,1 +1,63 @@
-{"contractVersion":1,"endpoint":"community.players.get","case":"success","request":{"headers":{"authorization":"Bearer <token>"},"query":{"status":"open"}},"response":{"status":200,"body":{"data":{"venue":{"id":"018f4d65-3c1a-7f1d-9d54-6f547f24b001","name":"PlayTT Parklands"},"players":[{"id":"018f4d65-3c1a-7f1d-9d54-6f547f24a002","displayName":"Amara K.","image":null,"skillLevel":"intermediate","playStyle":"all_round","handedness":"left","bio":"Prefer best-of-five sets.","usualTimes":["weekday_evenings"],"foundingPlayer":false,"availability":{"window":"now","startsAt":"2026-10-28T11:30:00.000Z","endsAt":"2026-10-28T13:30:00.000Z","note":null,"lookingForDoubles":false,"openNow":true},"relationship":{"following":true,"followsYou":false,"rallyPartner":false,"blockedByYou":false,"canMessage":true}}],"nextCursor":null}}}}
+{
+  "contractVersion": 1,
+  "endpoint": "community.players.get",
+  "case": "success",
+  "request": {
+    "headers": {
+      "authorization": "Bearer <token>"
+    },
+    "query": {
+      "status": "open"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": {
+        "venue": {
+          "id": "018f4d65-3c1a-7f1d-9d54-6f547f24b001",
+          "name": "PlayTT Parklands"
+        },
+        "players": [
+          {
+            "id": "018f4d65-3c1a-7f1d-9d54-6f547f24a002",
+            "displayName": "Amara K.",
+            "image": null,
+            "skillLevel": "intermediate",
+            "playStyle": "all_round",
+            "handedness": "left",
+            "bio": "Prefer best-of-five sets.",
+            "usualTimes": [
+              "weekday_evenings"
+            ],
+            "foundingPlayer": false,
+            "availability": {
+              "window": "now",
+              "startsAt": "2026-10-28T11:30:00.000Z",
+              "endsAt": "2026-10-28T13:30:00.000Z",
+              "note": null,
+              "lookingForDoubles": false,
+              "openNow": true
+            },
+            "relationship": {
+              "following": true,
+              "followsYou": false,
+              "rallyPartner": false,
+              "blockedByYou": false,
+              "canMessage": true
+            },
+            "stats": {
+              "matches": 42,
+              "winRate": null,
+              "reliability": null,
+              "streakWeeks": 3,
+              "kudos": null,
+              "hours": 31
+            }
+          }
+        ],
+        "nextCursor": null
+      }
+    }
+  }
+}

@@ -1,18 +1,27 @@
-import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import {
+  bookings,
   communityReports,
   follows,
   locations,
   playAvailability,
   playerProfiles,
+  playSessions,
+  sessionParticipants,
   user,
   userBlocks,
 } from "@/db/schema"
 import type { TenantContext } from "@/server/tenancy/types"
 
 import { isOpenNow, resolveAvailabilityWindow } from "./availability-window.ts"
+import {
+  EMPTY_CARD_STATS,
+  groupCardStats,
+  toCardStatWeeks,
+  type CardStats,
+} from "./card-stats.ts"
 import { COMMUNITY_LIMITS, type PlayAvailabilityWindow } from "./constants.ts"
 import { toCommunityDisplayName } from "./display-name.ts"
 import { CommunityError } from "./errors.ts"
@@ -217,7 +226,12 @@ type PlayerRow = {
   availability: AvailabilityRow | null
 }
 
-function serializePlayer(row: PlayerRow, facts: RelationshipFacts, now: Date) {
+function serializePlayer(
+  row: PlayerRow,
+  facts: RelationshipFacts,
+  now: Date,
+  stats: CardStats = EMPTY_CARD_STATS,
+) {
   const profile = serializeProfile(row.profile)
   return {
     id: row.id,
@@ -231,7 +245,55 @@ function serializePlayer(row: PlayerRow, facts: RelationshipFacts, now: Date) {
     foundingPlayer: profile.foundingPlayer,
     availability: serializeAvailability(row.availability, now),
     relationship: serializeRelationship(facts),
+    stats,
   }
+}
+
+// A session counts once it is completed, or confirmed and already over.
+function playedBooking(now: Date) {
+  return or(
+    eq(bookings.status, "completed"),
+    and(eq(bookings.status, "confirmed"), lte(bookings.endTime, now)),
+  )
+}
+
+async function loadCardStats(context: TenantContext, userIds: string[], now: Date) {
+  if (userIds.length === 0) {
+    return new Map<string, CardStats>()
+  }
+
+  const columns = {
+    bookingId: bookings.id,
+    startTime: bookings.startTime,
+    durationMinutes: bookings.durationMinutes,
+  }
+
+  const [owned, joined] = await Promise.all([
+    db
+      .select({ userId: bookings.userId, ...columns })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.tenantId, context.tenantId),
+          inArray(bookings.userId, userIds),
+          playedBooking(now),
+        ),
+      ),
+    db
+      .select({ userId: sessionParticipants.userId, ...columns })
+      .from(sessionParticipants)
+      .innerJoin(playSessions, eq(playSessions.id, sessionParticipants.playSessionId))
+      .innerJoin(bookings, eq(bookings.id, playSessions.bookingId))
+      .where(
+        and(
+          eq(sessionParticipants.tenantId, context.tenantId),
+          inArray(sessionParticipants.userId, userIds),
+          playedBooking(now),
+        ),
+      ),
+  ])
+
+  return groupCardStats(userIds, toCardStatWeeks([...owned, ...joined]), now)
 }
 
 // SQL fragment: true when either user has blocked the other.
@@ -304,7 +366,7 @@ async function countConnections(userId: string) {
 
 export async function getMyCommunity(context: TenantContext, userId: string) {
   const now = new Date()
-  const [[me], profile, availability, homeVenue, counts] = await Promise.all([
+  const [[me], profile, availability, homeVenue, counts, stats] = await Promise.all([
     db
       .select({ id: user.id, name: user.name, image: user.image, skillLevel: user.skillLevel })
       .from(user)
@@ -314,6 +376,7 @@ export async function getMyCommunity(context: TenantContext, userId: string) {
     getActiveAvailability(userId, now),
     resolveHomeVenue(context, userId),
     countConnections(userId),
+    loadCardStats(context, [userId], now),
   ])
 
   if (!me) {
@@ -329,6 +392,7 @@ export async function getMyCommunity(context: TenantContext, userId: string) {
     availability: serializeAvailability(availability, now),
     homeVenue: homeVenue ? { id: homeVenue.id, name: homeVenue.name } : null,
     counts,
+    stats: stats.get(userId) ?? EMPTY_CARD_STATS,
   }
 }
 
@@ -483,11 +547,17 @@ export async function listCommunityPlayers(
     .offset(offset)
 
   const page = rows.slice(0, pageSize)
-  const maps = await loadRelationships(viewerId, page.map((row) => row.id))
+  const ids = page.map((row) => row.id)
+  const [maps, stats] = await Promise.all([
+    loadRelationships(viewerId, ids),
+    loadCardStats(context, ids, now),
+  ])
 
   return {
     venue: { id: venue.id, name: venue.name },
-    players: page.map((row) => serializePlayer(row, factsFor(viewerId, row, maps), now)),
+    players: page.map((row) =>
+      serializePlayer(row, factsFor(viewerId, row, maps), now, stats.get(row.id)),
+    ),
     nextCursor: rows.length > pageSize ? encodeCursor(offset + pageSize) : null,
   }
 }
@@ -531,14 +601,15 @@ async function requireVisiblePlayer(context: TenantContext, viewerId: string, ta
 
 export async function getCommunityPlayer(context: TenantContext, viewerId: string, targetId: string) {
   const { row, facts, now } = await requireVisiblePlayer(context, viewerId, targetId)
-  const [counts, homeVenue] = await Promise.all([
+  const [counts, homeVenue, stats] = await Promise.all([
     countConnections(row.id),
     resolveHomeVenue(context, row.id),
+    loadCardStats(context, [row.id], now),
   ])
 
   return {
     player: {
-      ...serializePlayer(row, facts, now),
+      ...serializePlayer(row, facts, now, stats.get(row.id)),
       homeVenue: homeVenue ? { id: homeVenue.id, name: homeVenue.name } : null,
       counts,
     },
@@ -617,10 +688,16 @@ export async function listConnections(
     .offset(offset)
 
   const page = rows.slice(0, pageSize)
-  const maps = await loadRelationships(viewerId, page.map((row) => row.id))
+  const ids = page.map((row) => row.id)
+  const [maps, stats] = await Promise.all([
+    loadRelationships(viewerId, ids),
+    loadCardStats(context, ids, now),
+  ])
 
   return {
-    players: page.map((row) => serializePlayer(row, factsFor(viewerId, row, maps), now)),
+    players: page.map((row) =>
+      serializePlayer(row, factsFor(viewerId, row, maps), now, stats.get(row.id)),
+    ),
     nextCursor: rows.length > pageSize ? encodeCursor(offset + pageSize) : null,
   }
 }
