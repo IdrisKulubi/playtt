@@ -60,7 +60,12 @@ function isVisibleTab(routeName: string): routeName is (typeof VISIBLE_TAB_NAMES
   return (VISIBLE_TAB_NAMES as readonly string[]).includes(routeName)
 }
 
-export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+export function GlassTabBar({
+  state,
+  descriptors,
+  emitter,
+  navigateToTab,
+}: BottomTabBarProps) {
   const insets = useSafeAreaInsets()
   const colorScheme = resolveColorScheme(useColorScheme())
   const nativeGlass = useNativeTabBarGlass()
@@ -144,32 +149,32 @@ export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProp
   const bottomPadding = Math.max(insets.bottom, PlayTTSpacing.sm)
 
   const handleTabPress = useCallback(
-    (routeKey: string, routeName: string, routeParams: object | undefined, isFocused: boolean) => {
+    (routeKey: string, isFocused: boolean) => {
       if (process.env.EXPO_OS === "ios") {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
       }
 
-      const event = navigation.emit({
+      const event = emitter.emit({
         type: "tabPress",
         target: routeKey,
         canPreventDefault: true,
       })
 
       if (!isFocused && !event.defaultPrevented) {
-        navigation.navigate(routeName, routeParams)
+        navigateToTab(routeKey)
       }
     },
-    [navigation],
+    [emitter, navigateToTab],
   )
 
   const handleTabLongPress = useCallback(
     (routeKey: string) => {
-      navigation.emit({
+      emitter.emit({
         type: "tabLongPress",
         target: routeKey,
       })
     },
-    [navigation],
+    [emitter],
   )
 
   return (
@@ -195,7 +200,7 @@ export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProp
                 accessibilityState={isFocused ? { selected: true } : {}}
                 accessibilityLabel={label}
                 onPress={() =>
-                  handleTabPress(route.key, route.name, route.params, isFocused)
+                  handleTabPress(route.key, isFocused)
                 }
                 onLongPress={() => handleTabLongPress(route.key)}
                 style={styles.tab}
@@ -215,8 +220,6 @@ export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProp
                   <Text
                     style={[styles.label, { color: labelColor }]}
                     numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.85}
                   >
                     {label}
                   </Text>
