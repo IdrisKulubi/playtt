@@ -112,6 +112,9 @@
     },
     "0036_community_chat": {
       "sha256": "5ce0dcf6aa6a79d37665a43b62c4104044cedb26924a00c4124a474ec6cb34b8"
+    },
+    "0037_community_social": {
+      "sha256": "b89a45de60e14e5a60837d75d43418387628016f35bfa24ea8750f2b00822860"
     }
   },
   "acknowledgedMetadataDrift": [],

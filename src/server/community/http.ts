@@ -14,6 +14,8 @@ import {
   COMMUNITY_REPORT_REASONS,
   COMMUNITY_REQUEST_POLICIES,
   CONVERSATION_FOLDERS,
+  KUDOS_TYPES,
+  SOCIAL_LIMITS,
   PLAY_AVAILABILITY_WINDOWS,
   SENDABLE_MESSAGE_KINDS,
   USUAL_TIME_KEYS,
@@ -76,6 +78,7 @@ export const communityPlayersQuerySchema = z.object({
   skill: z.enum(["beginner", "intermediate", "pro"]).optional(),
   doubles: booleanParam,
   following: booleanParam,
+  usualTime: z.enum(USUAL_TIME_KEYS).optional(),
   cursor: z.string().max(64).optional(),
 })
 
@@ -237,3 +240,16 @@ function parseWith<T extends z.ZodTypeAny>(
 
   return { ok: true, data: parsed.data }
 }
+
+// --- Social loop (M4) ---
+
+export const communityJoinBookingSchema = z
+  .object({ conversationId: z.string().uuid() })
+  .strict()
+
+export const communityKudosSchema = z
+  .object({
+    receiverId: z.string().min(1).max(128),
+    types: z.array(z.enum(KUDOS_TYPES)).min(1).max(SOCIAL_LIMITS.maxKudosTypesPerMatch),
+  })
+  .strict()

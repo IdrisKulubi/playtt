@@ -76,6 +76,29 @@ export function CardStatusRibbon({ ribbon, tokens, compact = false, animate }: C
   )
 }
 
+/** "AT PARKLANDS" chip with a soft pulse, for players at the venue right now. */
+export function AtVenueChip({
+  venueName,
+  tokens,
+  compact = false,
+  animate,
+}: {
+  venueName: string
+  tokens: CardTierTokens
+  compact?: boolean
+  animate: boolean
+}) {
+  const label = `AT ${venueName.replace(/^PlayTT\s+/i, "").toUpperCase()}`
+  return (
+    <View style={[styles.chip, { borderColor: OPEN_NOW_GREEN, backgroundColor: "rgba(46, 232, 122, 0.10)" }]}>
+      <PulseDot color={OPEN_NOW_GREEN} animate={animate} size={6} />
+      <Text numberOfLines={1} style={[styles.label, compact && styles.labelCompact, { color: tokens.text }]}>
+        {label}
+      </Text>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   row: {
     flexDirection: "row",

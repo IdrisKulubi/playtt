@@ -509,6 +509,72 @@
       "successFixture": "fixtures/community.unread.get.success.json",
       "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/community-error.json"],
       "notes": ["Community chat M3 (docs/community/README.md). Blocks, hidden profiles and request policies all return the same neutral errors."]
+    },
+    {
+      "id": "community.at-venue.get",
+      "method": "GET",
+      "pathTemplate": "/api/v1/community/at-venue",
+      "routeFile": "src/app/api/v1/community/at-venue/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.at-venue.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community social loop M4 (docs/community/README.md). Joining is capped by the booking's group size; guests get no door code."]
+    },
+    {
+      "id": "community.rally-partners.get",
+      "method": "GET",
+      "pathTemplate": "/api/v1/community/rally-partners",
+      "routeFile": "src/app/api/v1/community/rally-partners/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.rally-partners.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community social loop M4 (docs/community/README.md). Joining is capped by the booking's group size; guests get no door code."]
+    },
+    {
+      "id": "community.bookings.get",
+      "method": "GET",
+      "pathTemplate": "/api/v1/community/bookings",
+      "routeFile": "src/app/api/v1/community/bookings/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.bookings.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community social loop M4 (docs/community/README.md). Joining is capped by the booking's group size; guests get no door code."]
+    },
+    {
+      "id": "community.booking.join.post",
+      "method": "POST",
+      "pathTemplate": "/api/v1/community/bookings/{bookingId}/join",
+      "routeFile": "src/app/api/v1/community/bookings/[bookingId]/join/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.booking.join.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/conversation-not-found.json", "fixtures/errors/booking-full.json", "fixtures/errors/booking-not-joinable.json", "fixtures/errors/community-muted.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community social loop M4 (docs/community/README.md). Joining is capped by the booking's group size; guests get no door code."]
+    },
+    {
+      "id": "community.booking.join.delete",
+      "method": "DELETE",
+      "pathTemplate": "/api/v1/community/bookings/{bookingId}/join",
+      "routeFile": "src/app/api/v1/community/bookings/[bookingId]/join/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.booking.join.delete.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/booking-not-joinable.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community social loop M4 (docs/community/README.md). Joining is capped by the booking's group size; guests get no door code."]
+    },
+    {
+      "id": "community.booking.kudos.post",
+      "method": "POST",
+      "pathTemplate": "/api/v1/community/bookings/{bookingId}/kudos",
+      "routeFile": "src/app/api/v1/community/bookings/[bookingId]/kudos/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.booking.kudos.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/booking-not-joinable.json", "fixtures/errors/kudos-not-allowed.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community social loop M4 (docs/community/README.md). Joining is capped by the booking's group size; guests get no door code."]
     }
   ],
   "producerConsumerDrift": [

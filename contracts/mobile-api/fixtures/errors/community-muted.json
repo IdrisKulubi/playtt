@@ -1,0 +1,13 @@
+{
+  "contractVersion": 1,
+  "endpoint": "*",
+  "case": "community-muted",
+  "request": {},
+  "response": {
+    "status": 403,
+    "body": {
+      "code": "COMMUNITY_MUTED",
+      "message": "Your Community access is paused for now. Contact PlayTT support if you think this is a mistake."
+    }
+  }
+}

@@ -61,6 +61,8 @@ export type CommunityPlayer = {
   availability: CommunityAvailability | null
   relationship: CommunityRelationship
   stats: CommunityCardStats
+  /** Earned badge keys, e.g. "rally_ace", "reliable" (see KUDOS_BADGE_LABELS). */
+  badges: string[]
 }
 
 export type CommunityVenueRef = { id: string; name: string }
@@ -69,6 +71,8 @@ export type CommunityCounts = { followers: number; following: number }
 export type CommunityPlayerDetail = CommunityPlayer & {
   homeVenue: CommunityVenueRef | null
   counts: CommunityCounts
+  /** Top 3 kudos types received. */
+  kudos: KudosCount[]
 }
 
 export type CommunityProfile = {
@@ -92,6 +96,8 @@ export type CommunityMe = {
   homeVenue: CommunityVenueRef | null
   counts: CommunityCounts
   stats: CommunityCardStats
+  badges: string[]
+  kudos: KudosCount[]
 }
 
 export type CommunityProfilePatch = Partial<
@@ -112,6 +118,7 @@ export type CommunityPlayersFilters = {
   skill?: CommunitySkillLevel
   doubles?: boolean
   following?: boolean
+  usualTime?: UsualTimeKey
   cursor?: string
 }
 
@@ -187,4 +194,61 @@ export type SendMessageInput =
 
 export function communityChatHref(conversationId: string) {
   return `/community/chat/${encodeURIComponent(conversationId)}`
+}
+
+// --- Social loop (M4) — mirrors src/server/community/social-service.ts ---
+
+export const KUDOS_TYPES = [
+  "great_rallies",
+  "fair_play",
+  "on_time",
+  "fun_to_play",
+  "great_serve",
+  "good_coach",
+] as const
+
+export type KudosType = (typeof KUDOS_TYPES)[number]
+export type KudosCount = { type: KudosType; count: number }
+
+export const KUDOS_LABELS: Record<KudosType, string> = {
+  great_rallies: "Great rallies",
+  fair_play: "Fair play",
+  on_time: "On time",
+  fun_to_play: "Fun to play",
+  great_serve: "Great serve",
+  good_coach: "Good coach",
+}
+
+export const KUDOS_EMOJI: Record<KudosType, string> = {
+  great_rallies: "🏓",
+  fair_play: "🤝",
+  on_time: "⏱️",
+  fun_to_play: "😄",
+  great_serve: "🎯",
+  good_coach: "🧠",
+}
+
+export const MAX_KUDOS_PER_MATCH = 3
+export const PLAY_AGAIN_PREFILL = "Rematch? 🏓"
+
+export type CommunitySharedBooking = {
+  bookingId: string
+  role: "owner" | "guest"
+  hostId: string
+  conversationId: string | null
+  startsAt: string
+  endsAt: string
+  resourceName: string
+  locationName: string
+  phase: "upcoming" | "live" | "ended"
+  kudosOpen: boolean
+  partners: CommunityPlayer[]
+  /** Kudos I already gave on this booking, by receiver id. */
+  kudosGiven: Record<string, KudosType[]>
+}
+
+export type CommunityAtVenue = {
+  venue: CommunityVenueRef
+  count: number
+  players: CommunityPlayer[]
 }

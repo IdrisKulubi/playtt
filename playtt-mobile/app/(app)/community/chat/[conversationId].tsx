@@ -16,6 +16,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { ChatActionsSheet } from "@/components/community/chat/chat-actions-sheet"
 import { ChatComposer } from "@/components/community/chat/chat-composer"
+import { KudosSheet } from "@/components/community/chat/kudos-sheet"
 import { ChatMessageBubble } from "@/components/community/chat/chat-message-bubble"
 import { IncomingRequestBanner, PendingRequestNote } from "@/components/community/chat/chat-request-banner"
 import { PlayerCard } from "@/components/community/player-card/player-card"
@@ -24,11 +25,12 @@ import { ScreenBackButton } from "@/components/navigation/screen-back-button"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useCommunityChat } from "@/hooks/use-community-chat"
+import { useSharedBookings } from "@/hooks/use-shared-bookings"
 import { useProductTheme } from "@/hooks/use-product-theme"
-import { blockPlayer } from "@/lib/community-api"
+import { blockPlayer, joinSharedBooking, leaveSharedBooking } from "@/lib/community-api"
 import { acceptConversation, leaveConversation } from "@/lib/community-chat-api"
-import { chatRows, seenSeq, type ChatItem } from "@/lib/community-chat-merge"
-import { communityPlayerHref } from "@/lib/community-types"
+import { chatRows, isBookingCard, seenSeq, type ChatItem } from "@/lib/community-chat-merge"
+import { PLAY_AGAIN_PREFILL, communityPlayerHref } from "@/lib/community-types"
 import { toast } from "@/lib/toast"
 
 export default function CommunityChatScreen() {
@@ -41,12 +43,59 @@ export default function CommunityChatScreen() {
   const [actionsOpen, setActionsOpen] = useState(false)
   const [report, setReport] = useState<{ key: number; messageId?: string } | null>(null)
   const [busy, setBusy] = useState(false)
+  const [kudos, setKudos] = useState<{ key: number; bookingId: string } | null>(null)
+  const shared = useSharedBookings()
 
   const conversation = chat.conversation
   const player = conversation?.player
   const name = player?.displayName ?? "this player"
   const seen = seenSeq(chat.items, chat.otherLastReadSeq)
   const rows = useMemo(() => chatRows(chat.items), [chat.items])
+
+  function bookingJoinState(card: { bookingId: string; startsAt: string }): "can_join" | "joined" | null {
+    const entry = shared.bookings.find((booking) => booking.bookingId === card.bookingId)
+    if (entry?.role === "guest") return entry.phase === "upcoming" ? "joined" : null
+    // Hosts and games that already started get no button; the server checks again.
+    if (entry || new Date(card.startsAt) <= new Date()) return null
+    return "can_join"
+  }
+
+  async function joinBooking(bookingId: string) {
+    try {
+      shared.setBookings(await joinSharedBooking(bookingId, conversationId))
+      toast.success("You're in. See you on the table 🏓")
+      await chat.reload()
+    } catch (error) {
+      toast.apiError(error, "Could not join this booking.")
+    }
+  }
+
+  function confirmLeave(bookingId: string) {
+    Alert.alert("Can't make it?", `${name} will be told. Pulling out less than 2 hours before the start lowers your reliability.`, [
+      { text: "Keep my spot", style: "cancel" },
+      {
+        text: "I can't make it",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            shared.setBookings(await leaveSharedBooking(bookingId))
+            await chat.reload()
+          } catch (error) {
+            toast.apiError(error, "Could not update this booking.")
+          }
+        },
+      },
+    ])
+  }
+
+  function openKudos(bookingId: string) {
+    const entry = shared.bookings.find((booking) => booking.bookingId === bookingId)
+    if (!entry) {
+      toast.info("Kudos are for games you played together through Community.")
+      return
+    }
+    setKudos({ key: Date.now(), bookingId })
+  }
 
   function sendText() {
     const body = draft.trim()
@@ -228,6 +277,15 @@ export default function CommunityChatScreen() {
                   onOpenBooking={(bookingId) =>
                     router.push({ pathname: "/(app)/booking/[id]", params: { id: bookingId } })
                   }
+                  joinState={
+                    row.item.kind === "booking_card" && !row.item.mine && isBookingCard(row.item.payload)
+                      ? bookingJoinState(row.item.payload)
+                      : null
+                  }
+                  onJoin={(bookingId) => void joinBooking(bookingId)}
+                  onLeave={confirmLeave}
+                  onGiveKudos={openKudos}
+                  onPlayAgain={() => setDraft(PLAY_AGAIN_PREFILL)}
                 />
               )
             }
@@ -282,6 +340,23 @@ export default function CommunityChatScreen() {
           chat.send({ kind: "booking_card", bookingId }, { body: "Sharing a booking…" })
         }}
       />
+
+      {player && kudos
+        ? (() => {
+            const entry = shared.bookings.find((booking) => booking.bookingId === kudos.bookingId)
+            return entry ? (
+              <KudosSheet
+                key={kudos.key}
+                visible
+                booking={entry}
+                receiverId={player.id}
+                receiverName={name}
+                onClose={() => setKudos(null)}
+                onGiven={shared.setBookings}
+              />
+            ) : null
+          })()
+        : null}
 
       {player && report ? (
         <ReportPlayerSheet

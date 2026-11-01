@@ -1,0 +1,52 @@
+{
+  "contractVersion": 1,
+  "endpoint": "community.rally-partners.get",
+  "case": "success",
+  "request": {
+    "headers": {
+      "authorization": "Bearer <token>"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": {
+        "players": [
+          {
+            "id": "018f4d65-3c1a-7f1d-9d54-6f547f24a002",
+            "displayName": "Amara K.",
+            "image": null,
+            "skillLevel": "intermediate",
+            "playStyle": "all_round",
+            "handedness": "left",
+            "bio": "Prefer best-of-five sets.",
+            "usualTimes": [
+              "weekday_evenings"
+            ],
+            "foundingPlayer": true,
+            "availability": null,
+            "relationship": {
+              "following": true,
+              "followsYou": true,
+              "rallyPartner": true,
+              "blockedByYou": false,
+              "canMessage": true
+            },
+            "stats": {
+              "matches": 18,
+              "winRate": null,
+              "reliability": 94,
+              "streakWeeks": 5,
+              "kudos": 12,
+              "hours": 21
+            },
+            "badges": [
+              "rally_ace",
+              "reliable"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

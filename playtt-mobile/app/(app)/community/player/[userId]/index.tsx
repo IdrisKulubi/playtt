@@ -7,15 +7,27 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { CommunityScreenHeader } from "@/components/community/community-screen-header"
 import { availabilitySummary } from "@/components/community/open-status-bar"
 import { PlayerCard } from "@/components/community/player-card/player-card"
+import { USUAL_TIME_LABELS, sharedUsualTimes } from "@/components/community/player-card/card-tiers"
 import { ReportPlayerSheet } from "@/components/community/report-player-sheet"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { Button } from "@/components/ui/button"
-import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
+import { PlayTTColors, PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useProductTheme } from "@/hooks/use-product-theme"
 import { isApiError } from "@/lib/api-error"
-import { blockPlayer, fetchCommunityPlayer, followPlayer, unfollowPlayer } from "@/lib/community-api"
+import {
+  blockPlayer,
+  fetchCommunityMe,
+  fetchCommunityPlayer,
+  followPlayer,
+  unfollowPlayer,
+} from "@/lib/community-api"
 import { startConversation } from "@/lib/community-chat-api"
-import { communityChatHref, communityPlayerHref, type CommunityPlayerDetail } from "@/lib/community-types"
+import {
+  communityChatHref,
+  communityPlayerHref,
+  type CommunityPlayerDetail,
+  type UsualTimeKey,
+} from "@/lib/community-types"
 import { toast } from "@/lib/toast"
 
 export default function CommunityPlayerScreen() {
@@ -26,12 +38,18 @@ export default function CommunityPlayerScreen() {
   const [missing, setMissing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [starting, setStarting] = useState(false)
+  const [myUsualTimes, setMyUsualTimes] = useState<UsualTimeKey[]>([])
   const [reportOpen, setReportOpen] = useState(false)
   const [reportKey, setReportKey] = useState(0)
 
   const load = useCallback(async () => {
     try {
-      setPlayer(await fetchCommunityPlayer(userId))
+      const [next, me] = await Promise.all([
+        fetchCommunityPlayer(userId),
+        fetchCommunityMe().catch(() => null),
+      ])
+      setPlayer(next)
+      if (me) setMyUsualTimes(me.profile.usualTimes)
       setMissing(false)
     } catch (error) {
       if (isApiError(error) && error.status === 404) {
@@ -132,6 +150,12 @@ export default function CommunityPlayerScreen() {
         count: { alignItems: "center" },
         countValue: { fontFamily: PlayTTFontFamilies.bold, fontSize: 20, color: theme.foreground },
         countLabel: { fontFamily: PlayTTFontFamilies.regular, fontSize: 13, color: theme.muted },
+        matchHint: {
+          fontFamily: PlayTTFontFamilies.semiBold,
+          fontSize: 14,
+          color: PlayTTColors.primary,
+          textAlign: "center",
+        },
         followsYou: { fontFamily: PlayTTFontFamilies.medium, fontSize: 13, color: theme.muted, textAlign: "center" },
         hint: { fontFamily: PlayTTFontFamilies.regular, fontSize: 13, color: theme.muted, textAlign: "center", lineHeight: 18 },
         missing: { flex: 1, alignItems: "center", justifyContent: "center", gap: PlayTTSpacing.sm, padding: PlayTTSpacing.lg },
@@ -182,6 +206,10 @@ export default function CommunityPlayerScreen() {
             </Pressable>
           </View>
 
+          {matchHint(myUsualTimes, player.usualTimes) ? (
+            <Text style={styles.matchHint}>{matchHint(myUsualTimes, player.usualTimes)}</Text>
+          ) : null}
+
           {player.relationship.followsYou ? (
             <Text style={styles.followsYou}>
               {player.relationship.rallyPartner ? "Rally partner · you follow each other" : "Follows you"}
@@ -228,4 +256,12 @@ export default function CommunityPlayerScreen() {
       ) : null}
     </SafeAreaView>
   )
+}
+
+/** "Also free on weekday evenings" when both players usually play then. */
+function matchHint(mine: UsualTimeKey[], theirs: UsualTimeKey[]) {
+  const shared = sharedUsualTimes(mine, theirs).map((key) => USUAL_TIME_LABELS[key].toLowerCase())
+  if (shared.length === 0) return null
+  const list = shared.length > 1 ? `${shared.slice(0, -1).join(", ")} and ${shared.at(-1)}` : shared[0]
+  return `You both usually play ${list}`
 }

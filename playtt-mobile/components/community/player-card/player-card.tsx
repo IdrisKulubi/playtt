@@ -30,7 +30,7 @@ import { CardBackground } from "./card-background"
 import { CardBadges } from "./card-badges"
 import { CardShine, FoundingStamp } from "./card-foil"
 import { CardStatGrid } from "./card-stat-grid"
-import { CardStatusRibbon, PulseDot } from "./card-status-ribbon"
+import { AtVenueChip, CardStatusRibbon, PulseDot } from "./card-status-ribbon"
 import {
   COMPACT_STAT_KEYS,
   OPEN_NOW_GREEN,
@@ -223,6 +223,9 @@ function CardFront({
         </View>
         <View style={styles.ribbonSlot}>
           {ribbon ? <CardStatusRibbon ribbon={ribbon} tokens={tokens} compact={compact} animate={animate} /> : null}
+          {player.atVenueName ? (
+            <AtVenueChip venueName={player.atVenueName} tokens={tokens} compact={compact} animate={animate} />
+          ) : null}
           {!compact && variant === "founding" ? <FoundingStamp tokens={tokens} /> : null}
         </View>
       </View>

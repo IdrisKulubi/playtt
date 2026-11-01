@@ -10,6 +10,8 @@ import { after } from "next/server"
 
 import db from "@/db/drizzle"
 import {
+  bookings,
+  communityBookingPartners,
   communityConversationMembers,
   communityMessages,
   follows,
@@ -27,12 +29,16 @@ import {
   messagePushDeduplicationKey,
   pushPreview,
 } from "./chat-rules.ts"
+import { findDirectConversationId, hasKudosPrompt, insertServerMessage } from "./chat-messages.ts"
+import { KUDOS_LABELS, type KudosType } from "./constants.ts"
 import { toCommunityDisplayName } from "./display-name.ts"
 
 export type CommunityNotificationEvent =
   | { kind: "message"; conversationId: string; messageId: string; senderId: string }
   | { kind: "follow"; followerId: string; followeeId: string }
   | { kind: "followee_open"; userId: string; availabilityId: string }
+  | { kind: "kudos"; bookingId: string; giverId: string; receiverId: string; types: KudosType[] }
+  | { kind: "post_match"; bookingId: string }
 
 type Executor = Parameters<typeof enqueueOutboxEvent>[1]
 
@@ -48,6 +54,14 @@ function eventIdentity(event: CommunityNotificationEvent) {
       }
     case "followee_open":
       return { aggregateType: "play_availability", aggregateId: event.availabilityId, key: event.availabilityId }
+    case "kudos":
+      return {
+        aggregateType: "community_kudos",
+        aggregateId: event.bookingId,
+        key: `${event.bookingId}:${event.giverId}:${event.receiverId}:${[...event.types].sort().join(",")}`,
+      }
+    case "post_match":
+      return { aggregateType: "booking", aggregateId: event.bookingId, key: event.bookingId }
   }
 }
 
@@ -270,6 +284,83 @@ async function deliverFolloweeOpen(
   return { delivered: true }
 }
 
+async function deliverKudos(tenantId: string, event: Extract<CommunityNotificationEvent, { kind: "kudos" }>) {
+  if (await isBlockedEitherWay(event.giverId, event.receiverId)) return { skipped: true }
+
+  const name = await displayNameOf(event.giverId)
+  const labels = event.types.map((type) => KUDOS_LABELS[type])
+  const list = labels.length > 1 ? `${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}` : labels[0]
+  const conversationId = await findDirectConversationId(tenantId, event.giverId, event.receiverId)
+
+  return queueAndDeliverPushNotification({
+    tenantId,
+    userId: event.receiverId,
+    templateKey: "community_kudos",
+    deduplicationKey: `community-kudos:${event.bookingId}:${event.giverId}:${event.receiverId}`,
+    payload: { bookingId: event.bookingId, giverId: event.giverId, types: event.types },
+    copy: { title: "You got kudos 🏓", body: `${name} gave you ${list}` },
+    data: conversationId ? { conversationId } : { playerId: event.giverId },
+  })
+}
+
+/**
+ * After a shared booking's session completes: a kudos prompt in each pair's
+ * chat and one "How was your match?" push per player.
+ */
+async function deliverPostMatch(tenantId: string, event: Extract<CommunityNotificationEvent, { kind: "post_match" }>) {
+  const partners = await db
+    .select({ userId: communityBookingPartners.userId, name: user.name })
+    .from(communityBookingPartners)
+    .innerJoin(bookings, eq(bookings.id, communityBookingPartners.bookingId))
+    .innerJoin(user, eq(user.id, communityBookingPartners.userId))
+    .where(
+      and(
+        eq(communityBookingPartners.tenantId, tenantId),
+        eq(communityBookingPartners.bookingId, event.bookingId),
+        sql`${communityBookingPartners.leftAt} is null`,
+        ne(bookings.status, "cancelled"),
+      ),
+    )
+
+  if (partners.length < 2) return { skipped: true }
+
+  for (const player of partners) {
+    const others = partners.filter((other) => other.userId !== player.userId)
+    let conversationId: string | null = null
+
+    for (const other of others) {
+      const id = await findDirectConversationId(tenantId, player.userId, other.userId)
+      if (!id) continue
+      conversationId ??= id
+      // One prompt per chat; the second player's loop finds it already there.
+      if (!(await hasKudosPrompt(id, event.bookingId))) {
+        await insertServerMessage(db, {
+          tenantId,
+          conversationId: id,
+          kind: "kudos_prompt",
+          body: "How was your match? Give kudos or play again.",
+          payload: { bookingId: event.bookingId },
+        })
+      }
+    }
+
+    const otherName =
+      others.length === 1 ? toCommunityDisplayName(others[0].name) : "your partners"
+    await queueAndDeliverPushNotification({
+      tenantId,
+      userId: player.userId,
+      bookingId: event.bookingId,
+      templateKey: "community_play_again",
+      deduplicationKey: `community-play-again:${event.bookingId}:${player.userId}`,
+      payload: { bookingId: event.bookingId },
+      copy: { title: `How was your match with ${otherName}?`, body: "Give kudos · Play again" },
+      data: conversationId ? { conversationId } : {},
+    })
+  }
+
+  return { delivered: true }
+}
+
 export async function deliverCommunityNotification(tenantId: string, event: CommunityNotificationEvent) {
   switch (event.kind) {
     case "message":
@@ -278,6 +369,10 @@ export async function deliverCommunityNotification(tenantId: string, event: Comm
       return deliverFollow(tenantId, event)
     case "followee_open":
       return deliverFolloweeOpen(tenantId, event)
+    case "kudos":
+      return deliverKudos(tenantId, event)
+    case "post_match":
+      return deliverPostMatch(tenantId, event)
   }
 }
 

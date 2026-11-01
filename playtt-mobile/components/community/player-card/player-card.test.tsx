@@ -8,6 +8,7 @@ import {
   formatNairobiClock,
   formatStat,
   playerCardAccessibilityLabel,
+  sharedUsualTimes,
   statusRibbon,
   tierForSkill,
 } from "./card-tiers"
@@ -24,6 +25,8 @@ jest.mock("expo-image", () => ({ Image: () => null }))
 jest.mock("phosphor-react-native/src/icons/Fire", () => ({ Fire: () => null }))
 jest.mock("phosphor-react-native/src/icons/Handshake", () => ({ Handshake: () => null }))
 jest.mock("phosphor-react-native/src/icons/Medal", () => ({ Medal: () => null }))
+jest.mock("phosphor-react-native/src/icons/Star", () => ({ Star: () => null }))
+jest.mock("phosphor-react-native/src/icons/CheckCircle", () => ({ CheckCircle: () => null }))
 
 const NO_STATS = {
   matches: null,
@@ -54,6 +57,7 @@ function player(overrides: Partial<CommunityPlayer> = {}): CommunityPlayer {
       canMessage: true,
     },
     stats: { ...NO_STATS, matches: 42, winRate: 61, hours: 31 },
+    badges: [],
     ...overrides,
   }
 }
@@ -134,4 +138,35 @@ test("flippable full card renders the back with bio and usual times", async () =
   expect(screen.getByText("Loopy forehand")).toBeTruthy()
   expect(screen.getByText("Weekday evenings")).toBeTruthy()
   expect(screen.getByLabelText(/Amara K\./).props.accessibilityHint).toBe("Flips the card")
+})
+
+test("server badges show on the full card, most important first", async () => {
+  const screen = await render(
+    <PlayerCard player={player({ badges: ["rally_ace", "reliable"], foundingPlayer: true })} size="full" />,
+  )
+  expect(screen.getByText("Rally ace")).toBeTruthy()
+  expect(screen.getByText("Reliable")).toBeTruthy()
+  expect(screen.getByText("Founding player")).toBeTruthy()
+})
+
+test("players at the venue get an AT PARKLANDS chip and say so to screen readers", async () => {
+  const screen = await render(
+    <PlayerCard player={{ ...player(), atVenueName: "PlayTT Parklands" }} size="compact" />,
+  )
+  expect(screen.getByText("AT PARKLANDS")).toBeTruthy()
+  expect(screen.getByLabelText(/at PlayTT Parklands now/)).toBeTruthy()
+})
+
+test("the card back lists top kudos", async () => {
+  const screen = await render(
+    <PlayerCard player={{ ...player(), kudos: [{ type: "great_rallies", count: 7 }] }} size="full" flippable />,
+  )
+  expect(screen.getByText(/Great rallies · 7/)).toBeTruthy()
+})
+
+test("shared usual times keep the other player's order", () => {
+  expect(sharedUsualTimes(["sat_mornings", "weekday_evenings"], ["weekday_evenings", "late_night", "sat_mornings"])).toEqual([
+    "weekday_evenings",
+    "sat_mornings",
+  ])
 })

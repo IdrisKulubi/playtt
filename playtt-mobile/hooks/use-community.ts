@@ -1,13 +1,15 @@
 import { useFocusEffect } from "expo-router"
 import { useCallback, useRef, useState } from "react"
 
-import { fetchCommunityMe, fetchCommunityPlayers } from "@/lib/community-api"
+import { fetchAtVenue, fetchCommunityMe, fetchCommunityPlayers, fetchRallyPartners } from "@/lib/community-api"
 import type {
+  CommunityAtVenue,
   CommunityMe,
   CommunityPlayer,
   CommunityPlayersFilters,
   CommunitySkillLevel,
   CommunityVenueRef,
+  UsualTimeKey,
 } from "@/lib/community-types"
 
 const PLAYER_LIST_REFRESH_MS = 30_000
@@ -18,12 +20,14 @@ export function communityFilters(
   segment: CommunitySegment,
   skill: CommunitySkillLevel | null,
   doubles: boolean,
+  usualTime: UsualTimeKey | null = null,
 ): CommunityPlayersFilters {
   return {
     status: segment === "open" ? "open" : "all",
     following: segment === "following" || undefined,
     skill: skill ?? undefined,
     doubles: doubles || undefined,
+    usualTime: usualTime ?? undefined,
   }
 }
 
@@ -128,4 +132,31 @@ export function useCommunityPlayers(filters: CommunityPlayersFilters, enabled: b
 
   const loading = enabled && settledKey !== filterKey
   return { ...state, players: loading ? [] : state.players, loading, loadingMore, error, reload, loadMore }
+}
+
+/** At the venue now + Rally Partners for the top of the Community tab (M4). */
+export function useCommunitySocial(enabled: boolean) {
+  const [atVenue, setAtVenue] = useState<CommunityAtVenue | null>(null)
+  const [rallyPartners, setRallyPartners] = useState<CommunityPlayer[]>([])
+
+  const reload = useCallback(async () => {
+    if (!enabled) return
+    // Both are extras on the tab: a failure just hides the section.
+    const [venue, partners] = await Promise.all([
+      fetchAtVenue().catch(() => null),
+      fetchRallyPartners().catch(() => null),
+    ])
+    if (venue) setAtVenue(venue)
+    if (partners) setRallyPartners(partners)
+  }, [enabled])
+
+  useFocusEffect(
+    useCallback(() => {
+      void reload()
+      const timer = setInterval(() => void reload(), PLAYER_LIST_REFRESH_MS)
+      return () => clearInterval(timer)
+    }, [reload]),
+  )
+
+  return { atVenue: enabled ? atVenue : null, rallyPartners: enabled ? rallyPartners : [], reload }
 }

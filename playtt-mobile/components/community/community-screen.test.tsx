@@ -18,9 +18,14 @@ jest.mock("expo-router", () => {
 jest.mock("@/lib/community-api", () => ({
   fetchCommunityMe: jest.fn(),
   fetchCommunityPlayers: jest.fn(),
+  fetchAtVenue: jest.fn(() => Promise.resolve(null)),
+  fetchRallyPartners: jest.fn(() => Promise.resolve([])),
   stopOpenToPlay: jest.fn(),
   goOpenToPlay: jest.fn(),
 }))
+jest.mock("@/lib/community-chat-api", () => ({ startConversation: jest.fn() }))
+jest.mock("@/components/community/rally-partners-row", () => ({ RallyPartnersRow: () => null }))
+jest.mock("@/components/community/at-venue-strip", () => ({ AtVenueStrip: () => null }))
 jest.mock("@/hooks/use-community-unread", () => ({
   useCommunityUnread: () => ({ unread: { inbox: 2, requests: 0 }, reload: jest.fn() }),
 }))
@@ -105,6 +110,8 @@ function me(overrides: Partial<CommunityMe> = {}, visible = true): CommunityMe {
     homeVenue: { id: "venue_parklands", name: "Parklands" },
     counts: { followers: 0, following: 0 },
     stats: NO_STATS,
+    badges: [],
+    kudos: [],
     ...overrides,
   }
 }
@@ -122,6 +129,7 @@ const AMARA: CommunityPlayer = {
   availability: null,
   relationship: { following: false, followsYou: false, rallyPartner: false, blockedByYou: false, canMessage: true },
   stats: NO_STATS,
+  badges: [],
 }
 
 beforeEach(() => {

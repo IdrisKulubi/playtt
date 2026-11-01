@@ -1,0 +1,13 @@
+{
+  "contractVersion": 1,
+  "endpoint": "*",
+  "case": "booking-not-joinable",
+  "request": {},
+  "response": {
+    "status": 409,
+    "body": {
+      "code": "BOOKING_NOT_JOINABLE",
+      "message": "This game has already started."
+    }
+  }
+}

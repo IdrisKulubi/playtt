@@ -1,18 +1,29 @@
+import { CheckCircle } from "phosphor-react-native/src/icons/CheckCircle"
 import { Fire } from "phosphor-react-native/src/icons/Fire"
 import { Handshake } from "phosphor-react-native/src/icons/Handshake"
 import { Medal } from "phosphor-react-native/src/icons/Medal"
+import { Star } from "phosphor-react-native/src/icons/Star"
 import { StyleSheet, Text, View } from "react-native"
 
 import { PlayTTFontFamilies } from "@/constants/playtt-tokens"
 
-import type { CardTierTokens, PlayerCardData } from "./card-tiers"
+import { BADGE_LABELS, type CardTierTokens, type PlayerCardData } from "./card-tiers"
 
 type Badge = { key: string; label: string; Icon: typeof Fire }
 
-/** Badges earned from data we have today; kudos badges arrive in M4. */
+/**
+ * Up to 3 badges, most meaningful first: earned server badges (kudos
+ * thresholds, Reliable), then streak, Rally partner and Founding.
+ */
 export function cardBadges(player: PlayerCardData): Badge[] {
   const badges: Badge[] = []
   const streak = player.stats.streakWeeks ?? 0
+
+  for (const key of player.badges ?? []) {
+    const label = BADGE_LABELS[key]
+    if (!label) continue
+    badges.push({ key, label, Icon: key === "reliable" ? CheckCircle : Star })
+  }
 
   if (streak >= 4) badges.push({ key: "streak", label: `${streak}-week streak`, Icon: Fire })
   if (player.relationship?.rallyPartner) badges.push({ key: "rally", label: "Rally partner", Icon: Handshake })

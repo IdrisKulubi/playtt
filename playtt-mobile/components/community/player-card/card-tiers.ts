@@ -9,6 +9,7 @@ import type {
   CommunityRelationship,
   CommunitySkillLevel,
   CommunityVenueRef,
+  KudosCount,
   UsualTimeKey,
 } from "@/lib/community-types"
 
@@ -31,6 +32,12 @@ export type PlayerCardData = {
   stats: CommunityCardStats
   relationship?: CommunityRelationship
   homeVenue?: CommunityVenueRef | null
+  /** Server-earned badges ("rally_ace", "reliable", …). */
+  badges?: string[]
+  /** Top kudos received, shown on the card back. */
+  kudos?: KudosCount[]
+  /** Set when the player is at a venue right now (M4 strip). */
+  atVenueName?: string | null
 }
 
 export type CardTierTokens = {
@@ -275,6 +282,10 @@ export function playerCardAccessibilityLabel(player: PlayerCardData) {
     if (ribbon.doubles) parts.push("looking for doubles")
   }
 
+  if (player.atVenueName) {
+    parts.push(`at ${player.atVenueName} now`)
+  }
+
   if (player.relationship?.rallyPartner) {
     parts.push("rally partner")
   }
@@ -304,6 +315,8 @@ export function cardDataFromMe(me: {
   availability: CommunityAvailability | null
   stats: CommunityCardStats
   homeVenue: CommunityVenueRef | null
+  badges?: string[]
+  kudos?: KudosCount[]
 }): PlayerCardData {
   return {
     id: me.id,
@@ -318,5 +331,23 @@ export function cardDataFromMe(me: {
     availability: me.availability,
     stats: me.stats,
     homeVenue: me.homeVenue,
+    badges: me.badges,
+    kudos: me.kudos,
   }
+}
+
+/** Labels for server badge keys (src/server/community/constants.ts KUDOS_BADGES). */
+export const BADGE_LABELS: Record<string, string> = {
+  rally_ace: "Rally ace",
+  fair_play: "Fair play",
+  clockwork: "Clockwork",
+  good_vibes: "Good vibes",
+  ace_server: "Ace server",
+  mentor: "Mentor",
+  reliable: "Reliable",
+}
+
+/** Usual times both players share, for the "Also free on…" hint. */
+export function sharedUsualTimes(mine: UsualTimeKey[], theirs: UsualTimeKey[]) {
+  return theirs.filter((key) => mine.includes(key))
 }

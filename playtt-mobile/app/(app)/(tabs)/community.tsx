@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } f
 import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated"
 import { SafeAreaView } from "react-native-safe-area-context"
 
+import { AtVenueStrip } from "@/components/community/at-venue-strip"
 import { CommunityFilterChips } from "@/components/community/community-filter-chips"
 import { CommunityHeader } from "@/components/community/community-header"
 import { CommunityIntro } from "@/components/community/community-intro"
@@ -12,6 +13,7 @@ import { FloatingOpenButton } from "@/components/community/floating-open-button"
 import { OpenStatusBar } from "@/components/community/open-status-bar"
 import { OpenToPlaySheet } from "@/components/community/open-to-play-sheet"
 import { PlayerCard } from "@/components/community/player-card/player-card"
+import { RallyPartnersRow } from "@/components/community/rally-partners-row"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { Button } from "@/components/ui/button"
 import { GlassSegmentControl } from "@/components/ui/glass-segment-control"
@@ -22,12 +24,20 @@ import { useCommunityUnread } from "@/hooks/use-community-unread"
 import {
   communityFilters,
   useCommunityMe,
+  useCommunitySocial,
   useCommunityPlayers,
   type CommunitySegment as Segment,
 } from "@/hooks/use-community"
 import { useProductTheme, useSkeletonSurface } from "@/hooks/use-product-theme"
 import { stopOpenToPlay } from "@/lib/community-api"
-import { communityPlayerHref, type CommunityPlayer, type CommunitySkillLevel } from "@/lib/community-types"
+import { startConversation } from "@/lib/community-chat-api"
+import {
+  communityChatHref,
+  communityPlayerHref,
+  type CommunityPlayer,
+  type CommunitySkillLevel,
+  type UsualTimeKey,
+} from "@/lib/community-types"
 import { toast } from "@/lib/toast"
 
 const SEGMENTS: { value: Segment; label: string }[] = [
@@ -61,6 +71,7 @@ export default function CommunityScreen() {
   const [segment, setSegment] = useState<Segment>("open")
   const [skill, setSkill] = useState<CommunitySkillLevel | null>(null)
   const [doubles, setDoubles] = useState(false)
+  const [usualTime, setUsualTime] = useState<UsualTimeKey | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [sheetKey, setSheetKey] = useState(0)
   const [burst, setBurst] = useState(0)
@@ -68,9 +79,13 @@ export default function CommunityScreen() {
 
   const { me, setMe, loading: meLoading, error: meError, reload: reloadMe } = useCommunityMe()
   const hasCard = Boolean(me?.profile.communityVisible)
-  const filters = useMemo(() => communityFilters(segment, skill, doubles), [segment, skill, doubles])
+  const filters = useMemo(
+    () => communityFilters(segment, skill, doubles, usualTime),
+    [segment, skill, doubles, usualTime],
+  )
   const list = useCommunityPlayers(filters, hasCard)
   const { unread } = useCommunityUnread(hasCard)
+  const social = useCommunitySocial(hasCard)
 
   const styles = useMemo(
     () =>
@@ -115,8 +130,17 @@ export default function CommunityScreen() {
 
   async function refresh() {
     setRefreshing(true)
-    await Promise.all([reloadMe(), list.reload()])
+    await Promise.all([reloadMe(), list.reload(), social.reload()])
     setRefreshing(false)
+  }
+
+  async function letsPlay(player: CommunityPlayer) {
+    try {
+      const conversation = await startConversation(player.id)
+      router.push(communityChatHref(conversation.id) as Href)
+    } catch (error) {
+      toast.apiError(error, "Could not open a chat.")
+    }
   }
 
   function openPlayer(player: CommunityPlayer) {
@@ -139,8 +163,17 @@ export default function CommunityScreen() {
 
       {hasCard ? (
         <>
+          <RallyPartnersRow players={social.rallyPartners} onOpenPlayer={openPlayer} onLetsPlay={letsPlay} />
+          <AtVenueStrip atVenue={social.atVenue} onOpenPlayer={openPlayer} />
           <GlassSegmentControl value={segment} options={SEGMENTS} onChange={setSegment} />
-          <CommunityFilterChips skill={skill} doubles={doubles} onSkillChange={setSkill} onDoublesChange={setDoubles} />
+          <CommunityFilterChips
+            skill={skill}
+            doubles={doubles}
+            usualTime={usualTime}
+            onSkillChange={setSkill}
+            onDoublesChange={setDoubles}
+            onUsualTimeChange={setUsualTime}
+          />
         </>
       ) : null}
     </View>

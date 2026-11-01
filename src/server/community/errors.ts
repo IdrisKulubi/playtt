@@ -10,6 +10,10 @@ export type CommunityErrorCode =
   | "REQUEST_LIMIT_REACHED"
   | "MESSAGE_REJECTED"
   | "BOOKING_NOT_SHAREABLE"
+  | "BOOKING_FULL"
+  | "BOOKING_NOT_JOINABLE"
+  | "KUDOS_NOT_ALLOWED"
+  | "COMMUNITY_MUTED"
 
 export class CommunityError extends Error {
   readonly code: CommunityErrorCode

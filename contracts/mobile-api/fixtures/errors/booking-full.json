@@ -1,0 +1,13 @@
+{
+  "contractVersion": 1,
+  "endpoint": "*",
+  "case": "booking-full",
+  "request": {},
+  "response": {
+    "status": 409,
+    "body": {
+      "code": "BOOKING_FULL",
+      "message": "This booking is for 1 player. Ask the host to change it to 2 players."
+    }
+  }
+}

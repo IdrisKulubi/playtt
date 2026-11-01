@@ -1,8 +1,10 @@
-import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm"
+import { alias } from "drizzle-orm/pg-core"
 
 import db from "@/db/drizzle"
 import {
   bookings,
+  communityBookingPartners,
   communityConversationMembers,
   communityMessages,
   communityReports,
@@ -10,20 +12,13 @@ import {
   locations,
   playAvailability,
   playerProfiles,
-  playSessions,
-  sessionParticipants,
   user,
   userBlocks,
 } from "@/db/schema"
 import type { TenantContext } from "@/server/tenancy/types"
 
 import { isOpenNow, resolveAvailabilityWindow } from "./availability-window.ts"
-import {
-  EMPTY_CARD_STATS,
-  groupCardStats,
-  toCardStatWeeks,
-  type CardStats,
-} from "./card-stats.ts"
+import { EMPTY_CARD_DATA, loadCardData, type CardData } from "./card-data.ts"
 import { COMMUNITY_LIMITS, type PlayAvailabilityWindow } from "./constants.ts"
 import { toCommunityDisplayName } from "./display-name.ts"
 import { CommunityError } from "./errors.ts"
@@ -36,6 +31,8 @@ import type {
   CommunityProfilePatch,
   CommunityReportInput,
 } from "./http.ts"
+
+const sharedPartner = alias(communityBookingPartners, "shared_partner")
 
 export type ProfileRow = typeof playerProfiles.$inferSelect
 type AvailabilityRow = typeof playAvailability.$inferSelect
@@ -92,6 +89,17 @@ export function decodeCursor(cursor: string | undefined) {
   return Number.isInteger(value) && value >= 0 ? value : 0
 }
 
+/** Moderators can pause someone's Community activity (M4). */
+export function assertNotMuted(profile: Pick<ProfileRow, "mutedUntil"> | null | undefined, now = new Date()) {
+  if (profile?.mutedUntil && profile.mutedUntil > now) {
+    throw new CommunityError(
+      "COMMUNITY_MUTED",
+      "Your Community access is paused for now. Contact PlayTT support if you think this is a mistake.",
+      403,
+    )
+  }
+}
+
 export function assertRateLimit(scope: Parameters<typeof consumeCommunityRateLimit>[0], userId: string) {
   if (!consumeCommunityRateLimit(scope, userId)) {
     throw new CommunityError("RATE_LIMITED", "Too many requests. Try again later.", 429)
@@ -130,7 +138,7 @@ export async function resolveHomeVenue(
   return row ?? firstActiveLocation(context)
 }
 
-async function requireHomeVenue(context: TenantContext, userId: string) {
+export async function requireHomeVenue(context: TenantContext, userId: string) {
   const venue = await resolveHomeVenue(context, userId)
   if (!venue) {
     throw new CommunityError("NO_HOME_VENUE", "No active PlayTT venue is available.", 409)
@@ -145,6 +153,7 @@ export type RelationshipMaps = {
   followsViewer: Set<string>
   viewerBlocked: Set<string>
   blockedViewer: Set<string>
+  playedWith: Set<string>
 }
 
 export async function loadRelationships(viewerId: string, targetIds: string[]): Promise<RelationshipMaps> {
@@ -153,13 +162,14 @@ export async function loadRelationships(viewerId: string, targetIds: string[]): 
     followsViewer: new Set(),
     viewerBlocked: new Set(),
     blockedViewer: new Set(),
+    playedWith: new Set(),
   }
 
   if (targetIds.length === 0) {
     return maps
   }
 
-  const [followRows, blockRows] = await Promise.all([
+  const [followRows, blockRows, playedRows] = await Promise.all([
     db
       .select({ followerId: follows.followerId, followeeId: follows.followeeId })
       .from(follows)
@@ -178,7 +188,26 @@ export async function loadRelationships(viewerId: string, targetIds: string[]): 
           and(eq(userBlocks.blockedId, viewerId), inArray(userBlocks.blockerId, targetIds)),
         ),
       ),
+    // Shared community bookings neither player pulled out of.
+    db
+      .select({ userId: sharedPartner.userId })
+      .from(communityBookingPartners)
+      .innerJoin(sharedPartner, eq(sharedPartner.bookingId, communityBookingPartners.bookingId))
+      .innerJoin(bookings, eq(bookings.id, communityBookingPartners.bookingId))
+      .where(
+        and(
+          eq(communityBookingPartners.userId, viewerId),
+          inArray(sharedPartner.userId, targetIds),
+          isNull(communityBookingPartners.leftAt),
+          isNull(sharedPartner.leftAt),
+          ne(bookings.status, "cancelled"),
+        ),
+      ),
   ])
+
+  for (const row of playedRows) {
+    maps.playedWith.add(row.userId)
+  }
 
   for (const row of followRows) {
     if (row.followerId === viewerId) maps.viewerFollows.add(row.followeeId)
@@ -207,6 +236,7 @@ export function factsFor(
     targetBlockedViewer: maps.blockedViewer.has(target.id),
     viewerFollowsTarget: maps.viewerFollows.has(target.id),
     targetFollowsViewer: maps.followsViewer.has(target.id),
+    playedTogether: maps.playedWith.has(target.id),
   }
 }
 
@@ -233,7 +263,7 @@ export function serializePlayer(
   row: PlayerRow,
   facts: RelationshipFacts,
   now: Date,
-  stats: CardStats = EMPTY_CARD_STATS,
+  card: CardData = EMPTY_CARD_DATA,
 ) {
   const profile = serializeProfile(row.profile)
   return {
@@ -248,55 +278,9 @@ export function serializePlayer(
     foundingPlayer: profile.foundingPlayer,
     availability: serializeAvailability(row.availability, now),
     relationship: serializeRelationship(facts),
-    stats,
+    stats: card.stats,
+    badges: card.badges,
   }
-}
-
-// A session counts once it is completed, or confirmed and already over.
-function playedBooking(now: Date) {
-  return or(
-    eq(bookings.status, "completed"),
-    and(eq(bookings.status, "confirmed"), lte(bookings.endTime, now)),
-  )
-}
-
-async function loadCardStats(context: TenantContext, userIds: string[], now: Date) {
-  if (userIds.length === 0) {
-    return new Map<string, CardStats>()
-  }
-
-  const columns = {
-    bookingId: bookings.id,
-    startTime: bookings.startTime,
-    durationMinutes: bookings.durationMinutes,
-  }
-
-  const [owned, joined] = await Promise.all([
-    db
-      .select({ userId: bookings.userId, ...columns })
-      .from(bookings)
-      .where(
-        and(
-          eq(bookings.tenantId, context.tenantId),
-          inArray(bookings.userId, userIds),
-          playedBooking(now),
-        ),
-      ),
-    db
-      .select({ userId: sessionParticipants.userId, ...columns })
-      .from(sessionParticipants)
-      .innerJoin(playSessions, eq(playSessions.id, sessionParticipants.playSessionId))
-      .innerJoin(bookings, eq(bookings.id, playSessions.bookingId))
-      .where(
-        and(
-          eq(sessionParticipants.tenantId, context.tenantId),
-          inArray(sessionParticipants.userId, userIds),
-          playedBooking(now),
-        ),
-      ),
-  ])
-
-  return groupCardStats(userIds, toCardStatWeeks([...owned, ...joined]), now)
 }
 
 // SQL fragment: true when either user has blocked the other.
@@ -379,7 +363,7 @@ export async function getMyCommunity(context: TenantContext, userId: string) {
     getActiveAvailability(userId, now),
     resolveHomeVenue(context, userId),
     countConnections(userId),
-    loadCardStats(context, [userId], now),
+    loadCardData(context, [userId], now),
   ])
 
   if (!me) {
@@ -395,7 +379,9 @@ export async function getMyCommunity(context: TenantContext, userId: string) {
     availability: serializeAvailability(availability, now),
     homeVenue: homeVenue ? { id: homeVenue.id, name: homeVenue.name } : null,
     counts,
-    stats: stats.get(userId) ?? EMPTY_CARD_STATS,
+    stats: (stats.get(userId) ?? EMPTY_CARD_DATA).stats,
+    badges: (stats.get(userId) ?? EMPTY_CARD_DATA).badges,
+    kudos: (stats.get(userId) ?? EMPTY_CARD_DATA).topKudos,
   }
 }
 
@@ -443,6 +429,8 @@ export async function goOpenToPlay(
       409,
     )
   }
+
+  assertNotMuted(profile)
 
   assertRateLimit("availability", userId)
 
@@ -523,6 +511,10 @@ export async function listCommunityPlayers(
     conditions.push(eq(user.skillLevel, query.skill))
   }
 
+  if (query.usualTime) {
+    conditions.push(sql`${playerProfiles.usualTimes} @> array[${query.usualTime}]::text[]`)
+  }
+
   if (query.doubles) {
     conditions.push(eq(playAvailability.lookingForDoubles, true))
   }
@@ -564,7 +556,7 @@ export async function listCommunityPlayers(
   const ids = page.map((row) => row.id)
   const [maps, stats] = await Promise.all([
     loadRelationships(viewerId, ids),
-    loadCardStats(context, ids, now),
+    loadCardData(context, ids, now),
   ])
 
   return {
@@ -618,12 +610,13 @@ export async function getCommunityPlayer(context: TenantContext, viewerId: strin
   const [counts, homeVenue, stats] = await Promise.all([
     countConnections(row.id),
     resolveHomeVenue(context, row.id),
-    loadCardStats(context, [row.id], now),
+    loadCardData(context, [row.id], now),
   ])
 
   return {
     player: {
       ...serializePlayer(row, facts, now, stats.get(row.id)),
+      kudos: (stats.get(row.id) ?? EMPTY_CARD_DATA).topKudos,
       homeVenue: homeVenue ? { id: homeVenue.id, name: homeVenue.name } : null,
       counts,
     },
@@ -641,6 +634,7 @@ export function assertNotSelf(viewerId: string, targetId: string) {
 export async function followPlayer(context: TenantContext, viewerId: string, targetId: string) {
   assertNotSelf(viewerId, targetId)
   await requireVisiblePlayer(context, viewerId, targetId)
+  assertNotMuted(await getProfileRow(viewerId))
   assertRateLimit("follow", viewerId)
 
   const created = await db.transaction(async (tx) => {
@@ -720,7 +714,7 @@ export async function listConnections(
   const ids = page.map((row) => row.id)
   const [maps, stats] = await Promise.all([
     loadRelationships(viewerId, ids),
-    loadCardStats(context, ids, now),
+    loadCardData(context, ids, now),
   ])
 
   return {

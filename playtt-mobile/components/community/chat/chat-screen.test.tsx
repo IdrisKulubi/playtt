@@ -9,7 +9,8 @@ import {
   markConversationRead,
   sendCommunityMessage,
 } from "@/lib/community-chat-api"
-import type { CommunityConversation, CommunityMessage } from "@/lib/community-types"
+import { fetchSharedBookings, giveKudos, joinSharedBooking } from "@/lib/community-api"
+import type { CommunityConversation, CommunityMessage, CommunitySharedBooking } from "@/lib/community-types"
 
 jest.mock("expo-router", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -28,7 +29,21 @@ jest.mock("@/lib/community-chat-api", () => ({
   leaveConversation: jest.fn(),
   newClientMessageId: jest.fn(() => "m-test-0001"),
 }))
-jest.mock("@/lib/community-api", () => ({ blockPlayer: jest.fn(), reportPlayer: jest.fn() }))
+jest.mock("@/lib/community-api", () => ({
+  blockPlayer: jest.fn(),
+  reportPlayer: jest.fn(),
+  fetchSharedBookings: jest.fn(() => Promise.resolve([])),
+  joinSharedBooking: jest.fn(),
+  leaveSharedBooking: jest.fn(),
+  giveKudos: jest.fn(),
+}))
+jest.mock("expo-haptics", () => ({
+  impactAsync: jest.fn(() => Promise.resolve()),
+  selectionAsync: jest.fn(() => Promise.resolve()),
+  notificationAsync: jest.fn(() => Promise.resolve()),
+  ImpactFeedbackStyle: { Light: "light" },
+  NotificationFeedbackType: { Success: "success" },
+}))
 jest.mock("@/lib/booking-api", () => ({ fetchMyBookings: jest.fn(() => Promise.resolve([])) }))
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 jest.mock("react-native-reanimated", () => require("@/test/reanimated-mock"))
@@ -41,10 +56,6 @@ jest.mock("react-native-safe-area-context", () => {
   }
 })
 jest.mock("@/hooks/use-color-scheme", () => ({ useColorScheme: () => "dark" }))
-jest.mock("expo-haptics", () => ({
-  impactAsync: jest.fn(() => Promise.resolve()),
-  ImpactFeedbackStyle: { Light: "light" },
-}))
 jest.mock("expo-image", () => ({ Image: () => null }))
 jest.mock("@/components/navigation/screen-back-button", () => ({ ScreenBackButton: () => null }))
 jest.mock("@/components/ui/bottom-sheet", () => ({
@@ -56,6 +67,8 @@ jest.mock("phosphor-react-native/src/icons/DotsThreeVertical", () => ({ DotsThre
 jest.mock("phosphor-react-native/src/icons/Fire", () => ({ Fire: () => null }))
 jest.mock("phosphor-react-native/src/icons/Handshake", () => ({ Handshake: () => null }))
 jest.mock("phosphor-react-native/src/icons/Medal", () => ({ Medal: () => null }))
+jest.mock("phosphor-react-native/src/icons/Star", () => ({ Star: () => null }))
+jest.mock("phosphor-react-native/src/icons/CheckCircle", () => ({ CheckCircle: () => null }))
 jest.mock("phosphor-react-native/src/icons/Plus", () => ({ Plus: () => null }))
 
 const getMessages = jest.mocked(fetchMessages)
@@ -99,6 +112,7 @@ function conversation(overrides: Partial<CommunityConversation> = {}): Community
       availability: null,
       relationship: { following: true, followsYou: true, rallyPartner: true, blockedByYou: false, canMessage: true },
       stats: NO_STATS,
+      badges: [],
     },
     lastMessage: null,
     unreadCount: 0,
@@ -198,4 +212,65 @@ test("message requests show Accept and are not marked read until accepted", asyn
   await fireEvent.press(screen.getByText("Accept"))
   await waitFor(() => expect(markRead).toHaveBeenCalledWith("c1", 5))
   expect(await screen.findByLabelText("Message")).toBeTruthy()
+})
+
+const fetchShared = jest.mocked(fetchSharedBookings)
+const join = jest.mocked(joinSharedBooking)
+const kudos = jest.mocked(giveKudos)
+
+const LATER = new Date(Date.now() + 3 * 60 * 60_000).toISOString()
+
+test("the partner can join a booking card the host shared", async () => {
+  getMessages.mockResolvedValue({
+    messages: [
+      message(7, {
+        kind: "booking_card",
+        body: "Shared a booking",
+        payload: { bookingId: "b-1", startsAt: LATER, endsAt: LATER, resourceName: "Table 1", locationName: "Parklands" },
+      }),
+    ],
+    hasMore: false,
+    otherLastReadSeq: 0,
+    conversation: conversation(),
+  })
+  join.mockResolvedValue([])
+
+  const screen = await render(<CommunityChatScreen />)
+  await fireEvent.press(await screen.findByLabelText("I'm in: join this booking"))
+  expect(join).toHaveBeenCalledWith("b-1", "c1")
+})
+
+test("the kudos prompt opens kudos for the shared booking and Play again prefills a rematch", async () => {
+  const booking: CommunitySharedBooking = {
+    bookingId: "b-2",
+    role: "guest",
+    hostId: "user_amara",
+    conversationId: "c1",
+    startsAt: "2026-10-28T16:00:00.000Z",
+    endsAt: "2026-10-28T17:00:00.000Z",
+    resourceName: "Table 1",
+    locationName: "Parklands",
+    phase: "ended",
+    kudosOpen: true,
+    partners: [],
+    kudosGiven: {},
+  }
+  fetchShared.mockResolvedValue([booking])
+  getMessages.mockResolvedValue({
+    messages: [message(8, { kind: "kudos_prompt", senderId: null, body: "How was your match?", payload: { bookingId: "b-2" } })],
+    hasMore: false,
+    otherLastReadSeq: 0,
+    conversation: conversation(),
+  })
+  kudos.mockResolvedValue([booking])
+
+  const screen = await render(<CommunityChatScreen />)
+  await fireEvent.press(await screen.findByText("Play again"))
+  expect(screen.getByDisplayValue("Rematch? 🏓")).toBeTruthy()
+
+  await waitFor(() => expect(fetchShared).toHaveBeenCalled())
+  await fireEvent.press(screen.getByText("Give kudos"))
+  await fireEvent.press(await screen.findByLabelText("Great rallies"))
+  await fireEvent.press(screen.getByText("Send 1 kudos"))
+  await waitFor(() => expect(kudos).toHaveBeenCalledWith("b-2", "user_amara", ["great_rallies"]))
 })

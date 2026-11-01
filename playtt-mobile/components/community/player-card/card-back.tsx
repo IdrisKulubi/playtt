@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native"
 
 import { PlayTTFontFamilies } from "@/constants/playtt-tokens"
+import { KUDOS_EMOJI, KUDOS_LABELS } from "@/lib/community-types"
 
 import {
   USUAL_TIME_LABELS,
@@ -48,6 +49,21 @@ export function CardBack({ player, tokens }: CardBackProps) {
           <Text style={[styles.body, { color: tokens.muted }]}>Not set yet.</Text>
         )}
       </View>
+
+      {player.kudos && player.kudos.length > 0 ? (
+        <View style={styles.section}>
+          <Text style={[styles.heading, { color: tokens.accent }]}>KUDOS</Text>
+          <View style={styles.chips}>
+            {player.kudos.map((entry) => (
+              <View key={entry.type} style={[styles.chip, { backgroundColor: tokens.plate }]}>
+                <Text style={[styles.chipText, { color: tokens.text }]}>
+                  {KUDOS_EMOJI[entry.type]} {KUDOS_LABELS[entry.type]} · {entry.count}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
 
       <View style={styles.footer}>
         <Text style={[styles.footerText, { color: tokens.muted }]}>

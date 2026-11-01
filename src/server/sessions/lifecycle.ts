@@ -16,6 +16,7 @@ import {
 import { writeAuditLog } from "@/server/tenancy/audit-log.mjs"
 import { scheduleRelayActionsForSessionTransition } from "@/server/access/relay-worker"
 import { scheduleSessionNotification } from "@/server/notifications/worker"
+import { enqueueCommunityNotification } from "@/server/community/notify"
 import { createServiceTenantContext } from "@/server/tenancy/context-factory"
 import type { TenantContext } from "@/server/tenancy/types"
 import {
@@ -211,6 +212,18 @@ export async function consumeSessionLifecycleEvent(row: {
       }
     } catch (error) {
       console.error("[SESSION LIFECYCLE] Failed to schedule session notification:", error)
+    }
+
+    if (toStatus === "completed") {
+      try {
+        // Kudos prompt + "Play again" for bookings players shared via Community.
+        await enqueueCommunityNotification(tenantId, {
+          kind: "post_match",
+          bookingId: result.session.bookingId,
+        })
+      } catch (error) {
+        console.error("[SESSION LIFECYCLE] Failed to schedule community post-match prompt:", error)
+      }
     }
   }
 }

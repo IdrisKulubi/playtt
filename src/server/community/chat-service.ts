@@ -19,7 +19,7 @@ import {
 import type { TenantContext } from "@/server/tenancy/types"
 
 import { decideSend, directConversationKey, initialRecipientState, type MemberState } from "./chat-rules.ts"
-import { EMPTY_CARD_STATS } from "./card-stats.ts"
+import { EMPTY_CARD_DATA } from "./card-data.ts"
 import { CHAT_LIMITS, QUICK_REPLIES, type ConversationFolder } from "./constants.ts"
 import { CommunityError } from "./errors.ts"
 import type { CommunityMessageInput, CommunityStartConversationInput } from "./http.ts"
@@ -27,6 +27,7 @@ import { filterMessageBody } from "./message-filter.ts"
 import { deliverCommunityNotificationSoon, enqueueCommunityNotification } from "./notify.ts"
 import {
   activeAvailabilityJoin,
+  assertNotMuted,
   assertNotSelf,
   assertRateLimit,
   decodeCursor,
@@ -72,7 +73,7 @@ function serializeMessage(row: MessageRow, viewerId: string) {
   }
 }
 
-async function loadPlayerRows(context: TenantContext, ids: string[], now: Date) {
+export async function loadPlayerRows(context: TenantContext, ids: string[], now: Date) {
   if (ids.length === 0) return new Map<string, PlayerRow>()
 
   const rows = await db
@@ -106,7 +107,7 @@ type ConversationFrame = {
 
 // Loads the viewer's membership plus the other side of a direct chat, or 404s
 // when the viewer is not a member, left it, or the peer is hidden or blocked.
-async function requireConversation(
+export async function requireConversation(
   context: TenantContext,
   viewerId: string,
   conversationId: string,
@@ -209,7 +210,7 @@ async function summarize(context: TenantContext, viewerId: string, frame: Conver
     id: frame.conversationId,
     type: frame.type,
     state: frame.me.state as MemberState,
-    player: serializePlayer(frame.peer, frame.facts, new Date(), EMPTY_CARD_STATS),
+    player: serializePlayer(frame.peer, frame.facts, new Date(), EMPTY_CARD_DATA),
     lastMessage: last ? serializeMessage(last, viewerId) : null,
     unreadCount: unread?.count ?? 0,
     otherLastReadSeq: frame.other.lastReadSeq,
@@ -302,6 +303,7 @@ export async function startDirectConversation(
       409,
     )
   }
+  assertNotMuted(myProfile)
 
   const { facts } = await requireVisiblePlayer(context, viewerId, input.userId)
   const directKey = directConversationKey(viewerId, input.userId)
@@ -528,6 +530,7 @@ export async function sendMessage(
   }
 
   if (!canSendIn(frame)) cannotMessage()
+  assertNotMuted(await getProfileRow(viewerId))
   assertRateLimit("message", viewerId)
 
   const content = await buildContent(context, viewerId, input, now)

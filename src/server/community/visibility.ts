@@ -9,10 +9,15 @@ export type RelationshipFacts = {
   targetBlockedViewer: boolean
   viewerFollowsTarget: boolean
   targetFollowsViewer: boolean
+  /** Both played the same community booking (M4). */
+  playedTogether?: boolean
 }
 
-export function isRallyPartner(facts: Pick<RelationshipFacts, "viewerFollowsTarget" | "targetFollowsViewer">) {
-  return facts.viewerFollowsTarget && facts.targetFollowsViewer
+// Rally Partners: a mutual follow, or at least one shared community booking.
+export function isRallyPartner(
+  facts: Pick<RelationshipFacts, "viewerFollowsTarget" | "targetFollowsViewer" | "playedTogether">,
+) {
+  return (facts.viewerFollowsTarget && facts.targetFollowsViewer) || Boolean(facts.playedTogether)
 }
 
 // Blocks apply in both directions; a hidden profile is only visible to its owner.

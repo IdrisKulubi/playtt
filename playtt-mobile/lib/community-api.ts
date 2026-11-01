@@ -1,6 +1,10 @@
 import { apiFetch } from "@/lib/api-client"
 import type {
+  CommunityAtVenue,
   CommunityMe,
+  CommunityPlayer,
+  CommunitySharedBooking,
+  KudosType,
   CommunityPlayerDetail,
   CommunityPlayerPage,
   CommunityPlayersFilters,
@@ -112,4 +116,49 @@ export async function reportPlayer(input: {
     method: "POST",
     body: JSON.stringify(input),
   })
+}
+
+// --- Social loop (M4) ---
+
+export async function fetchAtVenue() {
+  const response = await apiFetch<Envelope<CommunityAtVenue>>(`${BASE}/at-venue`)
+  return response.data
+}
+
+export async function fetchRallyPartners() {
+  const response = await apiFetch<Envelope<{ players: CommunityPlayer[] }>>(`${BASE}/rally-partners`)
+  return response.data.players
+}
+
+type SharedBookingsEnvelope = Envelope<{ bookings: CommunitySharedBooking[] }>
+
+export async function fetchSharedBookings() {
+  const response = await apiFetch<SharedBookingsEnvelope>(`${BASE}/bookings`)
+  return response.data.bookings
+}
+
+function bookingPath(bookingId: string, suffix: string) {
+  return `${BASE}/bookings/${encodeURIComponent(bookingId)}${suffix}`
+}
+
+/** Join a host's booking from the booking card they shared in a chat. */
+export async function joinSharedBooking(bookingId: string, conversationId: string) {
+  const response = await apiFetch<SharedBookingsEnvelope>(bookingPath(bookingId, "/join"), {
+    method: "POST",
+    body: JSON.stringify({ conversationId }),
+  })
+  return response.data.bookings
+}
+
+export async function leaveSharedBooking(bookingId: string) {
+  const response = await apiFetch<SharedBookingsEnvelope>(bookingPath(bookingId, "/join"), { method: "DELETE" })
+  return response.data.bookings
+}
+
+export async function giveKudos(bookingId: string, receiverId: string, types: KudosType[]) {
+  const response = await apiFetch<SharedBookingsEnvelope>(bookingPath(bookingId, "/kudos"), {
+    method: "POST",
+    body: JSON.stringify({ receiverId, types }),
+  })
+  return response.data.bookings
 }

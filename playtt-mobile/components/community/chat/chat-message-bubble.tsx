@@ -13,6 +13,12 @@ type ChatMessageBubbleProps = {
   onLongPress?: (item: ChatItem) => void
   onRetry?: (item: ChatItem) => void
   onOpenBooking?: (bookingId: string) => void
+  /** For a booking card the other player shared: whether I've joined it. */
+  joinState?: "can_join" | "joined" | null
+  onJoin?: (bookingId: string) => void
+  onLeave?: (bookingId: string) => void
+  onGiveKudos?: (bookingId: string) => void
+  onPlayAgain?: () => void
 }
 
 function bookingWhen(startsAt: string, endsAt: string) {
@@ -25,6 +31,11 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
   onLongPress,
   onRetry,
   onOpenBooking,
+  joinState = null,
+  onJoin,
+  onLeave,
+  onGiveKudos,
+  onPlayAgain,
 }: ChatMessageBubbleProps) {
   const theme = useProductTheme()
   const mine = item.mine
@@ -68,6 +79,34 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
         cardWhen: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 16, color: theme.foreground },
         cardWhere: { fontFamily: PlayTTFontFamilies.regular, fontSize: 13, color: theme.muted },
         cardAction: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 13, color: PlayTTColors.primary, marginTop: 4 },
+        prompt: {
+          alignSelf: "center",
+          width: "86%",
+          borderRadius: 16,
+          borderWidth: 1,
+          borderColor: theme.border,
+          backgroundColor: theme.card,
+          padding: PlayTTSpacing.md,
+          gap: 6,
+          marginVertical: PlayTTSpacing.xs,
+        },
+        promptTitle: { fontFamily: PlayTTFontFamilies.bold, fontSize: 16, color: theme.foreground, textAlign: "center" },
+        promptBody: { fontFamily: PlayTTFontFamilies.regular, fontSize: 13, color: theme.muted, textAlign: "center" },
+        promptRow: { flexDirection: "row", gap: PlayTTSpacing.xs, justifyContent: "center", marginTop: 4 },
+        promptButton: {
+          borderRadius: 999,
+          borderWidth: 1,
+          borderColor: theme.border,
+          paddingHorizontal: PlayTTSpacing.md,
+          paddingVertical: 8,
+        },
+        promptPrimary: { backgroundColor: PlayTTColors.primary, borderColor: PlayTTColors.primary },
+        promptPrimaryText: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 14, color: PlayTTColors.primaryForeground },
+        promptButtonText: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 14, color: theme.foreground },
+        joinButton: { alignSelf: "flex-start", marginTop: 6 },
+        joinedRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6 },
+        joinedText: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 13, color: "#2ee87a" },
+        leaveText: { fontFamily: PlayTTFontFamilies.medium, fontSize: 13, color: theme.muted },
         system: {
           alignSelf: "center",
           fontFamily: PlayTTFontFamilies.medium,
@@ -81,6 +120,29 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
 
   if (item.kind === "system") {
     return <Text style={styles.system}>{item.body}</Text>
+  }
+
+  if (item.kind === "kudos_prompt") {
+    const bookingId = item.payload && typeof item.payload === "object" ? String(item.payload.bookingId ?? "") : ""
+    return (
+      <View style={styles.prompt}>
+        <Text style={styles.promptTitle}>How was your match? 🏓</Text>
+        <Text style={styles.promptBody}>Give kudos for what you enjoyed, or line up a rematch.</Text>
+        <View style={styles.promptRow}>
+          <Pressable
+            accessibilityRole="button"
+            disabled={!bookingId}
+            onPress={() => onGiveKudos?.(bookingId)}
+            style={[styles.promptButton, styles.promptPrimary]}
+          >
+            <Text style={styles.promptPrimaryText}>Give kudos</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => onPlayAgain?.()} style={styles.promptButton}>
+            <Text style={styles.promptButtonText}>Play again</Text>
+          </Pressable>
+        </View>
+      </View>
+    )
   }
 
   const time = formatNairobiClock(item.createdAt)
@@ -108,6 +170,24 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
           {booking.resourceName} · {booking.locationName}
         </Text>
         {mine ? <Text style={styles.cardAction}>View booking</Text> : null}
+        {!mine && joinState === "can_join" ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="I'm in: join this booking"
+            onPress={() => onJoin?.(booking.bookingId)}
+            style={[styles.promptButton, styles.promptPrimary, styles.joinButton]}
+          >
+            <Text style={styles.promptPrimaryText}>I&apos;m in</Text>
+          </Pressable>
+        ) : null}
+        {!mine && joinState === "joined" ? (
+          <View style={styles.joinedRow}>
+            <Text style={styles.joinedText}>You&apos;re in ✓</Text>
+            <Pressable accessibilityRole="button" hitSlop={6} onPress={() => onLeave?.(booking.bookingId)}>
+              <Text style={styles.leaveText}>Can&apos;t make it</Text>
+            </Pressable>
+          </View>
+        ) : null}
       </Pressable>
     )
   } else {

@@ -265,6 +265,35 @@ Already captured in M1 (`usualTimes`). M4 adds:
 ### Admin moderation
 - `src/app/admin/community/reports/page.tsx`: list open reports with message context, and actions to mark reviewed, mute the user for 7 days (`player_profiles.mutedUntil`), or hide the profile. Use the `web-dev` subagent.
 
+### As built (M4)
+- **Migration** `drizzle/0037_community_social.sql`: `community_booking_partners`, `community_kudos`, `community_reliability_overrides`, and `player_profiles.muted_until`.
+- **Add to booking (shipped here, held back in M3).** Every M4 feature needs "shared bookings", so M4 starts with a minimal version:
+  - The partner taps **I'm in** on a booking card the host shared in their chat (`POST /community/bookings/:id/join`). The server checks that the card came from the host, in that chat.
+  - **The booking's group size is a hard cap** (pricing charges per extra player), so a 1-player booking can't take a guest. The rule is `decideJoin` in `social-rules.ts`. Joins lock the booking row so two people can't take the last seat.
+  - Joining adds a `session_participants` guest row (so MAT counts it) and a `community_booking_partners` row. **Can't make it** sets `left_at` and removes the guest row.
+  - Guests get **no door code** and can't edit the booking. They see the game in **Bookings → Games you joined** (from `GET /community/bookings`), which opens the chat.
+- **Shared booking** = a `community_booking_partners` booking with at least one other partner.
+- **Rally Partners:** a mutual follow **or** a shared booking neither player left (`RelationshipFacts.playedTogether`). This also drives the `rally_partners` message policy. `GET /community/rally-partners` returns up to 12, open now first, then most recently played with.
+- **At the venue now:** session participants at my home venue whose play session is `preparing`/`active`/`ending`, with `showAtVenue` and a visible card. `GET /community/at-venue`. Cards show an `AT PARKLANDS` chip.
+- **Usual times:** `usualTime=` filter on `/community/players` (chip + picker on the tab), and a "You both usually play …" hint on profiles.
+- **Kudos:** `POST /community/bookings/:id/kudos` with up to 3 types per receiver per match. Allowed only between active partners of a non-cancelled booking, from the end of the session until 72 h later, and never across a block. KUD = total received. Badges unlock at 10 of one type (`rally_ace`, `fair_play`, `clockwork`, `good_vibes`, `ace_server`, `mentor`). The card back shows the top 3.
+- **Reliability** (`reliabilityOutcome` in `social-rules.ts`):
+  - Pulling out (guest) or cancelling (host) less than 2 h before the start is a miss; earlier doesn't count.
+  - A guest isn't blamed when the host cancels.
+  - A session that never went active is a no-show for everyone on it.
+  - Future bookings aren't counted. Excused misses count as kept.
+  - REL shows after 3 counted bookings; **Reliable** needs ≥ 90% over ≥ 5.
+- **Post-match:** when a play session reaches `completed`, `sessions/lifecycle.ts` enqueues a `post_match` community event. It posts one `kudos_prompt` message in each pair's chat and sends `community_play_again` ("How was your match with Amara K.?"). In chat, **Give kudos** opens the kudos sheet and **Play again** prefills "Rematch? 🏓".
+- **Moderation:** `/admin/community/reports` (link under People in the admin sidebar) lists reports, open first, with the reported message plus the two before it.
+  - Actions: **Mark reviewed**, **Mute 7 days** (sets `muted_until`, ends open-to-play; muted players can't chat, start chats, follow or go open; `403 COMMUNITY_MUTED`) and **Hide card**.
+  - For `no_show` reports, it lists the player's missed shared bookings with **Excuse miss**, which writes `community_reliability_overrides`.
+- **Card data** now lives in `src/server/community/card-data.ts`. Every player object carries `badges`; `me` and the profile also carry `kudos` (top 3).
+
+### Tests (M4)
+- `src/server/community/social.test.mjs` (in `pnpm test:community`): every reliability outcome, REL threshold and Reliable badge, kudos badges and top 3, kudos window, group-size join cap, Rally Partners rule
+- `player-card.test.tsx`: server badges, the at-venue chip and label, kudos on the card back, shared usual times
+- `chat-screen.test.tsx`: joining from a booking card, kudos prompt (Give kudos + Play again prefill)
+
 ---
 
 ## M5 — Groups, scoreboard, growth
@@ -314,8 +343,8 @@ The web page `src/app/community/page.tsx` currently uses mock data. For this rel
 - [x] M2 Community tab, Open to Play sheet, profile, connections, community profile editor
 - [x] M3 chat tables (`0036_community_chat.sql`), routes, notifications + preferences, mobile inbox + chat
 - [x] M3 verify guest participant access/replay behavior before enabling **Add to booking** (verified: guests get nothing yet, so the button is held back; see "As built (M3)")
-- [ ] **Add to booking**: include guest sessions in `/api/bookings/mine` (and decide on door codes), then add `POST /community/bookings/:bookingId/guests`
-- [ ] M4 at-venue, Rally Partners, usual-time filters, kudos (`0037`), reliability + overrides, admin reports page
+- [x] **Add to booking**: shipped in M4 as **I'm in** on booking cards, capped by group size; guests see the game under Bookings → Games you joined (no door code)
+- [x] M4 at-venue, Rally Partners, usual-time filters, kudos (`0037`), reliability + overrides, admin reports page
 - [ ] M5 groups/events, `match_players` + rating worker (`0038`), head-to-head, invites + landing page, card sharing
 - [x] Remove `lib/mock/mock-community.ts` and legacy community components
 - [ ] `pnpm lint` + `pnpm test` (root) and `npm run lint` + `npm test` (`playtt-mobile/`) at the end of each milestone

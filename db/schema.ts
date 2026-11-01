@@ -4744,6 +4744,8 @@ export const playerProfiles = pgTable(
       .notNull(),
     showAtVenue: boolean("show_at_venue").default(false).notNull(),
     foundingPlayer: boolean("founding_player").default(false).notNull(),
+    // Set by moderators: no chat, open-to-play or follows until then (M4).
+    mutedUntil: timestamp("muted_until", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -5042,6 +5044,121 @@ export const communityMessages = pgTable(
     check(
       "community_messages_body_length",
       sql`char_length(${table.body}) <= 1000`
+    ),
+  ]
+)
+
+// --- Community social loop (docs/community/README.md, M4) ---
+
+export const communityKudosTypeEnum = pgEnum("community_kudos_type", [
+  "great_rallies",
+  "fair_play",
+  "on_time",
+  "fun_to_play",
+  "great_serve",
+  "good_coach",
+])
+
+// Who is playing a booking together through Community. Kept when someone
+// pulls out (left_at) so reliability can count late withdrawals; the matching
+// session_participants guest row is removed at that point.
+export const communityBookingPartners = pgTable(
+  "community_booking_partners",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => bookings.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: sessionParticipantRoleEnum("role").notNull(),
+    conversationId: uuid("conversation_id").references(
+      () => communityConversations.id,
+      { onDelete: "set null" }
+    ),
+    joinedAt: timestamp("joined_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    leftAt: timestamp("left_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("community_booking_partners_booking_user_unique").on(
+      table.bookingId,
+      table.userId
+    ),
+    index("community_booking_partners_user_idx").on(table.userId),
+  ]
+)
+
+export const communityKudos = pgTable(
+  "community_kudos",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => bookings.id, { onDelete: "cascade" }),
+    giverId: text("giver_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    receiverId: text("receiver_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    type: communityKudosTypeEnum("type").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("community_kudos_unique").on(
+      table.bookingId,
+      table.giverId,
+      table.receiverId,
+      table.type
+    ),
+    index("community_kudos_receiver_idx").on(table.receiverId, table.type),
+    check(
+      "community_kudos_not_self",
+      sql`${table.giverId} <> ${table.receiverId}`
+    ),
+  ]
+)
+
+// Ops can excuse a missed shared booking so it doesn't hurt reliability.
+export const communityReliabilityOverrides = pgTable(
+  "community_reliability_overrides",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => bookings.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    reason: text("reason").notNull(),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("community_reliability_overrides_unique").on(
+      table.bookingId,
+      table.userId
     ),
   ]
 )

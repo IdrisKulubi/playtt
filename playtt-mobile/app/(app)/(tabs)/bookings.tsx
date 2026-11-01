@@ -1,10 +1,11 @@
-import { router, useFocusEffect } from "expo-router"
+import { type Href, router, useFocusEffect } from "expo-router"
 import { useCallback, useMemo, useState } from "react"
 import { ScrollView, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { BookingDetailSheet } from "@/components/booking/booking-detail-sheet"
 import { BookingSessionCard } from "@/components/booking/booking-session-card"
+import { JoinedGamesSection } from "@/components/community/joined-games-section"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { Button } from "@/components/ui/button"
 import { GlassSegmentControl } from "@/components/ui/glass-segment-control"
@@ -17,6 +18,8 @@ import {
   useProductTheme,
   useSkeletonSurface,
 } from "@/hooks/use-product-theme"
+import { useSharedBookings } from "@/hooks/use-shared-bookings"
+import { communityChatHref } from "@/lib/community-types"
 import { toast } from "@/lib/toast"
 
 type BookingFilter = "upcoming" | "past"
@@ -30,6 +33,8 @@ export default function BookingsScreen() {
   const [bookings, setBookings] = useState<UserBookingSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
+  // Games joined as a guest through Community (they aren't your bookings).
+  const shared = useSharedBookings()
 
   const loadBookings = useCallback(async () => {
     setIsLoading(true)
@@ -74,6 +79,15 @@ export default function BookingsScreen() {
           ]}
           onChange={setFilter}
         />
+
+        {filter === "upcoming" ? (
+          <JoinedGamesSection
+            bookings={shared.bookings}
+            onOpen={(game) => {
+              if (game.conversationId) router.push(communityChatHref(game.conversationId) as Href)
+            }}
+          />
+        ) : null}
 
         <SkeletonGate
           loading={isLoading}

@@ -1,0 +1,82 @@
+{
+  "contractVersion": 1,
+  "endpoint": "community.booking.kudos.post",
+  "case": "success",
+  "request": {
+    "headers": {
+      "authorization": "Bearer <token>"
+    },
+    "params": {
+      "bookingId": "018f4d65-3c1a-7f1d-9d54-6f547f24f001"
+    },
+    "body": {
+      "receiverId": "018f4d65-3c1a-7f1d-9d54-6f547f24a002",
+      "types": [
+        "great_rallies",
+        "fair_play"
+      ]
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": {
+        "bookings": [
+          {
+            "bookingId": "018f4d65-3c1a-7f1d-9d54-6f547f24f001",
+            "role": "guest",
+            "hostId": "018f4d65-3c1a-7f1d-9d54-6f547f24a002",
+            "conversationId": "018f4d65-3c1a-7f1d-9d54-6f547f24d001",
+            "startsAt": "2026-10-30T16:00:00.000Z",
+            "endsAt": "2026-10-30T17:00:00.000Z",
+            "resourceName": "Table 1",
+            "locationName": "PlayTT Parklands",
+            "phase": "ended",
+            "kudosOpen": true,
+            "partners": [
+              {
+                "id": "018f4d65-3c1a-7f1d-9d54-6f547f24a002",
+                "displayName": "Amara K.",
+                "image": null,
+                "skillLevel": "intermediate",
+                "playStyle": "all_round",
+                "handedness": "left",
+                "bio": "Prefer best-of-five sets.",
+                "usualTimes": [
+                  "weekday_evenings"
+                ],
+                "foundingPlayer": true,
+                "availability": null,
+                "relationship": {
+                  "following": true,
+                  "followsYou": true,
+                  "rallyPartner": true,
+                  "blockedByYou": false,
+                  "canMessage": true
+                },
+                "stats": {
+                  "matches": 18,
+                  "winRate": null,
+                  "reliability": 94,
+                  "streakWeeks": 5,
+                  "kudos": 12,
+                  "hours": 21
+                },
+                "badges": [
+                  "rally_ace",
+                  "reliable"
+                ]
+              }
+            ],
+            "kudosGiven": {
+              "018f4d65-3c1a-7f1d-9d54-6f547f24a002": [
+                "great_rallies",
+                "fair_play"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

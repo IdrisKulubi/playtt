@@ -1,0 +1,21 @@
+{
+  "contractVersion": 1,
+  "endpoint": "community.booking.join.delete",
+  "case": "success",
+  "request": {
+    "headers": {
+      "authorization": "Bearer <token>"
+    },
+    "params": {
+      "bookingId": "018f4d65-3c1a-7f1d-9d54-6f547f24f001"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": {
+        "bookings": []
+      }
+    }
+  }
+}

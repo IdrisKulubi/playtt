@@ -1,0 +1,13 @@
+{
+  "contractVersion": 1,
+  "endpoint": "*",
+  "case": "kudos-not-allowed",
+  "request": {},
+  "response": {
+    "status": 409,
+    "body": {
+      "code": "KUDOS_NOT_ALLOWED",
+      "message": "Kudos open once your session ends."
+    }
+  }
+}

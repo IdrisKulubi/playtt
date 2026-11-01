@@ -45,9 +45,9 @@ All stats are real and computed on the server (`src/server/community/card-stats.
 |------|---------|--------|
 | `MAT` | Matches played | Completed bookings, or confirmed ones that have ended, as owner or session participant (recorded matches join in M5) |
 | `WIN` | Win % | Scoreboard matches with assigned players (M5); shows `—` until 5 recorded |
-| `REL` | Reliability % | See reliability rules in the README; shows `—` until 3 community matches |
+| `REL` | Reliability % | Shared community bookings kept vs. late withdrawals and no-shows (README, M4); shows `—` until 3 counted bookings |
 | `STK` | Current weekly streak | Consecutive Nairobi weeks with at least one session |
-| `KUD` | Kudos received | `community_kudos` count |
+| `KUD` | Kudos received | `community_kudos` count; `—` until the first kudos |
 | `HRS` | Hours on the table | Sum of booking durations |
 
 A stat with too little data shows `—` in a muted color, never `0`, so new players don't look bad.

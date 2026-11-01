@@ -91,3 +91,49 @@ export const CHAT_LIMITS = {
   /** One "someone you follow is open" push per recipient in this window. */
   followeeOpenPushWindowMs: 6 * 60 * 60_000,
 } as const
+
+// --- Social loop (M4) ---
+
+export const KUDOS_TYPES = [
+  "great_rallies",
+  "fair_play",
+  "on_time",
+  "fun_to_play",
+  "great_serve",
+  "good_coach",
+] as const
+
+export type KudosType = (typeof KUDOS_TYPES)[number]
+
+export const KUDOS_LABELS: Record<KudosType, string> = {
+  great_rallies: "Great rallies",
+  fair_play: "Fair play",
+  on_time: "On time",
+  fun_to_play: "Fun to play",
+  great_serve: "Great serve",
+  good_coach: "Good coach",
+}
+
+/** Earned at KUDOS_BADGE_THRESHOLD kudos of one type. */
+export const KUDOS_BADGES: Record<KudosType, string> = {
+  great_rallies: "rally_ace",
+  fair_play: "fair_play",
+  on_time: "clockwork",
+  fun_to_play: "good_vibes",
+  great_serve: "ace_server",
+  good_coach: "mentor",
+}
+
+export const SOCIAL_LIMITS = {
+  kudosBadgeThreshold: 10,
+  maxKudosTypesPerMatch: 3,
+  kudosWindowMs: 72 * 60 * 60_000,
+  lateWithdrawalMs: 2 * 60 * 60_000,
+  reliabilityMinBookings: 3,
+  reliableBadgeMinBookings: 5,
+  reliableBadgePercent: 90,
+  rallyPartnersMax: 12,
+  muteDays: 7,
+} as const
+
+export const PLAY_AGAIN_PREFILL = "Rematch? 🏓"
