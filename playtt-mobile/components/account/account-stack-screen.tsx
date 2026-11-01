@@ -70,6 +70,11 @@ export function AccountStackScreen({
       <ScrollView
         contentContainerStyle={[styles.scroll, contentContainerStyle]}
         showsVerticalScrollIndicator={false}
+        // Default "never" blurs on touch end when the tap target isn't the focused
+        // input — multiline fields on iOS report an inner view, so the keyboard flickers.
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
       >
         {!showHeader ? (
           <View style={styles.intro}>

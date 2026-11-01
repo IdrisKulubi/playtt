@@ -1,6 +1,8 @@
 import { type Href, router, useFocusEffect } from "expo-router"
 import { useCallback, useMemo, useState } from "react"
-import { ScrollView, Text, View } from "react-native"
+import { useMinimizeOnScroll } from "expo-glass-tabs"
+import { Text, View } from "react-native"
+import Animated from "react-native-reanimated"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { BookingDetailSheet } from "@/components/booking/booking-detail-sheet"
@@ -28,6 +30,7 @@ export default function BookingsScreen() {
   const theme = useProductTheme()
   const skeletonSurface = useSkeletonSurface()
   const styles = useMemo(() => createAppScreenStyles(theme), [theme])
+  const onScroll = useMinimizeOnScroll()
 
   const [filter, setFilter] = useState<BookingFilter>("upcoming")
   const [bookings, setBookings] = useState<UserBookingSummary[]>([])
@@ -63,7 +66,9 @@ export default function BookingsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView
+      <Animated.ScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         contentContainerStyle={[
           styles.scroll,
           { paddingBottom: FLOATING_TAB_BAR_CLEARANCE },
@@ -118,7 +123,7 @@ export default function BookingsScreen() {
             </View>
           )}
         </SkeletonGate>
-      </ScrollView>
+      </Animated.ScrollView>
 
       <BookingDetailSheet
         visible={selectedBookingId !== null}

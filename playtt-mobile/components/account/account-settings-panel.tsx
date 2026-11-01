@@ -1,6 +1,8 @@
 import { router } from "expo-router"
 import { useMemo } from "react"
-import { ScrollView, StyleSheet } from "react-native"
+import { useMinimizeOnScroll } from "expo-glass-tabs"
+import { StyleSheet } from "react-native"
+import Animated from "react-native-reanimated"
 import { Bell } from "phosphor-react-native/src/icons/Bell"
 import { FileText } from "phosphor-react-native/src/icons/FileText"
 import { IdentificationCard } from "phosphor-react-native/src/icons/IdentificationCard"
@@ -16,6 +18,7 @@ import { useProductTheme } from "@/hooks/use-product-theme"
 export function AccountSettingsPanel() {
   const theme = useProductTheme()
   const iconColor = theme.foreground
+  const onScroll = useMinimizeOnScroll()
 
   const scrollStyles = useMemo(
     () =>
@@ -31,7 +34,9 @@ export function AccountSettingsPanel() {
   )
 
   return (
-    <ScrollView
+    <Animated.ScrollView
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       contentContainerStyle={scrollStyles.scroll}
       showsVerticalScrollIndicator={false}
     >
@@ -81,6 +86,6 @@ export function AccountSettingsPanel() {
           isLast
         />
       </AccountGlassSection>
-    </ScrollView>
+    </Animated.ScrollView>
   )
 }

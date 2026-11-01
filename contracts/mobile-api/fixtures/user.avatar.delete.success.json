@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"user.avatar.delete","case":"success","request":{"headers":{"authorization":"Bearer <token>"}},"response":{"status":200,"body":{"data":{"image":null}}}}

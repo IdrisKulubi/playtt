@@ -224,6 +224,6 @@ test("tapping a card opens the player profile", async () => {
   fetchMe.mockResolvedValue(me())
   const screen = await render(<CommunityScreen />)
 
-  await fireEvent.press(await screen.findByLabelText(/^Amara K\., Elite tier/))
+  await fireEvent.press(await screen.findByLabelText(/^Amara K\., [A-Za-z]+ tier/))
   expect(mockPush).toHaveBeenCalledWith("/community/player/user_amara")
 })

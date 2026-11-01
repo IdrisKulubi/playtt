@@ -54,6 +54,9 @@
                 },
                 "stats": {
                   "rating": 72,
+                  "points": 1173,
+                  "tier": "purple",
+                  "nextTierPoints": 1400,
                   "matches": 18,
                   "winRate": 61,
                   "reliability": 94,

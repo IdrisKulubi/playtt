@@ -33,8 +33,8 @@ Parent plan: [README.md](./README.md)
 ### Top-left block
 | Element | Source | Notes |
 |---------|--------|-------|
-| **Rating** (big number) | PlayTT rating from verified scoreboard results (M5) | Shows **NEW** until the player has 5 rated matches. Before M5 ships, this block shows **NEW** for everyone. |
-| **Tier name** | `user.skillLevel`, then rating once available | `beginner` → **Rookie**, `intermediate` → **Club**, `pro` → **Elite** |
+| **Rating** (big number) | Card points (see [Card points and tiers](#card-points-and-tiers)) | 40–99. Shows **NEW** only where card data is not loaded (chat and group lists). |
+| **Tier name** | Server tier from card points | **Rookie** (blue) → **Contender** (purple) → **Star** (pink) → **Legend** (gold) |
 | **Play style** | `player_profiles.play_style` | `ATK` attacker, `DEF` defender, `ALL` all-round |
 | **Handedness** | `player_profiles.handedness` | `R` / `L` |
 
@@ -65,11 +65,27 @@ A stat with too little data shows `—` in a muted color, never `0`, so new play
 
 Card backgrounds are drawn with `react-native-svg` (`LinearGradient`, `RadialGradient`, `Path`), so no new dependency is needed.
 
-| Tier | Base | Accent / foil | Border |
-|------|------|---------------|--------|
-| **Rookie** | Deep slate `#1a2230` → `#0e141d` | Soft cyan `#5fd4ff` | 1px cyan 40% |
-| **Club** | Electric blue `#0a3d6b` → `#06182b` | Brand cyan `#00b7ff` | 1.5px cyan |
-| **Elite** | Black `#0b0b10` → gunmetal `#22232b` | Gold `#f5c84c` + cyan sparks | 2px gold gradient |
+### Card points and tiers
+
+Every number is earned from real PlayTT activity (`src/server/community/card-points.ts`):
+
+| Activity | Points |
+|----------|--------|
+| Scoreboard win | 25 |
+| Session played (`MAT`) | 10 |
+| Coach drill completed | 15 |
+| Kudos received | 5 |
+
+Rating = `round(40 + 59 × (1 − e^(−points / 1500)))`, capped at 99, so early points move the number quickly and 99 is a long climb. The Elo rating (M5) still drives head-to-head but no longer the card number.
+
+| Tier | Name | From | Base (dark) | Accent | Border |
+|------|------|------|-------------|--------|--------|
+| **blue** | Rookie | 0 pts | `#0b3a78` → `#061a3a` | `#4fb4ff` | 1.5px |
+| **purple** | Contender | 600 pts | `#3d1878` → `#160833` | `#b98cff` | 1.5px |
+| **pink** | Star | 1,400 pts | `#7a1650` → `#2e0620` | `#ff7ac8` | 2px |
+| **gold** | Legend | 2,500 pts | `#5a4210` → `#1c1404` | `#f5c84c` | 2.5px |
+
+The API returns `stats.points`, `stats.tier` and `stats.nextTierPoints`; the full card shows a "320 pts to Star" progress bar until gold.
 
 Special variants are layered on top of the tier, one at a time, in this priority order:
 
@@ -83,7 +99,8 @@ Special variants are layered on top of the tier, one at a time, in this priority
 ### Card shape
 - A rounded rectangle with a **notched top edge**: a small paddle-shaped dip centered at the top. This is PlayTT's own silhouette, not a crest or shield.
 - A diagonal "net line" texture at 6% opacity across the background.
-- The avatar sits in a circle with a tier-colored glow ring. Without a photo, it shows initials on a gradient.
+- The player's photo fills the upper card as a portrait that fades into the tier color. Without a photo, a large initials monogram in the tier accent.
+- Photos are uploaded from the Create my card screen to R2 (`POST`/`PUT`/`DELETE /api/user/avatar`). `user.image` stores `/api/avatars/{userId}/{file}`, which redirects to a short-lived signed R2 URL, so the bucket stays private. The mini card keeps the round avatar.
 
 ## Card sizes
 

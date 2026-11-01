@@ -40,6 +40,39 @@
       "notes": ["Nullable profile fields are additive and must remain tolerated by mobile."]
     },
     {
+      "id": "user.avatar.post",
+      "method": "POST",
+      "pathTemplate": "/api/user/avatar",
+      "routeFile": "src/app/api/user/avatar/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/user-api.ts"],
+      "successFixture": "fixtures/user.avatar.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/user-error.json"],
+      "notes": ["Returns a presigned R2 PUT; the client uploads with the exact contentType, then confirms with PUT."]
+    },
+    {
+      "id": "user.avatar.put",
+      "method": "PUT",
+      "pathTemplate": "/api/user/avatar",
+      "routeFile": "src/app/api/user/avatar/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/user-api.ts"],
+      "successFixture": "fixtures/user.avatar.put.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/user-error.json"],
+      "notes": ["Sets user.image to a stable /api/avatars/{userId}/{file} path that redirects to a signed R2 URL."]
+    },
+    {
+      "id": "user.avatar.delete",
+      "method": "DELETE",
+      "pathTemplate": "/api/user/avatar",
+      "routeFile": "src/app/api/user/avatar/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/user-api.ts"],
+      "successFixture": "fixtures/user.avatar.delete.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/user-error.json"],
+      "notes": ["Clears user.image and deletes the stored R2 photo."]
+    },
+    {
       "id": "bookings.bootstrap.get",
       "method": "GET",
       "pathTemplate": "/api/bookings/bootstrap",

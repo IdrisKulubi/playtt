@@ -3,7 +3,7 @@
 // (setCSSEventHandler is missing in JSReanimated), so tests that render
 // animated components use this instead:
 //   jest.mock("react-native-reanimated", () => require("@/test/reanimated-mock"))
-const { View, ScrollView, Text, Image } = require("react-native")
+const { View, ScrollView, FlatList, Text, Image } = require("react-native")
 
 function layoutAnimation() {
   const builder = {
@@ -20,7 +20,7 @@ const easingFn = () => identity
 
 module.exports = {
   __esModule: true,
-  default: { View, ScrollView, Text, Image, createAnimatedComponent: identity },
+  default: { View, ScrollView, FlatList, Text, Image, createAnimatedComponent: identity },
   createAnimatedComponent: identity,
   useSharedValue: (initial) => {
     const shared = { value: initial }
@@ -32,6 +32,7 @@ module.exports = {
   },
   useAnimatedStyle: () => ({}),
   useAnimatedProps: () => ({}),
+  useAnimatedScrollHandler: () => undefined,
   useDerivedValue: (fn) => ({ value: fn() }),
   useReducedMotion: () => false,
   cancelAnimation: () => undefined,

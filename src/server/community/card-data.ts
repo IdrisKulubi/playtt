@@ -1,26 +1,27 @@
 // Loads everything a player card shows (docs/community/player-card.md):
-// session stats, kudos, reliability and badges, batched per page of players.
+// session stats, kudos, reliability, badges and card points, batched per page of players.
 
-import { and, eq, inArray, lte, or, sql } from "drizzle-orm"
+import { and, eq, inArray, isNotNull, lte, or, sql } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 
 import db from "@/db/drizzle"
 import {
   bookings,
+  coachTrainingItems,
   communityBookingPartners,
   communityKudos,
   communityReliabilityOverrides,
   matches,
   matchPlayers,
-  playerRatings,
   playSessions,
   sessionParticipants,
 } from "@/db/schema"
 import type { TenantContext } from "@/server/tenancy/types"
 
 import { EMPTY_CARD_STATS, groupCardStats, toCardStatWeeks, type CardStats } from "./card-stats.ts"
+import { cardProgress } from "./card-points.ts"
 import type { KudosType } from "./constants.ts"
-import { cardRatingFor, isInForm, winRate, type RecordedResult } from "./rating-rules.ts"
+import { isInForm, winRate, type RecordedResult } from "./rating-rules.ts"
 import {
   computeReliability,
   kudosBadges,
@@ -187,9 +188,20 @@ export async function loadMatchResults(context: TenantContext, userIds: string[]
   return results
 }
 
-async function loadRatings(userIds: string[]) {
-  const rows = await db.select().from(playerRatings).where(inArray(playerRatings.userId, userIds))
-  return new Map(rows.map((row) => [row.userId, row]))
+/** Coach drills each player has marked done. */
+async function loadCompletedDrills(context: TenantContext, userIds: string[]) {
+  const rows = await db
+    .select({ userId: coachTrainingItems.userId, count: sql<number>`count(*)::int` })
+    .from(coachTrainingItems)
+    .where(
+      and(
+        eq(coachTrainingItems.tenantId, context.tenantId),
+        inArray(coachTrainingItems.userId, userIds),
+        isNotNull(coachTrainingItems.completedAt),
+      ),
+    )
+    .groupBy(coachTrainingItems.userId)
+  return new Map(rows.map((row) => [row.userId, row.count]))
 }
 
 export async function loadCardData(context: TenantContext, userIds: string[], now: Date) {
@@ -197,12 +209,12 @@ export async function loadCardData(context: TenantContext, userIds: string[], no
     return new Map<string, CardData>()
   }
 
-  const [sessions, kudos, shared, results, ratings] = await Promise.all([
+  const [sessions, kudos, shared, results, drills] = await Promise.all([
     loadSessionRows(context, userIds, now),
     loadKudosCounts(context, userIds),
     loadSharedBookingFacts(context, userIds),
     loadMatchResults(context, userIds),
-    loadRatings(userIds),
+    loadCompletedDrills(context, userIds),
   ])
 
   const stats = groupCardStats(userIds, toCardStatWeeks(sessions), now)
@@ -213,6 +225,13 @@ export async function loadCardData(context: TenantContext, userIds: string[], no
       const totalKudos = Object.values(counts).reduce((sum, count) => sum + (count ?? 0), 0)
       const reliability = computeReliability(shared.get(id) ?? [], now)
       const recorded = results.get(id) ?? []
+      const base = stats.get(id) ?? EMPTY_CARD_STATS
+      const progress = cardProgress({
+        wins: recorded.filter((result) => result.won === true).length,
+        sessions: base.matches ?? 0,
+        drills: drills.get(id) ?? 0,
+        kudos: totalKudos,
+      })
       const badges = kudosBadges(counts)
       if (isInForm(recorded)) badges.unshift("in_form")
       if (reliability.reliableBadge) badges.push("reliable")
@@ -221,10 +240,13 @@ export async function loadCardData(context: TenantContext, userIds: string[], no
         id,
         {
           stats: {
-            ...(stats.get(id) ?? EMPTY_CARD_STATS),
+            ...base,
             kudos: totalKudos > 0 ? totalKudos : null,
             reliability: reliability.percent,
-            rating: cardRatingFor(ratings.get(id)),
+            rating: progress.rating,
+            points: progress.points,
+            tier: progress.tier,
+            nextTierPoints: progress.nextTierPoints,
             winRate: winRate(recorded),
           },
           badges,

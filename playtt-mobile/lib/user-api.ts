@@ -134,3 +134,47 @@ export async function patchProfile(body: ProfilePatchInput) {
     body: JSON.stringify(body),
   })
 }
+
+export type AvatarContentType = "image/jpeg" | "image/png" | "image/webp"
+
+type AvatarUploadGrantResponse = {
+  data: {
+    upload: { url: string; method: "PUT"; objectKey: string; contentType: string; expiresAt: string }
+    maxBytes: number
+  }
+}
+
+/**
+ * Profile photo → R2: ask for a presigned PUT, upload the local file straight
+ * to R2, then confirm so the server points user.image at it.
+ */
+export async function uploadAvatar(localUri: string, contentType: AvatarContentType) {
+  const { data } = await apiFetch<AvatarUploadGrantResponse>("/api/user/avatar", {
+    method: "POST",
+    body: JSON.stringify({ contentType }),
+  })
+
+  const file = await (await fetch(localUri)).blob()
+  if (file.size > data.maxBytes) {
+    throw new ApiError({ status: 400, code: "VALIDATION_ERROR", message: "Photos must be under 5 MB." })
+  }
+
+  const upload = await fetch(data.upload.url, {
+    method: "PUT",
+    headers: { "content-type": data.upload.contentType },
+    body: file,
+  })
+  if (!upload.ok) {
+    throw new ApiError({ status: upload.status, code: "AVATAR_UPLOAD_FAILED", message: "Could not upload your photo. Try again." })
+  }
+
+  const confirmed = await apiFetch<{ data: { image: string } }>("/api/user/avatar", {
+    method: "PUT",
+    body: JSON.stringify({ objectKey: data.upload.objectKey }),
+  })
+  return confirmed.data.image
+}
+
+export async function removeAvatar() {
+  await apiFetch<{ data: { image: null } }>("/api/user/avatar", { method: "DELETE" })
+}

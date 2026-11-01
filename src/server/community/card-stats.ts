@@ -1,6 +1,8 @@
 // Player card stats (docs/community/player-card.md). Pure so it can be tested
 // without a database; the service feeds it per-week session totals.
 
+import type { CardTier } from "./card-points.ts"
+
 export const CARD_STATS_TIME_ZONE = "Africa/Nairobi"
 
 export type CardStatWeek = {
@@ -13,8 +15,14 @@ export type CardStatWeek = {
 
 /** A null stat means "not enough data yet"; the card shows a dash. */
 export type CardStats = {
-  /** Card rating 40–99 from Elo (M5); null until 5 rated matches. */
+  /** Card rating 40–99 from card points; null when card data was not loaded. */
   rating: number | null
+  /** Card points earned from wins, sessions, coach drills and kudos. */
+  points: number | null
+  /** Card color tier from points: blue → purple → pink → gold. */
+  tier: CardTier | null
+  /** Points needed for the next tier; null at gold or when not loaded. */
+  nextTierPoints: number | null
   matches: number | null
   winRate: number | null
   reliability: number | null
@@ -25,6 +33,9 @@ export type CardStats = {
 
 export const EMPTY_CARD_STATS: CardStats = {
   rating: null,
+  points: null,
+  tier: null,
+  nextTierPoints: null,
   matches: null,
   winRate: null,
   reliability: null,

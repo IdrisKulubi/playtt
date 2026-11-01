@@ -6,6 +6,7 @@ import { fetchActivityStats } from "@/lib/activity-stats-api"
 import { sampleActivityStats } from "@/lib/mock/mock-activity-stats"
 
 jest.mock("@/lib/activity-stats-api", () => ({ fetchActivityStats: jest.fn() }))
+jest.mock("react-native-reanimated", () => require("@/test/reanimated-mock"))
 jest.mock("@/lib/mock/mock-config", () => ({ USE_LIVE_PLAYER_STATS: true }))
 jest.mock("@/hooks/use-product-theme", () => ({
   useProductTheme: () => ({

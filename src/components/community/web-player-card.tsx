@@ -1,13 +1,15 @@
 // Web version of the PlayTT player card (docs/community/player-card.md),
 // used on the invite landing page and the web Community page.
 
-type Tier = "rookie" | "club" | "elite"
+type Tier = "blue" | "purple" | "pink" | "gold"
 
 type WebPlayerCardProps = {
   displayName: string
   skillLevel: string
   stats: {
     rating: number | null
+    /** Server-earned card tier; null when card data was not loaded. */
+    tier?: Tier | null
     matches: number | null
     winRate: number | null
     reliability: number | null
@@ -16,22 +18,29 @@ type WebPlayerCardProps = {
   footer?: string
 }
 
+// Keep in sync with playtt-mobile card-tiers.ts (dark scheme).
 const TIER_STYLES: Record<Tier, { name: string; background: string; accent: string; border: string }> = {
-  rookie: {
+  blue: {
     name: "Rookie",
-    background: "linear-gradient(170deg, #1a2230 0%, #0e141d 100%)",
-    accent: "#5fd4ff",
-    border: "rgba(95, 212, 255, 0.4)",
+    background: "linear-gradient(170deg, #0b3a78 0%, #061a3a 100%)",
+    accent: "#4fb4ff",
+    border: "#4fb4ff",
   },
-  club: {
-    name: "Club",
-    background: "linear-gradient(170deg, #0a3d6b 0%, #06182b 100%)",
-    accent: "#00b7ff",
-    border: "#00b7ff",
+  purple: {
+    name: "Contender",
+    background: "linear-gradient(170deg, #3d1878 0%, #160833 100%)",
+    accent: "#b98cff",
+    border: "#b98cff",
   },
-  elite: {
-    name: "Elite",
-    background: "linear-gradient(170deg, #22232b 0%, #0b0b10 100%)",
+  pink: {
+    name: "Star",
+    background: "linear-gradient(170deg, #7a1650 0%, #2e0620 100%)",
+    accent: "#ff7ac8",
+    border: "#ff7ac8",
+  },
+  gold: {
+    name: "Legend",
+    background: "linear-gradient(170deg, #5a4210 0%, #1c1404 100%)",
     accent: "#f5c84c",
     border: "#f5c84c",
   },
@@ -48,12 +57,6 @@ const BADGE_LABELS: Record<string, string> = {
   reliable: "Reliable",
 }
 
-function tierFor(skillLevel: string, rating: number | null): Tier {
-  if (rating !== null) return rating >= 80 ? "elite" : rating >= 60 ? "club" : "rookie"
-  if (skillLevel === "pro") return "elite"
-  if (skillLevel === "intermediate") return "club"
-  return "rookie"
-}
 
 function initials(name: string) {
   return (
@@ -69,8 +72,8 @@ function initials(name: string) {
 
 const dash = (value: number | null | undefined) => (value === null || value === undefined ? "—" : String(value))
 
-export function WebPlayerCard({ displayName, skillLevel, stats, badges = [], footer }: WebPlayerCardProps) {
-  const tier = TIER_STYLES[tierFor(skillLevel, stats?.rating ?? null)]
+export function WebPlayerCard({ displayName, stats, badges = [], footer }: WebPlayerCardProps) {
+  const tier = TIER_STYLES[stats?.tier ?? "blue"]
   const slots = [
     { code: "MAT", value: stats?.matches },
     { code: "WIN%", value: stats?.winRate },

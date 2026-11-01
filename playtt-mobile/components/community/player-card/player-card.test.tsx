@@ -7,11 +7,11 @@ import {
   EMPTY_STAT,
   formatNairobiClock,
   formatStat,
+  nextTierProgress,
   playerCardAccessibilityLabel,
   sharedUsualTimes,
   tierForPlayer,
   statusRibbon,
-  tierForSkill,
 } from "./card-tiers"
 import { PlayerCard } from "./player-card"
 
@@ -73,10 +73,17 @@ const OPEN_NOW = {
   openNow: true,
 }
 
-test("skill levels map onto card tiers", () => {
-  expect(tierForSkill("beginner")).toBe("rookie")
-  expect(tierForSkill("intermediate")).toBe("club")
-  expect(tierForSkill("pro")).toBe("elite")
+test("the card tier comes from the server, starting at blue", () => {
+  expect(tierForPlayer(player({ skillLevel: "pro" }))).toBe("blue")
+  expect(tierForPlayer(player({ stats: { ...NO_STATS, tier: "purple" } }))).toBe("purple")
+  expect(tierForPlayer(player({ stats: { ...NO_STATS, tier: "gold" } }))).toBe("gold")
+})
+
+test("progress shows points to the next tier, and nothing at gold", () => {
+  expect(
+    nextTierProgress(player({ stats: { ...NO_STATS, tier: "purple", points: 1080, nextTierPoints: 1400 } }), "dark"),
+  ).toEqual({ label: "320 pts to Star", fraction: 1080 / 1400 })
+  expect(nextTierProgress(player({ stats: { ...NO_STATS, tier: "gold", points: 3000, nextTierPoints: null } }), "dark")).toBeNull()
 })
 
 test("missing stats render as a dash, never zero", () => {
@@ -99,7 +106,7 @@ test("status ribbon shows open now with the end time, or the later window", () =
 
 test("accessibility label reads name, tier, status and headline stats", () => {
   expect(playerCardAccessibilityLabel(player({ availability: OPEN_NOW }))).toBe(
-    "Amara K., Club tier, open now until 9 PM, 42 matches, 61 percent wins",
+    "Amara K., Rookie tier, open now until 9 PM, 42 matches, 61 percent wins",
   )
   // Stats without data are skipped rather than read out as zero.
   expect(playerCardAccessibilityLabel(player({ skillLevel: "beginner", stats: NO_STATS }))).toBe(
@@ -113,7 +120,7 @@ describe.each(["beginner", "intermediate", "pro"] as const)("%s card", (skillLev
       <PlayerCard player={player({ skillLevel, availability: OPEN_NOW })} size={size} onPress={() => undefined} />,
     )
     expect(screen.getByText(size === "mini" ? "Amara K." : "AMARA K.")).toBeTruthy()
-    expect(screen.getByLabelText(/^Amara K\., (Rookie|Club|Elite) tier/)).toBeTruthy()
+    expect(screen.getByLabelText(/^Amara K\., (Rookie|Contender|Star|Legend) tier/)).toBeTruthy()
   })
 })
 
@@ -172,17 +179,17 @@ test("shared usual times keep the other player's order", () => {
   ])
 })
 
-test("rated players show their number and take their tier from it", async () => {
-  const rated = player({ skillLevel: "beginner", stats: { ...NO_STATS, rating: 84, matches: 30 } })
-  expect(tierForPlayer(rated)).toBe("elite")
-  expect(tierForPlayer(player({ skillLevel: "pro", stats: { ...NO_STATS, rating: 55 } }))).toBe("rookie")
-  // Unrated players keep their self-reported tier.
-  expect(tierForPlayer(player({ skillLevel: "pro" }))).toBe("elite")
+test("rated players show their number and server tier", async () => {
+  const rated = player({
+    skillLevel: "beginner",
+    stats: { ...NO_STATS, rating: 84, points: 2600, tier: "gold", nextTierPoints: null, matches: 30 },
+  })
+  expect(tierForPlayer(rated)).toBe("gold")
 
   const screen = await render(<PlayerCard player={rated} size="full" />)
   expect(screen.getByText("84")).toBeTruthy()
-  expect(screen.getByText("ELITE")).toBeTruthy()
-  expect(screen.getByLabelText(/Elite tier, rated 84/)).toBeTruthy()
+  expect(screen.getByText("LEGEND")).toBeTruthy()
+  expect(screen.getByLabelText(/Legend tier, rated 84/)).toBeTruthy()
 })
 
 test("in-form players get the IN FORM tag", async () => {

@@ -1,12 +1,13 @@
 import { router } from "expo-router"
 import { useMemo } from "react"
+import { useMinimizeOnScroll } from "expo-glass-tabs"
 import {
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native"
+import Animated from "react-native-reanimated"
 import { User } from "phosphor-react-native/src/icons/User"
 import { Lock } from "phosphor-react-native/src/icons/Lock"
 
@@ -54,6 +55,7 @@ export function AccountProfilePanel({
   const theme = useProductTheme()
   const skeletonSurface = useSkeletonSurface()
   const styles = useMemo(() => createAppScreenStyles(theme), [theme])
+  const onScroll = useMinimizeOnScroll()
 
   const oauthLabel = getOAuthProviderLabel(profile?.authMethods)
   const showChangePassword = canChangePassword(profile?.authMethods)
@@ -82,7 +84,9 @@ export function AccountProfilePanel({
   )
 
   return (
-    <ScrollView
+    <Animated.ScrollView
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       contentContainerStyle={scrollStyles.scroll}
       refreshControl={
         <RefreshControl
@@ -153,6 +157,6 @@ export function AccountProfilePanel({
           </View>
         )}
       </SkeletonGate>
-    </ScrollView>
+    </Animated.ScrollView>
   )
 }

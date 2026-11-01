@@ -1,6 +1,7 @@
 import { type Href, router, useFocusEffect } from "expo-router"
 import { useCallback, useMemo, useState } from "react"
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native"
+import { useMinimizeOnScroll } from "expo-glass-tabs"
+import { ActivityIndicator, RefreshControl, StyleSheet, Text, View } from "react-native"
 import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated"
 import { SafeAreaView } from "react-native-safe-area-context"
 
@@ -73,6 +74,7 @@ export default function CommunityScreen() {
   const skeletonSurface = useSkeletonSurface()
   const reduceMotion = useReducedMotion()
   const screenStyles = useMemo(() => createAppScreenStyles(theme), [theme])
+  const onScroll = useMinimizeOnScroll()
   const [segment, setSegment] = useState<Segment>("open")
   const [skill, setSkill] = useState<CommunitySkillLevel | null>(null)
   const [doubles, setDoubles] = useState(false)
@@ -267,7 +269,9 @@ export default function CommunityScreen() {
 
   return (
     <SafeAreaView style={screenStyles.safeArea} edges={["top", "left", "right"]}>
-      <FlatList
+      <Animated.FlatList
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         data={showGrid ? list.players : []}
         keyExtractor={(player) => player.id}
         numColumns={2}

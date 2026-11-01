@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { RefreshControl, ScrollView, Text, View } from "react-native"
+import { useMinimizeOnScroll } from "expo-glass-tabs"
+import { RefreshControl, Text, View } from "react-native"
+import Animated from "react-native-reanimated"
 
 import { CoachChatPanel } from "@/components/coach/coach-chat-panel"
 import { CoachHeader } from "@/components/coach/coach-header"
@@ -53,6 +55,7 @@ type CoachHomePanelProps = {
 export function CoachHomePanel({ isActive }: CoachHomePanelProps) {
   const theme = useProductTheme()
   const styles = useMemo(() => createAppScreenStyles(theme), [theme])
+  const onScroll = useMinimizeOnScroll()
   const [segment, setSegment] = useState<CoachSegment>("chat")
   const [status, setStatus] = useState<CoachStatus | null>(null)
   const [insights, setInsights] = useState<CoachInsight[]>([])
@@ -139,7 +142,9 @@ export function CoachHomePanel({ isActive }: CoachHomePanelProps) {
         {segment === "chat" ? (
           <CoachChatPanel />
         ) : (
-          <ScrollView
+          <Animated.ScrollView
+            onScroll={onScroll}
+            scrollEventThrottle={16}
             contentContainerStyle={[
               styles.scroll,
               {
@@ -203,7 +208,7 @@ export function CoachHomePanel({ isActive }: CoachHomePanelProps) {
                 </>
               )}
             </SkeletonGate>
-          </ScrollView>
+          </Animated.ScrollView>
         )}
       </View>
 

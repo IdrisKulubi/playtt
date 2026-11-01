@@ -16,6 +16,7 @@ import {
   PlayTTSpacing,
   PlayTTTypography,
 } from '@/constants/playtt-tokens';
+import { useProductTheme } from '@/hooks/use-product-theme';
 
 type InputProps = TextInputProps & {
   hasError?: boolean;
@@ -45,6 +46,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const isAuth = variant === 'auth' && authTheme;
+  const productTheme = useProductTheme();
 
   function setRefs(instance: TextInput | null) {
     inputRef.current = instance;
@@ -72,6 +74,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
       ]
     : [
         styles.wrapper,
+        { backgroundColor: productTheme.input, borderColor: productTheme.border },
         compact && styles.wrapperCompact,
         isFocused && !hasError && styles.wrapperFocused,
         hasError && styles.wrapperError,
@@ -79,17 +82,27 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
 
   const inputStyle = isAuth
     ? [styles.authInput, Boolean(leadingIcon || trailingAccessory) && styles.authInputWithIcon, { color: authTheme.foreground }, style]
-    : [styles.input, compact && styles.inputCompact, style];
+    : [
+        styles.input,
+        { color: productTheme.foreground },
+        compact && styles.inputCompact,
+        props.multiline && styles.inputMultiline,
+        style,
+      ];
+
+  // A Pressable around a multiline TextInput steals the tap on iOS and the
+  // keyboard never opens; multiline fields fill the wrapper, so they don't need it.
+  const Container = props.multiline ? View : Pressable;
 
   return (
-    <Pressable onPress={focusInput}>
+    <Container onPress={props.multiline ? undefined : focusInput}>
       <View pointerEvents="box-none" style={wrapperStyle}>
         {isAuth ? <AuthGlass /> : null}
         {isAuth && leadingIcon ? <View pointerEvents="none" style={styles.leadingIcon}>{leadingIcon}</View> : null}
         <TextInput
           ref={setRefs}
           placeholderTextColor={
-            placeholderTextColor ?? (isAuth ? authTheme.muted : PlayTTColors.productMuted)
+            placeholderTextColor ?? (isAuth ? authTheme.muted : productTheme.muted)
           }
           style={inputStyle}
           onFocus={(event) => {
@@ -104,7 +117,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
         />
         {isAuth && trailingAccessory ? <View style={styles.trailingAccessory}>{trailingAccessory}</View> : null}
       </View>
-    </Pressable>
+    </Container>
   );
 });
 
@@ -156,6 +169,10 @@ const styles = StyleSheet.create({
     minHeight: 52,
     paddingHorizontal: PlayTTSpacing.md,
     paddingVertical: PlayTTSpacing.sm + 2,
+  },
+  inputMultiline: {
+    minHeight: 88,
+    textAlignVertical: 'top',
   },
   inputCompact: {
     fontSize: 14,

@@ -1,0 +1,1 @@
+{"contractVersion":1,"endpoint":"user.avatar.put","case":"success","request":{"headers":{"authorization":"Bearer <token>"},"body":{"objectKey":"avatars/018f4d65-3c1a-7f1d-9d54-6f547f24a001/3f2b8c1e-6d4a-4e7b-9c2d-1a2b3c4d5e6f.jpg"}},"response":{"status":200,"body":{"data":{"image":"/api/avatars/018f4d65-3c1a-7f1d-9d54-6f547f24a001/3f2b8c1e-6d4a-4e7b-9c2d-1a2b3c4d5e6f.jpg"}}}}

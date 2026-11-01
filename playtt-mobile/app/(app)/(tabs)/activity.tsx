@@ -1,6 +1,8 @@
 import { useFocusEffect } from "expo-router"
 import { useCallback, useMemo, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { useMinimizeOnScroll } from "expo-glass-tabs"
+import { View } from "react-native"
+import Animated from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { ActivityHeader } from "@/components/activity/activity-header"
@@ -33,6 +35,7 @@ type ActivitySegment = "highlights" | "stats"
 export default function ActivityScreen() {
   const theme = useProductTheme()
   const styles = useMemo(() => createAppScreenStyles(theme), [theme])
+  const onScroll = useMinimizeOnScroll()
   const insets = useSafeAreaInsets()
   const [segment, setSegment] = useState<ActivitySegment>("highlights")
   const [clipBalance, setClipBalance] = useState<number | null>(null)
@@ -84,7 +87,9 @@ export default function ActivityScreen() {
     segment === "stats" ? [2] : undefined
 
   const scrollBody = (
-    <ScrollView
+    <Animated.ScrollView
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       style={{ flex: 1 }}
       contentContainerStyle={scrollContentStyle}
       contentInsetAdjustmentBehavior="never"
@@ -116,7 +121,7 @@ export default function ActivityScreen() {
       )}
 
       {segment === "stats" ? <ActivityStatsScrollSlot /> : null}
-    </ScrollView>
+    </Animated.ScrollView>
   )
 
   return (

@@ -19,10 +19,17 @@ Use this system for floating bars, segment controls, and glass panels in `playtt
 | Glass background | `components/ui/liquid-glass-surface.tsx` — `LiquidGlassSurface`, `useNativeLiquidGlass()`, `liquidGlassFill` | iOS 26+ `GlassView`, else chrome material blur / Android overlay |
 | Chrome tokens | `components/ui/liquid-glass-chrome.ts` | Monochrome label colors + selection chip rgba + pill border |
 | Segments | `components/ui/glass-segment-control.tsx` | Highlights/Stats, Bookings, Coach sub-tabs |
-| Tab bar | `components/navigation/glass-tab-bar.tsx` | Bottom tabs |
+| Tab bar | `app/(app)/(tabs)/_layout.tsx` — `expo-glass-tabs` (`GlassTabBar`, `GlassTabButton`) on Expo Router headless tabs | Bottom tabs: sliding highlight, finger scrub, minimize on scroll |
 | Content cards | `components/ui/glass-panel.tsx` | Stats blocks, replay rows |
 
-Tab bar re-exports: `components/navigation/tab-bar-glass-surface.tsx` (thin wrapper; prefer `LiquidGlassSurface` for new code).
+### Tab bar (expo-glass-tabs)
+
+- Tabs are declared in the `TABS` array in `app/(app)/(tabs)/_layout.tsx`. Hrefs are group-qualified (`/(app)/(tabs)/…`) because bare `/` resolves to the root `app/index.tsx`.
+- Icons go through `renderIcon` + `IconSymbol` (SF Symbols on iOS, Material on Android/web). Do not use the package's `icon` prop — it is iOS-only.
+- Theme colors come from `liquid-glass-chrome.ts`.
+- Hidden routes (e.g. `coach`) need a `TabTrigger` inside a separate `<TabList style={{ display: 'none' }}>`, otherwise headless tabs won't register them.
+- Every scrollable tab screen should use `Animated.ScrollView` / `Animated.FlatList` with `onScroll={useMinimizeOnScroll()}` and `scrollEventThrottle={16}` so the bar shrinks on scroll.
+- Known limitation: the package's built-in bottom `ProgressiveBlur` is hardcoded dark (`tint="dark"` + black gradient), so it reads as a dark fade in light mode.
 
 ## SDK 57 overlay positioning
 

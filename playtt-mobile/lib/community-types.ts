@@ -40,10 +40,18 @@ export type CommunityRelationship = {
   canMessage: boolean
 }
 
+/** Server-earned card color tier, from card points: blue → purple → pink → gold. */
+export type CommunityCardTier = "blue" | "purple" | "pink" | "gold"
+
 /** null = not enough data yet; the card shows a dash, never 0. */
 export type CommunityCardStats = {
-  /** Card rating 40–99 (M5); null shows NEW until 5 rated matches. */
+  /** Card rating 40–99 from card points; null shows NEW when not loaded. */
   rating?: number | null
+  /** Points from wins, sessions, coach drills and kudos. */
+  points?: number | null
+  tier?: CommunityCardTier | null
+  /** Points needed for the next tier; null at gold. */
+  nextTierPoints?: number | null
   matches: number | null
   winRate: number | null
   reliability: number | null

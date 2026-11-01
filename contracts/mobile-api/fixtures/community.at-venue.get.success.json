@@ -39,6 +39,9 @@
             },
             "stats": {
               "rating": null,
+              "points": null,
+              "tier": null,
+              "nextTierPoints": null,
               "matches": 18,
               "winRate": null,
               "reliability": 94,

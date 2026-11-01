@@ -20,10 +20,12 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated"
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg"
 
-import { resolveColorScheme } from "@/constants/theme"
+import { resolveColorScheme, type AppColorScheme } from "@/constants/theme"
 import { PlayTTFontFamilies } from "@/constants/playtt-tokens"
 import { useColorScheme } from "@/hooks/use-color-scheme"
+import { resolveMediaUrl } from "@/lib/media-url"
 
 import { CardBack } from "./card-back"
 import { CardBackground } from "./card-background"
@@ -40,6 +42,7 @@ import {
   IN_FORM_ORANGE,
   ratingLabel,
   handednessCode,
+  nextTierProgress,
   playStyleCode,
   playerCardAccessibilityLabel,
   statusRibbon,
@@ -107,7 +110,7 @@ function CardAvatar({
     >
       {player.image ? (
         <Image
-          source={{ uri: player.image }}
+          source={{ uri: resolveMediaUrl(player.image) ?? undefined }}
           style={{ width: "100%", height: "100%" }}
           contentFit="cover"
           accessible={false}
@@ -117,6 +120,84 @@ function CardAvatar({
           {cardInitials(player.displayName)}
         </Text>
       )}
+    </View>
+  )
+}
+
+/**
+ * Front-of-card portrait: the player's photo fills the upper card and fades
+ * into the tier color; without a photo, a large initials monogram.
+ */
+function CardPortrait({
+  player,
+  tokens,
+  compact,
+  idPrefix,
+}: {
+  player: PlayerCardData
+  tokens: CardTierTokens
+  compact: boolean
+  idPrefix: string
+}) {
+  const uri = resolveMediaUrl(player.image)
+
+  return (
+    <View pointerEvents="none" style={[styles.portrait, compact ? styles.portraitCompact : styles.portraitFull]}>
+      {uri ? (
+        <>
+          <Image
+            source={{ uri }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            contentPosition="top"
+            transition={180}
+            accessible={false}
+          />
+          <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" preserveAspectRatio="none">
+            <Defs>
+              <LinearGradient id={`${idPrefix}-fade`} x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0.55" stopColor={tokens.gradient[1]} stopOpacity={0} />
+                <Stop offset="1" stopColor={tokens.gradient[1]} stopOpacity={1} />
+              </LinearGradient>
+            </Defs>
+            <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${idPrefix}-fade)`} />
+          </Svg>
+        </>
+      ) : (
+        <View style={styles.monogramWrap}>
+          <View
+            style={[
+              styles.monogramRing,
+              compact ? styles.monogramRingCompact : styles.monogramRingFull,
+              { borderColor: tokens.accent, backgroundColor: tokens.plate },
+            ]}
+          >
+            <Text
+              style={[
+                styles.monogram,
+                compact ? styles.monogramCompact : styles.monogramFull,
+                { color: tokens.accent },
+              ]}
+            >
+              {cardInitials(player.displayName)}
+            </Text>
+          </View>
+        </View>
+      )}
+    </View>
+  )
+}
+
+function TierProgress({ player, tokens, scheme }: { player: PlayerCardData; tokens: CardTierTokens; scheme: AppColorScheme }) {
+  const progress = nextTierProgress(player, scheme)
+  if (!progress) return null
+
+  return (
+    <View style={styles.progress} accessibilityLabel={progress.label}>
+      <View style={[styles.progressTrack, { backgroundColor: tokens.plate }]}>
+        <View style={[styles.progressFill, { width: `${progress.fraction * 100}%`, backgroundColor: tokens.accent }]} />
+      </View>
+      <Text style={[styles.progressLabel, { color: tokens.muted }]}>{progress.label}</Text>
     </View>
   )
 }
@@ -195,12 +276,16 @@ function CardFront({
   player,
   size,
   tokens,
+  scheme,
   animate,
+  idPrefix,
 }: {
   player: PlayerCardData
   size: "full" | "compact"
   tokens: CardTierTokens
+  scheme: AppColorScheme
   animate: boolean
+  idPrefix: string
 }) {
   const compact = size === "compact"
   const ribbon = statusRibbon(player.availability)
@@ -210,9 +295,10 @@ function CardFront({
 
   return (
     <View style={[styles.front, compact ? styles.frontCompact : styles.frontFull]}>
+      <CardPortrait player={player} tokens={tokens} compact={compact} idPrefix={idPrefix} />
       <View style={styles.topRow}>
         <View style={styles.ratingBlock}>
-          {/* Rating from verified scoreboard results; NEW until 5 rated matches. */}
+          {/* Rating from earned card points (wins, sessions, drills, kudos). */}
           <Text style={[styles.rating, compact && styles.ratingCompact, { color: tokens.text }]}>
             {ratingLabel(player)}
           </Text>
@@ -239,9 +325,7 @@ function CardFront({
         </View>
       </View>
 
-      <View style={styles.avatarSlot}>
-        <CardAvatar player={player} tokens={tokens} size={compact ? 64 : 112} />
-      </View>
+      <View style={styles.portraitSpacer} />
 
       <View style={[styles.namePlate, { backgroundColor: tokens.plate }]}>
         <Text
@@ -264,6 +348,7 @@ function CardFront({
 
       {!compact ? (
         <>
+          <TierProgress player={player} tokens={tokens} scheme={scheme} />
           <View style={[styles.divider, { backgroundColor: tokens.muted }]} />
           <CardBadges player={player} tokens={tokens} />
           <Text style={[styles.footer, { color: tokens.muted }]}>
@@ -322,7 +407,7 @@ export function PlayerCard({ player, size = "compact", onPress, flippable = fals
   const interactive = canFlip || Boolean(onPress)
   const notchDepth = isFull ? 10 : 6
   const radius = isFull ? 24 : 18
-  const shineEnabled = isFull && tier !== "rookie" && !reduceMotion && !reduceTransparency && !flipped
+  const shineEnabled = isFull && tier !== "blue" && !reduceMotion && !reduceTransparency && !flipped
 
   const face = (side: "front" | "back") => (
     <Animated.View
@@ -353,7 +438,14 @@ export function PlayerCard({ player, size = "compact", onPress, flippable = fals
             enabled={shineEnabled}
             idPrefix={idPrefix}
           />
-          <CardFront player={player} size={isFull ? "full" : "compact"} tokens={tokens} animate={!reduceMotion} />
+          <CardFront
+            player={player}
+            size={isFull ? "full" : "compact"}
+            tokens={tokens}
+            scheme={scheme}
+            animate={!reduceMotion}
+            idPrefix={idPrefix}
+          />
         </>
       ) : (
         <CardBack player={player} tokens={tokens} />
@@ -458,10 +550,75 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     gap: 6,
   },
-  avatarSlot: {
+  portraitSpacer: {
+    flex: 1,
+  },
+  portrait: {
+    position: "absolute",
+    overflow: "hidden",
+  },
+  portraitFull: {
+    top: 18,
+    left: "24%",
+    right: "6%",
+    bottom: "38%",
+    borderRadius: 18,
+  },
+  portraitCompact: {
+    top: 10,
+    left: "26%",
+    right: "6%",
+    bottom: "40%",
+    borderRadius: 12,
+  },
+  monogramWrap: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  monogramRing: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+  },
+  monogramRingFull: {
+    width: 132,
+    height: 132,
+    borderRadius: 66,
+  },
+  monogramRingCompact: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1.5,
+  },
+  monogram: {
+    fontFamily: PlayTTFontFamilies.bold,
+    letterSpacing: 1,
+  },
+  monogramFull: {
+    fontSize: 52,
+  },
+  monogramCompact: {
+    fontSize: 24,
+  },
+  progress: {
+    gap: 4,
+  },
+  progressTrack: {
+    height: 6,
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 3,
+  },
+  progressLabel: {
+    fontFamily: PlayTTFontFamilies.semiBold,
+    fontSize: 11,
+    letterSpacing: 0.4,
+    textAlign: "center",
   },
   namePlate: {
     flexDirection: "row",

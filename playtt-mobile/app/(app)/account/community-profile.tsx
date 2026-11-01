@@ -3,6 +3,7 @@ import { type ComponentRef, useEffect, useMemo, useRef, useState } from "react"
 import { ActivityIndicator, StyleSheet, View } from "react-native"
 
 import { AccountStackScreen } from "@/components/account/account-stack-screen"
+import { CardPhotoPicker } from "@/components/community/card-photo-picker"
 import {
   CommunityProfileForm,
   profilePatch,
@@ -114,6 +115,10 @@ export default function CommunityProfileScreen() {
               <PlayerCard player={preview} size="full" flippable />
             </View>
           </View>
+          <CardPhotoPicker
+            hasPhoto={Boolean(me?.image)}
+            onChange={(image) => setMe((current) => (current ? { ...current, image } : current))}
+          />
           {me?.profile.communityVisible && !isSetup ? (
             <Button
               label="Share my card"

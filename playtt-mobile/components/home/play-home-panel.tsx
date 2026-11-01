@@ -1,6 +1,8 @@
 import { router } from "expo-router"
 import { useMemo } from "react"
-import { RefreshControl, ScrollView } from "react-native"
+import { useMinimizeOnScroll } from "expo-glass-tabs"
+import { RefreshControl } from "react-native"
+import Animated from "react-native-reanimated"
 
 import { VenueCard } from "@/components/booking/venue-card"
 import { HomeHero } from "@/components/home/home-hero"
@@ -43,11 +45,14 @@ export function PlayHomePanel({
   const theme = useProductTheme()
   const skeletonSurface = useSkeletonSurface()
   const styles = useMemo(() => createAppScreenStyles(theme), [theme])
+  const onScroll = useMinimizeOnScroll()
 
   const showBookCta = !isLoadingUpcoming && upcomingBooking === null
 
   return (
-    <ScrollView
+    <Animated.ScrollView
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       contentContainerStyle={[
         styles.scroll,
         {
@@ -94,6 +99,6 @@ export function PlayHomePanel({
         onOpenBooking={onOpenBooking}
         onOpenCoach={onOpenCoach}
       />
-    </ScrollView>
+    </Animated.ScrollView>
   )
 }

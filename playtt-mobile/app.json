@@ -55,7 +55,15 @@
           "isAccessMediaLocationEnabled": false
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "PlayTT uses your photos so you can add a picture to your player card.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -13,6 +13,9 @@ function week(weekStart, sessions = 1, minutes = 60, userId = "u1") {
 test("new players get dashes, never zeros", () => {
   assert.deepEqual(computeCardStats([], NOW), {
     rating: null,
+    points: null,
+    tier: null,
+    nextTierPoints: null,
     matches: null,
     winRate: null,
     reliability: null,

@@ -4,6 +4,7 @@ import type { AppColorScheme } from "@/constants/theme"
 import type {
   CommunityAvailability,
   CommunityCardStats,
+  CommunityCardTier,
   CommunityHandedness,
   CommunityPlayStyle,
   CommunityRelationship,
@@ -14,7 +15,7 @@ import type {
   UsualTimeKey,
 } from "@/lib/community-types"
 
-export type CardTier = "rookie" | "club" | "elite"
+export type CardTier = CommunityCardTier
 export type CardSize = "full" | "compact" | "mini"
 export type CardVariant = "in_form" | "streak" | "founding" | "rally" | null
 
@@ -58,119 +59,144 @@ export type CardTierTokens = {
 }
 
 const DARK_TEXT = "#ffffff"
-const DARK_MUTED = "rgba(255, 255, 255, 0.62)"
 const LIGHT_TEXT = "#0a1628"
-const LIGHT_MUTED = "#4a5a70"
+
+/** Server tier order, lowest first (src/server/community/card-points.ts). */
+export const CARD_TIER_ORDER: CardTier[] = ["blue", "purple", "pink", "gold"]
 
 export const CARD_TIERS: Record<CardTier, Record<AppColorScheme, CardTierTokens>> = {
-  rookie: {
+  blue: {
     dark: {
       name: "Rookie",
-      gradient: ["#1a2230", "#0e141d"],
-      accent: "#5fd4ff",
-      borderEnd: "#5fd4ff",
-      borderWidth: 1,
-      borderOpacity: 0.4,
-      text: DARK_TEXT,
-      muted: DARK_MUTED,
-      plate: "rgba(95, 212, 255, 0.10)",
-      foilOpacity: 0,
-    },
-    light: {
-      name: "Rookie",
-      gradient: ["#eef3f8", "#dfe7f0"],
-      accent: "#0077a8",
-      borderEnd: "#0077a8",
-      borderWidth: 1,
-      borderOpacity: 0.4,
-      text: LIGHT_TEXT,
-      muted: LIGHT_MUTED,
-      plate: "rgba(0, 119, 168, 0.08)",
-      foilOpacity: 0,
-    },
-  },
-  club: {
-    dark: {
-      name: "Club",
-      gradient: ["#0a3d6b", "#06182b"],
-      accent: "#00b7ff",
-      borderEnd: "#00b7ff",
+      gradient: ["#0b3a78", "#061a3a"],
+      accent: "#4fb4ff",
+      borderEnd: "#1f6fd1",
       borderWidth: 1.5,
       borderOpacity: 1,
       text: DARK_TEXT,
-      muted: DARK_MUTED,
-      plate: "rgba(0, 183, 255, 0.14)",
-      foilOpacity: 0.16,
-    },
-    light: {
-      name: "Club",
-      gradient: ["#e2f4ff", "#c8e9fb"],
-      accent: "#006a99",
-      borderEnd: "#00b7ff",
-      borderWidth: 1.5,
-      borderOpacity: 1,
-      text: LIGHT_TEXT,
-      muted: LIGHT_MUTED,
-      plate: "rgba(0, 106, 153, 0.10)",
+      muted: "rgba(214, 234, 255, 0.66)",
+      plate: "rgba(79, 180, 255, 0.14)",
       foilOpacity: 0.08,
     },
+    light: {
+      name: "Rookie",
+      gradient: ["#e3f0ff", "#c6defc"],
+      accent: "#0b5cad",
+      borderEnd: "#4fb4ff",
+      borderWidth: 1.5,
+      borderOpacity: 1,
+      text: LIGHT_TEXT,
+      muted: "#34557a",
+      plate: "rgba(11, 92, 173, 0.10)",
+      foilOpacity: 0.04,
+    },
   },
-  elite: {
+  purple: {
     dark: {
-      name: "Elite",
-      gradient: ["#22232b", "#0b0b10"],
-      accent: "#f5c84c",
-      borderEnd: "#b8892a",
+      name: "Contender",
+      gradient: ["#3d1878", "#160833"],
+      accent: "#b98cff",
+      borderEnd: "#7a3df0",
+      borderWidth: 1.5,
+      borderOpacity: 1,
+      text: DARK_TEXT,
+      muted: "rgba(232, 220, 255, 0.68)",
+      plate: "rgba(185, 140, 255, 0.16)",
+      foilOpacity: 0.14,
+    },
+    light: {
+      name: "Contender",
+      gradient: ["#f1e8ff", "#dccbfb"],
+      accent: "#5b2bb5",
+      borderEnd: "#b98cff",
+      borderWidth: 1.5,
+      borderOpacity: 1,
+      text: LIGHT_TEXT,
+      muted: "#4f3a78",
+      plate: "rgba(91, 43, 181, 0.10)",
+      foilOpacity: 0.07,
+    },
+  },
+  pink: {
+    dark: {
+      name: "Star",
+      gradient: ["#7a1650", "#2e0620"],
+      accent: "#ff7ac8",
+      borderEnd: "#e0338f",
       borderWidth: 2,
       borderOpacity: 1,
       text: DARK_TEXT,
-      muted: "rgba(255, 240, 205, 0.68)",
-      plate: "rgba(245, 200, 76, 0.14)",
-      foilOpacity: 0.2,
+      muted: "rgba(255, 222, 240, 0.70)",
+      plate: "rgba(255, 122, 200, 0.16)",
+      foilOpacity: 0.18,
     },
     light: {
-      name: "Elite",
-      gradient: ["#fff7e0", "#f6e6b8"],
-      accent: "#8a6410",
-      borderEnd: "#f5c84c",
+      name: "Star",
+      gradient: ["#ffe6f3", "#fbc8e2"],
+      accent: "#a3195f",
+      borderEnd: "#ff7ac8",
       borderWidth: 2,
+      borderOpacity: 1,
+      text: LIGHT_TEXT,
+      muted: "#7a2d55",
+      plate: "rgba(163, 25, 95, 0.10)",
+      foilOpacity: 0.09,
+    },
+  },
+  gold: {
+    dark: {
+      name: "Legend",
+      gradient: ["#5a4210", "#1c1404"],
+      accent: "#f5c84c",
+      borderEnd: "#b8892a",
+      borderWidth: 2.5,
+      borderOpacity: 1,
+      text: DARK_TEXT,
+      muted: "rgba(255, 240, 205, 0.70)",
+      plate: "rgba(245, 200, 76, 0.16)",
+      foilOpacity: 0.24,
+    },
+    light: {
+      name: "Legend",
+      gradient: ["#fff4d6", "#f3dd9c"],
+      accent: "#7a560a",
+      borderEnd: "#f5c84c",
+      borderWidth: 2.5,
       borderOpacity: 1,
       text: LIGHT_TEXT,
       muted: "#6b5520",
-      plate: "rgba(138, 100, 16, 0.10)",
-      foilOpacity: 0.1,
+      plate: "rgba(122, 86, 10, 0.10)",
+      foilOpacity: 0.12,
     },
   },
 }
 
 export const OPEN_NOW_GREEN = "#2ee87a"
 
-export function tierForSkill(skill: CommunitySkillLevel): CardTier {
-  if (skill === "pro") return "elite"
-  if (skill === "intermediate") return "club"
-  return "rookie"
+/** Tier comes from the server (earned card points); players without loaded card data start at blue. */
+export function tierForPlayer(player: Pick<PlayerCardData, "stats">): CardTier {
+  return player.stats.tier ?? "blue"
 }
 
-export function cardTierTokens(skill: CommunitySkillLevel, scheme: AppColorScheme) {
-  return CARD_TIERS[tierForSkill(skill)][scheme]
-}
-
-/** Once rated (M5) the tier follows the card rating: Rookie < 60, Club 60–79, Elite 80+. */
-export function tierForPlayer(player: Pick<PlayerCardData, "skillLevel" | "stats">): CardTier {
-  const rating = player.stats.rating
-  if (rating === null || rating === undefined) return tierForSkill(player.skillLevel)
-  if (rating >= 80) return "elite"
-  if (rating >= 60) return "club"
-  return "rookie"
-}
-
-export function cardTierTokensFor(player: Pick<PlayerCardData, "skillLevel" | "stats">, scheme: AppColorScheme) {
+export function cardTierTokensFor(player: Pick<PlayerCardData, "stats">, scheme: AppColorScheme) {
   return CARD_TIERS[tierForPlayer(player)][scheme]
 }
 
 export function ratingLabel(player: Pick<PlayerCardData, "stats">) {
   const rating = player.stats.rating
   return rating === null || rating === undefined ? "NEW" : String(rating)
+}
+
+/** "320 pts to Star" plus a 0–1 fill for the progress bar; null at gold or when unknown. */
+export function nextTierProgress(player: Pick<PlayerCardData, "stats">, scheme: AppColorScheme) {
+  const { points, nextTierPoints } = player.stats
+  if (points === null || points === undefined || !nextTierPoints) return null
+  const next = CARD_TIER_ORDER[CARD_TIER_ORDER.indexOf(tierForPlayer(player)) + 1]
+  if (!next) return null
+  return {
+    label: `${Math.max(0, nextTierPoints - points)} pts to ${CARD_TIERS[next][scheme].name}`,
+    fraction: Math.min(1, Math.max(0, points / nextTierPoints)),
+  }
 }
 
 export const IN_FORM_ORANGE = "#ff7a1a"
@@ -211,7 +237,8 @@ export const USUAL_TIME_LABELS: Record<UsualTimeKey, string> = {
   late_night: "Late night",
 }
 
-export type StatKey = keyof CommunityCardStats
+/** Numeric stats shown in the grid (tier is a label, not a stat). */
+export type StatKey = Exclude<keyof CommunityCardStats, "tier">
 
 export type StatSlot = { key: StatKey; code: string; spoken: string; percent?: boolean }
 
