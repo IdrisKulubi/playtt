@@ -1,0 +1,70 @@
+{
+  "contractVersion": 1,
+  "endpoint": "community.conversations.post",
+  "case": "success",
+  "request": {
+    "headers": {
+      "authorization": "Bearer <token>"
+    },
+    "body": {
+      "userId": "018f4d65-3c1a-7f1d-9d54-6f547f24a002"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": {
+        "conversation": {
+          "id": "018f4d65-3c1a-7f1d-9d54-6f547f24d001",
+          "type": "direct",
+          "state": "active",
+          "player": {
+            "id": "018f4d65-3c1a-7f1d-9d54-6f547f24a002",
+            "displayName": "Amara K.",
+            "image": null,
+            "skillLevel": "intermediate",
+            "playStyle": "all_round",
+            "handedness": "left",
+            "bio": "Prefer best-of-five sets.",
+            "usualTimes": [
+              "weekday_evenings"
+            ],
+            "foundingPlayer": false,
+            "availability": null,
+            "relationship": {
+              "following": true,
+              "followsYou": true,
+              "rallyPartner": true,
+              "blockedByYou": false,
+              "canMessage": true
+            },
+            "stats": {
+              "matches": 42,
+              "winRate": null,
+              "reliability": null,
+              "streakWeeks": 3,
+              "kudos": null,
+              "hours": 31
+            }
+          },
+          "lastMessage": {
+            "id": "018f4d65-3c1a-7f1d-9d54-6f547f24e001",
+            "seq": 41,
+            "conversationId": "018f4d65-3c1a-7f1d-9d54-6f547f24d001",
+            "senderId": "018f4d65-3c1a-7f1d-9d54-6f547f24a002",
+            "mine": false,
+            "kind": "text",
+            "body": "Free at 7?",
+            "payload": null,
+            "clientMessageId": null,
+            "createdAt": "2026-10-28T15:58:00.000Z"
+          },
+          "unreadCount": 1,
+          "otherLastReadSeq": 40,
+          "canSend": true,
+          "pendingRequest": null
+        }
+      }
+    }
+  }
+}

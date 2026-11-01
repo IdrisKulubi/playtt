@@ -204,10 +204,27 @@ Extend `src/server/notifications/contract.ts`:
 - **Chat** `app/(app)/community/chat/[conversationId].tsx`: reuse the patterns in `components/coach/coach-chat-composer.tsx` and `coach-chat-message.tsx`. The header shows the mini card + head-to-head (M5). The composer has quick-reply chips and a "Book a table" action. Messages appear immediately when sent, using `clientMessageId`.
 - Polling: `after=<lastId>` every 4 s while the chat is focused and the app is in the foreground. Stop when it's in the background. The tab badge comes from `GET /community/unread` on focus + push receipt.
 
+### As built (M3)
+- **Tables** (migration `drizzle/0036_community_chat.sql`): `community_conversations`, `community_conversation_members`, `community_messages`. The tables are prefixed `community_` to keep the domain obvious. `community_reports.message_id` is now an FK (`on delete set null`).
+- **Ordering:** messages have a `seq` identity column. `before=` / `after=` and the read marker (`last_read_seq`) use it, not timestamps.
+- **Server:** `src/server/community/chat-service.ts` (DB), `chat-rules.ts` (pure decisions), `message-filter.ts` (masking + link-only rejection), `notify.ts` (pushes).
+- **Neutral errors:** blocks, hidden profiles and request policies all return `403 CANNOT_MESSAGE` ("isn't accepting messages right now"), so nobody learns they were blocked. Blocked or hidden peers' chats are hidden on both sides and left out of unread counts.
+- **Policy vs. accepted chats:** once the other player has the chat in their inbox (`accepted_at` set), their request policy no longer blocks replies; blocks still do.
+- **Replying from Requests accepts the request.** A deleted chat comes back on a new message only if it had been accepted; a deleted, never-accepted request stays hidden and the 3-message cap still applies.
+- **Reading a request doesn't send a read marker**, so the sender never sees "Seen" until it's accepted.
+- **Pushes:** each event (`message`, `follow`, `followee_open`) goes to the outbox as `community.notification.requested.v1` in the same transaction, then is delivered straight away with Next's `after()`. The every-minute durable worker is the fallback, and the `notifications` dedup key prevents double sends. Message pushes skip recipients who already read past the message or muted the chat.
+- **Preferences:** each preference key is stored under one template key (`community_message`, `community_follow`, `community_followee_open`, `community_kudos`); `push-delivery.ts` maps the sibling templates (`community_message_request`, `community_play_again`) onto the same key.
+- **Deep links:** pushes carry `conversationId` or `playerId`. `lib/notification-deep-link.ts` routes them to `/community/chat/:id` or `/community/player/:userId`. Expo Router also serves `playtt://community/chat/:id` directly.
+- **Booking cards:** the server builds the payload from a booking the sender owns that is `confirmed` and not over; the client can't fake one. In chat, **+** opens **Book a table** (the normal booking flow) and **Share an upcoming booking**.
+- **Add to booking is not shipped.** The dependency check found that a `session_participants` guest row unlocks nothing today: access grants (`src/server/access`) never read participants, replay requests require `role = 'owner'`, and `/api/bookings/mine` lists only bookings the user made. Adding the button would show a booking the guest can't see. It needs My Bookings to include guest sessions first.
+- **Badge:** the custom glass tab bar has no badge slot, so the unread count sits on a messages button in the Community header (a quiet dot for requests). It refreshes on focus and when a chat push arrives.
+- **Request policy copy fix:** `followers` means *my followers can message me* (M1 rule). The M2 editor said "People I follow"; it now says "My followers".
+
 ### Tests (M3)
-- `messages.test.mjs`: request folder limits, block behavior, idempotent send, rate limits
-- `notifications`: dedup collapsing for message bursts
-- Mobile: chat screen sending + polling merge, deep-link routing
+- `src/server/community/messages.test.mjs` (in `pnpm test:community`): request folder limits, replies accepting requests, deleted-chat revival, push dedup windows (60 s per conversation, 6 h followee-open), unread rule, filter masking and link-only rejection, message rate limit
+- `playtt-mobile/lib/community-chat-merge.test.ts`: polling merge, optimistic replacement by `clientMessageId`, failed sends, "Seen" marker, Nairobi day labels
+- `playtt-mobile/components/community/chat/chat-screen.test.tsx`: optimistic send, polling with `after=`, quick replies, request banner and read-marker suppression
+- `playtt-mobile/lib/push-notifications.test.ts`: deep-link routing for chat and player pushes
 
 ---
 
@@ -295,8 +312,9 @@ The web page `src/app/community/page.tsx` currently uses mock data. For this rel
 - [x] M1 contract update in `docs/contracts/mobile-api-v1.md`
 - [x] M2 player card components + tests
 - [x] M2 Community tab, Open to Play sheet, profile, connections, community profile editor
-- [ ] M3 chat tables (`0036_community_chat.sql`), routes, notifications + preferences, mobile inbox + chat
-- [ ] M3 verify guest participant access/replay behavior before enabling **Add to booking**
+- [x] M3 chat tables (`0036_community_chat.sql`), routes, notifications + preferences, mobile inbox + chat
+- [x] M3 verify guest participant access/replay behavior before enabling **Add to booking** (verified: guests get nothing yet, so the button is held back; see "As built (M3)")
+- [ ] **Add to booking**: include guest sessions in `/api/bookings/mine` (and decide on door codes), then add `POST /community/bookings/:bookingId/guests`
 - [ ] M4 at-venue, Rally Partners, usual-time filters, kudos (`0037`), reliability + overrides, admin reports page
 - [ ] M5 groups/events, `match_players` + rating worker (`0038`), head-to-head, invites + landing page, card sharing
 - [x] Remove `lib/mock/mock-community.ts` and legacy community components

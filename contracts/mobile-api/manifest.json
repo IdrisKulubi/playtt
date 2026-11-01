@@ -421,6 +421,94 @@
       "successFixture": "fixtures/community.reports.post.success.json",
       "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/player-not-found.json", "fixtures/errors/cannot-target-self.json", "fixtures/errors/rate-limited.json", "fixtures/errors/community-error.json"],
       "notes": ["Community M1 (docs/community/README.md). Names are always first name + last initial."]
+    },
+    {
+      "id": "community.conversations.get",
+      "method": "GET",
+      "pathTemplate": "/api/v1/community/conversations?folder={folder}&cursor={cursor}",
+      "routeFile": "src/app/api/v1/community/conversations/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-chat-api.ts"],
+      "successFixture": "fixtures/community.conversations.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community chat M3 (docs/community/README.md). Blocks, hidden profiles and request policies all return the same neutral errors."]
+    },
+    {
+      "id": "community.conversations.post",
+      "method": "POST",
+      "pathTemplate": "/api/v1/community/conversations",
+      "routeFile": "src/app/api/v1/community/conversations/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-chat-api.ts"],
+      "successFixture": "fixtures/community.conversations.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/player-not-found.json", "fixtures/errors/cannot-target-self.json", "fixtures/errors/community-profile-required.json", "fixtures/errors/cannot-message.json", "fixtures/errors/rate-limited.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community chat M3 (docs/community/README.md). Blocks, hidden profiles and request policies all return the same neutral errors."]
+    },
+    {
+      "id": "community.conversation.delete",
+      "method": "DELETE",
+      "pathTemplate": "/api/v1/community/conversations/{conversationId}",
+      "routeFile": "src/app/api/v1/community/conversations/[conversationId]/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-chat-api.ts"],
+      "successFixture": "fixtures/community.conversation.delete.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/conversation-not-found.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community chat M3 (docs/community/README.md). Blocks, hidden profiles and request policies all return the same neutral errors."]
+    },
+    {
+      "id": "community.conversation.messages.get",
+      "method": "GET",
+      "pathTemplate": "/api/v1/community/conversations/{conversationId}/messages?before={before}&after={after}",
+      "routeFile": "src/app/api/v1/community/conversations/[conversationId]/messages/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-chat-api.ts"],
+      "successFixture": "fixtures/community.conversation.messages.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/conversation-not-found.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community chat M3 (docs/community/README.md). Blocks, hidden profiles and request policies all return the same neutral errors."]
+    },
+    {
+      "id": "community.conversation.messages.post",
+      "method": "POST",
+      "pathTemplate": "/api/v1/community/conversations/{conversationId}/messages",
+      "routeFile": "src/app/api/v1/community/conversations/[conversationId]/messages/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-chat-api.ts"],
+      "successFixture": "fixtures/community.conversation.messages.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/conversation-not-found.json", "fixtures/errors/cannot-message.json", "fixtures/errors/request-limit-reached.json", "fixtures/errors/message-rejected.json", "fixtures/errors/booking-not-shareable.json", "fixtures/errors/rate-limited.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community chat M3 (docs/community/README.md). Blocks, hidden profiles and request policies all return the same neutral errors."]
+    },
+    {
+      "id": "community.conversation.read.post",
+      "method": "POST",
+      "pathTemplate": "/api/v1/community/conversations/{conversationId}/read",
+      "routeFile": "src/app/api/v1/community/conversations/[conversationId]/read/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-chat-api.ts"],
+      "successFixture": "fixtures/community.conversation.read.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/conversation-not-found.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community chat M3 (docs/community/README.md). Blocks, hidden profiles and request policies all return the same neutral errors."]
+    },
+    {
+      "id": "community.conversation.accept.post",
+      "method": "POST",
+      "pathTemplate": "/api/v1/community/conversations/{conversationId}/accept",
+      "routeFile": "src/app/api/v1/community/conversations/[conversationId]/accept/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-chat-api.ts"],
+      "successFixture": "fixtures/community.conversation.accept.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/conversation-not-found.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community chat M3 (docs/community/README.md). Blocks, hidden profiles and request policies all return the same neutral errors."]
+    },
+    {
+      "id": "community.unread.get",
+      "method": "GET",
+      "pathTemplate": "/api/v1/community/unread",
+      "routeFile": "src/app/api/v1/community/unread/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-chat-api.ts"],
+      "successFixture": "fixtures/community.unread.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community chat M3 (docs/community/README.md). Blocks, hidden profiles and request policies all return the same neutral errors."]
     }
   ],
   "producerConsumerDrift": [

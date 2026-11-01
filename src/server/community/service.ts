@@ -3,6 +3,8 @@ import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm"
 import db from "@/db/drizzle"
 import {
   bookings,
+  communityConversationMembers,
+  communityMessages,
   communityReports,
   follows,
   locations,
@@ -25,6 +27,7 @@ import {
 import { COMMUNITY_LIMITS, type PlayAvailabilityWindow } from "./constants.ts"
 import { toCommunityDisplayName } from "./display-name.ts"
 import { CommunityError } from "./errors.ts"
+import { deliverCommunityNotificationSoon, enqueueCommunityNotification } from "./notify.ts"
 import { consumeCommunityRateLimit } from "./rate-limit.ts"
 import { canMessage, canSee, isRallyPartner, type RelationshipFacts } from "./visibility.ts"
 import type {
@@ -34,7 +37,7 @@ import type {
   CommunityReportInput,
 } from "./http.ts"
 
-type ProfileRow = typeof playerProfiles.$inferSelect
+export type ProfileRow = typeof playerProfiles.$inferSelect
 type AvailabilityRow = typeof playAvailability.$inferSelect
 
 export type HomeVenue = { id: string; name: string; timezone: string }
@@ -79,17 +82,17 @@ function serializeAvailability(row: AvailabilityRow | null | undefined, now = ne
   }
 }
 
-function encodeCursor(offset: number) {
+export function encodeCursor(offset: number) {
   return Buffer.from(String(offset)).toString("base64url")
 }
 
-function decodeCursor(cursor: string | undefined) {
+export function decodeCursor(cursor: string | undefined) {
   if (!cursor) return 0
   const value = Number(Buffer.from(cursor, "base64url").toString())
   return Number.isInteger(value) && value >= 0 ? value : 0
 }
 
-function assertRateLimit(scope: Parameters<typeof consumeCommunityRateLimit>[0], userId: string) {
+export function assertRateLimit(scope: Parameters<typeof consumeCommunityRateLimit>[0], userId: string) {
   if (!consumeCommunityRateLimit(scope, userId)) {
     throw new CommunityError("RATE_LIMITED", "Too many requests. Try again later.", 429)
   }
@@ -137,14 +140,14 @@ async function requireHomeVenue(context: TenantContext, userId: string) {
 
 // --- Relationship facts ---------------------------------------------------
 
-type RelationshipMaps = {
+export type RelationshipMaps = {
   viewerFollows: Set<string>
   followsViewer: Set<string>
   viewerBlocked: Set<string>
   blockedViewer: Set<string>
 }
 
-async function loadRelationships(viewerId: string, targetIds: string[]): Promise<RelationshipMaps> {
+export async function loadRelationships(viewerId: string, targetIds: string[]): Promise<RelationshipMaps> {
   const maps: RelationshipMaps = {
     viewerFollows: new Set(),
     followsViewer: new Set(),
@@ -190,7 +193,7 @@ async function loadRelationships(viewerId: string, targetIds: string[]): Promise
   return maps
 }
 
-function factsFor(
+export function factsFor(
   viewerId: string,
   target: { id: string; profile: ProfileRow | null },
   maps: RelationshipMaps,
@@ -217,7 +220,7 @@ function serializeRelationship(facts: RelationshipFacts) {
   }
 }
 
-type PlayerRow = {
+export type PlayerRow = {
   id: string
   name: string
   image: string | null
@@ -226,7 +229,7 @@ type PlayerRow = {
   availability: AvailabilityRow | null
 }
 
-function serializePlayer(
+export function serializePlayer(
   row: PlayerRow,
   facts: RelationshipFacts,
   now: Date,
@@ -305,7 +308,7 @@ function blockedBetween(viewerId: string) {
   )`
 }
 
-const activeAvailabilityJoin = (now: Date) =>
+export const activeAvailabilityJoin = (now: Date) =>
   and(
     eq(playAvailability.userId, user.id),
     isNull(playAvailability.endedAt),
@@ -314,7 +317,7 @@ const activeAvailabilityJoin = (now: Date) =>
 
 // --- My community ---------------------------------------------------------
 
-async function getProfileRow(userId: string) {
+export async function getProfileRow(userId: string) {
   const [row] = await db
     .select()
     .from(playerProfiles)
@@ -455,19 +458,30 @@ export async function goOpenToPlay(
     throw new CommunityError(resolved.code, resolved.message, 409)
   }
 
-  await db.transaction(async (tx) => {
+  const availabilityId = await db.transaction(async (tx) => {
     await endActiveAvailability(tx, userId, now)
-    await tx.insert(playAvailability).values({
-      tenantId: context.tenantId,
-      userId,
-      locationId: venue.id,
-      window: input.window,
-      startsAt: resolved.range.startsAt,
-      endsAt: resolved.range.endsAt,
-      note: input.note ?? null,
-      lookingForDoubles: input.lookingForDoubles ?? false,
-    })
+    const [row] = await tx
+      .insert(playAvailability)
+      .values({
+        tenantId: context.tenantId,
+        userId,
+        locationId: venue.id,
+        window: input.window,
+        startsAt: resolved.range.startsAt,
+        endsAt: resolved.range.endsAt,
+        note: input.note ?? null,
+        lookingForDoubles: input.lookingForDoubles ?? false,
+      })
+      .returning({ id: playAvailability.id })
+    await enqueueCommunityNotification(
+      context.tenantId,
+      { kind: "followee_open", userId, availabilityId: row.id },
+      tx,
+    )
+    return row.id
   })
+
+  deliverCommunityNotificationSoon(context.tenantId, { kind: "followee_open", userId, availabilityId })
 
   return getMyCommunity(context, userId)
 }
@@ -562,7 +576,7 @@ export async function listCommunityPlayers(
   }
 }
 
-async function loadPlayerRow(context: TenantContext, targetId: string, now: Date) {
+export async function loadPlayerRow(context: TenantContext, targetId: string, now: Date) {
   const [row] = await db
     .select({
       id: user.id,
@@ -586,7 +600,7 @@ async function loadPlayerRow(context: TenantContext, targetId: string, now: Date
 
 // Loads a target the viewer may see, or throws PLAYER_NOT_FOUND (blocked and
 // hidden players look identical to missing ones).
-async function requireVisiblePlayer(context: TenantContext, viewerId: string, targetId: string) {
+export async function requireVisiblePlayer(context: TenantContext, viewerId: string, targetId: string) {
   const now = new Date()
   const row = await loadPlayerRow(context, targetId, now)
   const maps = await loadRelationships(viewerId, row ? [row.id] : [])
@@ -618,7 +632,7 @@ export async function getCommunityPlayer(context: TenantContext, viewerId: strin
 
 // --- Follows --------------------------------------------------------------
 
-function assertNotSelf(viewerId: string, targetId: string) {
+export function assertNotSelf(viewerId: string, targetId: string) {
   if (viewerId === targetId) {
     throw new CommunityError("CANNOT_TARGET_SELF", "You can't do that to yourself.")
   }
@@ -629,10 +643,25 @@ export async function followPlayer(context: TenantContext, viewerId: string, tar
   await requireVisiblePlayer(context, viewerId, targetId)
   assertRateLimit("follow", viewerId)
 
-  await db
-    .insert(follows)
-    .values({ tenantId: context.tenantId, followerId: viewerId, followeeId: targetId })
-    .onConflictDoNothing()
+  const created = await db.transaction(async (tx) => {
+    const rows = await tx
+      .insert(follows)
+      .values({ tenantId: context.tenantId, followerId: viewerId, followeeId: targetId })
+      .onConflictDoNothing()
+      .returning({ id: follows.id })
+    if (rows.length > 0) {
+      await enqueueCommunityNotification(
+        context.tenantId,
+        { kind: "follow", followerId: viewerId, followeeId: targetId },
+        tx,
+      )
+    }
+    return rows.length > 0
+  })
+
+  if (created) {
+    deliverCommunityNotificationSoon(context.tenantId, { kind: "follow", followerId: viewerId, followeeId: targetId })
+  }
 
   return getCommunityPlayer(context, viewerId, targetId)
 }
@@ -751,6 +780,32 @@ export async function createCommunityReport(
   assertNotSelf(reporterId, input.targetUserId)
   await requireUserExists(input.targetUserId)
   assertRateLimit("report", reporterId)
+
+  if (input.messageId) {
+    // Only a message the target sent, in a chat the reporter is part of.
+    const [message] = await db
+      .select({ id: communityMessages.id })
+      .from(communityMessages)
+      .innerJoin(
+        communityConversationMembers,
+        and(
+          eq(communityConversationMembers.conversationId, communityMessages.conversationId),
+          eq(communityConversationMembers.userId, reporterId),
+        ),
+      )
+      .where(
+        and(
+          eq(communityMessages.id, input.messageId),
+          eq(communityMessages.tenantId, context.tenantId),
+          eq(communityMessages.senderId, input.targetUserId),
+        ),
+      )
+      .limit(1)
+
+    if (!message) {
+      throw new CommunityError("CONVERSATION_NOT_FOUND", "We could not find that message.", 404)
+    }
+  }
 
   const [report] = await db
     .insert(communityReports)

@@ -39,7 +39,7 @@ const HANDEDNESS: { value: CommunityHandedness; label: string }[] = [
 
 const POLICIES: { value: CommunityRequestPolicy; label: string; detail: string }[] = [
   { value: "everyone", label: "Everyone", detail: "Any player at your venue" },
-  { value: "followers", label: "People I follow", detail: "Only players you follow" },
+  { value: "followers", label: "My followers", detail: "Only players who follow you" },
   { value: "rally_partners", label: "Rally Partners", detail: "Only players you follow each other with" },
 ]
 

@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm"
 import {
+  bigint,
   boolean,
   check,
   foreignKey,
@@ -9,6 +10,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -4876,8 +4878,9 @@ export const communityReports = pgTable(
     targetUserId: text("target_user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    // Plain uuid until chat messages exist (M3), then becomes an FK.
-    messageId: uuid("message_id"),
+    messageId: uuid("message_id").references(() => communityMessages.id, {
+      onDelete: "set null",
+    }),
     reason: communityReportReasonEnum("reason").notNull(),
     note: text("note"),
     status: communityReportStatusEnum("status").default("open").notNull(),
@@ -4899,6 +4902,146 @@ export const communityReports = pgTable(
     check(
       "community_reports_note_length",
       sql`${table.note} is null or char_length(${table.note}) <= 500`
+    ),
+  ]
+)
+
+// --- Community chat (docs/community/README.md, M3) ---
+
+export const communityConversationTypeEnum = pgEnum("community_conversation_type", [
+  "direct",
+  "group",
+  "event",
+])
+
+export const communityMemberRoleEnum = pgEnum("community_member_role", [
+  "member",
+  "admin",
+])
+
+// request = the recipient's Requests folder; left = deleted / left the chat.
+export const communityMemberStateEnum = pgEnum("community_member_state", [
+  "active",
+  "request",
+  "left",
+])
+
+export const communityMessageKindEnum = pgEnum("community_message_kind", [
+  "text",
+  "quick_reply",
+  "booking_card",
+  "kudos_prompt",
+  "system",
+])
+
+export const communityConversations = pgTable(
+  "community_conversations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    type: communityConversationTypeEnum("type").default("direct").notNull(),
+    // Sorted "userA:userB" for direct chats, so each pair has one conversation.
+    directKey: text("direct_key"),
+    title: text("title"),
+    locationId: uuid("location_id").references(() => locations.id, {
+      onDelete: "set null",
+    }),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("community_conversations_direct_key_unique").on(
+      table.tenantId,
+      table.directKey
+    ),
+    check(
+      "community_conversations_direct_key_required",
+      sql`${table.type} <> 'direct' or ${table.directKey} is not null`
+    ),
+  ]
+)
+
+export const communityConversationMembers = pgTable(
+  "community_conversation_members",
+  {
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => communityConversations.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    role: communityMemberRoleEnum("role").default("member").notNull(),
+    state: communityMemberStateEnum("state").default("active").notNull(),
+    // Highest community_messages.seq this member has read.
+    lastReadSeq: bigint("last_read_seq", { mode: "number" }).default(0).notNull(),
+    // Set once the member has the chat in their inbox (accepted or started it).
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    mutedUntil: timestamp("muted_until", { withTimezone: true }),
+    joinedAt: timestamp("joined_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.conversationId, table.userId] }),
+    index("community_conversation_members_user_state_idx").on(
+      table.userId,
+      table.state
+    ),
+  ]
+)
+
+export const communityMessages = pgTable(
+  "community_messages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    // Monotonic order for pagination, polling (after=) and read markers.
+    seq: bigint("seq", { mode: "number" }).generatedAlwaysAsIdentity().notNull(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => communityConversations.id, { onDelete: "cascade" }),
+    // null = system message, or the sender deleted their account.
+    senderId: text("sender_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    kind: communityMessageKindEnum("kind").default("text").notNull(),
+    body: text("body").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>(),
+    clientMessageId: text("client_message_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("community_messages_seq_unique").on(table.seq),
+    index("community_messages_conversation_seq_idx").on(
+      table.conversationId,
+      table.seq
+    ),
+    uniqueIndex("community_messages_client_id_unique").on(
+      table.conversationId,
+      table.senderId,
+      table.clientMessageId
+    ),
+    check(
+      "community_messages_body_length",
+      sql`char_length(${table.body}) <= 1000`
     ),
   ]
 )

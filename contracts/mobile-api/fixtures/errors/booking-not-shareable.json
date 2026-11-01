@@ -1,0 +1,13 @@
+{
+  "contractVersion": 1,
+  "endpoint": "*",
+  "case": "booking-not-shareable",
+  "request": {},
+  "response": {
+    "status": 422,
+    "body": {
+      "code": "BOOKING_NOT_SHAREABLE",
+      "message": "Only your upcoming confirmed bookings can be shared."
+    }
+  }
+}

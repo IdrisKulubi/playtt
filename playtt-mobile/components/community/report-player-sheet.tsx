@@ -24,10 +24,12 @@ type ReportPlayerSheetProps = {
   visible: boolean
   targetUserId: string
   displayName: string
+  /** Set when reporting a specific chat message. */
+  messageId?: string
   onClose: () => void
 }
 
-export function ReportPlayerSheet({ visible, targetUserId, displayName, onClose }: ReportPlayerSheetProps) {
+export function ReportPlayerSheet({ visible, targetUserId, displayName, messageId, onClose }: ReportPlayerSheetProps) {
   const theme = useProductTheme()
   const [reason, setReason] = useState<CommunityReportReason | null>(null)
   const [note, setNote] = useState("")
@@ -37,7 +39,7 @@ export function ReportPlayerSheet({ visible, targetUserId, displayName, onClose 
     if (!reason) return
     setSaving(true)
     try {
-      await reportPlayer({ targetUserId, reason, note: note.trim() || undefined })
+      await reportPlayer({ targetUserId, reason, messageId, note: note.trim() || undefined })
       toast.success("Thanks. Our team will review this report.")
       onClose()
     } catch (error) {
@@ -66,7 +68,7 @@ export function ReportPlayerSheet({ visible, targetUserId, displayName, onClose 
   )
 
   return (
-    <BottomSheet visible={visible} title={`Report ${displayName}`} onClose={onClose} scrollable>
+    <BottomSheet visible={visible} title={messageId ? "Report message" : `Report ${displayName}`} onClose={onClose} scrollable>
       <View style={styles.body}>
         <Text style={styles.hint}>Reports are private. {displayName} won&apos;t know who sent it.</Text>
         <View style={{ gap: PlayTTSpacing.xs }} accessibilityRole="radiogroup">

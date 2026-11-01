@@ -81,6 +81,8 @@ export default function AppLayout() {
       <Stack.Screen name="coach/subscribe" />
       <Stack.Screen name="community/player/[userId]/index" />
       <Stack.Screen name="community/player/[userId]/connections" />
+      <Stack.Screen name="community/inbox" />
+      <Stack.Screen name="community/chat/[conversationId]" />
     </Stack>
   )
 }

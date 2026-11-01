@@ -1,0 +1,21 @@
+{
+  "contractVersion": 1,
+  "endpoint": "community.unread.get",
+  "case": "success",
+  "request": {
+    "headers": {
+      "authorization": "Bearer <token>"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": {
+        "unread": {
+          "inbox": 2,
+          "requests": 1
+        }
+      }
+    }
+  }
+}

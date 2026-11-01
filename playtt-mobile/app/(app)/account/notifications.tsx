@@ -32,6 +32,10 @@ const PREF_ROWS: { key: PrefKey; title: string; description: string }[] = [
   { key: "sessionWarning", title: "Five-minute warning", description: "Know when your session is nearly finished." },
   { key: "sessionEnded", title: "Session ended", description: "Get confirmation when the session closes." },
   { key: "replayReady", title: "Replay ready", description: "Know when a clip from your session is available." },
+  { key: "communityMessages", title: "Community messages", description: "New chats and message requests from players." },
+  { key: "communityFollows", title: "New followers", description: "When a player follows you." },
+  { key: "communityOpenToPlay", title: "Players open to play", description: "When someone you follow goes open (at most every 6 hours)." },
+  { key: "communityKudos", title: "Kudos", description: "When a player gives you kudos after a match." },
 ]
 
 export default function NotificationsScreen() {

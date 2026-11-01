@@ -19,6 +19,12 @@ const TEMPLATE_KEYS: Record<NotificationPreferenceKey, string> = {
   sessionWarning: "session_warning",
   sessionEnded: "session_ended",
   replayReady: "replay_ready",
+  // Preferences are stored under one template key; push-delivery maps the
+  // related templates (e.g. community_message_request) onto the same key.
+  communityMessages: "community_message",
+  communityFollows: "community_follow",
+  communityOpenToPlay: "community_followee_open",
+  communityKudos: "community_kudos",
 }
 
 const CHANNELS = ["email", "push"] as const

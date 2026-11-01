@@ -1,0 +1,13 @@
+{
+  "contractVersion": 1,
+  "endpoint": "*",
+  "case": "request-limit-reached",
+  "request": {},
+  "response": {
+    "status": 429,
+    "body": {
+      "code": "REQUEST_LIMIT_REACHED",
+      "message": "You can send 3 messages until they accept your request."
+    }
+  }
+}

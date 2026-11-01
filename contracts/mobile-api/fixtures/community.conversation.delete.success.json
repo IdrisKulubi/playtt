@@ -1,0 +1,21 @@
+{
+  "contractVersion": 1,
+  "endpoint": "community.conversation.delete",
+  "case": "success",
+  "request": {
+    "headers": {
+      "authorization": "Bearer <token>"
+    },
+    "params": {
+      "conversationId": "018f4d65-3c1a-7f1d-9d54-6f547f24d001"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": {
+        "left": true
+      }
+    }
+  }
+}

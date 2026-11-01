@@ -117,3 +117,11 @@ Every player object in these responses (including `me`) carries
 `stats: { matches, winRate, reliability, streakWeeks, kudos, hours }`.
 Each value is a number or `null`, where `null` means there is not enough data
 yet and the client shows a dash.
+
+The chat endpoints (`community.conversations.*`, `community.conversation.*`,
+`community.unread.get`) are consumed by `playtt-mobile/lib/community-chat-api.ts`.
+Messages are ordered by `seq`; poll with `?after=<seq>`. Sends must carry a
+`clientMessageId`; repeating it returns the original message with `200`
+instead of `201`. They add the error fixtures `conversation-not-found`,
+`cannot-message`, `request-limit-reached`, `message-rejected` and
+`booking-not-shareable`.

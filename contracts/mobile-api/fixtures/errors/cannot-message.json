@@ -1,0 +1,13 @@
+{
+  "contractVersion": 1,
+  "endpoint": "*",
+  "case": "cannot-message",
+  "request": {},
+  "response": {
+    "status": 403,
+    "body": {
+      "code": "CANNOT_MESSAGE",
+      "message": "This player isn't accepting messages right now."
+    }
+  }
+}

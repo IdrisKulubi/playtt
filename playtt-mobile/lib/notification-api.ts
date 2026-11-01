@@ -9,6 +9,10 @@ export type NotificationPreferences = {
   sessionWarning: boolean
   sessionEnded: boolean
   replayReady: boolean
+  communityMessages: boolean
+  communityFollows: boolean
+  communityOpenToPlay: boolean
+  communityKudos: boolean
 }
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
@@ -18,6 +22,10 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   sessionWarning: true,
   sessionEnded: true,
   replayReady: true,
+  communityMessages: true,
+  communityFollows: true,
+  communityOpenToPlay: true,
+  communityKudos: true,
 }
 
 type PreferencesResponse = { data?: { preferences?: Partial<NotificationPreferences> } }

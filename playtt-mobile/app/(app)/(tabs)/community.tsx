@@ -18,6 +18,7 @@ import { GlassSegmentControl } from "@/components/ui/glass-segment-control"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FLOATING_TAB_BAR_CLEARANCE } from "@/constants/navigation-layout"
 import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useCommunityUnread } from "@/hooks/use-community-unread"
 import {
   communityFilters,
   useCommunityMe,
@@ -69,6 +70,7 @@ export default function CommunityScreen() {
   const hasCard = Boolean(me?.profile.communityVisible)
   const filters = useMemo(() => communityFilters(segment, skill, doubles), [segment, skill, doubles])
   const list = useCommunityPlayers(filters, hasCard)
+  const { unread } = useCommunityUnread(hasCard)
 
   const styles = useMemo(
     () =>
@@ -126,6 +128,9 @@ export default function CommunityScreen() {
       <CommunityHeader
         venueName={me?.homeVenue?.name ?? list.venue?.name}
         onEditCard={hasCard ? () => router.push(PROFILE_EDITOR) : undefined}
+        onOpenInbox={hasCard ? () => router.push("/community/inbox" as Href) : undefined}
+        unreadCount={unread.inbox}
+        requestCount={unread.requests}
       />
 
       {me?.availability ? (

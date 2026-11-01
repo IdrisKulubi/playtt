@@ -22,6 +22,12 @@ const TEMPLATE_TO_PREFERENCE: Record<string, NotificationPreferenceKey> = {
   session_warning: "sessionWarning",
   session_ended: "sessionEnded",
   replay_ready: "replayReady",
+  community_message: "communityMessages",
+  community_message_request: "communityMessages",
+  community_follow: "communityFollows",
+  community_followee_open: "communityOpenToPlay",
+  community_kudos: "communityKudos",
+  community_play_again: "communityKudos",
 }
 
 export const TEMPLATE_COPY = NOTIFICATION_TEMPLATE_COPY
@@ -104,6 +110,10 @@ export async function queueAndDeliverPushNotification(input: {
   templateKey: string
   deduplicationKey: string
   payload?: Record<string, unknown>
+  /** Per-event copy (e.g. sender name + preview); falls back to the template. */
+  copy?: { title: string; body: string }
+  /** Extra push data for deep links (conversationId, playerId). */
+  data?: Record<string, string>
 }) {
   if (!(await isAccessFeatureEnabled(
     createServiceTenantContext({
@@ -160,7 +170,7 @@ export async function queueAndDeliverPushNotification(input: {
   const copy = TEMPLATE_COPY[input.templateKey]
   if (!copy) throw new Error(`Unknown notification template ${input.templateKey}.`)
 
-  const data: Record<string, string> = {}
+  const data: Record<string, string> = { ...input.data }
   if (input.bookingId) data.bookingId = input.bookingId
   if (input.payload?.replayId) data.replayId = String(input.payload.replayId)
 
@@ -171,8 +181,8 @@ export async function queueAndDeliverPushNotification(input: {
       await sendExpoPushMessages(
         tokens.map((token) => ({
           to: token.token,
-          title: copy.title,
-          body: copy.body(input.bookingId ?? undefined),
+          title: input.copy?.title ?? copy.title,
+          body: input.copy?.body ?? copy.body(input.bookingId ?? undefined),
           data: Object.keys(data).length > 0 ? data : undefined,
         })),
       )

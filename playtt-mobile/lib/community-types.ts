@@ -124,3 +124,67 @@ export type CommunityPlayerPage = {
 export function communityPlayerHref(userId: string) {
   return `/community/player/${encodeURIComponent(userId)}`
 }
+
+// --- Chat (M3) — mirrors src/server/community/chat-service.ts ---
+
+export const QUICK_REPLIES = [
+  "What time works for you?",
+  "I'll book the table",
+  "Running 10 min late",
+  "Good game! 🏓",
+] as const
+
+export type ConversationFolder = "inbox" | "requests"
+export type ConversationMemberState = "active" | "request" | "left"
+export type CommunityMessageKind = "text" | "quick_reply" | "booking_card" | "kudos_prompt" | "system"
+
+export type BookingCardPayload = {
+  bookingId: string
+  startsAt: string
+  endsAt: string
+  resourceName: string
+  locationName: string
+}
+
+export type CommunityMessage = {
+  id: string
+  seq: number
+  conversationId: string
+  senderId: string | null
+  mine: boolean
+  kind: CommunityMessageKind
+  body: string
+  payload: BookingCardPayload | Record<string, unknown> | null
+  clientMessageId: string | null
+  createdAt: string
+}
+
+export type CommunityConversation = {
+  id: string
+  type: "direct" | "group" | "event"
+  state: ConversationMemberState
+  player: CommunityPlayer
+  lastMessage: CommunityMessage | null
+  unreadCount: number
+  otherLastReadSeq: number
+  canSend: boolean
+  /** Set while the other player hasn't accepted your request yet. */
+  pendingRequest: { remaining: number } | null
+}
+
+export type CommunityMessagesPage = {
+  messages: CommunityMessage[]
+  hasMore: boolean
+  otherLastReadSeq: number
+  conversation: CommunityConversation | null
+}
+
+export type CommunityUnreadCounts = { inbox: number; requests: number }
+
+export type SendMessageInput =
+  | { kind: "text" | "quick_reply"; body: string; clientMessageId: string }
+  | { kind: "booking_card"; bookingId: string; clientMessageId: string }
+
+export function communityChatHref(conversationId: string) {
+  return `/community/chat/${encodeURIComponent(conversationId)}`
+}

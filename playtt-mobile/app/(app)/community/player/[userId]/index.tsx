@@ -14,7 +14,8 @@ import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useProductTheme } from "@/hooks/use-product-theme"
 import { isApiError } from "@/lib/api-error"
 import { blockPlayer, fetchCommunityPlayer, followPlayer, unfollowPlayer } from "@/lib/community-api"
-import { communityPlayerHref, type CommunityPlayerDetail } from "@/lib/community-types"
+import { startConversation } from "@/lib/community-chat-api"
+import { communityChatHref, communityPlayerHref, type CommunityPlayerDetail } from "@/lib/community-types"
 import { toast } from "@/lib/toast"
 
 export default function CommunityPlayerScreen() {
@@ -24,6 +25,7 @@ export default function CommunityPlayerScreen() {
   const [player, setPlayer] = useState<CommunityPlayerDetail | null>(null)
   const [missing, setMissing] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [starting, setStarting] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const [reportKey, setReportKey] = useState(0)
 
@@ -61,6 +63,19 @@ export default function CommunityPlayerScreen() {
       toast.apiError(error, "Could not update follow.")
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function letsPlay() {
+    if (!player) return
+    setStarting(true)
+    try {
+      const conversation = await startConversation(player.id)
+      router.push(communityChatHref(conversation.id) as Href)
+    } catch (error) {
+      toast.apiError(error, "Could not open a chat.")
+    } finally {
+      setStarting(false)
     }
   }
 
@@ -173,16 +188,32 @@ export default function CommunityPlayerScreen() {
             </Text>
           ) : null}
 
+          {player.relationship.canMessage ? (
+            <Button
+              label="Let's play"
+              surface="product"
+              productTheme={theme}
+              loading={starting}
+              disabled={starting}
+              onPress={letsPlay}
+            />
+          ) : null}
           <Button
             label={player.relationship.following ? "Following" : "Follow"}
-            variant={player.relationship.following ? "outline" : "primary"}
+            variant={player.relationship.following || player.relationship.canMessage ? "outline" : "primary"}
             surface="product"
             productTheme={theme}
             loading={busy}
             disabled={busy}
             onPress={toggleFollow}
           />
-          <Text style={styles.hint}>Chat with players to agree a time. Coming in the next update.</Text>
+          <Text style={styles.hint}>
+            {player.relationship.canMessage
+              ? "Agree a time in chat, then book a table as usual."
+              : player.relationship.following
+                ? `${player.displayName} only takes messages from Rally Partners (players who follow each other).`
+                : `Follow ${player.displayName} to message them.`}
+          </Text>
         </ScrollView>
       )}
 

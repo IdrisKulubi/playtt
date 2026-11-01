@@ -21,6 +21,10 @@ jest.mock("@/lib/community-api", () => ({
   stopOpenToPlay: jest.fn(),
   goOpenToPlay: jest.fn(),
 }))
+jest.mock("@/hooks/use-community-unread", () => ({
+  useCommunityUnread: () => ({ unread: { inbox: 2, requests: 0 }, reload: jest.fn() }),
+}))
+jest.mock("phosphor-react-native/src/icons/ChatCircleDots", () => ({ ChatCircleDots: () => null }))
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 jest.mock("react-native-reanimated", () => require("@/test/reanimated-mock"))
 jest.mock("react-native-safe-area-context", () => {
@@ -40,7 +44,6 @@ jest.mock("expo-haptics", () => ({
   NotificationFeedbackType: { Success: "success" },
 }))
 jest.mock("expo-image", () => ({ Image: () => null }))
-jest.mock("phosphor-react-native/src/icons/ChatCircleDots", () => ({ ChatCircleDots: () => null }))
 jest.mock("phosphor-react-native/src/icons/Fire", () => ({ Fire: () => null }))
 jest.mock("phosphor-react-native/src/icons/Handshake", () => ({ Handshake: () => null }))
 jest.mock("phosphor-react-native/src/icons/IdentificationCard", () => ({ IdentificationCard: () => null }))
@@ -134,7 +137,7 @@ test("players without a card see the intro gate and no player list", async () =>
   fetchMe.mockResolvedValue(me({}, false))
   const screen = await render(<CommunityScreen />)
 
-  fireEvent.press(await screen.findByText("Create my card"))
+  await fireEvent.press(await screen.findByText("Create my card"))
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/(app)/account/community-profile",
     params: { setup: "1" },
@@ -162,7 +165,7 @@ test("open players see their status bar and can stop", async () => {
   expect(await screen.findByText("You're open · until 9PM")).toBeTruthy()
   expect(screen.getByText("Looking for doubles")).toBeTruthy()
 
-  fireEvent.press(screen.getByLabelText("Stop being open to play"))
+  await fireEvent.press(screen.getByLabelText("Stop being open to play"))
   await waitFor(() => expect(stopOpen).toHaveBeenCalled())
   await waitFor(() => expect(screen.queryByText("You're open · until 9PM")).toBeNull())
 })
@@ -174,27 +177,35 @@ test("segments and filter chips change the player query", async () => {
   expect(await screen.findByText("AMARA K.")).toBeTruthy()
   expect(fetchPlayers).toHaveBeenLastCalledWith({ status: "open" })
 
-  fireEvent.press(screen.getByText("Everyone"))
+  await fireEvent.press(screen.getByText("Everyone"))
   await waitFor(() => expect(fetchPlayers).toHaveBeenLastCalledWith({ status: "all" }))
 
-  fireEvent.press(screen.getByText("Elite"))
+  await fireEvent.press(screen.getByText("Elite"))
   await waitFor(() => expect(fetchPlayers).toHaveBeenLastCalledWith({ status: "all", skill: "pro" }))
 
-  fireEvent.press(screen.getByText("2v2"))
+  await fireEvent.press(screen.getByText("2v2"))
   await waitFor(() =>
     expect(fetchPlayers).toHaveBeenLastCalledWith({ status: "all", skill: "pro", doubles: true }),
   )
 
-  fireEvent.press(screen.getByText("Following"))
+  await fireEvent.press(screen.getByText("Following"))
   await waitFor(() =>
     expect(fetchPlayers).toHaveBeenLastCalledWith({ status: "all", following: true, skill: "pro", doubles: true }),
   )
+})
+
+test("the header shows the unread chat count and opens the inbox", async () => {
+  fetchMe.mockResolvedValue(me())
+  const screen = await render(<CommunityScreen />)
+
+  await fireEvent.press(await screen.findByLabelText("Messages, 2 unread"))
+  expect(mockPush).toHaveBeenCalledWith("/community/inbox")
 })
 
 test("tapping a card opens the player profile", async () => {
   fetchMe.mockResolvedValue(me())
   const screen = await render(<CommunityScreen />)
 
-  fireEvent.press(await screen.findByLabelText(/^Amara K\., Elite tier/))
+  await fireEvent.press(await screen.findByLabelText(/^Amara K\., Elite tier/))
   expect(mockPush).toHaveBeenCalledWith("/community/player/user_amara")
 })

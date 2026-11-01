@@ -1,8 +1,8 @@
 import * as Notifications from "expo-notifications"
-import { router } from "expo-router"
+import { type Href, router } from "expo-router"
 import { useEffect } from "react"
 
-import { bookingIdFromNotificationData } from "@/lib/notification-deep-link"
+import { notificationTarget } from "@/lib/notification-deep-link"
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -17,11 +17,14 @@ export function NotificationBootstrap() {
   useEffect(() => {
     function openResponse(response: Notifications.NotificationResponse | null) {
       if (!response) return
-      const bookingId = bookingIdFromNotificationData(response.notification.request.content.data)
-      if (bookingId) {
-        router.push({ pathname: "/(app)/booking/[id]", params: { id: bookingId } })
-        void Notifications.clearLastNotificationResponseAsync()
+      const target = notificationTarget(response.notification.request.content.data)
+      if (!target) return
+      if (target.kind === "booking") {
+        router.push({ pathname: "/(app)/booking/[id]", params: { id: target.bookingId } })
+      } else {
+        router.push(target.href as Href)
       }
+      void Notifications.clearLastNotificationResponseAsync()
     }
 
     void Notifications.getLastNotificationResponseAsync().then(openResponse)

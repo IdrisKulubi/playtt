@@ -33,6 +33,10 @@ describe("Phase 5 mobile API contract", () => {
       sessionWarning: true,
       sessionEnded: true,
       replayReady: true,
+      communityMessages: true,
+      communityFollows: false,
+      communityOpenToPlay: true,
+      communityKudos: true,
     }
     mockedApiFetch
       .mockResolvedValueOnce({ data: { preferences } } as never)

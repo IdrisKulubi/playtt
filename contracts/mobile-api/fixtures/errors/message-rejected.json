@@ -1,0 +1,13 @@
+{
+  "contractVersion": 1,
+  "endpoint": "*",
+  "case": "message-rejected",
+  "request": {},
+  "response": {
+    "status": 422,
+    "body": {
+      "code": "MESSAGE_REJECTED",
+      "message": "Add a few words with your link."
+    }
+  }
+}

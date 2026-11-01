@@ -25,6 +25,7 @@ import {
 } from "@/server/access/worker"
 import { createRelayConsumers } from "@/server/access/relay-worker"
 import { createNotificationConsumers } from "@/server/notifications/worker"
+import { createCommunityNotificationConsumers } from "@/server/community/notify"
 import { getRegisteredOutboxConsumers } from "@/server/workers/consumers.mjs"
 import {
   claimOutboxWork,
@@ -47,6 +48,7 @@ export async function runDurableWorkCycle() {
       ...createAccessConsumers(),
       ...createRelayConsumers(),
       ...createNotificationConsumers(),
+      ...createCommunityNotificationConsumers(),
     },
     reconcile: async () => {
       const [sessions, expiredCommands, failedCommands, prunedHeartbeats, media, access] =

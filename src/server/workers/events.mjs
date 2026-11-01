@@ -19,6 +19,7 @@ export const EVENT_TYPES = {
   ACCESS_FAILED_V1: "access.failed.v1",
   RELAY_ACTION_REQUESTED_V1: "relay.action.requested.v1",
   ACCESS_NOTIFICATION_REQUESTED_V1: "access.notification.requested.v1",
+  COMMUNITY_NOTIFICATION_REQUESTED_V1: "community.notification.requested.v1",
 }
 
 export const EVENT_VERSION = 1

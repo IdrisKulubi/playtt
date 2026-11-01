@@ -5,6 +5,11 @@ export type CommunityErrorCode =
   | "NO_HOME_VENUE"
   | "WINDOW_PASSED"
   | "RATE_LIMITED"
+  | "CONVERSATION_NOT_FOUND"
+  | "CANNOT_MESSAGE"
+  | "REQUEST_LIMIT_REACHED"
+  | "MESSAGE_REJECTED"
+  | "BOOKING_NOT_SHAREABLE"
 
 export class CommunityError extends Error {
   readonly code: CommunityErrorCode

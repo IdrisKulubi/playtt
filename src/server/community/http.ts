@@ -7,12 +7,15 @@ import { resolveTenantContextForUserId } from "@/server/tenancy/resolve-user-con
 import type { TenantContext } from "@/server/tenancy/types"
 
 import {
+  CHAT_LIMITS,
   COMMUNITY_HANDEDNESS,
   COMMUNITY_LIMITS,
   COMMUNITY_PLAY_STYLES,
   COMMUNITY_REPORT_REASONS,
   COMMUNITY_REQUEST_POLICIES,
+  CONVERSATION_FOLDERS,
   PLAY_AVAILABILITY_WINDOWS,
+  SENDABLE_MESSAGE_KINDS,
   USUAL_TIME_KEYS,
 } from "./constants.ts"
 import { isCommunityError } from "./errors.ts"
@@ -92,6 +95,46 @@ export const communityReportSchema = z
   .strict()
 
 export type CommunityReportInput = z.infer<typeof communityReportSchema>
+
+// --- Chat (M3) ---
+
+export const communityMessageSchema = z
+  .object({
+    kind: z.enum(SENDABLE_MESSAGE_KINDS).default("text"),
+    body: z.string().max(CHAT_LIMITS.messageMaxLength).optional(),
+    bookingId: z.string().uuid().optional(),
+    // Client-generated id so retries of the same send are idempotent.
+    clientMessageId: z.string().trim().min(8).max(CHAT_LIMITS.clientMessageIdMaxLength),
+  })
+  .strict()
+  .refine((value) => (value.kind === "booking_card" ? Boolean(value.bookingId) : Boolean(value.body?.trim())), {
+    message: "Write a message first.",
+  })
+
+export type CommunityMessageInput = z.infer<typeof communityMessageSchema>
+
+export const communityStartConversationSchema = z
+  .object({
+    userId: z.string().min(1).max(128),
+    message: communityMessageSchema.optional(),
+  })
+  .strict()
+
+export type CommunityStartConversationInput = z.infer<typeof communityStartConversationSchema>
+
+export const communityConversationsQuerySchema = z.object({
+  folder: z.enum(CONVERSATION_FOLDERS).default("inbox"),
+  cursor: z.string().max(64).optional(),
+})
+
+const seqParam = z.coerce.number().int().min(0).optional()
+
+export const communityMessagesQuerySchema = z.object({
+  before: seqParam,
+  after: seqParam,
+})
+
+export const communityReadSchema = z.object({ seq: z.number().int().min(0) }).strict()
 
 export function communityJson<T>(data: T, status = 200) {
   return NextResponse.json({ data }, { status, headers: communityNoStoreHeaders })
