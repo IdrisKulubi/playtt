@@ -124,9 +124,18 @@ function CardAvatar({
   )
 }
 
+/** Linear mix of two #rrggbb colors; t = 0 → a, 1 → b. */
+function mixHex(a: string, b: string, t: number) {
+  const channel = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16)
+  const mixed = [0, 1, 2].map((i) => Math.round(channel(a, i) + (channel(b, i) - channel(a, i)) * t))
+  return `#${mixed.map((value) => value.toString(16).padStart(2, "0")).join("")}`
+}
+
 /**
- * Front-of-card portrait: the player's photo fills the upper card and fades
- * into the tier color; without a photo, a large initials monogram.
+ * Front-of-card portrait, FIFA-style: the photo sits to the right of the
+ * rating column and dissolves into the card on its left and bottom edges, so
+ * it reads as part of the card rather than a pasted rectangle. Without a
+ * photo, an initials monogram sized to fit the same space.
  */
 function CardPortrait({
   player,
@@ -140,6 +149,9 @@ function CardPortrait({
   idPrefix: string
 }) {
   const uri = resolveMediaUrl(player.image)
+  // Card background color behind the portrait's edges (the base gradient runs top → bottom).
+  const edgeLeft = mixHex(tokens.gradient[0], tokens.gradient[1], 0.3)
+  const edgeBottom = mixHex(tokens.gradient[0], tokens.gradient[1], 0.55)
 
   return (
     <View pointerEvents="none" style={[styles.portrait, compact ? styles.portraitCompact : styles.portraitFull]}>
@@ -155,12 +167,17 @@ function CardPortrait({
           />
           <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" preserveAspectRatio="none">
             <Defs>
-              <LinearGradient id={`${idPrefix}-fade`} x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0.55" stopColor={tokens.gradient[1]} stopOpacity={0} />
-                <Stop offset="1" stopColor={tokens.gradient[1]} stopOpacity={1} />
+              <LinearGradient id={`${idPrefix}-fadeX`} x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0" stopColor={edgeLeft} stopOpacity={1} />
+                <Stop offset="0.28" stopColor={edgeLeft} stopOpacity={0} />
+              </LinearGradient>
+              <LinearGradient id={`${idPrefix}-fadeY`} x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0.6" stopColor={edgeBottom} stopOpacity={0} />
+                <Stop offset="1" stopColor={edgeBottom} stopOpacity={1} />
               </LinearGradient>
             </Defs>
-            <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${idPrefix}-fade)`} />
+            <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${idPrefix}-fadeX)`} />
+            <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${idPrefix}-fadeY)`} />
           </Svg>
         </>
       ) : (
@@ -168,11 +185,13 @@ function CardPortrait({
           <View
             style={[
               styles.monogramRing,
-              compact ? styles.monogramRingCompact : styles.monogramRingFull,
+              compact && styles.monogramRingCompact,
               { borderColor: tokens.accent, backgroundColor: tokens.plate },
             ]}
           >
             <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
               style={[
                 styles.monogram,
                 compact ? styles.monogramCompact : styles.monogramFull,
@@ -295,26 +314,30 @@ function CardFront({
 
   return (
     <View style={[styles.front, compact ? styles.frontCompact : styles.frontFull]}>
-      <CardPortrait player={player} tokens={tokens} compact={compact} idPrefix={idPrefix} />
-      <View style={styles.topRow}>
-        <View style={styles.ratingBlock}>
+      {/* FIFA-style hero: rating column on the left, photo filling the rest. */}
+      <View style={styles.hero}>
+        <View style={[styles.ratingColumn, compact ? styles.ratingColumnCompact : styles.ratingColumnFull]}>
           {/* Rating from earned card points (wins, sessions, drills, kudos). */}
-          <Text style={[styles.rating, compact && styles.ratingCompact, { color: tokens.text }]}>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={[styles.rating, compact && styles.ratingCompact, { color: tokens.text }]}
+          >
             {ratingLabel(player)}
           </Text>
-          <Text style={[styles.tier, compact && styles.tierCompact, { color: tokens.accent }]}>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={[styles.tier, compact && styles.tierCompact, { color: tokens.accent }]}
+          >
             {tokens.name.toUpperCase()}
           </Text>
           {!compact && (style || hand) ? (
-            <Text style={[styles.styleCode, { color: tokens.muted }]}>
-              {[style, hand].filter(Boolean).join("  ")}
-            </Text>
-          ) : null}
-        </View>
-        <View style={styles.ribbonSlot}>
-          {ribbon ? <CardStatusRibbon ribbon={ribbon} tokens={tokens} compact={compact} animate={animate} /> : null}
-          {player.atVenueName ? (
-            <AtVenueChip venueName={player.atVenueName} tokens={tokens} compact={compact} animate={animate} />
+            <>
+              <View style={[styles.columnRule, { backgroundColor: tokens.accent }]} />
+              {style ? <Text style={[styles.styleCode, { color: tokens.text }]}>{style}</Text> : null}
+              {hand ? <Text style={[styles.styleCode, { color: tokens.muted }]}>{hand}</Text> : null}
+            </>
           ) : null}
           {!compact && variant === "founding" ? <FoundingStamp tokens={tokens} /> : null}
           {variant === "in_form" ? (
@@ -323,11 +346,18 @@ function CardFront({
             </View>
           ) : null}
         </View>
+        <CardPortrait player={player} tokens={tokens} compact={compact} idPrefix={idPrefix} />
+        {ribbon || player.atVenueName ? (
+          <View style={styles.ribbonSlot}>
+            {ribbon ? <CardStatusRibbon ribbon={ribbon} tokens={tokens} compact={compact} animate={animate} /> : null}
+            {player.atVenueName ? (
+              <AtVenueChip venueName={player.atVenueName} tokens={tokens} compact={compact} animate={animate} />
+            ) : null}
+          </View>
+        ) : null}
       </View>
 
-      <View style={styles.portraitSpacer} />
-
-      <View style={[styles.namePlate, { backgroundColor: tokens.plate }]}>
+      <View style={[styles.namePlate, { borderColor: tokens.accent }]}>
         <Text
           numberOfLines={1}
           adjustsFontSizeToFit
@@ -487,11 +517,12 @@ export function PlayerCard({ player, size = "compact", onPress, flippable = fals
 const styles = StyleSheet.create({
   full: {
     width: "100%",
-    aspectRatio: 3 / 4,
+    // Taller, trading-card proportions leave room for the portrait.
+    aspectRatio: 0.7,
   },
   compact: {
     width: "100%",
-    aspectRatio: 0.72,
+    aspectRatio: 0.7,
   },
   face: {
     backfaceVisibility: "hidden",
@@ -500,107 +531,121 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   frontFull: {
-    paddingHorizontal: 20,
-    paddingTop: 22,
-    paddingBottom: 16,
-    gap: 10,
+    paddingHorizontal: 18,
+    paddingTop: 20,
+    paddingBottom: 14,
+    gap: 8,
   },
   frontCompact: {
-    paddingHorizontal: 10,
-    paddingTop: 14,
-    paddingBottom: 10,
-    gap: 6,
+    paddingHorizontal: 9,
+    paddingTop: 12,
+    paddingBottom: 9,
+    gap: 5,
   },
-  topRow: {
+  hero: {
+    flex: 1,
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 6,
+    minHeight: 0,
   },
-  ratingBlock: {
-    gap: 0,
+  ratingColumn: {
+    alignItems: "center",
+    zIndex: 1,
+  },
+  ratingColumnFull: {
+    width: 64,
+    gap: 2,
+    paddingTop: 6,
+  },
+  ratingColumnCompact: {
+    width: 36,
+    gap: 1,
+    paddingTop: 2,
   },
   rating: {
     fontFamily: PlayTTFontFamilies.bold,
-    fontSize: 34,
-    lineHeight: 36,
-    letterSpacing: -0.5,
+    fontSize: 40,
+    lineHeight: 42,
+    letterSpacing: -1,
   },
   ratingCompact: {
-    fontSize: 18,
-    lineHeight: 20,
+    fontSize: 20,
+    lineHeight: 22,
+    letterSpacing: -0.5,
   },
   tier: {
     fontFamily: PlayTTFontFamilies.bold,
-    fontSize: 13,
-    letterSpacing: 1.6,
+    fontSize: 11,
+    letterSpacing: 1.2,
   },
   tierCompact: {
-    fontSize: 9,
-    letterSpacing: 1.1,
+    fontSize: 7,
+    letterSpacing: 0.6,
+  },
+  columnRule: {
+    width: 22,
+    height: 2,
+    borderRadius: 1,
+    marginVertical: 6,
+    opacity: 0.8,
   },
   styleCode: {
-    fontFamily: PlayTTFontFamilies.semiBold,
-    fontSize: 12,
+    fontFamily: PlayTTFontFamilies.bold,
+    fontSize: 13,
     letterSpacing: 1,
-    marginTop: 2,
   },
   ribbonSlot: {
-    flex: 1,
+    position: "absolute",
+    top: 0,
+    right: 0,
     alignItems: "flex-end",
-    gap: 6,
-  },
-  portraitSpacer: {
-    flex: 1,
+    gap: 4,
+    zIndex: 2,
   },
   portrait: {
-    position: "absolute",
+    flex: 1,
     overflow: "hidden",
   },
   portraitFull: {
-    top: 18,
-    left: "24%",
-    right: "6%",
-    bottom: "38%",
-    borderRadius: 18,
+    // Bleed toward the card's right edge and top, FIFA-style.
+    marginRight: -10,
+    marginTop: -6,
+    borderRadius: 16,
   },
   portraitCompact: {
-    top: 10,
-    left: "26%",
-    right: "6%",
-    bottom: "40%",
-    borderRadius: 12,
+    marginRight: -5,
+    marginTop: -4,
+    borderRadius: 10,
   },
   monogramWrap: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    padding: 6,
   },
   monogramRing: {
+    // Sized from the available height so it never spills into the name.
+    height: "86%",
+    maxWidth: "100%",
+    aspectRatio: 1,
+    borderRadius: 999,
+    borderWidth: 2,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
-  },
-  monogramRingFull: {
-    width: 132,
-    height: 132,
-    borderRadius: 66,
+    padding: "12%",
   },
   monogramRingCompact: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
     borderWidth: 1.5,
   },
   monogram: {
     fontFamily: PlayTTFontFamilies.bold,
     letterSpacing: 1,
+    textAlign: "center",
   },
   monogramFull: {
-    fontSize: 52,
+    fontSize: 56,
   },
   monogramCompact: {
-    fontSize: 24,
+    fontSize: 26,
   },
   progress: {
     gap: 4,
@@ -625,9 +670,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    borderRadius: 8,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
+    paddingBottom: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   name: {
     fontFamily: PlayTTFontFamilies.bold,

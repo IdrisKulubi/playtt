@@ -1,9 +1,10 @@
 import * as ImagePicker from "expo-image-picker"
+import { Camera } from "phosphor-react-native/src/icons/Camera"
+import { Trash } from "phosphor-react-native/src/icons/Trash"
 import { useState } from "react"
-import { StyleSheet, View } from "react-native"
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native"
 
-import { Button } from "@/components/ui/button"
-import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { PlayTTColors, PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useProductTheme } from "@/hooks/use-product-theme"
 import { toast } from "@/lib/toast"
 import { removeAvatar, uploadAvatar, type AvatarContentType } from "@/lib/user-api"
@@ -66,31 +67,52 @@ export function CardPhotoPicker({ hasPhoto, onChange }: CardPhotoPickerProps) {
     }
   }
 
+  const label = hasPhoto ? "Change photo" : "Add photo"
+
   return (
     <View style={styles.row}>
-      <View style={styles.grow}>
-        <Button
-          label={hasPhoto ? "Change photo" : "Add photo"}
-          variant="outline"
-          surface="product"
-          productTheme={theme}
-          loading={busy === "upload"}
-          disabled={busy !== null}
-          onPress={pick}
-        />
-      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ busy: busy === "upload", disabled: busy !== null }}
+        disabled={busy !== null}
+        onPress={pick}
+        style={({ pressed }) => [
+          styles.pill,
+          { borderColor: theme.border, backgroundColor: theme.card },
+          pressed && styles.pressed,
+          busy !== null && busy !== "upload" && styles.dimmed,
+        ]}
+      >
+        {busy === "upload" ? (
+          <ActivityIndicator color={theme.foreground} />
+        ) : (
+          <>
+            <Camera size={20} color={PlayTTColors.primary} weight="fill" />
+            <Text style={[styles.pillLabel, { color: theme.foreground }]}>{label}</Text>
+          </>
+        )}
+      </Pressable>
       {hasPhoto ? (
-        <View style={styles.grow}>
-          <Button
-            label="Remove"
-            variant="ghost"
-            surface="product"
-            productTheme={theme}
-            loading={busy === "remove"}
-            disabled={busy !== null}
-            onPress={remove}
-          />
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Remove photo"
+          accessibilityState={{ busy: busy === "remove", disabled: busy !== null }}
+          disabled={busy !== null}
+          onPress={remove}
+          hitSlop={4}
+          style={({ pressed }) => [
+            styles.iconButton,
+            pressed && styles.pressed,
+            busy !== null && busy !== "remove" && styles.dimmed,
+          ]}
+        >
+          {busy === "remove" ? (
+            <ActivityIndicator color={PlayTTColors.destructive} />
+          ) : (
+            <Trash size={22} color={PlayTTColors.destructive} weight="bold" />
+          )}
+        </Pressable>
       ) : null}
     </View>
   )
@@ -99,9 +121,38 @@ export function CardPhotoPicker({ hasPhoto, onChange }: CardPhotoPickerProps) {
 const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
+    alignItems: "center",
     gap: PlayTTSpacing.sm,
   },
-  grow: {
+  pill: {
     flex: 1,
+    height: 52,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: PlayTTSpacing.xs,
+  },
+  pillLabel: {
+    fontFamily: PlayTTFontFamilies.semiBold,
+    fontSize: 16,
+  },
+  iconButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: "rgba(255, 59, 48, 0.35)",
+    backgroundColor: "rgba(255, 59, 48, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pressed: {
+    opacity: 0.75,
+    transform: [{ scale: 0.97 }],
+  },
+  dimmed: {
+    opacity: 0.5,
   },
 })
