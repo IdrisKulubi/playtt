@@ -1,9 +1,16 @@
 import { useFocusEffect } from "expo-router"
 import { useCallback, useRef, useState } from "react"
 
-import { fetchAtVenue, fetchCommunityMe, fetchCommunityPlayers, fetchRallyPartners } from "@/lib/community-api"
+import {
+  fetchAtVenue,
+  fetchCommunityMe,
+  fetchCommunityPlayers,
+  fetchEvents,
+  fetchRallyPartners,
+} from "@/lib/community-api"
 import type {
   CommunityAtVenue,
+  CommunityEvent,
   CommunityMe,
   CommunityPlayer,
   CommunityPlayersFilters,
@@ -138,16 +145,19 @@ export function useCommunityPlayers(filters: CommunityPlayersFilters, enabled: b
 export function useCommunitySocial(enabled: boolean) {
   const [atVenue, setAtVenue] = useState<CommunityAtVenue | null>(null)
   const [rallyPartners, setRallyPartners] = useState<CommunityPlayer[]>([])
+  const [events, setEvents] = useState<CommunityEvent[]>([])
 
   const reload = useCallback(async () => {
     if (!enabled) return
-    // Both are extras on the tab: a failure just hides the section.
-    const [venue, partners] = await Promise.all([
+    // All extras on the tab: a failure just hides that section.
+    const [venue, partners, upcoming] = await Promise.all([
       fetchAtVenue().catch(() => null),
       fetchRallyPartners().catch(() => null),
+      fetchEvents().catch(() => null),
     ])
     if (venue) setAtVenue(venue)
     if (partners) setRallyPartners(partners)
+    if (upcoming) setEvents(upcoming)
   }, [enabled])
 
   useFocusEffect(
@@ -158,5 +168,10 @@ export function useCommunitySocial(enabled: boolean) {
     }, [reload]),
   )
 
-  return { atVenue: enabled ? atVenue : null, rallyPartners: enabled ? rallyPartners : [], reload }
+  return {
+    atVenue: enabled ? atVenue : null,
+    rallyPartners: enabled ? rallyPartners : [],
+    events: enabled ? events : [],
+    reload,
+  }
 }

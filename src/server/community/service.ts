@@ -19,6 +19,7 @@ import type { TenantContext } from "@/server/tenancy/types"
 
 import { isOpenNow, resolveAvailabilityWindow } from "./availability-window.ts"
 import { EMPTY_CARD_DATA, loadCardData, type CardData } from "./card-data.ts"
+import { loadDoublesSpots } from "./chat-messages.ts"
 import { COMMUNITY_LIMITS, type PlayAvailabilityWindow } from "./constants.ts"
 import { toCommunityDisplayName } from "./display-name.ts"
 import { CommunityError } from "./errors.ts"
@@ -64,7 +65,13 @@ function serializeProfile(row: ProfileRow | null | undefined) {
   }
 }
 
-function serializeAvailability(row: AvailabilityRow | null | undefined, now = new Date()) {
+export type DoublesSpots = Map<string, { members: number; max: number }>
+
+function serializeAvailability(
+  row: AvailabilityRow | null | undefined,
+  now = new Date(),
+  spots?: DoublesSpots,
+) {
   if (!row || row.endedAt || row.endsAt <= now) {
     return null
   }
@@ -76,6 +83,8 @@ function serializeAvailability(row: AvailabilityRow | null | undefined, now = ne
     note: row.note,
     lookingForDoubles: row.lookingForDoubles,
     openNow: isOpenNow(row, now),
+    // Doubles group fill (M5): the host counts as the first of 4.
+    doubles: row.lookingForDoubles ? (spots?.get(row.id) ?? { members: 1, max: 4 }) : null,
   }
 }
 
@@ -264,6 +273,7 @@ export function serializePlayer(
   facts: RelationshipFacts,
   now: Date,
   card: CardData = EMPTY_CARD_DATA,
+  spots?: DoublesSpots,
 ) {
   const profile = serializeProfile(row.profile)
   return {
@@ -276,7 +286,7 @@ export function serializePlayer(
     bio: profile.bio,
     usualTimes: profile.usualTimes,
     foundingPlayer: profile.foundingPlayer,
-    availability: serializeAvailability(row.availability, now),
+    availability: serializeAvailability(row.availability, now, spots),
     relationship: serializeRelationship(facts),
     stats: card.stats,
     badges: card.badges,
@@ -554,15 +564,16 @@ export async function listCommunityPlayers(
 
   const page = rows.slice(0, pageSize)
   const ids = page.map((row) => row.id)
-  const [maps, stats] = await Promise.all([
+  const [maps, stats, spots] = await Promise.all([
     loadRelationships(viewerId, ids),
     loadCardData(context, ids, now),
+    loadDoublesSpots(page.flatMap((row) => (row.availability ? [row.availability.id] : []))),
   ])
 
   return {
     venue: { id: venue.id, name: venue.name },
     players: page.map((row) =>
-      serializePlayer(row, factsFor(viewerId, row, maps), now, stats.get(row.id)),
+      serializePlayer(row, factsFor(viewerId, row, maps), now, stats.get(row.id), spots),
     ),
     nextCursor: rows.length > pageSize ? encodeCursor(offset + pageSize) : null,
   }
@@ -607,15 +618,16 @@ export async function requireVisiblePlayer(context: TenantContext, viewerId: str
 
 export async function getCommunityPlayer(context: TenantContext, viewerId: string, targetId: string) {
   const { row, facts, now } = await requireVisiblePlayer(context, viewerId, targetId)
-  const [counts, homeVenue, stats] = await Promise.all([
+  const [counts, homeVenue, stats, spots] = await Promise.all([
     countConnections(row.id),
     resolveHomeVenue(context, row.id),
     loadCardData(context, [row.id], now),
+    loadDoublesSpots(row.availability ? [row.availability.id] : []),
   ])
 
   return {
     player: {
-      ...serializePlayer(row, facts, now, stats.get(row.id)),
+      ...serializePlayer(row, facts, now, stats.get(row.id), spots),
       kudos: (stats.get(row.id) ?? EMPTY_CARD_DATA).topKudos,
       homeVenue: homeVenue ? { id: homeVenue.id, name: homeVenue.name } : null,
       counts,
@@ -712,14 +724,15 @@ export async function listConnections(
 
   const page = rows.slice(0, pageSize)
   const ids = page.map((row) => row.id)
-  const [maps, stats] = await Promise.all([
+  const [maps, stats, spots] = await Promise.all([
     loadRelationships(viewerId, ids),
     loadCardData(context, ids, now),
+    loadDoublesSpots(page.flatMap((row) => (row.availability ? [row.availability.id] : []))),
   ])
 
   return {
     players: page.map((row) =>
-      serializePlayer(row, factsFor(viewerId, row, maps), now, stats.get(row.id)),
+      serializePlayer(row, factsFor(viewerId, row, maps), now, stats.get(row.id), spots),
     ),
     nextCursor: rows.length > pageSize ? encodeCursor(offset + pageSize) : null,
   }

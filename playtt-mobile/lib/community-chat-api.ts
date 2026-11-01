@@ -1,6 +1,9 @@
 import { apiFetch } from "@/lib/api-client"
 import type {
   CommunityConversation,
+  CommunityGroup,
+  CommunityGroupMessage,
+  CommunityGroupMessagesPage,
   CommunityMessage,
   CommunityMessagesPage,
   CommunityUnreadCounts,
@@ -79,4 +82,59 @@ export async function leaveConversation(conversationId: string) {
 export async function fetchUnreadCounts() {
   const response = await apiFetch<Envelope<{ unread: CommunityUnreadCounts }>>("/api/v1/community/unread")
   return response.data.unread
+}
+
+// --- Groups (M5) ---
+
+const GROUPS = "/api/v1/community/groups"
+
+function groupPath(groupId: string, suffix = "") {
+  return `${GROUPS}/${encodeURIComponent(groupId)}${suffix}`
+}
+
+export async function fetchGroups() {
+  const response = await apiFetch<Envelope<{ groups: CommunityGroup[] }>>(GROUPS)
+  return response.data.groups
+}
+
+export async function fetchGroupMessages(groupId: string, cursor: { before?: number; after?: number } = {}) {
+  const query = new URLSearchParams()
+  if (cursor.before !== undefined) query.set("before", String(cursor.before))
+  if (cursor.after !== undefined) query.set("after", String(cursor.after))
+  const search = query.toString()
+  const response = await apiFetch<Envelope<CommunityGroupMessagesPage>>(
+    groupPath(groupId, search ? `/messages?${search}` : "/messages"),
+  )
+  return response.data
+}
+
+export async function sendGroupMessage(
+  groupId: string,
+  input: { kind: "text" | "quick_reply"; body: string; clientMessageId: string },
+) {
+  const response = await apiFetch<Envelope<{ message: CommunityGroupMessage }>>(groupPath(groupId, "/messages"), {
+    method: "POST",
+    body: JSON.stringify(input),
+  })
+  return response.data.message
+}
+
+export async function markGroupRead(groupId: string, seq: number) {
+  await apiFetch(groupPath(groupId, "/read"), { method: "POST", body: JSON.stringify({ seq }) })
+}
+
+export async function muteGroup(groupId: string, hours: 1 | 8 | 24 | 168 | null) {
+  const response = await apiFetch<Envelope<{ mutedUntil: string | null }>>(groupPath(groupId, "/mute"), {
+    method: "POST",
+    body: JSON.stringify({ hours }),
+  })
+  return response.data.mutedUntil
+}
+
+export async function leaveGroup(groupId: string) {
+  await apiFetch(groupPath(groupId), { method: "DELETE" })
+}
+
+export async function removeGroupMember(groupId: string, memberId: string) {
+  await apiFetch(groupPath(groupId, `/members/${encodeURIComponent(memberId)}`), { method: "DELETE" })
 }

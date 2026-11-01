@@ -19,6 +19,11 @@ type ChatMessageBubbleProps = {
   onLeave?: (bookingId: string) => void
   onGiveKudos?: (bookingId: string) => void
   onPlayAgain?: () => void
+  /** Shown above other people's messages in group chats. */
+  senderName?: string | null
+  /** Host's booking card after the game started: record scoreboard sides (M5). */
+  sidesLabel?: string | null
+  onRecordSides?: (bookingId: string) => void
 }
 
 function bookingWhen(startsAt: string, endsAt: string) {
@@ -36,6 +41,9 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
   onLeave,
   onGiveKudos,
   onPlayAgain,
+  senderName,
+  sidesLabel = null,
+  onRecordSides,
 }: ChatMessageBubbleProps) {
   const theme = useProductTheme()
   const mine = item.mine
@@ -64,6 +72,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
         quick: { borderWidth: 1, borderColor: PlayTTColors.primary },
         text: { fontFamily: PlayTTFontFamilies.regular, fontSize: 15, lineHeight: 21, color: theme.foreground },
         meta: { fontFamily: PlayTTFontFamilies.regular, fontSize: 11, color: theme.muted },
+        sender: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 12, color: PlayTTColors.primary, marginLeft: 4 },
         failed: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 12, color: PlayTTColors.destructive },
         card: {
           width: 240,
@@ -170,6 +179,16 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
           {booking.resourceName} · {booking.locationName}
         </Text>
         {mine ? <Text style={styles.cardAction}>View booking</Text> : null}
+        {mine && sidesLabel ? (
+          <Pressable
+            accessibilityRole="button"
+            hitSlop={6}
+            disabled={!onRecordSides}
+            onPress={() => onRecordSides?.(booking.bookingId)}
+          >
+            <Text style={styles.leaveText}>{sidesLabel}</Text>
+          </Pressable>
+        ) : null}
         {!mine && joinState === "can_join" ? (
           <Pressable
             accessibilityRole="button"
@@ -205,6 +224,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
   return (
     <View style={styles.row}>
       <View style={styles.column}>
+        {senderName && !mine ? <Text style={styles.sender}>{senderName}</Text> : null}
         {content}
         {item.status === "failed" ? (
           <Pressable accessibilityRole="button" onPress={() => onRetry?.(item)} hitSlop={6}>

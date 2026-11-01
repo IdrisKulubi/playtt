@@ -8,6 +8,7 @@ import type {
   CommunityPlayStyle,
   CommunityRelationship,
   CommunitySkillLevel,
+  CommunityHeadToHead,
   CommunityVenueRef,
   KudosCount,
   UsualTimeKey,
@@ -15,7 +16,7 @@ import type {
 
 export type CardTier = "rookie" | "club" | "elite"
 export type CardSize = "full" | "compact" | "mini"
-export type CardVariant = "streak" | "founding" | "rally" | null
+export type CardVariant = "in_form" | "streak" | "founding" | "rally" | null
 
 /** What the card needs; both CommunityPlayer and CommunityMe map onto it. */
 export type PlayerCardData = {
@@ -38,6 +39,8 @@ export type PlayerCardData = {
   kudos?: KudosCount[]
   /** Set when the player is at a venue right now (M4 strip). */
   atVenueName?: string | null
+  /** Viewer vs. this player on the scoreboard (M5), for the card back. */
+  headToHead?: CommunityHeadToHead | null
 }
 
 export type CardTierTokens = {
@@ -152,6 +155,26 @@ export function cardTierTokens(skill: CommunitySkillLevel, scheme: AppColorSchem
   return CARD_TIERS[tierForSkill(skill)][scheme]
 }
 
+/** Once rated (M5) the tier follows the card rating: Rookie < 60, Club 60–79, Elite 80+. */
+export function tierForPlayer(player: Pick<PlayerCardData, "skillLevel" | "stats">): CardTier {
+  const rating = player.stats.rating
+  if (rating === null || rating === undefined) return tierForSkill(player.skillLevel)
+  if (rating >= 80) return "elite"
+  if (rating >= 60) return "club"
+  return "rookie"
+}
+
+export function cardTierTokensFor(player: Pick<PlayerCardData, "skillLevel" | "stats">, scheme: AppColorScheme) {
+  return CARD_TIERS[tierForPlayer(player)][scheme]
+}
+
+export function ratingLabel(player: Pick<PlayerCardData, "stats">) {
+  const rating = player.stats.rating
+  return rating === null || rating === undefined ? "NEW" : String(rating)
+}
+
+export const IN_FORM_ORANGE = "#ff7a1a"
+
 const PLAY_STYLE_CODES: Record<CommunityPlayStyle, string> = {
   attacker: "ATK",
   defender: "DEF",
@@ -227,6 +250,8 @@ export type StatusRibbon = {
   label: string
   spoken: string
   doubles: boolean
+  /** "2v2", "2v2 · 3/4" or "2v2 · full" (M5). */
+  doublesLabel: string
 }
 
 const LATER_LABELS = {
@@ -239,6 +264,12 @@ const LATER_LABELS = {
 export function statusRibbon(availability: CommunityAvailability | null): StatusRibbon | null {
   if (!availability) return null
   const doubles = availability.lookingForDoubles
+  const fill = availability.doubles
+  const doublesLabel = !fill || fill.members <= 1
+    ? "2v2"
+    : fill.members >= fill.max
+      ? "2v2 · full"
+      : `2v2 · ${fill.members}/${fill.max}`
 
   if (availability.openNow) {
     const until = formatNairobiClock(availability.endsAt)
@@ -247,15 +278,17 @@ export function statusRibbon(availability: CommunityAvailability | null): Status
       label: `OPEN NOW · →${until}`,
       spoken: `open now until ${until.replace("AM", " AM").replace("PM", " PM")}`,
       doubles,
+      doublesLabel,
     }
   }
 
   const label = LATER_LABELS[availability.window]
-  return { kind: "later", label, spoken: `open ${label.toLowerCase()}`, doubles }
+  return { kind: "later", label, spoken: `open ${label.toLowerCase()}`, doubles, doublesLabel }
 }
 
 /** One variant at a time, in the priority order from the spec. */
 export function cardVariant(player: PlayerCardData): CardVariant {
+  if (player.badges?.includes("in_form")) return "in_form"
   if ((player.stats.streakWeeks ?? 0) >= 4) return "streak"
   if (player.foundingPlayer) return "founding"
   if (player.relationship?.rallyPartner) return "rally"
@@ -273,13 +306,15 @@ export function cardInitials(displayName: string) {
 }
 
 export function playerCardAccessibilityLabel(player: PlayerCardData) {
-  const tier = CARD_TIERS[tierForSkill(player.skillLevel)].dark.name
+  const tier = CARD_TIERS[tierForPlayer(player)].dark.name
+  const rating = player.stats.rating
   const parts = [`${player.displayName}, ${tier} tier`]
+  if (rating !== null && rating !== undefined) parts.push(`rated ${rating}`)
   const ribbon = statusRibbon(player.availability)
 
   if (ribbon) {
     parts.push(ribbon.spoken)
-    if (ribbon.doubles) parts.push("looking for doubles")
+    if (ribbon.doubles) parts.push(ribbon.doublesLabel === "2v2 · full" ? "doubles full" : "looking for doubles")
   }
 
   if (player.atVenueName) {
@@ -338,6 +373,7 @@ export function cardDataFromMe(me: {
 
 /** Labels for server badge keys (src/server/community/constants.ts KUDOS_BADGES). */
 export const BADGE_LABELS: Record<string, string> = {
+  in_form: "In form",
   rally_ace: "Rally ace",
   fair_play: "Fair play",
   clockwork: "Clockwork",
@@ -350,4 +386,10 @@ export const BADGE_LABELS: Record<string, string> = {
 /** Usual times both players share, for the "Also free on…" hint. */
 export function sharedUsualTimes(mine: UsualTimeKey[], theirs: UsualTimeKey[]) {
   return theirs.filter((key) => mine.includes(key))
+}
+
+/** "You 2 – 3 Amara K." for the card back and chat header. */
+export function headToHeadLine(h2h: CommunityHeadToHead | null | undefined, otherName: string) {
+  if (!h2h || h2h.wins + h2h.losses === 0) return null
+  return `You ${h2h.wins} – ${h2h.losses} ${otherName}`
 }

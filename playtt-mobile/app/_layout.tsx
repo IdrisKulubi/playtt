@@ -75,6 +75,7 @@ export default function RootLayout() {
             <Stack.Screen name="reset-password" />
             <Stack.Screen name="book" />
             <Stack.Screen name="(app)" />
+            <Stack.Screen name="invite/[code]" />
           </Stack>
           <ToastHost />
           <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />

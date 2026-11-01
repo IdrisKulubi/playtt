@@ -1,5 +1,6 @@
 import { ChatCircleDots } from "phosphor-react-native/src/icons/ChatCircleDots"
 import { IdentificationCard } from "phosphor-react-native/src/icons/IdentificationCard"
+import { UserPlus } from "phosphor-react-native/src/icons/UserPlus"
 import { useMemo } from "react"
 import { Pressable, StyleSheet, Text, View } from "react-native"
 
@@ -15,6 +16,7 @@ type CommunityHeaderProps = {
   venueName?: string | null
   onEditCard?: () => void
   onOpenInbox?: () => void
+  onInvite?: () => void
   unreadCount?: number
   requestCount?: number
 }
@@ -23,6 +25,7 @@ export function CommunityHeader({
   venueName,
   onEditCard,
   onOpenInbox,
+  onInvite,
   unreadCount = 0,
   requestCount = 0,
 }: CommunityHeaderProps) {
@@ -111,6 +114,17 @@ export function CommunityHeader({
           {venueName ? <Text style={styles.venue}> · {venueName}</Text> : null}
         </Text>
         <View style={styles.actions}>
+          {onInvite ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Invite a friend"
+              hitSlop={6}
+              onPress={onInvite}
+              style={styles.iconButton}
+            >
+              <UserPlus size={20} color={theme.foreground} />
+            </Pressable>
+          ) : null}
           {onOpenInbox ? (
             <Pressable
               accessibilityRole="button"

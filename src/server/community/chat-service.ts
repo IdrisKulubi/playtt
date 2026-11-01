@@ -57,7 +57,7 @@ function cannotMessage(): never {
   throw new CommunityError("CANNOT_MESSAGE", "This player isn't accepting messages right now.", 403)
 }
 
-function serializeMessage(row: MessageRow, viewerId: string) {
+export function serializeMessage(row: MessageRow, viewerId: string) {
   const deleted = Boolean(row.deletedAt)
   return {
     id: row.id,
@@ -470,7 +470,7 @@ async function bookingCardPayload(context: TenantContext, viewerId: string, book
   }
 }
 
-async function buildContent(
+export async function buildContent(
   context: TenantContext,
   viewerId: string,
   input: CommunityMessageInput,
@@ -499,7 +499,7 @@ async function buildContent(
   return { kind: "text", body: filtered.body, payload: null }
 }
 
-async function findByClientId(conversationId: string, viewerId: string, clientMessageId: string) {
+export async function findByClientId(conversationId: string, viewerId: string, clientMessageId: string) {
   const [row] = await db
     .select()
     .from(communityMessages)
@@ -715,6 +715,30 @@ export async function getUnreadCounts(context: TenantContext, viewerId: string) 
       )
   `)
 
+  // Groups and events (M5): unread from anyone except people I blocked.
+  const groups = await db.execute<{ groups: number }>(sql`
+    select count(*)::int as groups
+    from ${communityConversationMembers} me
+    join ${communityConversations} c on c.id = me.conversation_id
+    where me.user_id = ${viewerId}
+      and me.state = 'active'
+      and c.tenant_id = ${context.tenantId}
+      and c.type <> 'direct'
+      and exists (
+        select 1 from ${communityMessages} m
+        where m.conversation_id = me.conversation_id
+          and m.seq > me.last_read_seq
+          and m.sender_id is distinct from ${viewerId}
+          and not exists (
+            select 1 from user_blocks b where b.blocker_id = ${viewerId} and b.blocked_id = m.sender_id
+          )
+      )
+  `)
+
   const row = result.rows[0]
-  return { inbox: Number(row?.inbox ?? 0), requests: Number(row?.requests ?? 0) }
+  return {
+    inbox: Number(row?.inbox ?? 0),
+    requests: Number(row?.requests ?? 0),
+    groups: Number(groups.rows[0]?.groups ?? 0),
+  }
 }

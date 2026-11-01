@@ -7,7 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { CommunityScreenHeader } from "@/components/community/community-screen-header"
 import { availabilitySummary } from "@/components/community/open-status-bar"
 import { PlayerCard } from "@/components/community/player-card/player-card"
-import { USUAL_TIME_LABELS, sharedUsualTimes } from "@/components/community/player-card/card-tiers"
+import { USUAL_TIME_LABELS, headToHeadLine, sharedUsualTimes } from "@/components/community/player-card/card-tiers"
 import { ReportPlayerSheet } from "@/components/community/report-player-sheet"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { Button } from "@/components/ui/button"
@@ -17,6 +17,8 @@ import { isApiError } from "@/lib/api-error"
 import {
   blockPlayer,
   fetchCommunityMe,
+  fetchHeadToHead,
+  joinDoubles,
   fetchCommunityPlayer,
   followPlayer,
   unfollowPlayer,
@@ -24,7 +26,9 @@ import {
 import { startConversation } from "@/lib/community-chat-api"
 import {
   communityChatHref,
+  communityGroupHref,
   communityPlayerHref,
+  type CommunityHeadToHead,
   type CommunityPlayerDetail,
   type UsualTimeKey,
 } from "@/lib/community-types"
@@ -39,17 +43,21 @@ export default function CommunityPlayerScreen() {
   const [busy, setBusy] = useState(false)
   const [starting, setStarting] = useState(false)
   const [myUsualTimes, setMyUsualTimes] = useState<UsualTimeKey[]>([])
+  const [h2h, setH2h] = useState<CommunityHeadToHead | null>(null)
+  const [joiningDoubles, setJoiningDoubles] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const [reportKey, setReportKey] = useState(0)
 
   const load = useCallback(async () => {
     try {
-      const [next, me] = await Promise.all([
+      const [next, me, record] = await Promise.all([
         fetchCommunityPlayer(userId),
         fetchCommunityMe().catch(() => null),
+        fetchHeadToHead(userId).catch(() => null),
       ])
       setPlayer(next)
       if (me) setMyUsualTimes(me.profile.usualTimes)
+      setH2h(record)
       setMissing(false)
     } catch (error) {
       if (isApiError(error) && error.status === 404) {
@@ -81,6 +89,19 @@ export default function CommunityPlayerScreen() {
       toast.apiError(error, "Could not update follow.")
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function joinDoublesGroup() {
+    if (!player) return
+    setJoiningDoubles(true)
+    try {
+      const group = await joinDoubles(player.id)
+      router.push(communityGroupHref(group.id) as Href)
+    } catch (error) {
+      toast.apiError(error, "Could not join this doubles game.")
+    } finally {
+      setJoiningDoubles(false)
     }
   }
 
@@ -185,7 +206,7 @@ export default function CommunityPlayerScreen() {
       ) : (
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.cardWrap}>
-            <PlayerCard player={player} size="full" flippable />
+            <PlayerCard player={{ ...player, headToHead: h2h }} size="full" flippable />
           </View>
 
           {player.availability ? (
@@ -214,6 +235,21 @@ export default function CommunityPlayerScreen() {
             <Text style={styles.followsYou}>
               {player.relationship.rallyPartner ? "Rally partner · you follow each other" : "Follows you"}
             </Text>
+          ) : null}
+
+          {headToHeadLine(h2h, player.displayName) ? (
+            <Text style={styles.matchHint}>{headToHeadLine(h2h, player.displayName)}</Text>
+          ) : null}
+
+          {player.availability?.lookingForDoubles ? (
+            <Button
+              label={doublesFull(player) ? "Doubles full" : "Join doubles"}
+              surface="product"
+              productTheme={theme}
+              loading={joiningDoubles}
+              disabled={joiningDoubles || doublesFull(player)}
+              onPress={joinDoublesGroup}
+            />
           ) : null}
 
           {player.relationship.canMessage ? (
@@ -264,4 +300,9 @@ function matchHint(mine: UsualTimeKey[], theirs: UsualTimeKey[]) {
   if (shared.length === 0) return null
   const list = shared.length > 1 ? `${shared.slice(0, -1).join(", ")} and ${shared.at(-1)}` : shared[0]
   return `You both usually play ${list}`
+}
+
+function doublesFull(player: CommunityPlayerDetail) {
+  const fill = player.availability?.doubles
+  return Boolean(fill && fill.members >= fill.max)
 }

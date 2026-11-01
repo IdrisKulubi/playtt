@@ -115,6 +115,9 @@
     },
     "0037_community_social": {
       "sha256": "b89a45de60e14e5a60837d75d43418387628016f35bfa24ea8750f2b00822860"
+    },
+    "0038_community_growth": {
+      "sha256": "7ee357ded1b2614352399f627a1565037858aaffdf68035a04c48261a077cb17"
     }
   },
   "acknowledgedMetadataDrift": [],

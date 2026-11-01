@@ -4955,11 +4955,28 @@ export const communityConversations = pgTable(
       onDelete: "set null",
     }),
     lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    // Groups (M5): a doubles group belongs to one open-to-play window; events
+    // have a start time and a member cap.
+    availabilityId: uuid("availability_id").references(() => playAvailability.id, {
+      onDelete: "set null",
+    }),
+    maxMembers: integer("max_members"),
+    startsAt: timestamp("starts_at", { withTimezone: true }),
+    description: text("description"),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
   (table) => [
+    uniqueIndex("community_conversations_availability_unique").on(
+      table.availabilityId
+    ),
+    index("community_conversations_type_starts_idx").on(
+      table.tenantId,
+      table.type,
+      table.startsAt
+    ),
     uniqueIndex("community_conversations_direct_key_unique").on(
       table.tenantId,
       table.directKey
@@ -5159,6 +5176,101 @@ export const communityReliabilityOverrides = pgTable(
     uniqueIndex("community_reliability_overrides_unique").on(
       table.bookingId,
       table.userId
+    ),
+  ]
+)
+
+// --- Community scoreboard + growth (docs/community/README.md, M5) ---
+
+export const matchSideEnum = pgEnum("match_side", ["a", "b"])
+
+// Who played which side of a scoreboard match. 1v1 only: one player per side.
+export const matchPlayers = pgTable(
+  "match_players",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    matchId: uuid("match_id")
+      .notNull()
+      .references(() => matches.id, { onDelete: "cascade" }),
+    side: matchSideEnum("side").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    assignedBy: text("assigned_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("match_players_match_side_unique").on(table.matchId, table.side),
+    uniqueIndex("match_players_match_user_unique").on(table.matchId, table.userId),
+    index("match_players_user_idx").on(table.userId),
+  ]
+)
+
+export const playerRatings = pgTable("player_ratings", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  tenantId: uuid("tenant_id")
+    .notNull()
+    .default(PLAYTT_TENANT_ID)
+    .references(() => tenants.id, { onDelete: "restrict" }),
+  rating: integer("rating").default(1000).notNull(),
+  ratedMatches: integer("rated_matches").default(0).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+})
+
+// One row per match that has been applied to ratings, so a retried worker
+// event never rates the same match twice.
+export const communityRatedMatches = pgTable("community_rated_matches", {
+  matchId: uuid("match_id")
+    .primaryKey()
+    .references(() => matches.id, { onDelete: "cascade" }),
+  tenantId: uuid("tenant_id")
+    .notNull()
+    .default(PLAYTT_TENANT_ID)
+    .references(() => tenants.id, { onDelete: "restrict" }),
+  deltaA: integer("delta_a").notNull(),
+  deltaB: integer("delta_b").notNull(),
+  ratedAt: timestamp("rated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+})
+
+export const communityInvites = pgTable(
+  "community_invites",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    code: text("code").notNull(),
+    inviterId: text("inviter_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    acceptedBy: text("accepted_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("community_invites_code_unique").on(table.code),
+    index("community_invites_inviter_created_idx").on(
+      table.inviterId,
+      table.createdAt
     ),
   ]
 )

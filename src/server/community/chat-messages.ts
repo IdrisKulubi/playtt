@@ -2,12 +2,14 @@
 // prompts). Kept separate so chat, social and notification code can share them
 // without importing each other.
 
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, inArray, sql } from "drizzle-orm"
 
 import db from "@/db/drizzle"
-import { communityConversations, communityMessages } from "@/db/schema"
+import { communityConversationMembers, communityConversations, communityMessages } from "@/db/schema"
 
 import { directConversationKey } from "./chat-rules.ts"
+
+const DOUBLES_MAX_MEMBERS = 4
 
 type Executor = Pick<typeof db, "insert" | "update" | "select">
 
@@ -68,4 +70,28 @@ export async function hasKudosPrompt(conversationId: string, bookingId: string) 
     )
     .limit(1)
   return Boolean(row)
+}
+
+/** Members per doubles group, keyed by availability id (for "2v2 · 3/4"). */
+export async function loadDoublesSpots(availabilityIds: string[]) {
+  if (availabilityIds.length === 0) return new Map<string, { members: number; max: number }>()
+  const rows = await db
+    .select({
+      availabilityId: communityConversations.availabilityId,
+      max: communityConversations.maxMembers,
+      members: sql<number>`count(${communityConversationMembers.userId}) filter (where ${communityConversationMembers.state} = 'active')::int`,
+    })
+    .from(communityConversations)
+    .leftJoin(
+      communityConversationMembers,
+      eq(communityConversationMembers.conversationId, communityConversations.id),
+    )
+    .where(inArray(communityConversations.availabilityId, availabilityIds))
+    .groupBy(communityConversations.availabilityId, communityConversations.maxMembers)
+
+  return new Map(
+    rows
+      .filter((row) => row.availabilityId)
+      .map((row) => [row.availabilityId!, { members: row.members, max: row.max ?? DOUBLES_MAX_MEMBERS }]),
+  )
 }

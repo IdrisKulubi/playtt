@@ -69,7 +69,9 @@ export function CardStatusRibbon({ ribbon, tokens, compact = false, animate }: C
       </View>
       {ribbon.doubles ? (
         <View style={[styles.chip, { borderColor: tokens.accent, backgroundColor: tokens.plate }]}>
-          <Text style={[styles.label, compact && styles.labelCompact, { color: tokens.accent }]}>2v2</Text>
+          <Text style={[styles.label, compact && styles.labelCompact, { color: tokens.accent }]}>
+            {compact ? ribbon.doublesLabel.replace(" · ", " ") : ribbon.doublesLabel}
+          </Text>
         </View>
       ) : null}
     </View>

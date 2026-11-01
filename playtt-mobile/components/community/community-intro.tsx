@@ -16,7 +16,7 @@ const STEPS = [
 ]
 
 /** First-time gate shown until the player turns on their community profile. */
-export function CommunityIntro({ onCreate }: { onCreate: () => void }) {
+export function CommunityIntro({ onCreate, onEnterCode }: { onCreate: () => void; onEnterCode?: () => void }) {
   const theme = useProductTheme()
 
   const styles = useMemo(
@@ -59,6 +59,9 @@ export function CommunityIntro({ onCreate }: { onCreate: () => void }) {
         </View>
       ))}
       <Button label="Create my card" surface="product" productTheme={theme} onPress={onCreate} />
+      {onEnterCode ? (
+        <Button label="I have an invite code" variant="ghost" surface="product" productTheme={theme} onPress={onEnterCode} />
+      ) : null}
       <Text style={styles.privacy}>
         Only your first name and last initial are shown. You can hide your card at any time.
       </Text>

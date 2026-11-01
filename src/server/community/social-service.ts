@@ -23,6 +23,7 @@ import type { TenantContext } from "@/server/tenancy/types"
 
 import { EMPTY_CARD_DATA, loadCardData } from "./card-data.ts"
 import { insertServerMessage } from "./chat-messages.ts"
+import { loadBookingMatches } from "./match-service.ts"
 import { loadPlayerRows, requireConversation } from "./chat-service.ts"
 import { SOCIAL_LIMITS, type KudosType } from "./constants.ts"
 import { toCommunityDisplayName } from "./display-name.ts"
@@ -423,7 +424,7 @@ export async function listMySharedBookings(context: TenantContext, viewerId: str
   if (mine.length === 0) return { bookings: [] }
 
   const bookingIds = mine.map((row) => row.bookingId)
-  const [details, partners, given] = await Promise.all([
+  const [details, partners, given, matchInfo] = await Promise.all([
     db
       .select({
         id: bookings.id,
@@ -459,6 +460,7 @@ export async function listMySharedBookings(context: TenantContext, viewerId: str
       })
       .from(communityKudos)
       .where(and(inArray(communityKudos.bookingId, bookingIds), eq(communityKudos.giverId, viewerId))),
+    loadBookingMatches(bookingIds),
   ])
 
   const visible = await visiblePlayers(context, viewerId, partners.map((row) => row.userId), now)
@@ -499,6 +501,8 @@ export async function listMySharedBookings(context: TenantContext, viewerId: str
           kudosOpen: kudosWindow(endedAt, now) === "open",
           partners: partnerPlayers,
           kudosGiven,
+          // Scoreboard result + who played which side (M5); null before any score.
+          match: matchInfo.get(entry.bookingId) ?? null,
         }
       })
       .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry)),

@@ -28,6 +28,8 @@ export type CommunityAvailability = {
   note: string | null
   lookingForDoubles: boolean
   openNow: boolean
+  /** Doubles group fill when looking for doubles (M5), e.g. 3 of 4. */
+  doubles?: { members: number; max: number } | null
 }
 
 export type CommunityRelationship = {
@@ -40,6 +42,8 @@ export type CommunityRelationship = {
 
 /** null = not enough data yet; the card shows a dash, never 0. */
 export type CommunityCardStats = {
+  /** Card rating 40–99 (M5); null shows NEW until 5 rated matches. */
+  rating?: number | null
   matches: number | null
   winRate: number | null
   reliability: number | null
@@ -186,7 +190,7 @@ export type CommunityMessagesPage = {
   conversation: CommunityConversation | null
 }
 
-export type CommunityUnreadCounts = { inbox: number; requests: number }
+export type CommunityUnreadCounts = { inbox: number; requests: number; groups?: number }
 
 export type SendMessageInput =
   | { kind: "text" | "quick_reply"; body: string; clientMessageId: string }
@@ -245,6 +249,18 @@ export type CommunitySharedBooking = {
   partners: CommunityPlayer[]
   /** Kudos I already gave on this booking, by receiver id. */
   kudosGiven: Record<string, KudosType[]>
+  /** Scoreboard match + who played which side (M5). */
+  match?: CommunityBookingMatch | null
+}
+
+export type CommunityBookingMatch = {
+  matchId: string
+  status: string
+  gamesA: number
+  gamesB: number
+  sideA: string | null
+  sideB: string | null
+  rated: boolean
 }
 
 export type CommunityAtVenue = {
@@ -252,3 +268,56 @@ export type CommunityAtVenue = {
   count: number
   players: CommunityPlayer[]
 }
+
+// --- Groups, scoreboard, invites (M5) ---
+
+export type CommunityHeadToHead = {
+  wins: number
+  losses: number
+  lastPlayedAt: string | null
+  recent: { matchId: string; playedAt: string; myGames: number; theirGames: number; result: "win" | "loss" | "draw" }[]
+}
+
+export type CommunityGroupMember = CommunityPlayer & { groupRole?: "member" | "admin" }
+
+export type CommunityGroup = {
+  id: string
+  type: "group" | "event"
+  title: string
+  description: string | null
+  startsAt: string | null
+  maxMembers: number | null
+  memberCount: number
+  members: CommunityGroupMember[]
+  myRole: "member" | "admin"
+  mutedUntil: string | null
+  closed: boolean
+  lastMessage: CommunityMessage | null
+  unreadCount: number
+}
+
+export type CommunityGroupMessage = CommunityMessage & { senderName?: string | null }
+
+export type CommunityGroupMessagesPage = {
+  messages: CommunityGroupMessage[]
+  hasMore: boolean
+  group: CommunityGroup | null
+}
+
+export type CommunityEvent = {
+  id: string
+  title: string
+  description: string | null
+  startsAt: string | null
+  maxMembers: number | null
+  memberCount: number
+  joined: boolean
+}
+
+export type CommunityInvite = { code: string; url: string }
+
+export function communityGroupHref(groupId: string) {
+  return `/community/group/${encodeURIComponent(groupId)}`
+}
+
+export const INVITE_SHARE_TEXT = "Play table tennis with me on PlayTT 🏓"

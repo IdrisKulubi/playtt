@@ -17,6 +17,8 @@ type ChatComposerProps = {
   disabled?: boolean
   disabledReason?: string | null
   bottomInset: number
+  /** Group chats have no booking actions. */
+  showActions?: boolean
 }
 
 // Same shape as components/coach/coach-chat-composer.tsx, plus quick replies
@@ -30,6 +32,7 @@ export function ChatComposer({
   disabled = false,
   disabledReason,
   bottomInset,
+  showActions = true,
 }: ChatComposerProps) {
   const theme = useProductTheme()
   const canSend = value.trim().length > 0 && !disabled
@@ -132,15 +135,17 @@ export function ChatComposer({
         ))}
       </ScrollView>
       <View style={styles.row}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Book or share a table"
-          disabled={disabled}
-          onPress={onOpenActions}
-          style={styles.plus}
-        >
-          <Plus size={20} color={theme.foreground} weight="bold" />
-        </Pressable>
+        {showActions ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Book or share a table"
+            disabled={disabled}
+            onPress={onOpenActions}
+            style={styles.plus}
+          >
+            <Plus size={20} color={theme.foreground} weight="bold" />
+          </Pressable>
+        ) : null}
         <View style={styles.inputWrap}>
           <TextInput
             value={value}

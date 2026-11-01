@@ -17,6 +17,7 @@ import {
   type ScoreState,
 } from "@/server/scoring/adapter"
 import { enqueueOutboxEvent } from "@/server/workers/outbox-repository"
+import { enqueueCommunityNotification } from "@/server/community/notify"
 
 export type ScoreEventKindValue =
   (typeof scoreEventKindEnum.enumValues)[number]
@@ -98,6 +99,8 @@ async function projectMatchScore(
   input: {
     tenantId: string
     bookingId: string
+    playSessionId: string
+    locationId: string
     state: ScoreState
   },
 ) {
@@ -108,8 +111,20 @@ async function projectMatchScore(
         ? "not_started"
         : "in_progress"
 
+  // One match per booking. Created on the first score event so the
+  // scoreboard result can be recorded (Community head-to-head + rating, M5).
+  await tx
+    .insert(matches)
+    .values({
+      tenantId: input.tenantId,
+      bookingId: input.bookingId,
+      playSessionId: input.playSessionId,
+      locationId: input.locationId,
+    })
+    .onConflictDoNothing({ target: matches.bookingId })
+
   const [existing] = await tx
-    .select({ startedAt: matches.startedAt })
+    .select({ id: matches.id, startedAt: matches.startedAt, status: matches.status })
     .from(matches)
     .where(
       and(
@@ -143,6 +158,15 @@ async function projectMatchScore(
         eq(matches.bookingId, input.bookingId),
       ),
     )
+
+  if (matchStatus === "completed" && existing.status !== "completed") {
+    // Ratings update from the outbox; a no-op until sides are assigned.
+    await enqueueCommunityNotification(
+      input.tenantId,
+      { kind: "match_completed", matchId: existing.id },
+      tx,
+    )
+  }
 }
 
 export async function ingestScoreEvent(
@@ -329,6 +353,8 @@ export async function ingestScoreEvent(
     await projectMatchScore(tx, {
       tenantId: input.tenantId,
       bookingId: playSession.bookingId,
+      playSessionId: playSession.id,
+      locationId: playSession.locationId,
       state: nextState,
     })
 

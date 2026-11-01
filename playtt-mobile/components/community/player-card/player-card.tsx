@@ -35,13 +35,15 @@ import {
   COMPACT_STAT_KEYS,
   OPEN_NOW_GREEN,
   cardInitials,
-  cardTierTokens,
+  cardTierTokensFor,
   cardVariant,
+  IN_FORM_ORANGE,
+  ratingLabel,
   handednessCode,
   playStyleCode,
   playerCardAccessibilityLabel,
   statusRibbon,
-  tierForSkill,
+  tierForPlayer,
   type CardSize,
   type CardTierTokens,
   type PlayerCardData,
@@ -137,7 +139,7 @@ function usePressScale(enabled: boolean) {
 
 function MiniCard({ player, onPress, style }: PlayerCardProps) {
   const scheme = resolveColorScheme(useColorScheme())
-  const tokens = cardTierTokens(player.skillLevel, scheme)
+  const tokens = cardTierTokensFor(player, scheme)
   const reduceMotion = useReducedMotion()
   const press = usePressScale(!reduceMotion)
   const ribbon = statusRibbon(player.availability)
@@ -210,8 +212,10 @@ function CardFront({
     <View style={[styles.front, compact ? styles.frontCompact : styles.frontFull]}>
       <View style={styles.topRow}>
         <View style={styles.ratingBlock}>
-          {/* Ratings come from verified scoreboard results in M5; until then everyone is NEW. */}
-          <Text style={[styles.rating, compact && styles.ratingCompact, { color: tokens.text }]}>NEW</Text>
+          {/* Rating from verified scoreboard results; NEW until 5 rated matches. */}
+          <Text style={[styles.rating, compact && styles.ratingCompact, { color: tokens.text }]}>
+            {ratingLabel(player)}
+          </Text>
           <Text style={[styles.tier, compact && styles.tierCompact, { color: tokens.accent }]}>
             {tokens.name.toUpperCase()}
           </Text>
@@ -227,6 +231,11 @@ function CardFront({
             <AtVenueChip venueName={player.atVenueName} tokens={tokens} compact={compact} animate={animate} />
           ) : null}
           {!compact && variant === "founding" ? <FoundingStamp tokens={tokens} /> : null}
+          {variant === "in_form" ? (
+            <View style={[styles.inFormTag, { borderColor: IN_FORM_ORANGE }]}>
+              <Text style={[styles.inFormText, { color: IN_FORM_ORANGE }]}>IN FORM</Text>
+            </View>
+          ) : null}
         </View>
       </View>
 
@@ -276,8 +285,9 @@ export function PlayerCard({ player, size = "compact", onPress, flippable = fals
   const flip = useSharedValue(0)
   const press = usePressScale(!reduceMotion)
 
-  const tier = tierForSkill(player.skillLevel)
-  const tokens = cardTierTokens(player.skillLevel, scheme)
+  const tier = tierForPlayer(player)
+  const tokens = cardTierTokensFor(player, scheme)
+  const inForm = cardVariant(player) === "in_form"
   const isFull = size === "full"
   const canFlip = isFull && flippable
 
@@ -370,6 +380,13 @@ export function PlayerCard({ player, size = "compact", onPress, flippable = fals
       >
         {face("front")}
         {canFlip ? face("back") : null}
+        {/* "In form" variant: orange flame edge over the tier border. */}
+        {inForm && !flipped ? (
+          <View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, styles.flameEdge, { borderRadius: radius, borderColor: IN_FORM_ORANGE }]}
+          />
+        ) : null}
       </Animated.View>
     </Pressable>
   )
@@ -474,6 +491,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: "center",
     letterSpacing: 0.4,
+  },
+  inFormTag: {
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  inFormText: {
+    fontFamily: PlayTTFontFamilies.bold,
+    fontSize: 9,
+    letterSpacing: 1.2,
+  },
+  flameEdge: {
+    borderWidth: 2,
+    opacity: 0.9,
   },
   miniRow: {
     flexDirection: "row",

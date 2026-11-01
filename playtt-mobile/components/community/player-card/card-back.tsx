@@ -5,6 +5,7 @@ import { KUDOS_EMOJI, KUDOS_LABELS } from "@/lib/community-types"
 
 import {
   USUAL_TIME_LABELS,
+  headToHeadLine,
   playStyleName,
   type CardTierTokens,
   type PlayerCardData,
@@ -49,6 +50,15 @@ export function CardBack({ player, tokens }: CardBackProps) {
           <Text style={[styles.body, { color: tokens.muted }]}>Not set yet.</Text>
         )}
       </View>
+
+      {headToHeadLine(player.headToHead, player.displayName) ? (
+        <View style={styles.section}>
+          <Text style={[styles.heading, { color: tokens.accent }]}>HEAD-TO-HEAD</Text>
+          <Text style={[styles.body, { color: tokens.text }]}>
+            {headToHeadLine(player.headToHead, player.displayName)}
+          </Text>
+        </View>
+      ) : null}
 
       {player.kudos && player.kudos.length > 0 ? (
         <View style={styles.section}>

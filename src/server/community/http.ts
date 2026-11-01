@@ -253,3 +253,13 @@ export const communityKudosSchema = z
     types: z.array(z.enum(KUDOS_TYPES)).min(1).max(SOCIAL_LIMITS.maxKudosTypesPerMatch),
   })
   .strict()
+
+// --- Groups, scoreboard, invites (M5) ---
+
+export const communityMatchSidesSchema = z
+  .object({ sideA: z.string().min(1).max(128), sideB: z.string().min(1).max(128) })
+  .strict()
+
+export const communityGroupMuteSchema = z
+  .object({ hours: z.union([z.literal(1), z.literal(8), z.literal(24), z.literal(168)]).nullable() })
+  .strict()

@@ -13,6 +13,7 @@ import {
   bookings,
   communityBookingPartners,
   communityConversationMembers,
+  communityConversations,
   communityMessages,
   follows,
   playAvailability,
@@ -29,6 +30,7 @@ import {
   messagePushDeduplicationKey,
   pushPreview,
 } from "./chat-rules.ts"
+import { applyMatchRating } from "./rating-store.ts"
 import { findDirectConversationId, hasKudosPrompt, insertServerMessage } from "./chat-messages.ts"
 import { KUDOS_LABELS, type KudosType } from "./constants.ts"
 import { toCommunityDisplayName } from "./display-name.ts"
@@ -39,6 +41,8 @@ export type CommunityNotificationEvent =
   | { kind: "followee_open"; userId: string; availabilityId: string }
   | { kind: "kudos"; bookingId: string; giverId: string; receiverId: string; types: KudosType[] }
   | { kind: "post_match"; bookingId: string }
+  // Not a push: updates ratings when a scoreboard match completes (M5).
+  | { kind: "match_completed"; matchId: string }
 
 type Executor = Parameters<typeof enqueueOutboxEvent>[1]
 
@@ -62,6 +66,10 @@ function eventIdentity(event: CommunityNotificationEvent) {
       }
     case "post_match":
       return { aggregateType: "booking", aggregateId: event.bookingId, key: event.bookingId }
+    case "match_completed":
+      // Keyed per attempt so re-assigning sides after completion can enqueue
+      // again; the rated-matches ledger keeps rating idempotent.
+      return { aggregateType: "match", aggregateId: event.matchId, key: `${event.matchId}:${Date.now()}` }
   }
 }
 
@@ -159,6 +167,15 @@ async function deliverMessage(tenantId: string, event: Extract<CommunityNotifica
 
   const senderName = await displayNameOf(event.senderId)
   const preview = message.kind === "booking_card" ? "Shared a booking 🏓" : pushPreview(message.body)
+  const [conversation] = await db
+    .select({ type: communityConversations.type, title: communityConversations.title })
+    .from(communityConversations)
+    .where(eq(communityConversations.id, event.conversationId))
+    .limit(1)
+  // Group pushes say which group: "Amara K. · 2v2 with Idris K."
+  const title = conversation && conversation.type !== "direct" && conversation.title
+    ? `${senderName} · ${conversation.title}`
+    : senderName
 
   for (const recipient of recipients) {
     if (await isBlockedEitherWay(event.senderId, recipient.userId)) continue
@@ -175,7 +192,7 @@ async function deliverMessage(tenantId: string, event: Extract<CommunityNotifica
       payload: { conversationId: event.conversationId, messageId: event.messageId },
       copy: isRequest
         ? { title: "New message request", body: `${senderName} wants to play.` }
-        : { title: senderName, body: preview },
+        : { title, body: preview },
       data: { conversationId: event.conversationId },
     })
   }
@@ -373,6 +390,8 @@ export async function deliverCommunityNotification(tenantId: string, event: Comm
       return deliverKudos(tenantId, event)
     case "post_match":
       return deliverPostMatch(tenantId, event)
+    case "match_completed":
+      return applyMatchRating(tenantId, event.matchId)
   }
 }
 

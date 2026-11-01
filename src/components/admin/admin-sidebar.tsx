@@ -64,6 +64,7 @@ const navigationGroups: NavGroup[] = [
     items: [
       { href: "/admin/members", label: "Members", icon: UsersThreeIcon },
       { href: "/admin/community/reports", label: "Community reports", icon: FlagIcon },
+      { href: "/admin/community/events", label: "Community events", icon: CalendarBlankIcon },
     ],
   },
   {

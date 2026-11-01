@@ -2,6 +2,7 @@
 // session stats, kudos, reliability and badges, batched per page of players.
 
 import { and, eq, inArray, lte, or, sql } from "drizzle-orm"
+import { alias } from "drizzle-orm/pg-core"
 
 import db from "@/db/drizzle"
 import {
@@ -9,6 +10,9 @@ import {
   communityBookingPartners,
   communityKudos,
   communityReliabilityOverrides,
+  matches,
+  matchPlayers,
+  playerRatings,
   playSessions,
   sessionParticipants,
 } from "@/db/schema"
@@ -16,6 +20,7 @@ import type { TenantContext } from "@/server/tenancy/types"
 
 import { EMPTY_CARD_STATS, groupCardStats, toCardStatWeeks, type CardStats } from "./card-stats.ts"
 import type { KudosType } from "./constants.ts"
+import { cardRatingFor, isInForm, winRate, type RecordedResult } from "./rating-rules.ts"
 import {
   computeReliability,
   kudosBadges,
@@ -148,15 +153,56 @@ export async function loadSharedBookingFacts(context: TenantContext, userIds: st
   return facts
 }
 
+const opponent = alias(matchPlayers, "opponent")
+
+/** Completed 1v1 scoreboard matches with assigned players, per player. */
+export async function loadMatchResults(context: TenantContext, userIds: string[]) {
+  const rows = await db
+    .select({
+      userId: matchPlayers.userId,
+      side: matchPlayers.side,
+      gamesA: matches.scorePlayerA,
+      gamesB: matches.scorePlayerB,
+      playedAt: sql<Date>`coalesce(${matches.endedAt}, ${matches.updatedAt})`,
+    })
+    .from(matchPlayers)
+    .innerJoin(matches, eq(matches.id, matchPlayers.matchId))
+    .innerJoin(opponent, and(eq(opponent.matchId, matchPlayers.matchId), sql`${opponent.side} <> ${matchPlayers.side}`))
+    .where(
+      and(
+        eq(matches.tenantId, context.tenantId),
+        eq(matches.status, "completed"),
+        inArray(matchPlayers.userId, userIds),
+      ),
+    )
+
+  const results = new Map<string, RecordedResult[]>()
+  for (const row of rows) {
+    const mine = row.side === "a" ? row.gamesA : row.gamesB
+    const theirs = row.side === "a" ? row.gamesB : row.gamesA
+    const list = results.get(row.userId) ?? []
+    list.push({ won: mine === theirs ? null : mine > theirs, playedAt: new Date(row.playedAt) })
+    results.set(row.userId, list)
+  }
+  return results
+}
+
+async function loadRatings(userIds: string[]) {
+  const rows = await db.select().from(playerRatings).where(inArray(playerRatings.userId, userIds))
+  return new Map(rows.map((row) => [row.userId, row]))
+}
+
 export async function loadCardData(context: TenantContext, userIds: string[], now: Date) {
   if (userIds.length === 0) {
     return new Map<string, CardData>()
   }
 
-  const [sessions, kudos, shared] = await Promise.all([
+  const [sessions, kudos, shared, results, ratings] = await Promise.all([
     loadSessionRows(context, userIds, now),
     loadKudosCounts(context, userIds),
     loadSharedBookingFacts(context, userIds),
+    loadMatchResults(context, userIds),
+    loadRatings(userIds),
   ])
 
   const stats = groupCardStats(userIds, toCardStatWeeks(sessions), now)
@@ -166,7 +212,9 @@ export async function loadCardData(context: TenantContext, userIds: string[], no
       const counts = kudos.get(id) ?? {}
       const totalKudos = Object.values(counts).reduce((sum, count) => sum + (count ?? 0), 0)
       const reliability = computeReliability(shared.get(id) ?? [], now)
+      const recorded = results.get(id) ?? []
       const badges = kudosBadges(counts)
+      if (isInForm(recorded)) badges.unshift("in_form")
       if (reliability.reliableBadge) badges.push("reliable")
 
       return [
@@ -176,6 +224,8 @@ export async function loadCardData(context: TenantContext, userIds: string[], no
             ...(stats.get(id) ?? EMPTY_CARD_STATS),
             kudos: totalKudos > 0 ? totalKudos : null,
             reliability: reliability.percent,
+            rating: cardRatingFor(ratings.get(id)),
+            winRate: winRate(recorded),
           },
           badges,
           topKudos: topKudos(counts),

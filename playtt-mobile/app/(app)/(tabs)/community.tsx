@@ -1,10 +1,12 @@
-import { type Href, router } from "expo-router"
-import { useMemo, useState } from "react"
+import { type Href, router, useFocusEffect } from "expo-router"
+import { useCallback, useMemo, useState } from "react"
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native"
 import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { AtVenueStrip } from "@/components/community/at-venue-strip"
+import { EventsSection } from "@/components/community/events-section"
+import { InviteCodeSheet } from "@/components/community/invite-code-sheet"
 import { CommunityFilterChips } from "@/components/community/community-filter-chips"
 import { CommunityHeader } from "@/components/community/community-header"
 import { CommunityIntro } from "@/components/community/community-intro"
@@ -29,11 +31,14 @@ import {
   type CommunitySegment as Segment,
 } from "@/hooks/use-community"
 import { useProductTheme, useSkeletonSurface } from "@/hooks/use-product-theme"
-import { stopOpenToPlay } from "@/lib/community-api"
+import { acceptInvite, joinEvent, stopOpenToPlay } from "@/lib/community-api"
+import { shareInvite, takePendingInvite } from "@/lib/community-invite"
 import { startConversation } from "@/lib/community-chat-api"
 import {
   communityChatHref,
+  communityGroupHref,
   communityPlayerHref,
+  type CommunityEvent,
   type CommunityPlayer,
   type CommunitySkillLevel,
   type UsualTimeKey,
@@ -86,6 +91,45 @@ export default function CommunityScreen() {
   const list = useCommunityPlayers(filters, hasCard)
   const { unread } = useCommunityUnread(hasCard)
   const social = useCommunitySocial(hasCard)
+  const [codeSheet, setCodeSheet] = useState<number | null>(null)
+
+  async function redeemInvite(code: string) {
+    try {
+      const result = await acceptInvite(code)
+      setCodeSheet(null)
+      toast.success("You're connected. Say hi! 🏓")
+      router.push(communityChatHref(result.conversationId) as Href)
+    } catch (error) {
+      toast.apiError(error, "Could not use that invite code.")
+    }
+  }
+
+  // An invite link opened before sign-in is accepted here (survives sign-up).
+  useFocusEffect(
+    useCallback(() => {
+      void takePendingInvite()
+        .then((code) => (code ? redeemInvite(code) : undefined))
+        .catch(() => undefined)
+    }, []),
+  )
+
+  async function invite() {
+    try {
+      await shareInvite()
+    } catch (error) {
+      toast.apiError(error, "Could not create an invite.")
+    }
+  }
+
+  async function joinCommunityEvent(event: CommunityEvent) {
+    try {
+      const group = await joinEvent(event.id)
+      void social.reload()
+      router.push(communityGroupHref(group.id) as Href)
+    } catch (error) {
+      toast.apiError(error, "Could not join this event.")
+    }
+  }
 
   const styles = useMemo(
     () =>
@@ -153,7 +197,8 @@ export default function CommunityScreen() {
         venueName={me?.homeVenue?.name ?? list.venue?.name}
         onEditCard={hasCard ? () => router.push(PROFILE_EDITOR) : undefined}
         onOpenInbox={hasCard ? () => router.push("/community/inbox" as Href) : undefined}
-        unreadCount={unread.inbox}
+        onInvite={hasCard ? () => void invite() : undefined}
+        unreadCount={unread.inbox + (unread.groups ?? 0)}
         requestCount={unread.requests}
       />
 
@@ -165,6 +210,11 @@ export default function CommunityScreen() {
         <>
           <RallyPartnersRow players={social.rallyPartners} onOpenPlayer={openPlayer} onLetsPlay={letsPlay} />
           <AtVenueStrip atVenue={social.atVenue} onOpenPlayer={openPlayer} />
+          <EventsSection
+            events={social.events}
+            onJoin={(event) => void joinCommunityEvent(event)}
+            onOpen={(event) => router.push(communityGroupHref(event.id) as Href)}
+          />
           <GlassSegmentControl value={segment} options={SEGMENTS} onChange={setSegment} />
           <CommunityFilterChips
             skill={skill}
@@ -205,7 +255,12 @@ export default function CommunityScreen() {
       )
     }
 
-    return <CommunityIntro onCreate={() => router.push({ pathname: PROFILE_EDITOR, params: { setup: "1" } })} />
+    return (
+      <CommunityIntro
+        onCreate={() => router.push({ pathname: PROFILE_EDITOR, params: { setup: "1" } })}
+        onEnterCode={() => setCodeSheet(Date.now())}
+      />
+    )
   }
 
   const showGrid = hasCard && me
@@ -271,6 +326,10 @@ export default function CommunityScreen() {
       ) : null}
 
       <ConfettiBurst burstKey={burst} />
+
+      {codeSheet !== null ? (
+        <InviteCodeSheet key={codeSheet} visible onClose={() => setCodeSheet(null)} onSubmit={redeemInvite} />
+      ) : null}
     </SafeAreaView>
   )
 }

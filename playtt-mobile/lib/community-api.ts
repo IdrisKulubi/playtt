@@ -1,6 +1,11 @@
 import { apiFetch } from "@/lib/api-client"
 import type {
   CommunityAtVenue,
+  CommunityBookingMatch,
+  CommunityEvent,
+  CommunityGroup,
+  CommunityHeadToHead,
+  CommunityInvite,
   CommunityMe,
   CommunityPlayer,
   CommunitySharedBooking,
@@ -161,4 +166,53 @@ export async function giveKudos(bookingId: string, receiverId: string, types: Ku
     body: JSON.stringify({ receiverId, types }),
   })
   return response.data.bookings
+}
+
+// --- Groups, scoreboard, invites (M5) ---
+
+export async function fetchHeadToHead(userId: string) {
+  const response = await apiFetch<Envelope<{ headToHead: CommunityHeadToHead }>>(playerPath(userId, "/head-to-head"))
+  return response.data.headToHead
+}
+
+/** Record who played which side of a shared booking's scoreboard match (host only). */
+export async function assignMatchSides(bookingId: string, sideA: string, sideB: string) {
+  const response = await apiFetch<Envelope<{ match: CommunityBookingMatch | null }>>(bookingPath(bookingId, "/sides"), {
+    method: "POST",
+    body: JSON.stringify({ sideA, sideB }),
+  })
+  return response.data.match
+}
+
+export async function joinDoubles(hostId: string) {
+  const response = await apiFetch<Envelope<{ group: CommunityGroup }>>(playerPath(hostId, "/doubles"), {
+    method: "POST",
+  })
+  return response.data.group
+}
+
+export async function fetchEvents() {
+  const response = await apiFetch<Envelope<{ events: CommunityEvent[] }>>(`${BASE}/events`)
+  return response.data.events
+}
+
+export async function joinEvent(eventId: string) {
+  const response = await apiFetch<Envelope<{ group: CommunityGroup }>>(
+    `${BASE}/events/${encodeURIComponent(eventId)}/join`,
+    { method: "POST" },
+  )
+  return response.data.group
+}
+
+export async function createInvite() {
+  const response = await apiFetch<Envelope<{ invite: CommunityInvite }>>(`${BASE}/invites`, { method: "POST" })
+  return response.data.invite
+}
+
+export async function acceptInvite(code: string) {
+  const response = await apiFetch<Envelope<{ conversationId: string; inviterId: string }>>(
+    `${BASE}/invites/${encodeURIComponent(code)}/accept`,
+    { method: "POST" },
+  )
+  return response.data
 }

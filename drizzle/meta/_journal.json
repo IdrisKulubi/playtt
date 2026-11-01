@@ -267,6 +267,13 @@
       "when": 1793491950945,
       "tag": "0037_community_social",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793493654150,
+      "tag": "0038_community_growth",
+      "breakpoints": true
     }
   ]
 }

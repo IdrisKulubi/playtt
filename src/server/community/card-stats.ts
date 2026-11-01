@@ -13,6 +13,8 @@ export type CardStatWeek = {
 
 /** A null stat means "not enough data yet"; the card shows a dash. */
 export type CardStats = {
+  /** Card rating 40–99 from Elo (M5); null until 5 rated matches. */
+  rating: number | null
   matches: number | null
   winRate: number | null
   reliability: number | null
@@ -22,6 +24,7 @@ export type CardStats = {
 }
 
 export const EMPTY_CARD_STATS: CardStats = {
+  rating: null,
   matches: null,
   winRate: null,
   reliability: null,
