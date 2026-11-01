@@ -1,7 +1,9 @@
 import { type ReactNode, useCallback, useEffect, useMemo } from "react"
 import {
   Dimensions,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -185,6 +187,10 @@ export function BottomSheet({
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.scrollContent}
       bounces
+      // Default "never" blurs on touch end when the tap target isn't the focused
+      // input, so tapping a field made the keyboard flicker and close.
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
     >
       {children}
     </ScrollView>
@@ -201,29 +207,35 @@ export function BottomSheet({
       statusBarTranslucent
     >
       <GestureHandlerRootView style={styles.overlay}>
-        <Animated.View
-          entering={FadeIn.duration(180)}
-          style={[StyleSheet.absoluteFill, backdropAnimatedStyle]}
+        {/* Lifts the sheet above the keyboard so its fields stay visible while typing. */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.overlay}
         >
-          <Pressable style={styles.backdrop} onPress={animateDismiss} />
-        </Animated.View>
-
-        <GestureDetector gesture={panGesture}>
           <Animated.View
-            entering={SlideInDown.duration(260)}
-            style={[
-              styles.sheet,
-              sheetAnimatedStyle,
-              { paddingBottom: Math.max(insets.bottom, PlayTTSpacing.md) },
-            ]}
+            entering={FadeIn.duration(180)}
+            style={[StyleSheet.absoluteFill, backdropAnimatedStyle]}
           >
-            <View style={styles.dragArea}>
-              <View style={styles.handle} />
-              <Text style={styles.title}>{title}</Text>
-            </View>
-            {body}
+            <Pressable style={styles.backdrop} onPress={animateDismiss} />
           </Animated.View>
-        </GestureDetector>
+
+          <GestureDetector gesture={panGesture}>
+            <Animated.View
+              entering={SlideInDown.duration(260)}
+              style={[
+                styles.sheet,
+                sheetAnimatedStyle,
+                { paddingBottom: Math.max(insets.bottom, PlayTTSpacing.md) },
+              ]}
+            >
+              <View style={styles.dragArea}>
+                <View style={styles.handle} />
+                <Text style={styles.title}>{title}</Text>
+              </View>
+              {body}
+            </Animated.View>
+          </GestureDetector>
+        </KeyboardAvoidingView>
       </GestureHandlerRootView>
     </Modal>
   )
