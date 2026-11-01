@@ -1,0 +1,37 @@
+{
+  "contractVersion": 1,
+  "endpoint": "community.group.messages.post",
+  "case": "success",
+  "request": {
+    "headers": {
+      "authorization": "Bearer <token>"
+    },
+    "params": {
+      "groupId": "018f4d65-3c1a-7f1d-9d54-6f547f24d101"
+    },
+    "body": {
+      "kind": "text",
+      "body": "See you at 7",
+      "clientMessageId": "m-lq2k9x-9a8b7c6d"
+    }
+  },
+  "response": {
+    "status": 201,
+    "body": {
+      "data": {
+        "message": {
+          "id": "018f4d65-3c1a-7f1d-9d54-6f547f24e102",
+          "seq": 89,
+          "conversationId": "018f4d65-3c1a-7f1d-9d54-6f547f24d101",
+          "senderId": "018f4d65-3c1a-7f1d-9d54-6f547f24a001",
+          "mine": true,
+          "kind": "text",
+          "body": "See you at 7",
+          "payload": null,
+          "clientMessageId": "m-lq2k9x-9a8b7c6d",
+          "createdAt": "2026-10-30T13:10:00.000Z"
+        }
+      }
+    }
+  }
+}

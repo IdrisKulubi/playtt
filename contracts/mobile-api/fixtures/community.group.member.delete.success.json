@@ -1,0 +1,22 @@
+{
+  "contractVersion": 1,
+  "endpoint": "community.group.member.delete",
+  "case": "success",
+  "request": {
+    "headers": {
+      "authorization": "Bearer <token>"
+    },
+    "params": {
+      "groupId": "018f4d65-3c1a-7f1d-9d54-6f547f24d101",
+      "memberId": "018f4d65-3c1a-7f1d-9d54-6f547f24a002"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": {
+        "removed": true
+      }
+    }
+  }
+}

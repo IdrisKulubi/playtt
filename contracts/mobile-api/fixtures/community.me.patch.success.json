@@ -43,7 +43,8 @@
             "endsAt": "2026-10-28T20:00:00.000Z",
             "note": "Best of five, casual",
             "lookingForDoubles": false,
-            "openNow": false
+            "openNow": false,
+            "doubles": null
           },
           "homeVenue": {
             "id": "018f4d65-3c1a-7f1d-9d54-6f547f24b001",
@@ -54,6 +55,7 @@
             "following": 6
           },
           "stats": {
+            "rating": null,
             "matches": 42,
             "winRate": null,
             "reliability": null,

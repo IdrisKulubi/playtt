@@ -1,0 +1,22 @@
+{
+  "contractVersion": 1,
+  "endpoint": "community.invite.accept.post",
+  "case": "success",
+  "request": {
+    "headers": {
+      "authorization": "Bearer <token>"
+    },
+    "params": {
+      "code": "K7QM2XHP"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": {
+        "conversationId": "018f4d65-3c1a-7f1d-9d54-6f547f24d001",
+        "inviterId": "018f4d65-3c1a-7f1d-9d54-6f547f24a002"
+      }
+    }
+  }
+}

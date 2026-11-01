@@ -1,6 +1,6 @@
 import { type Href, router, useLocalSearchParams } from "expo-router"
 import { DotsThreeVertical } from "phosphor-react-native/src/icons/DotsThreeVertical"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +20,7 @@ import { KudosSheet } from "@/components/community/chat/kudos-sheet"
 import { ChatMessageBubble } from "@/components/community/chat/chat-message-bubble"
 import { IncomingRequestBanner, PendingRequestNote } from "@/components/community/chat/chat-request-banner"
 import { PlayerCard } from "@/components/community/player-card/player-card"
+import { headToHeadLine } from "@/components/community/player-card/card-tiers"
 import { ReportPlayerSheet } from "@/components/community/report-player-sheet"
 import { ScreenBackButton } from "@/components/navigation/screen-back-button"
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
@@ -27,10 +28,16 @@ import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useCommunityChat } from "@/hooks/use-community-chat"
 import { useSharedBookings } from "@/hooks/use-shared-bookings"
 import { useProductTheme } from "@/hooks/use-product-theme"
-import { blockPlayer, joinSharedBooking, leaveSharedBooking } from "@/lib/community-api"
+import {
+  assignMatchSides,
+  blockPlayer,
+  fetchHeadToHead,
+  joinSharedBooking,
+  leaveSharedBooking,
+} from "@/lib/community-api"
 import { acceptConversation, leaveConversation } from "@/lib/community-chat-api"
 import { chatRows, isBookingCard, seenSeq, type ChatItem } from "@/lib/community-chat-merge"
-import { PLAY_AGAIN_PREFILL, communityPlayerHref } from "@/lib/community-types"
+import { PLAY_AGAIN_PREFILL, communityPlayerHref, type CommunityHeadToHead } from "@/lib/community-types"
 import { toast } from "@/lib/toast"
 
 export default function CommunityChatScreen() {
@@ -45,6 +52,19 @@ export default function CommunityChatScreen() {
   const [busy, setBusy] = useState(false)
   const [kudos, setKudos] = useState<{ key: number; bookingId: string } | null>(null)
   const shared = useSharedBookings()
+  const [h2h, setH2h] = useState<CommunityHeadToHead | null>(null)
+  const peerId = chat.conversation?.player.id
+
+  useEffect(() => {
+    if (!peerId) return
+    let mounted = true
+    fetchHeadToHead(peerId)
+      .then((record) => mounted && setH2h(record))
+      .catch(() => undefined)
+    return () => {
+      mounted = false
+    }
+  }, [peerId])
 
   const conversation = chat.conversation
   const player = conversation?.player
@@ -85,6 +105,37 @@ export default function CommunityChatScreen() {
           }
         },
       },
+    ])
+  }
+
+  /** Label for the host's booking card: who played which scoreboard side. */
+  function sidesLabel(bookingId: string) {
+    const entry = shared.bookings.find((booking) => booking.bookingId === bookingId)
+    if (!entry || entry.role !== "owner" || entry.partners.length !== 1 || entry.phase === "upcoming") return null
+    if (entry.match?.rated) return "Result recorded ✓"
+    if (entry.match?.sideA) return "Sides set · Change"
+    return "Record who played which side"
+  }
+
+  function recordSides(bookingId: string) {
+    const entry = shared.bookings.find((booking) => booking.bookingId === bookingId)
+    const partner = entry?.partners[0]
+    if (!entry || !partner || entry.match?.rated) return
+    const assign = async (sideA: string, sideB: string) => {
+      try {
+        const match = await assignMatchSides(bookingId, sideA, sideB)
+        shared.setBookings((current) =>
+          current.map((booking) => (booking.bookingId === bookingId ? { ...booking, match } : booking)),
+        )
+        toast.success("Sides saved. The result counts once the scoreboard finishes.")
+      } catch (error) {
+        toast.apiError(error, "Could not save sides.")
+      }
+    }
+    Alert.alert("Which side were you on?", "Use the scoreboard's A and B sides.", [
+      { text: "I was side A", onPress: () => void assign(entry.hostId, partner.id) },
+      { text: "I was side B", onPress: () => void assign(partner.id, entry.hostId) },
+      { text: "Cancel", style: "cancel" },
     ])
   }
 
@@ -190,6 +241,7 @@ export default function CommunityChatScreen() {
           borderBottomColor: theme.border,
         },
         headerCard: { flex: 1 },
+        h2h: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 12, color: theme.muted, marginLeft: 56, marginTop: -6 },
         menu: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
         list: { paddingTop: PlayTTSpacing.sm },
         day: {
@@ -247,6 +299,9 @@ export default function CommunityChatScreen() {
           {player ? (
             <PlayerCard player={player} size="mini" onPress={() => router.push(communityPlayerHref(player.id) as Href)} />
           ) : null}
+          {player && headToHeadLine(h2h, player.displayName) ? (
+            <Text style={styles.h2h}>{headToHeadLine(h2h, player.displayName)}</Text>
+          ) : null}
         </View>
         {player ? (
           <Pressable accessibilityRole="button" accessibilityLabel="Chat options" onPress={openMenu} style={styles.menu}>
@@ -286,6 +341,12 @@ export default function CommunityChatScreen() {
                   onLeave={confirmLeave}
                   onGiveKudos={openKudos}
                   onPlayAgain={() => setDraft(PLAY_AGAIN_PREFILL)}
+                  sidesLabel={
+                    row.item.kind === "booking_card" && row.item.mine && isBookingCard(row.item.payload)
+                      ? sidesLabel(row.item.payload.bookingId)
+                      : null
+                  }
+                  onRecordSides={recordSides}
                 />
               )
             }

@@ -575,6 +575,160 @@
       "successFixture": "fixtures/community.booking.kudos.post.success.json",
       "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/booking-not-joinable.json", "fixtures/errors/kudos-not-allowed.json", "fixtures/errors/community-error.json"],
       "notes": ["Community social loop M4 (docs/community/README.md). Joining is capped by the booking's group size; guests get no door code."]
+    },
+    {
+      "id": "community.player.head-to-head.get",
+      "method": "GET",
+      "pathTemplate": "/api/v1/community/players/{userId}/head-to-head",
+      "routeFile": "src/app/api/v1/community/players/[userId]/head-to-head/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.player.head-to-head.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/player-not-found.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community groups, scoreboard and invites M5 (docs/community/README.md)."]
+    },
+    {
+      "id": "community.player.doubles.post",
+      "method": "POST",
+      "pathTemplate": "/api/v1/community/players/{userId}/doubles",
+      "routeFile": "src/app/api/v1/community/players/[userId]/doubles/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.player.doubles.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/player-not-found.json", "fixtures/errors/cannot-target-self.json", "fixtures/errors/community-profile-required.json", "fixtures/errors/booking-full.json", "fixtures/errors/booking-not-joinable.json", "fixtures/errors/community-muted.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community groups, scoreboard and invites M5 (docs/community/README.md)."]
+    },
+    {
+      "id": "community.booking.sides.post",
+      "method": "POST",
+      "pathTemplate": "/api/v1/community/bookings/{bookingId}/sides",
+      "routeFile": "src/app/api/v1/community/bookings/[bookingId]/sides/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.booking.sides.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/booking-not-joinable.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community groups, scoreboard and invites M5 (docs/community/README.md)."]
+    },
+    {
+      "id": "community.groups.get",
+      "method": "GET",
+      "pathTemplate": "/api/v1/community/groups",
+      "routeFile": "src/app/api/v1/community/groups/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-chat-api.ts"],
+      "successFixture": "fixtures/community.groups.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community groups, scoreboard and invites M5 (docs/community/README.md)."]
+    },
+    {
+      "id": "community.group.delete",
+      "method": "DELETE",
+      "pathTemplate": "/api/v1/community/groups/{groupId}",
+      "routeFile": "src/app/api/v1/community/groups/[groupId]/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-chat-api.ts"],
+      "successFixture": "fixtures/community.group.delete.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/conversation-not-found.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community groups, scoreboard and invites M5 (docs/community/README.md)."]
+    },
+    {
+      "id": "community.group.messages.get",
+      "method": "GET",
+      "pathTemplate": "/api/v1/community/groups/{groupId}/messages?before={before}&after={after}",
+      "routeFile": "src/app/api/v1/community/groups/[groupId]/messages/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-chat-api.ts"],
+      "successFixture": "fixtures/community.group.messages.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/conversation-not-found.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community groups, scoreboard and invites M5 (docs/community/README.md)."]
+    },
+    {
+      "id": "community.group.messages.post",
+      "method": "POST",
+      "pathTemplate": "/api/v1/community/groups/{groupId}/messages",
+      "routeFile": "src/app/api/v1/community/groups/[groupId]/messages/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-chat-api.ts"],
+      "successFixture": "fixtures/community.group.messages.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/conversation-not-found.json", "fixtures/errors/cannot-message.json", "fixtures/errors/message-rejected.json", "fixtures/errors/community-muted.json", "fixtures/errors/rate-limited.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community groups, scoreboard and invites M5 (docs/community/README.md)."]
+    },
+    {
+      "id": "community.group.read.post",
+      "method": "POST",
+      "pathTemplate": "/api/v1/community/groups/{groupId}/read",
+      "routeFile": "src/app/api/v1/community/groups/[groupId]/read/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-chat-api.ts"],
+      "successFixture": "fixtures/community.group.read.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/conversation-not-found.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community groups, scoreboard and invites M5 (docs/community/README.md)."]
+    },
+    {
+      "id": "community.group.mute.post",
+      "method": "POST",
+      "pathTemplate": "/api/v1/community/groups/{groupId}/mute",
+      "routeFile": "src/app/api/v1/community/groups/[groupId]/mute/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-chat-api.ts"],
+      "successFixture": "fixtures/community.group.mute.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/validation-error.json", "fixtures/errors/conversation-not-found.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community groups, scoreboard and invites M5 (docs/community/README.md)."]
+    },
+    {
+      "id": "community.group.member.delete",
+      "method": "DELETE",
+      "pathTemplate": "/api/v1/community/groups/{groupId}/members/{memberId}",
+      "routeFile": "src/app/api/v1/community/groups/[groupId]/members/[memberId]/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-chat-api.ts"],
+      "successFixture": "fixtures/community.group.member.delete.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/conversation-not-found.json", "fixtures/errors/cannot-message.json", "fixtures/errors/cannot-target-self.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community groups, scoreboard and invites M5 (docs/community/README.md)."]
+    },
+    {
+      "id": "community.events.get",
+      "method": "GET",
+      "pathTemplate": "/api/v1/community/events",
+      "routeFile": "src/app/api/v1/community/events/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.events.get.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community groups, scoreboard and invites M5 (docs/community/README.md)."]
+    },
+    {
+      "id": "community.event.join.post",
+      "method": "POST",
+      "pathTemplate": "/api/v1/community/events/{eventId}/join",
+      "routeFile": "src/app/api/v1/community/events/[eventId]/join/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.event.join.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/conversation-not-found.json", "fixtures/errors/community-profile-required.json", "fixtures/errors/booking-full.json", "fixtures/errors/booking-not-joinable.json", "fixtures/errors/community-muted.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community groups, scoreboard and invites M5 (docs/community/README.md)."]
+    },
+    {
+      "id": "community.invites.post",
+      "method": "POST",
+      "pathTemplate": "/api/v1/community/invites",
+      "routeFile": "src/app/api/v1/community/invites/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.invites.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/rate-limited.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community groups, scoreboard and invites M5 (docs/community/README.md)."]
+    },
+    {
+      "id": "community.invite.accept.post",
+      "method": "POST",
+      "pathTemplate": "/api/v1/community/invites/{code}/accept",
+      "routeFile": "src/app/api/v1/community/invites/[code]/accept/route.ts",
+      "authMode": "session-or-bearer",
+      "mobileConsumers": ["playtt-mobile/lib/community-api.ts"],
+      "successFixture": "fixtures/community.invite.accept.post.success.json",
+      "errorFixtures": ["fixtures/errors/unauthenticated.json", "fixtures/errors/player-not-found.json", "fixtures/errors/cannot-target-self.json", "fixtures/errors/community-error.json"],
+      "notes": ["Community groups, scoreboard and invites M5 (docs/community/README.md)."]
     }
   ],
   "producerConsumerDrift": [

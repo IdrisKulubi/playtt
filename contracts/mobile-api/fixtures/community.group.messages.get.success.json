@@ -1,0 +1,40 @@
+{
+  "contractVersion": 1,
+  "endpoint": "community.group.messages.get",
+  "case": "success",
+  "request": {
+    "headers": {
+      "authorization": "Bearer <token>"
+    },
+    "params": {
+      "groupId": "018f4d65-3c1a-7f1d-9d54-6f547f24d101"
+    },
+    "query": {
+      "after": "87"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": {
+        "messages": [
+          {
+            "id": "018f4d65-3c1a-7f1d-9d54-6f547f24e101",
+            "seq": 88,
+            "conversationId": "018f4d65-3c1a-7f1d-9d54-6f547f24d101",
+            "senderId": "018f4d65-3c1a-7f1d-9d54-6f547f24a002",
+            "mine": false,
+            "kind": "text",
+            "body": "I'll book Table 2 for 7",
+            "payload": null,
+            "clientMessageId": null,
+            "createdAt": "2026-10-30T13:10:00.000Z",
+            "senderName": "Amara K."
+          }
+        ],
+        "hasMore": false,
+        "group": null
+      }
+    }
+  }
+}

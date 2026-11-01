@@ -39,6 +39,7 @@
             "following": 6
           },
           "stats": {
+            "rating": null,
             "matches": 42,
             "winRate": null,
             "reliability": null,

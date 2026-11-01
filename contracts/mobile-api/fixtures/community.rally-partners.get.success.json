@@ -33,6 +33,7 @@
               "canMessage": true
             },
             "stats": {
+              "rating": null,
               "matches": 18,
               "winRate": null,
               "reliability": 94,

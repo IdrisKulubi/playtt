@@ -1,0 +1,94 @@
+{
+  "contractVersion": 1,
+  "endpoint": "community.player.doubles.post",
+  "case": "success",
+  "request": {
+    "headers": {
+      "authorization": "Bearer <token>"
+    },
+    "params": {
+      "userId": "018f4d65-3c1a-7f1d-9d54-6f547f24a002"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": {
+        "group": {
+          "id": "018f4d65-3c1a-7f1d-9d54-6f547f24d101",
+          "type": "group",
+          "title": "2v2 with Amara K.",
+          "description": null,
+          "startsAt": "2026-10-30T14:00:00.000Z",
+          "maxMembers": 4,
+          "memberCount": 3,
+          "members": [
+            {
+              "id": "018f4d65-3c1a-7f1d-9d54-6f547f24a002",
+              "displayName": "Amara K.",
+              "image": null,
+              "skillLevel": "intermediate",
+              "playStyle": "all_round",
+              "handedness": "left",
+              "bio": "Prefer best-of-five sets.",
+              "usualTimes": [
+                "weekday_evenings"
+              ],
+              "foundingPlayer": true,
+              "availability": {
+                "window": "tonight",
+                "startsAt": "2026-10-30T14:00:00.000Z",
+                "endsAt": "2026-10-30T20:00:00.000Z",
+                "note": null,
+                "lookingForDoubles": true,
+                "openNow": false,
+                "doubles": {
+                  "members": 3,
+                  "max": 4
+                }
+              },
+              "relationship": {
+                "following": true,
+                "followsYou": true,
+                "rallyPartner": true,
+                "blockedByYou": false,
+                "canMessage": true
+              },
+              "stats": {
+                "rating": 72,
+                "matches": 18,
+                "winRate": 61,
+                "reliability": 94,
+                "streakWeeks": 5,
+                "kudos": 12,
+                "hours": 21
+              },
+              "badges": [
+                "in_form",
+                "reliable"
+              ],
+              "groupRole": "admin"
+            }
+          ],
+          "myRole": "member",
+          "mutedUntil": null,
+          "closed": false,
+          "lastMessage": {
+            "id": "018f4d65-3c1a-7f1d-9d54-6f547f24e101",
+            "seq": 88,
+            "conversationId": "018f4d65-3c1a-7f1d-9d54-6f547f24d101",
+            "senderId": "018f4d65-3c1a-7f1d-9d54-6f547f24a002",
+            "mine": false,
+            "kind": "text",
+            "body": "I'll book Table 2 for 7",
+            "payload": null,
+            "clientMessageId": null,
+            "createdAt": "2026-10-30T13:10:00.000Z",
+            "senderName": "Amara K."
+          },
+          "unreadCount": 1
+        }
+      }
+    }
+  }
+}

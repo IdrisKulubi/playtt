@@ -1,0 +1,28 @@
+{
+  "contractVersion": 1,
+  "endpoint": "community.events.get",
+  "case": "success",
+  "request": {
+    "headers": {
+      "authorization": "Bearer <token>"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": {
+        "events": [
+          {
+            "id": "018f4d65-3c1a-7f1d-9d54-6f547f24d201",
+            "title": "King of the Table",
+            "description": "Winner stays on. All levels welcome.",
+            "startsAt": "2026-10-31T16:00:00.000Z",
+            "maxMembers": 16,
+            "memberCount": 9,
+            "joined": false
+          }
+        ]
+      }
+    }
+  }
+}

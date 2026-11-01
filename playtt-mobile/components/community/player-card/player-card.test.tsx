@@ -9,6 +9,7 @@ import {
   formatStat,
   playerCardAccessibilityLabel,
   sharedUsualTimes,
+  tierForPlayer,
   statusRibbon,
   tierForSkill,
 } from "./card-tiers"
@@ -169,4 +170,36 @@ test("shared usual times keep the other player's order", () => {
     "weekday_evenings",
     "sat_mornings",
   ])
+})
+
+test("rated players show their number and take their tier from it", async () => {
+  const rated = player({ skillLevel: "beginner", stats: { ...NO_STATS, rating: 84, matches: 30 } })
+  expect(tierForPlayer(rated)).toBe("elite")
+  expect(tierForPlayer(player({ skillLevel: "pro", stats: { ...NO_STATS, rating: 55 } }))).toBe("rookie")
+  // Unrated players keep their self-reported tier.
+  expect(tierForPlayer(player({ skillLevel: "pro" }))).toBe("elite")
+
+  const screen = await render(<PlayerCard player={rated} size="full" />)
+  expect(screen.getByText("84")).toBeTruthy()
+  expect(screen.getByText("ELITE")).toBeTruthy()
+  expect(screen.getByLabelText(/Elite tier, rated 84/)).toBeTruthy()
+})
+
+test("in-form players get the IN FORM tag", async () => {
+  const screen = await render(<PlayerCard player={player({ badges: ["in_form"] })} size="full" />)
+  expect(screen.getByText("IN FORM")).toBeTruthy()
+  expect(screen.getByText("In form")).toBeTruthy()
+})
+
+test("doubles ribbon shows how full the 2v2 is", () => {
+  const open = { ...OPEN_NOW, lookingForDoubles: true }
+  expect(statusRibbon({ ...open, doubles: { members: 1, max: 4 } })?.doublesLabel).toBe("2v2")
+  expect(statusRibbon({ ...open, doubles: { members: 3, max: 4 } })?.doublesLabel).toBe("2v2 · 3/4")
+  expect(statusRibbon({ ...open, doubles: { members: 4, max: 4 } })?.doublesLabel).toBe("2v2 · full")
+})
+
+test("the card back shows head-to-head once you've played", async () => {
+  const headToHead = { wins: 2, losses: 3, lastPlayedAt: null, recent: [] }
+  const screen = await render(<PlayerCard player={{ ...player(), headToHead }} size="full" flippable />)
+  expect(screen.getByText("You 2 – 3 Amara K.")).toBeTruthy()
 })

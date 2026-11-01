@@ -20,10 +20,20 @@ jest.mock("@/lib/community-api", () => ({
   fetchCommunityPlayers: jest.fn(),
   fetchAtVenue: jest.fn(() => Promise.resolve(null)),
   fetchRallyPartners: jest.fn(() => Promise.resolve([])),
+  fetchEvents: jest.fn(() => Promise.resolve([])),
+  acceptInvite: jest.fn(),
+  joinEvent: jest.fn(),
   stopOpenToPlay: jest.fn(),
   goOpenToPlay: jest.fn(),
 }))
 jest.mock("@/lib/community-chat-api", () => ({ startConversation: jest.fn() }))
+jest.mock("@/lib/community-invite", () => ({
+  shareInvite: jest.fn(),
+  takePendingInvite: jest.fn(() => Promise.resolve(null)),
+  normalizeInviteCode: jest.fn(() => null),
+}))
+jest.mock("phosphor-react-native/src/icons/UserPlus", () => ({ UserPlus: () => null }))
+jest.mock("phosphor-react-native/src/icons/CalendarStar", () => ({ CalendarStar: () => null }))
 jest.mock("@/components/community/rally-partners-row", () => ({ RallyPartnersRow: () => null }))
 jest.mock("@/components/community/at-venue-strip", () => ({ AtVenueStrip: () => null }))
 jest.mock("@/hooks/use-community-unread", () => ({

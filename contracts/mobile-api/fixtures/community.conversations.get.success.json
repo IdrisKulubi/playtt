@@ -40,6 +40,7 @@
                 "canMessage": true
               },
               "stats": {
+                "rating": null,
                 "matches": 42,
                 "winRate": null,
                 "reliability": null,

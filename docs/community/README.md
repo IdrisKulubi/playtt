@@ -321,6 +321,48 @@ Already captured in M1 (`usualTimes`). M4 adds:
 ### Card sharing
 - **Share my card** renders the full card as an image with `react-native-view-shot` and adds the invite link (see [player-card.md](./player-card.md#sharing)).
 
+### As built (M5)
+- **Migration** `drizzle/0038_community_growth.sql`:
+  - New tables `match_players`, `player_ratings`, `community_rated_matches` (a ledger so a match is rated once) and `community_invites`.
+  - New columns on `community_conversations`: `availability_id` (unique), `max_members`, `starts_at`, `description`, `closed_at`.
+- **Scoreboard dependency fixed:** no code ever created `matches` rows, so `projectMatchScore` silently skipped every score.
+  - `src/server/scoring/ingest.ts` now creates the booking's match on the first score event (`on conflict do nothing` on the existing unique `booking_id`).
+  - When a match first reaches `completed`, it enqueues a `match_completed` community event in the same transaction.
+  - This is the one change outside Community; `scoring` and `sessions` tests still pass.
+- **Sides:** the host records who played which scoreboard side from their booking card in chat ("Record who played which side" → "I was side A / B"). `POST /community/bookings/:id/sides`.
+  - Both players must be on the booking.
+  - Sides lock once the match is rated.
+  - Assigning after completion triggers rating. Unassigned matches don't count.
+  - **1v1 only**, one player per side; doubles aren't rated.
+- **Rating:** `rating-store.ts` applies Elo inside a transaction that locks both `player_ratings` rows in a fixed order. The `community_rated_matches` insert makes retries safe.
+  - The card shows `clamp(round(40 + (rating − 600) / 15), 40, 99)` after 5 rated matches.
+  - Once rated, the tier comes from that number. **WIN%** shows after 5 recorded matches.
+  - **In form** (3 straight wins) adds an `in_form` badge, the orange edge and an `IN FORM` tag.
+- **Head-to-head:** `GET /community/players/:id/head-to-head`. It shows on the profile, the card back and under the chat header ("You 2 – 3 Amara K.").
+- **Doubles groups:** **Join doubles** on a profile whose open window has `lookingForDoubles` (`POST /community/players/:id/doubles`).
+  - Creates or joins one `group` conversation per availability window: max 4, host is admin, joins lock the row.
+  - Player availability carries `doubles: { members, max }`, and the ribbon shows `2v2 · 3/4` or `2v2 · full`.
+- **Events:** ops create them at `/admin/community/events` (and can close them). Players see an **Events** card on the Community tab and **Join** (`POST /community/events/:id/join`).
+- **Group chat:**
+  - Endpoints live under `/community/groups/:id/...` (messages, read, mute, leave, remove member), and `/community/unread` gains `groups`.
+  - Pushes are titled "Amara K. · 2v2 with Idris K.".
+  - Messages from players you blocked are hidden from you, and hidden or blocked members drop out of the member list. Booking cards stay in direct chats.
+  - On mobile: an Inbox **Groups** tab and `app/(app)/community/group/[groupId].tsx`.
+- **Invites:**
+  - `POST /community/invites` makes an 8-character code (no 0/O/1/I). There's a database-backed limit of 20 a day.
+  - The share text "Play table tennis with me on PlayTT 🏓 <url>" goes through the native share sheet.
+  - **Landing page** `src/app/invite/[code]/page.tsx` (public) shows the inviter's card, the code, "Open in the PlayTT app" (`playtt://invite/CODE`) and store links from `NEXT_PUBLIC_IOS_APP_URL` / `NEXT_PUBLIC_ANDROID_APP_URL`.
+  - **Surviving sign-up:** onboarding's `referralSource` is a fixed enum, so the code isn't stored there. Instead `playtt://invite/CODE` (`app/invite/[code].tsx`, outside the signed-in group) saves it in SecureStore. The Community tab accepts it on the next focus. The intro also has **I have an invite code**.
+  - **Accepting** is single use: a mutual follow (instant Rally Partners) and a DM with "You joined from Idris K.'s invite. Say hi! 🏓".
+- **Share my card:** in the card editor. It captures the full card (view-shot) and opens the share sheet, and copies an invite link to the clipboard, because image shares can't carry text.
+- **Web Community page:** `src/app/community/page.tsx` no longer uses mock data. It shows the signed-in player's card (`WebPlayerCard`) and points to the app.
+
+### Tests (M5)
+- `src/server/community/rating.test.mjs` (in `pnpm test:community`): K factor, Elo updates and upsets, card mapping and the 5-match gate, rated tiers, WIN% and In form, head-to-head, invite codes, group caps
+- `player-card.test.tsx`: rating number and rated tier, In form tag, doubles fill labels, head-to-head on the card back
+- `group-screen.test.tsx`: sender names, sending to a group, closed groups
+- `lib/community-invite.test.ts`: code normalisation, share text, pending invite read-once
+
 ---
 
 ## Privacy and safety checklist (applies to every milestone)
@@ -345,6 +387,6 @@ The web page `src/app/community/page.tsx` currently uses mock data. For this rel
 - [x] M3 verify guest participant access/replay behavior before enabling **Add to booking** (verified: guests get nothing yet, so the button is held back; see "As built (M3)")
 - [x] **Add to booking**: shipped in M4 as **I'm in** on booking cards, capped by group size; guests see the game under Bookings → Games you joined (no door code)
 - [x] M4 at-venue, Rally Partners, usual-time filters, kudos (`0037`), reliability + overrides, admin reports page
-- [ ] M5 groups/events, `match_players` + rating worker (`0038`), head-to-head, invites + landing page, card sharing
+- [x] M5 groups/events, `match_players` + rating worker (`0038`), head-to-head, invites + landing page, card sharing
 - [x] Remove `lib/mock/mock-community.ts` and legacy community components
 - [ ] `pnpm lint` + `pnpm test` (root) and `npm run lint` + `npm test` (`playtt-mobile/`) at the end of each milestone

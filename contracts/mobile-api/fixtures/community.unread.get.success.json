@@ -13,7 +13,8 @@
       "data": {
         "unread": {
           "inbox": 2,
-          "requests": 1
+          "requests": 1,
+          "groups": 0
         }
       }
     }

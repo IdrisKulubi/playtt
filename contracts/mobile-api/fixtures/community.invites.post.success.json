@@ -1,0 +1,21 @@
+{
+  "contractVersion": 1,
+  "endpoint": "community.invites.post",
+  "case": "success",
+  "request": {
+    "headers": {
+      "authorization": "Bearer <token>"
+    }
+  },
+  "response": {
+    "status": 201,
+    "body": {
+      "data": {
+        "invite": {
+          "code": "K7QM2XHP",
+          "url": "https://playtt.invalid/invite/K7QM2XHP"
+        }
+      }
+    }
+  }
+}

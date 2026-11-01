@@ -1,0 +1,33 @@
+{
+  "contractVersion": 1,
+  "endpoint": "community.booking.sides.post",
+  "case": "success",
+  "request": {
+    "headers": {
+      "authorization": "Bearer <token>"
+    },
+    "params": {
+      "bookingId": "018f4d65-3c1a-7f1d-9d54-6f547f24f001"
+    },
+    "body": {
+      "sideA": "018f4d65-3c1a-7f1d-9d54-6f547f24a001",
+      "sideB": "018f4d65-3c1a-7f1d-9d54-6f547f24a002"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": {
+        "match": {
+          "matchId": "018f4d65-3c1a-7f1d-9d54-6f547f24c101",
+          "status": "completed",
+          "gamesA": 3,
+          "gamesB": 1,
+          "sideA": "018f4d65-3c1a-7f1d-9d54-6f547f24a001",
+          "sideB": "018f4d65-3c1a-7f1d-9d54-6f547f24a002",
+          "rated": false
+        }
+      }
+    }
+  }
+}

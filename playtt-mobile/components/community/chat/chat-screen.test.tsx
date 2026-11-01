@@ -36,6 +36,8 @@ jest.mock("@/lib/community-api", () => ({
   joinSharedBooking: jest.fn(),
   leaveSharedBooking: jest.fn(),
   giveKudos: jest.fn(),
+  fetchHeadToHead: jest.fn(() => Promise.resolve({ wins: 0, losses: 0, lastPlayedAt: null, recent: [] })),
+  assignMatchSides: jest.fn(),
 }))
 jest.mock("expo-haptics", () => ({
   impactAsync: jest.fn(() => Promise.resolve()),

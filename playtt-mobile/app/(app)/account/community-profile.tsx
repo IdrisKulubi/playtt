@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router"
-import { useEffect, useMemo, useState } from "react"
+import { type ComponentRef, useEffect, useMemo, useRef, useState } from "react"
 import { ActivityIndicator, StyleSheet, View } from "react-native"
 
 import { AccountStackScreen } from "@/components/account/account-stack-screen"
@@ -13,6 +13,7 @@ import { cardDataFromMe } from "@/components/community/player-card/card-tiers"
 import { Button } from "@/components/ui/button"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useProductTheme } from "@/hooks/use-product-theme"
+import { shareMyCard } from "@/lib/card-share"
 import { fetchCommunityMe, updateCommunityProfile } from "@/lib/community-api"
 import type { CommunityMe } from "@/lib/community-types"
 import { toast } from "@/lib/toast"
@@ -30,6 +31,20 @@ export default function CommunityProfileScreen() {
   const [initial, setInitial] = useState<CommunityProfileDraft | null>(null)
   const [draft, setDraft] = useState<CommunityProfileDraft | null>(null)
   const [saving, setSaving] = useState(false)
+  const [sharing, setSharing] = useState(false)
+  const cardRef = useRef<ComponentRef<typeof View>>(null)
+
+  async function share() {
+    setSharing(true)
+    try {
+      await shareMyCard(cardRef)
+      toast.success("Invite link copied. Paste it with your card 🏓")
+    } catch (error) {
+      toast.apiError(error, "Could not share your card.")
+    } finally {
+      setSharing(false)
+    }
+  }
 
   useEffect(() => {
     let mounted = true
@@ -94,8 +109,22 @@ export default function CommunityProfileScreen() {
       ) : (
         <>
           <View style={styles.preview}>
-            <PlayerCard player={preview} size="full" flippable />
+            {/* collapsable={false} keeps a native view for react-native-view-shot. */}
+            <View ref={cardRef} collapsable={false}>
+              <PlayerCard player={preview} size="full" flippable />
+            </View>
           </View>
+          {me?.profile.communityVisible && !isSetup ? (
+            <Button
+              label="Share my card"
+              variant="outline"
+              surface="product"
+              productTheme={theme}
+              loading={sharing}
+              disabled={sharing}
+              onPress={share}
+            />
+          ) : null}
           <CommunityProfileForm draft={draft} onChange={setDraft} />
           <Button
             label={isSetup ? "Create my card" : "Save"}
