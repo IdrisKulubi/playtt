@@ -1,112 +1,99 @@
 import { StyleSheet } from "react-native"
 
-import type { ProductThemeColors } from "@/constants/product-theme"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-  PlayTTTypography,
-} from "@/constants/playtt-tokens"
+import type { ColorRoles } from "@/constants/colors"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
 
-export function createAppScreenStyles(theme: ProductThemeColors) {
+/**
+ * Shared styles for older stack screens that don't use the kit `Screen` yet.
+ * Takes the redesign colour roles (`useAppTheme().colors`) and the system type scale.
+ */
+export function createAppScreenStyles(colors: ColorRoles) {
   return StyleSheet.create({
     safeArea: {
       flex: 1,
-      backgroundColor: theme.background,
+      backgroundColor: colors.background,
     },
     container: {
       flex: 1,
-      paddingHorizontal: PlayTTSpacing.xl,
+      paddingHorizontal: PlayTTSpacing.md,
       paddingTop: PlayTTSpacing.lg,
       gap: PlayTTSpacing.md,
     },
     scroll: {
-      padding: PlayTTSpacing.xl,
+      padding: PlayTTSpacing.md,
       gap: PlayTTSpacing.md,
     },
     accountScroll: {
-      paddingHorizontal: PlayTTSpacing.xl,
+      paddingHorizontal: PlayTTSpacing.md,
       paddingTop: PlayTTSpacing.lg,
       paddingBottom: PlayTTSpacing["2xl"],
       gap: PlayTTSpacing.lg,
     },
     title: {
-      ...PlayTTTypography.headline,
-      fontFamily: PlayTTFontFamilies.semiBold,
-      color: theme.foreground,
+      ...typeStyle("title2"),
+      color: colors.label,
     },
     card: {
-      backgroundColor: theme.card,
+      backgroundColor: colors.surface,
       borderRadius: 12,
-      borderWidth: 1,
-      borderColor: theme.border,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.separator,
       padding: PlayTTSpacing.md,
       gap: PlayTTSpacing.xs,
     },
     cardTitle: {
-      fontSize: 16,
-      fontFamily: PlayTTFontFamilies.semiBold,
-      color: theme.foreground,
+      ...typeStyle("headline"),
+      color: colors.label,
     },
     cardMuted: {
-      fontSize: 14,
-      fontFamily: PlayTTFontFamilies.medium,
-      color: theme.foreground,
+      ...typeStyle("callout", "500"),
+      color: colors.label,
     },
     cardSubtle: {
-      fontSize: 13,
-      fontFamily: PlayTTFontFamilies.regular,
-      color: theme.muted,
+      ...typeStyle("footnote"),
+      color: colors.secondaryLabel,
     },
     cardAccent: {
-      fontSize: 12,
-      fontFamily: PlayTTFontFamilies.semiBold,
-      color: PlayTTColors.primary,
-      textTransform: "uppercase",
-      letterSpacing: 0.5,
+      ...typeStyle("footnote", "600"),
+      color: colors.accentText,
     },
     cardPrice: {
-      fontSize: 14,
-      fontFamily: PlayTTFontFamilies.semiBold,
-      color: PlayTTColors.primary,
+      ...typeStyle("subheadline", "600"),
+      color: colors.accentText,
     },
     empty: {
       gap: PlayTTSpacing.md,
       paddingVertical: PlayTTSpacing.xl,
     },
     emptyTitle: {
-      fontSize: 18,
-      fontFamily: PlayTTFontFamilies.semiBold,
-      color: theme.foreground,
+      ...typeStyle("title3"),
+      color: colors.label,
     },
     emptyBody: {
-      fontSize: 14,
-      fontFamily: PlayTTFontFamilies.regular,
-      color: theme.muted,
+      ...typeStyle("body"),
+      color: colors.secondaryLabel,
     },
     signOut: {
       alignSelf: "flex-start",
       paddingVertical: PlayTTSpacing.sm,
     },
     signOutLabel: {
-      fontSize: 16,
-      fontFamily: PlayTTFontFamilies.semiBold,
-      color: PlayTTColors.destructive,
+      ...typeStyle("headline"),
+      color: colors.destructive,
     },
     stackScroll: {
-      paddingHorizontal: PlayTTSpacing.xl,
+      paddingHorizontal: PlayTTSpacing.md,
       paddingBottom: PlayTTSpacing["2xl"],
       gap: PlayTTSpacing.md,
     },
     stackDescription: {
-      fontSize: 14,
-      fontFamily: PlayTTFontFamilies.regular,
-      color: theme.muted,
-      lineHeight: 20,
+      ...typeStyle("body"),
+      color: colors.secondaryLabel,
     },
     loadingGate: {
       flex: 1,
-      backgroundColor: theme.background,
+      backgroundColor: colors.background,
       paddingTop: PlayTTSpacing.xl,
     },
   })

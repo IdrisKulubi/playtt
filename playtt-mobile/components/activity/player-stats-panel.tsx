@@ -11,12 +11,10 @@ import { GlassPanel } from "@/components/ui/glass-panel"
 import { GlassSegmentControl } from "@/components/ui/glass-segment-control"
 import { PreviewBadge } from "@/components/ui/preview-badge"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton/skeleton"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
-import { useProductTheme, useSkeletonSurface } from "@/hooks/use-product-theme"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
+import { useAppTheme } from "@/hooks/use-app-theme"
+import { useSkeletonSurface } from "@/hooks/use-product-theme"
 import {
   fetchActivityStats,
   type ActivityStats,
@@ -97,7 +95,7 @@ function sessionHour(s: StatsSession) {
 }
 
 export function usePlayerStatsApi() {
-  const theme = useProductTheme(),
+  const { colors } = useAppTheme(),
     surface = useSkeletonSurface()
   const [period, setPeriod] = useState<StatsPeriod>("month"),
     [date, setDate] = useState(todayKey)
@@ -132,30 +130,23 @@ export function usePlayerStatsApi() {
           gap: 12,
         },
         title: {
+          ...typeStyle("title3"),
           flexShrink: 1,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          fontSize: 20,
-          color: theme.foreground,
-          letterSpacing: -0.3,
+          color: colors.label,
         },
         body: {
+          ...typeStyle("subheadline"),
           flexShrink: 1,
-          fontFamily: PlayTTFontFamilies.regular,
-          fontSize: 14,
-          lineHeight: 21,
-          color: theme.muted,
+          color: colors.secondaryLabel,
         },
         label: {
-          fontFamily: PlayTTFontFamilies.medium,
-          fontSize: 12,
-          color: theme.muted,
+          ...typeStyle("footnote", "500"),
+          color: colors.secondaryLabel,
         },
         value: {
-          fontFamily: PlayTTFontFamilies.semiBold,
-          fontSize: 24,
-          color: theme.foreground,
+          ...typeStyle("title2", "600"),
+          color: colors.label,
           fontVariant: ["tabular-nums"],
-          letterSpacing: -0.4,
         },
         button: {
           minHeight: 44,
@@ -183,11 +174,10 @@ export function usePlayerStatsApi() {
           borderBottomColor: "transparent",
           gap: 8,
         },
-        metricActive: { borderBottomColor: PlayTTColors.primary },
+        metricActive: { borderBottomColor: colors.accentText },
         metricValue: {
-          fontFamily: PlayTTFontFamilies.semiBold,
-          fontSize: 20,
-          color: theme.foreground,
+          ...typeStyle("title3"),
+          color: colors.label,
           fontVariant: ["tabular-nums"],
         },
         graph: { height: 190, position: "relative" },
@@ -196,7 +186,7 @@ export function usePlayerStatsApi() {
           left: 0,
           right: 0,
           height: 1,
-          backgroundColor: theme.border,
+          backgroundColor: colors.separator,
         },
         columns: {
           flexDirection: "row",
@@ -215,34 +205,31 @@ export function usePlayerStatsApi() {
           width: 20,
           borderTopLeftRadius: 5,
           borderTopRightRadius: 5,
-          backgroundColor: theme.muted,
+          backgroundColor: colors.secondaryLabel,
           opacity: 0.45,
         },
-        selectedBar: { backgroundColor: PlayTTColors.primary, opacity: 1 },
+        selectedBar: { backgroundColor: colors.accent, opacity: 1 },
         columnLabel: {
-          fontFamily: PlayTTFontFamilies.medium,
-          fontSize: 11,
-          color: theme.muted,
+          ...typeStyle("footnote", "500"),
+          color: colors.secondaryLabel,
         },
         selectedLabel: {
-          color: theme.foreground,
-          fontFamily: PlayTTFontFamilies.semiBold,
+          color: colors.label,
+          fontWeight: "600",
         },
         chartTop: {
-          fontFamily: PlayTTFontFamilies.regular,
-          fontSize: 11,
-          color: theme.muted,
+          ...typeStyle("footnote"),
+          color: colors.secondaryLabel,
         },
         selectedSummary: {
           gap: 12,
           paddingTop: 12,
           borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: theme.border,
+          borderTopColor: colors.separator,
         },
         link: {
-          color: theme.foreground,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          fontSize: 14,
+          ...typeStyle("subheadline", "600"),
+          color: colors.label,
         },
         summary: { gap: 16 },
         summaryRow: {
@@ -252,18 +239,17 @@ export function usePlayerStatsApi() {
           paddingVertical: 12,
           gap: 12,
           borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: theme.border,
+          borderBottomColor: colors.separator,
         },
         summaryNumber: {
+          ...typeStyle("headline"),
           flexShrink: 1,
           textAlign: "right",
-          fontFamily: PlayTTFontFamilies.semiBold,
-          fontSize: 16,
-          color: theme.foreground,
+          color: colors.label,
           fontVariant: ["tabular-nums"],
         },
         share: {
-          backgroundColor: PlayTTColors.primary,
+          backgroundColor: colors.accent,
           borderRadius: 20,
           minHeight: 52,
           flexDirection: "row",
@@ -274,22 +260,20 @@ export function usePlayerStatsApi() {
           marginBottom: PlayTTSpacing.sm,
         },
         shareText: {
-          fontFamily: PlayTTFontFamilies.semiBold,
-          fontSize: 15,
-          color: PlayTTColors.primaryForeground,
+          ...typeStyle("headline"),
+          color: colors.onAccent,
         },
         sheet: { gap: 20 },
         session: {
           gap: 7,
           paddingVertical: 16,
           borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: theme.border,
+          borderBottomColor: colors.separator,
         },
         sessionTitle: {
+          ...typeStyle("headline"),
           flexShrink: 1,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          fontSize: 16,
-          color: theme.foreground,
+          color: colors.label,
         },
         badge: { alignSelf: "flex-start" },
         empty: { gap: 12, paddingVertical: 20 },
@@ -301,7 +285,7 @@ export function usePlayerStatsApi() {
           alignItems: "center",
           justifyContent: "center",
           borderRadius: 12,
-          backgroundColor: theme.elevated,
+          backgroundColor: colors.surface,
         },
         dayCell: {
           width: "12%",
@@ -311,28 +295,24 @@ export function usePlayerStatsApi() {
           justifyContent: "center",
           borderRadius: 10,
         },
-        pickerSelected: { backgroundColor: theme.border },
+        pickerSelected: { backgroundColor: colors.separator },
         disabled: { opacity: 0.3 },
         error: {
           gap: 12,
           padding: 20,
-          backgroundColor: theme.elevated,
+          backgroundColor: colors.surface,
           borderRadius: 16,
         },
         footnote: {
-          fontFamily: PlayTTFontFamilies.regular,
-          fontSize: 12,
-          lineHeight: 18,
-          color: theme.muted,
+          ...typeStyle("footnote"),
+          color: colors.secondaryLabel,
         },
         change: {
-          fontFamily: PlayTTFontFamilies.medium,
-          fontSize: 13,
-          color: theme.foreground,
-          lineHeight: 19,
+          ...typeStyle("footnote", "500"),
+          color: colors.label,
         },
         chip: {
-          backgroundColor: theme.elevated,
+          backgroundColor: colors.surface,
           borderRadius: 12,
           paddingHorizontal: 14,
           paddingVertical: 12,
@@ -340,7 +320,7 @@ export function usePlayerStatsApi() {
         },
         dateList: { gap: 12 },
       }),
-    [theme]
+    [colors]
   )
   useEffect(() => {
     let active = true
@@ -469,7 +449,7 @@ export function usePlayerStatsApi() {
             onPress={() => setDate(previousDate)}
             style={[styles.button, !canPrevious && styles.disabled]}
           >
-            <CaretLeftIcon size={20} color={theme.foreground} />
+            <CaretLeftIcon size={20} color={colors.label} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -482,7 +462,7 @@ export function usePlayerStatsApi() {
             style={styles.periodTitle}
           >
             <Text style={styles.title}>{periodLabel}</Text>
-            <CaretDownIcon size={16} color={theme.muted} />
+            <CaretDownIcon size={16} color={colors.secondaryLabel} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -492,7 +472,7 @@ export function usePlayerStatsApi() {
             onPress={() => setDate(nextDate)}
             style={[styles.button, !canNext && styles.disabled]}
           >
-            <CaretRightIcon size={20} color={theme.foreground} />
+            <CaretRightIcon size={20} color={colors.label} />
           </Pressable>
         </View>
       </>
@@ -641,7 +621,7 @@ export function usePlayerStatsApi() {
             ) : null}
             {!data.totals.bookings ? (
               <View style={styles.empty}>
-                <CalendarBlankIcon size={24} color={theme.muted} />
+                <CalendarBlankIcon size={24} color={colors.secondaryLabel} />
                 <Text style={styles.sessionTitle}>
                   Room for your next session
                 </Text>
@@ -681,7 +661,7 @@ export function usePlayerStatsApi() {
                   <Text style={styles.summaryNumber}>
                     {data.totals.bookings}
                   </Text>
-                  <CaretRightIcon size={16} color={theme.muted} />
+                  <CaretRightIcon size={16} color={colors.secondaryLabel} />
                 </View>
               </Pressable>
               <View style={styles.summaryRow}>
@@ -707,7 +687,7 @@ export function usePlayerStatsApi() {
             onPress={() => setShareOpen(true)}
             style={styles.share}
           >
-            <ExportIcon size={20} color={PlayTTColors.primaryForeground} />
+            <ExportIcon size={20} color={colors.onAccent} />
             <Text style={styles.shareText}>Share your table story</Text>
           </Pressable>
           {!USE_LIVE_PLAYER_STATS ? (
@@ -763,7 +743,7 @@ export function usePlayerStatsApi() {
               <Text style={styles.link}>
                 Explore this {period === "year" ? "month" : "day"}
               </Text>
-              <CaretRightIcon size={18} color={theme.foreground} />
+              <CaretRightIcon size={18} color={colors.label} />
             </Pressable>
           ) : null}
           {detailSessions.length ? (
@@ -836,7 +816,7 @@ export function usePlayerStatsApi() {
               onPress={() => setPickerYear((y) => y - 1)}
               style={[styles.button, pickerYear <= 2000 && styles.disabled]}
             >
-              <CaretLeftIcon size={20} color={theme.foreground} />
+              <CaretLeftIcon size={20} color={colors.label} />
             </Pressable>
             <Text style={styles.title}>{pickerYear}</Text>
             <Pressable
@@ -849,7 +829,7 @@ export function usePlayerStatsApi() {
               ]}
               onPress={() => setPickerYear((y) => y + 1)}
             >
-              <CaretRightIcon size={20} color={theme.foreground} />
+              <CaretRightIcon size={20} color={colors.label} />
             </Pressable>
           </View>
           {period === "year" ? (

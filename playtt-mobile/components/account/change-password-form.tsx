@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { FormField } from "@/components/ui/form-field"
 import { Input } from "@/components/ui/input"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
 import { changePassword } from "@/lib/auth-api"
 import {
   changePasswordSchema,
@@ -19,8 +18,6 @@ type ChangePasswordFormProps = {
 }
 
 export function ChangePasswordForm({ onSaved }: ChangePasswordFormProps) {
-  const productTheme = useProductTheme()
-
   const [isLoading, setIsLoading] = useState(false)
   const [values, setValues] = useState<ChangePasswordValues>({
     currentPassword: "",
@@ -117,7 +114,6 @@ export function ChangePasswordForm({ onSaved }: ChangePasswordFormProps) {
       <Button
         label="Update password"
         surface="product"
-        productTheme={productTheme}
         onPress={handleSave}
         loading={isLoading}
       />

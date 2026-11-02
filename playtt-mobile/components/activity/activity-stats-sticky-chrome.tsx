@@ -91,7 +91,7 @@ export function ActivityStatsStickyChrome({
 
   return (
     <View collapsable={false} style={styles.shell}>
-      <View pointerEvents="none" style={styles.backdrop}>
+      <View pointerEvents="none" style={styles.backdrop} testID="stats-chrome-backdrop">
         {reduceTransparency ? (
           <View style={styles.solidScrim} />
         ) : (
@@ -105,6 +105,7 @@ export function ActivityStatsStickyChrome({
               height="100%"
               preserveAspectRatio="none"
               style={StyleSheet.absoluteFill}
+              testID="stats-chrome-fade"
             >
               <Defs>
                 <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">

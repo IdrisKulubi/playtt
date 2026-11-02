@@ -7,22 +7,18 @@ import { BookingDetailContent } from "@/components/booking/booking-detail-conten
 import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
 import { ScreenBackButton } from "@/components/navigation/screen-back-button"
 import { BookingDetailSkeleton } from "@/components/ui/skeleton"
-import {
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
 import { fetchBookingById } from "@/lib/booking-api"
 import type { UserBookingSummary } from "@/lib/booking-types"
-import {
-  useProductTheme,
-  useSkeletonSurface,
-} from "@/hooks/use-product-theme"
+import { useAppTheme } from "@/hooks/use-app-theme"
+import { useSkeletonSurface } from "@/hooks/use-product-theme"
 import { toast } from "@/lib/toast"
 
 export default function BookingDetailScreen() {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const skeletonSurface = useSkeletonSurface()
-  const screenStyles = useMemo(() => createAppScreenStyles(theme), [theme])
+  const screenStyles = useMemo(() => createAppScreenStyles(colors), [colors])
   const styles = useMemo(
     () =>
       StyleSheet.create({
@@ -34,9 +30,8 @@ export default function BookingDetailScreen() {
           paddingTop: PlayTTSpacing.sm,
         },
         headerTitle: {
-          fontSize: 16,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: theme.foreground,
+          ...typeStyle("headline"),
+          color: colors.label,
         },
         spacer: {
           width: 40,
@@ -47,14 +42,14 @@ export default function BookingDetailScreen() {
           justifyContent: "center",
         },
         missing: {
-          color: theme.muted,
-          fontFamily: PlayTTFontFamilies.regular,
+          color: colors.secondaryLabel,
+          ...typeStyle("body"),
         },
         scroll: {
           padding: PlayTTSpacing.xl,
         },
       }),
-    [theme.foreground, theme.muted],
+    [colors.label, colors.secondaryLabel],
   )
 
   const { id } = useLocalSearchParams<{ id?: string }>()

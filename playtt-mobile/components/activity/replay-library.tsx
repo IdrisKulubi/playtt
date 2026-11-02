@@ -8,8 +8,10 @@ import { ReplayClipGridSkeleton } from "@/components/ui/skeleton"
 import { ReplayClipActionsSheet } from "@/components/activity/replay-clip-actions-sheet"
 import { ReplayDetailSheet } from "@/components/activity/replay-detail-sheet"
 import { ReplayGridCard } from "@/components/activity/replay-grid-card"
-import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme, useSkeletonSurface } from "@/hooks/use-product-theme"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
+import { useAppTheme } from "@/hooks/use-app-theme"
+import { useSkeletonSurface } from "@/hooks/use-product-theme"
 import { USE_LIVE_ACTIVITY_CLIPS } from "@/lib/mock/mock-config"
 import type { ReplaySummary } from "@/lib/replay-types"
 import {
@@ -36,7 +38,7 @@ function sharedLocationName(replays: ReplaySummary[]) {
 
 export function ReplayLibrary({ onSelectedReplayChange, initialReplayId }: ReplayLibraryProps) {
   const pendingInitialIdRef = useRef(initialReplayId ?? null)
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const skeletonSurface = useSkeletonSurface()
   const [replays, setReplays] = useState<ReplaySummary[]>([])
   const [loading, setLoading] = useState(USE_LIVE_ACTIVITY_CLIPS)
@@ -239,9 +241,8 @@ export function ReplayLibrary({ onSelectedReplayChange, initialReplayId }: Repla
           gap: 6,
         },
         locationText: {
-          fontSize: 13,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
+          ...typeStyle("footnote"),
+          color: colors.secondaryLabel,
         },
         sectionHeader: {
           flexDirection: "row",
@@ -250,23 +251,20 @@ export function ReplayLibrary({ onSelectedReplayChange, initialReplayId }: Repla
           gap: PlayTTSpacing.sm,
         },
         sectionTitle: {
-          fontSize: 17,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: theme.foreground,
+          ...typeStyle("headline"),
+          color: colors.label,
         },
         sectionCount: {
-          fontSize: 14,
-          fontFamily: PlayTTFontFamilies.medium,
-          color: theme.muted,
+          ...typeStyle("subheadline", "500"),
+          color: colors.secondaryLabel,
         },
         center: {
           alignItems: "center",
           paddingVertical: PlayTTSpacing.xl,
         },
         muted: {
-          fontSize: 14,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
+          ...typeStyle("subheadline"),
+          color: colors.secondaryLabel,
         },
         grid: {
           flexDirection: "row",
@@ -279,7 +277,7 @@ export function ReplayLibrary({ onSelectedReplayChange, initialReplayId }: Repla
           maxWidth: "48%",
         },
       }),
-    [theme],
+    [colors],
   )
 
   if (loading) {
@@ -312,7 +310,7 @@ export function ReplayLibrary({ onSelectedReplayChange, initialReplayId }: Repla
     <View style={styles.root}>
       {venueLabel ? (
         <View style={styles.locationRow}>
-          <MapPin size={14} color={theme.muted} weight="fill" />
+          <MapPin size={14} color={colors.secondaryLabel} weight="fill" />
           <Text style={styles.locationText}>{venueLabel}</Text>
         </View>
       ) : null}

@@ -5,11 +5,10 @@ import { AccountGlassSection } from "@/components/account/account-glass-section"
 import { AccountStackScreen } from "@/components/account/account-stack-screen"
 import { Button } from "@/components/ui/button"
 import { AuthFormSkeleton } from "@/components/ui/skeleton"
-import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
-import {
-  useProductTheme,
-  useSkeletonSurface,
-} from "@/hooks/use-product-theme"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
+import { useAppTheme } from "@/hooks/use-app-theme"
+import { useSkeletonSurface } from "@/hooks/use-product-theme"
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   fetchNotificationPreferences,
@@ -39,7 +38,7 @@ const PREF_ROWS: { key: PrefKey; title: string; description: string }[] = [
 ]
 
 export default function NotificationsScreen() {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const skeletonSurface = useSkeletonSurface()
   const [prefs, setPrefs] = useState(DEFAULT_NOTIFICATION_PREFERENCES)
   const [isLoading, setIsLoading] = useState(true)
@@ -123,22 +122,19 @@ export default function NotificationsScreen() {
           paddingVertical: PlayTTSpacing.md,
           paddingHorizontal: PlayTTSpacing.md,
           borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: theme.border,
+          borderBottomColor: colors.separator,
         },
         rowLast: {
           borderBottomWidth: 0,
         },
         copy: { flex: 1, gap: 2 },
         title: {
-          fontSize: 16,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: theme.foreground,
+          ...typeStyle("headline"),
+          color: colors.label,
         },
         description: {
-          fontSize: 13,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-          lineHeight: 18,
+          ...typeStyle("footnote"),
+          color: colors.secondaryLabel,
         },
         pushBlock: {
           gap: PlayTTSpacing.md,
@@ -146,14 +142,12 @@ export default function NotificationsScreen() {
           paddingVertical: PlayTTSpacing.md,
         },
         note: {
-          fontSize: 12,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-          lineHeight: 18,
+          ...typeStyle("footnote"),
+          color: colors.secondaryLabel,
           paddingHorizontal: PlayTTSpacing["2xs"],
         },
       }),
-    [theme],
+    [colors],
   )
 
   return (
@@ -173,7 +167,6 @@ export default function NotificationsScreen() {
                   : "Enable push on this device"
               }
               surface="product"
-              productTheme={theme}
               variant={pushEnabled ? "outline" : "primary"}
               loading={isPushSaving}
               onPress={() => void togglePush()}

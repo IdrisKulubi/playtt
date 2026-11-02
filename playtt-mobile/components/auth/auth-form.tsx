@@ -14,7 +14,8 @@ import { Button } from '@/components/ui/button';
 import { FormDivider } from '@/components/ui/form-divider';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
-import { PlayTTFontFamilies, PlayTTSpacing } from '@/constants/playtt-tokens';
+import { PlayTTSpacing } from '@/constants/playtt-tokens';
+import { typeStyle } from '@/constants/type';
 import { useAuthTheme } from '@/hooks/use-auth-theme';
 import {
   AppleSignInCanceledError,
@@ -484,20 +485,18 @@ const styles = StyleSheet.create({
   forgotButton: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', marginTop: -12, marginBottom: -4 },
   modeButton: { minHeight: 44, justifyContent: 'center', marginTop: 12 },
   inlineLink: {
-    fontSize: 15,
-    fontFamily: PlayTTFontFamilies.semiBold,
+    ...typeStyle('headline'),
   },
   socialStack: {
     gap: PlayTTSpacing.sm,
   },
   modePrompt: {
-    fontSize: 16,
-    fontFamily: PlayTTFontFamilies.regular,
+    ...typeStyle('body'),
     textAlign: 'center',
     marginTop: PlayTTSpacing.xs,
   },
   modeLink: {
-    fontFamily: PlayTTFontFamilies.semiBold,
+    fontWeight: '600',
     textDecorationLine: 'underline',
   },
 });

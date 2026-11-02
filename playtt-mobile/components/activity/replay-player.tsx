@@ -8,13 +8,9 @@ import {
 } from "react-native"
 
 import { ReplayThumb } from "@/components/activity/replay-thumb"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTRadius,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PlayTTRadius, PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { USE_LIVE_ACTIVITY_CLIPS } from "@/lib/mock/mock-config"
 import { resolveReplayPlaybackUrl } from "@/lib/replays-api"
 import type { ReplaySummary } from "@/lib/replay-types"
@@ -26,7 +22,7 @@ type ReplayPlayerProps = {
 }
 
 export function ReplayPlayer({ replay, autoPlay = false }: ReplayPlayerProps) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const [showVideo, setShowVideo] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -48,16 +44,15 @@ export function ReplayPlayer({ replay, autoPlay = false }: ReplayPlayerProps) {
           aspectRatio: 16 / 9,
           borderRadius: PlayTTRadius.lg,
           overflow: "hidden",
-          backgroundColor: theme.elevated,
+          backgroundColor: colors.surface,
         },
         video: {
           width: "100%",
           height: "100%",
         },
         error: {
-          fontSize: 14,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
+          ...typeStyle("subheadline"),
+          color: colors.secondaryLabel,
           textAlign: "center",
           paddingVertical: PlayTTSpacing.sm,
         },
@@ -68,7 +63,7 @@ export function ReplayPlayer({ replay, autoPlay = false }: ReplayPlayerProps) {
           backgroundColor: "rgba(4, 16, 25, 0.55)",
         },
       }),
-    [theme],
+    [colors],
   )
 
   const startPlayback = useCallback(async () => {
@@ -121,7 +116,7 @@ export function ReplayPlayer({ replay, autoPlay = false }: ReplayPlayerProps) {
           />
           {loading ? (
             <View style={styles.loadingOverlay} pointerEvents="none">
-              <ActivityIndicator color={PlayTTColors.primary} />
+              <ActivityIndicator color={colors.accentText} />
             </View>
           ) : null}
         </View>
@@ -144,7 +139,7 @@ export function ReplayPlayer({ replay, autoPlay = false }: ReplayPlayerProps) {
             style={[styles.loadingOverlay, { borderRadius: PlayTTRadius.lg }]}
             pointerEvents="none"
           >
-            <ActivityIndicator color={PlayTTColors.primary} />
+            <ActivityIndicator color={colors.accentText} />
           </View>
         ) : null}
       </View>

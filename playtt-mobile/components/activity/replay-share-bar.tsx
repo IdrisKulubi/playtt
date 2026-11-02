@@ -23,18 +23,15 @@ import {
 } from "@/components/ui/liquid-glass-surface"
 import type { AppColorScheme } from "@/constants/theme"
 import { resolveColorScheme } from "@/constants/theme"
-import {
-  PlayTTFontFamilies,
-  PlayTTRadius,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
+import { PlayTTRadius, PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
 import { getFloatingTabBarInset } from "@/constants/navigation-layout"
 import { useColorScheme } from "@/hooks/use-color-scheme"
 import {
   type ReplayShareAction,
   useReplayShare,
 } from "@/hooks/use-replay-share"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { USE_LIVE_ACTIVITY_CLIPS } from "@/lib/mock/mock-config"
 import type { ReplaySummary } from "@/lib/replay-types"
 
@@ -125,11 +122,10 @@ function ReplayShareToolbar({
           backgroundColor: liquidGlassSelectionChipColor(colorScheme),
         },
         segmentLabel: {
-          fontSize: 13,
-          fontFamily: PlayTTFontFamilies.medium,
+          ...typeStyle("footnote", "500"),
         },
         segmentLabelPressed: {
-          fontFamily: PlayTTFontFamilies.semiBold,
+          fontWeight: "600",
         },
       }),
     [colorScheme, nativeGlass],
@@ -239,7 +235,7 @@ type ReplayShareBarProps = {
 }
 
 export function ReplayShareBar({ replay }: ReplayShareBarProps) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const colorScheme = resolveColorScheme(useColorScheme())
   const { actions, busyAction, disabled, canShare } = useShareActions(replay)
 
@@ -247,13 +243,11 @@ export function ReplayShareBar({ replay }: ReplayShareBarProps) {
     () =>
       StyleSheet.create({
         hint: {
-          fontSize: 13,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-          lineHeight: 18,
+          ...typeStyle("footnote"),
+          color: colors.secondaryLabel,
         },
       }),
-    [theme],
+    [colors],
   )
 
   if (!USE_LIVE_ACTIVITY_CLIPS) {

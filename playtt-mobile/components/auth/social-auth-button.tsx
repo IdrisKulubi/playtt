@@ -12,7 +12,8 @@ import {
 
 import type { AuthThemeColors } from '@/constants/auth-theme';
 import { AuthGlass } from '@/components/auth/auth-glass';
-import { PlayTTFontFamilies, PlayTTRadius, PlayTTSpacing } from '@/constants/playtt-tokens';
+import { PlayTTRadius, PlayTTSpacing } from '@/constants/playtt-tokens';
+import { typeStyle } from '@/constants/type';
 
 type SocialProvider = 'google' | 'apple';
 
@@ -88,7 +89,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   label: {
-    fontSize: 17,
-    fontFamily: PlayTTFontFamilies.medium,
+    ...typeStyle('body', '500'),
   },
 });

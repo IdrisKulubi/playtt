@@ -15,11 +15,8 @@ import { StatusBar } from 'expo-status-bar';
 import { BrandMark } from '@/components/brand/brand-mark';
 import { AuthBackdrop } from '@/components/auth/auth-backdrop';
 import { AuthGlassContext } from '@/components/auth/auth-glass';
-import {
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-  PlayTTTypography,
-} from '@/constants/playtt-tokens';
+import { PlayTTSpacing } from '@/constants/playtt-tokens';
+import { typeStyle } from '@/constants/type';
 import { useAuthTheme } from '@/hooks/use-auth-theme';
 
 type AuthShellProps = {
@@ -114,19 +111,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: PlayTTSpacing.sm,
   },
   headline: {
-    ...PlayTTTypography.headline,
-    fontSize: 30,
-    lineHeight: 36,
-    letterSpacing: -0.6,
-    fontFamily: PlayTTFontFamilies.semiBold,
+    ...typeStyle('brandTitle'),
     textAlign: 'center',
     marginTop: 32,
   },
   subtitle: {
-    ...PlayTTTypography.body,
-    fontSize: 14,
-    lineHeight: 22,
-    fontFamily: PlayTTFontFamilies.medium,
+    ...typeStyle('body'),
     textAlign: 'center',
   },
   formArea: {
@@ -142,9 +132,7 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
   },
   legal: {
-    fontSize: 12,
-    lineHeight: 18,
-    fontFamily: PlayTTFontFamilies.regular,
+    ...typeStyle('footnote'),
     textAlign: 'center',
     paddingHorizontal: PlayTTSpacing.md,
   },

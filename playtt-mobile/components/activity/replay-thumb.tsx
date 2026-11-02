@@ -4,14 +4,10 @@ import { Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native"
 import { Play } from "phosphor-react-native/src/icons/Play"
 
 import { ReplayClipFramePreview } from "@/components/activity/replay-clip-frame-preview"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTRadius,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
+import { PlayTTRadius, PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
 import { useReplayPoster } from "@/hooks/use-replay-poster"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { getCachedReplayPoster } from "@/lib/replay-poster"
 import type { ReplaySummary } from "@/lib/replay-types"
 
@@ -45,7 +41,7 @@ export function ReplayThumb({
   style,
   onPlayPress,
 }: ReplayThumbProps) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const apiPoster = replay ? apiPosterUri(replay) : null
   const [useExtractedPoster, setUseExtractedPoster] = useState(false)
 
@@ -66,7 +62,7 @@ export function ReplayThumb({
           width: "100%",
           aspectRatio,
           borderRadius: PlayTTRadius.lg,
-          backgroundColor: theme.elevated,
+          backgroundColor: colors.surface,
           borderWidth: StyleSheet.hairlineWidth,
           borderColor: "rgba(255, 255, 255, 0.08)",
           overflow: "hidden",
@@ -98,9 +94,8 @@ export function ReplayThumb({
           zIndex: 2,
         },
         durationText: {
-          fontSize: 12,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: theme.foreground,
+          ...typeStyle("footnote", "600"),
+          color: colors.label,
         },
         playPressed: {
           opacity: 0.85,
@@ -111,7 +106,7 @@ export function ReplayThumb({
           zIndex: 1,
         },
       }),
-    [aspectRatio, theme],
+    [aspectRatio, colors],
   )
 
   return (
@@ -145,11 +140,11 @@ export function ReplayThumb({
             pressed && styles.playPressed,
           ]}
         >
-          <Play size={20} color={PlayTTColors.primary} weight="fill" />
+          <Play size={20} color={colors.accentText} weight="fill" />
         </Pressable>
       ) : (
         <View style={styles.playCircle}>
-          <Play size={20} color={PlayTTColors.primary} weight="fill" />
+          <Play size={20} color={colors.accentText} weight="fill" />
         </View>
       )}
       <View style={styles.duration} pointerEvents="none">

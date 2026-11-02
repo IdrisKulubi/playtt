@@ -4,12 +4,9 @@ import { Pressable, StyleSheet, Text, View } from "react-native"
 import { Button } from "@/components/ui/button"
 import { FormField } from "@/components/ui/form-field"
 import { Input } from "@/components/ui/input"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { sendVerificationOtp } from "@/lib/auth-api"
 import { authClient, refreshSession } from "@/lib/auth-client"
 import { verifyEmailSchema, type VerifyEmailValues } from "@/lib/auth-schemas"
@@ -25,8 +22,7 @@ export function AccountVerifyEmailForm({
   email,
   onVerified,
 }: AccountVerifyEmailFormProps) {
-  const productTheme = useProductTheme()
-
+  const { colors } = useAppTheme()
   const [isLoading, setIsLoading] = useState(false)
   const [values, setValues] = useState<VerifyEmailValues>({ otp: "" })
   const [fieldErrors, setFieldErrors] = useState<
@@ -93,7 +89,6 @@ export function AccountVerifyEmailForm({
       <Button
         label="Verify email"
         surface="product"
-        productTheme={productTheme}
         onPress={handleVerify}
         loading={isLoading}
       />
@@ -105,7 +100,7 @@ export function AccountVerifyEmailForm({
         disabled={isLoading}
         hitSlop={8}
       >
-        <Text style={styles.link}>Resend code</Text>
+        <Text style={[styles.link, { color: colors.accentText }]}>Resend code</Text>
       </Pressable>
     </View>
   )
@@ -116,10 +111,8 @@ const styles = StyleSheet.create({
     gap: PlayTTSpacing.md,
   },
   link: {
-    fontSize: 14,
-    fontFamily: PlayTTFontFamilies.semiBold,
+    ...typeStyle("subheadline", "600"),
     textAlign: "center",
     textDecorationLine: "underline",
-    color: PlayTTColors.primary,
   },
 })

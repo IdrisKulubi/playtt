@@ -5,11 +5,9 @@ import { ReplayPlayer } from "@/components/activity/replay-player"
 import { ReplayShareBar } from "@/components/activity/replay-share-bar"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { PreviewBadge } from "@/components/ui/preview-badge"
-import {
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { USE_LIVE_ACTIVITY_CLIPS } from "@/lib/mock/mock-config"
 import type { ReplaySummary } from "@/lib/replay-types"
 
@@ -26,7 +24,7 @@ export function ReplayDetailSheet({
   autoPlay = false,
   onClose,
 }: ReplayDetailSheetProps) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const styles = useMemo(
     () =>
       StyleSheet.create({
@@ -34,22 +32,18 @@ export function ReplayDetailSheet({
           gap: PlayTTSpacing.md,
         },
         meta: {
-          fontSize: 14,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-          lineHeight: 20,
+          ...typeStyle("subheadline"),
+          color: colors.secondaryLabel,
         },
         footnote: {
-          fontSize: 13,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-          lineHeight: 18,
+          ...typeStyle("footnote"),
+          color: colors.secondaryLabel,
         },
         badgeRow: {
           alignSelf: "flex-start",
         },
       }),
-    [theme],
+    [colors],
   )
 
   if (!replay) {

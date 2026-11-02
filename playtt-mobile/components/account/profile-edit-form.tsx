@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { FormField } from "@/components/ui/form-field"
 import { Input } from "@/components/ui/input"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
 import {
   SKILL_LEVEL_OPTIONS,
   type SkillLevel,
@@ -27,8 +26,6 @@ export function ProfileEditForm({
   initialSkillLevel,
   onSaved,
 }: ProfileEditFormProps) {
-  const productTheme = useProductTheme()
-
   const [name, setName] = useState(initialName)
   const [phone, setPhone] = useState(initialPhone)
   const [skillLevel, setSkillLevel] = useState<SkillLevel | null>(
@@ -83,7 +80,6 @@ export function ProfileEditForm({
 
       <FormField label="Skill level" compact>
         <OptionChips
-          productTheme={productTheme}
           options={SKILL_LEVEL_OPTIONS}
           value={skillLevel}
           onChange={(value) => setSkillLevel(value as SkillLevel)}
@@ -104,7 +100,6 @@ export function ProfileEditForm({
       <Button
         label="Save changes"
         surface="product"
-        productTheme={productTheme}
         onPress={handleSave}
         loading={isLoading}
       />

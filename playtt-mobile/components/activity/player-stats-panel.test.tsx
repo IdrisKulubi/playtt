@@ -71,9 +71,9 @@ test("period navigation handles leap years and month boundaries", () => {
   expect(shiftStatsDate("2026-10-09", "year", -1)).toBe("2025-01-01")
 })
 test("year buckets drill into the selected month", async () => {
-  const screen = render(<PlayerStatsPanel />)
+  const screen = await render(<PlayerStatsPanel />)
   await screen.findByText("The details")
-  fireEvent.press(screen.getByText("Year"))
+  await fireEvent.press(screen.getByText("Year"))
   await waitFor(() =>
     expect(fetchStats).toHaveBeenLastCalledWith(
       "year",
@@ -81,9 +81,9 @@ test("year buckets drill into the selected month", async () => {
     )
   )
   await screen.findByText("The details")
-  fireEvent.press(screen.getByLabelText("Jan: 3h. Show details"))
-  fireEvent.press(screen.getByLabelText(/View sessions for January/))
-  fireEvent.press(screen.getByText("Explore this month"))
+  await fireEvent.press(screen.getByLabelText("Jan: 3h. Show details"))
+  await fireEvent.press(screen.getByLabelText(/View sessions for January/))
+  await fireEvent.press(screen.getByText("Explore this month"))
   await waitFor(() =>
     expect(fetchStats).toHaveBeenLastCalledWith(
       "month",
@@ -92,20 +92,20 @@ test("year buckets drill into the selected month", async () => {
   )
 })
 test("hourly details use Nairobi hours with distinct bucket selections", async () => {
-  const screen = render(<PlayerStatsPanel />)
+  const screen = await render(<PlayerStatsPanel />)
   await screen.findByText("The details")
-  fireEvent.press(screen.getByText("Day"))
+  await fireEvent.press(screen.getByText("Day"))
   await screen.findByText("Swipe the chart. Tap a time to explore.")
-  fireEvent.press(screen.getByLabelText("10: 1h 30m. Show details"))
-  fireEvent.press(screen.getByLabelText(/View sessions for 10/))
+  await fireEvent.press(screen.getByLabelText("10: 1h 30m. Show details"))
+  await fireEvent.press(screen.getByLabelText(/View sessions for 10/))
   expect(screen.getAllByText(/reservation price/)).toHaveLength(1)
 })
 test("request failures show retry and never sample analytics", async () => {
   fetchStats.mockRejectedValueOnce(new Error("offline"))
-  const screen = render(<PlayerStatsPanel />)
+  const screen = await render(<PlayerStatsPanel />)
   await screen.findByText("Stats couldn’t load")
   expect(screen.queryByText("The details")).toBeNull()
-  fireEvent.press(screen.getByText("Try again"))
+  await fireEvent.press(screen.getByText("Try again"))
   await screen.findByText("The details")
   expect(fetchStats).toHaveBeenCalledTimes(2)
 })

@@ -5,7 +5,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
-import { PlayTTFontFamilies, PlayTTSpacing } from '@/constants/playtt-tokens';
+import { PlayTTSpacing } from '@/constants/playtt-tokens';
+import { typeStyle } from '@/constants/type';
 import { useAuthTheme } from '@/hooks/use-auth-theme';
 import { requestPasswordReset } from '@/lib/auth-api';
 import { authClient } from '@/lib/auth-client';
@@ -159,27 +160,22 @@ const styles = StyleSheet.create({
     gap: PlayTTSpacing.md,
   },
   helper: {
-    fontSize: 14,
-    lineHeight: 22,
-    fontFamily: PlayTTFontFamilies.regular,
+    ...typeStyle('subheadline'),
     textAlign: 'center',
   },
   inlineLink: {
-    fontSize: 12,
-    fontFamily: PlayTTFontFamilies.semiBold,
+    ...typeStyle('footnote', '600'),
   },
   link: {
-    fontSize: 14,
-    fontFamily: PlayTTFontFamilies.semiBold,
+    ...typeStyle('subheadline', '600'),
     textAlign: 'center',
   },
   modePrompt: {
-    fontSize: 14,
-    fontFamily: PlayTTFontFamilies.regular,
+    ...typeStyle('subheadline'),
     textAlign: 'center',
   },
   modeLink: {
-    fontFamily: PlayTTFontFamilies.semiBold,
+    fontWeight: '600',
     textDecorationLine: 'underline',
   },
 });

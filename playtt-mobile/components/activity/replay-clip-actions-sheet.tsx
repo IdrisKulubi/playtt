@@ -3,12 +3,9 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { IconSymbol } from "@/components/ui/icon-symbol"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import type { ReplaySummary } from "@/lib/replay-types"
 
 type ReplayClipActionsSheetProps = {
@@ -28,8 +25,8 @@ type ActionRowProps = {
 }
 
 function ActionRow({ label, icon, destructive, onPress }: ActionRowProps) {
-  const theme = useProductTheme()
-  const color = destructive ? PlayTTColors.destructive : theme.foreground
+  const { colors } = useAppTheme()
+  const color = destructive ? colors.destructive : colors.label
 
   const styles = useMemo(
     () =>
@@ -42,8 +39,7 @@ function ActionRow({ label, icon, destructive, onPress }: ActionRowProps) {
           paddingHorizontal: PlayTTSpacing.xs,
         },
         label: {
-          fontSize: 16,
-          fontFamily: PlayTTFontFamilies.medium,
+          ...typeStyle("body", "500"),
           color,
         },
         pressed: {

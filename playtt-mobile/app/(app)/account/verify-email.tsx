@@ -11,15 +11,13 @@ import { AuthFormSkeleton } from "@/components/ui/skeleton"
 import { sendVerificationOtp } from "@/lib/auth-api"
 import { toast } from "@/lib/toast"
 import { fetchCurrentUser } from "@/lib/user-api"
-import {
-  useProductTheme,
-  useSkeletonSurface,
-} from "@/hooks/use-product-theme"
+import { useAppTheme } from "@/hooks/use-app-theme"
+import { useSkeletonSurface } from "@/hooks/use-product-theme"
 
 export default function AccountVerifyEmailScreen() {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const skeletonSurface = useSkeletonSurface()
-  const styles = createAppScreenStyles(theme)
+  const styles = createAppScreenStyles(colors)
 
   const { email: emailParam } = useLocalSearchParams<{ email?: string }>()
   const [email, setEmail] = useState("")
@@ -132,7 +130,6 @@ export default function AccountVerifyEmailScreen() {
           <Button
             label="Try again"
             surface="product"
-            productTheme={theme}
             onPress={() => void bootstrap()}
           />
         </View>

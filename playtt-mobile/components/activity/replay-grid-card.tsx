@@ -3,12 +3,9 @@ import { Pressable, StyleSheet, Text, View } from "react-native"
 
 import { ReplayThumb } from "@/components/activity/replay-thumb"
 import { IconSymbol } from "@/components/ui/icon-symbol"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import type { ReplaySummary } from "@/lib/replay-types"
 
 type ReplayGridCardProps = {
@@ -36,7 +33,7 @@ export function ReplayGridCard({
   onPlay,
   onMenu,
 }: ReplayGridCardProps) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const styles = useMemo(
     () =>
       StyleSheet.create({
@@ -46,7 +43,7 @@ export function ReplayGridCard({
         thumbShell: {
           borderRadius: THUMB_RADIUS,
           borderWidth: selected ? 2 : 0,
-          borderColor: selected ? PlayTTColors.primary : "transparent",
+          borderColor: selected ? colors.accentText : "transparent",
           overflow: "hidden",
         },
         thumbInner: {
@@ -69,15 +66,13 @@ export function ReplayGridCard({
           gap: 4,
         },
         title: {
+          ...typeStyle("subheadline", "600"),
           flex: 1,
-          fontSize: 14,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: theme.foreground,
+          color: colors.label,
         },
         meta: {
-          fontSize: 12,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
+          ...typeStyle("footnote"),
+          color: colors.secondaryLabel,
         },
         menuHit: {
           padding: PlayTTSpacing["2xs"],
@@ -88,7 +83,7 @@ export function ReplayGridCard({
           opacity: 0.88,
         },
       }),
-    [selected, theme],
+    [selected, colors],
   )
 
   return (
@@ -123,7 +118,7 @@ export function ReplayGridCard({
         >
           <View style={styles.titleRow}>
             {replay.isFavorite ? (
-              <IconSymbol name="star.fill" size={14} color={PlayTTColors.primary} />
+              <IconSymbol name="star.fill" size={14} color={colors.accentText} />
             ) : null}
             <Text style={styles.title} numberOfLines={1}>
               {replay.title}
@@ -143,7 +138,7 @@ export function ReplayGridCard({
             pressed && styles.pressed,
           ]}
         >
-          <IconSymbol name="ellipsis" size={20} color={theme.muted} />
+          <IconSymbol name="ellipsis" size={20} color={colors.secondaryLabel} />
         </Pressable>
       </View>
     </View>

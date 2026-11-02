@@ -11,12 +11,13 @@ import { AuthFormSkeleton } from "@/components/ui/skeleton"
 import type { SkillLevel } from "@/lib/onboarding-options"
 import { toast } from "@/lib/toast"
 import { fetchCurrentUser } from "@/lib/user-api"
-import { useProductTheme, useSkeletonSurface } from "@/hooks/use-product-theme"
+import { useAppTheme } from "@/hooks/use-app-theme"
+import { useSkeletonSurface } from "@/hooks/use-product-theme"
 
 export default function EditProfileScreen() {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const skeletonSurface = useSkeletonSurface()
-  const screenStyles = createAppScreenStyles(theme)
+  const screenStyles = createAppScreenStyles(colors)
 
   const [isLoading, setIsLoading] = useState(true)
   const [loadFailed, setLoadFailed] = useState(false)
@@ -105,7 +106,6 @@ export default function EditProfileScreen() {
           <Button
             label="Try again"
             surface="product"
-            productTheme={theme}
             onPress={() => void load()}
           />
         </View>

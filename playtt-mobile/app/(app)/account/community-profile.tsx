@@ -13,7 +13,7 @@ import { PlayerCard } from "@/components/community/player-card/player-card"
 import { cardDataFromMe } from "@/components/community/player-card/card-tiers"
 import { Button } from "@/components/ui/button"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { shareMyCard } from "@/lib/card-share"
 import { fetchCommunityMe, updateCommunityProfile } from "@/lib/community-api"
 import type { CommunityMe } from "@/lib/community-types"
@@ -27,7 +27,7 @@ function draftFrom(me: CommunityMe): CommunityProfileDraft {
 export default function CommunityProfileScreen() {
   const { setup } = useLocalSearchParams<{ setup?: string }>()
   const isSetup = setup === "1"
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const [me, setMe] = useState<CommunityMe | null>(null)
   const [initial, setInitial] = useState<CommunityProfileDraft | null>(null)
   const [draft, setDraft] = useState<CommunityProfileDraft | null>(null)
@@ -106,7 +106,7 @@ export default function CommunityProfileScreen() {
       description="Your tier comes from your skill level. Stats fill in as you play."
     >
       {!draft || !preview ? (
-        <ActivityIndicator style={{ marginTop: PlayTTSpacing.xl }} color={theme.muted} />
+        <ActivityIndicator style={{ marginTop: PlayTTSpacing.xl }} color={colors.secondaryLabel} />
       ) : (
         <>
           <View style={styles.preview}>
@@ -124,7 +124,6 @@ export default function CommunityProfileScreen() {
               label="Share my card"
               variant="outline"
               surface="product"
-              productTheme={theme}
               loading={sharing}
               disabled={sharing}
               onPress={share}
@@ -134,7 +133,6 @@ export default function CommunityProfileScreen() {
           <Button
             label={isSetup ? "Create my card" : "Save"}
             surface="product"
-            productTheme={theme}
             loading={saving}
             disabled={saving || (!dirty && !isSetup)}
             onPress={save}
