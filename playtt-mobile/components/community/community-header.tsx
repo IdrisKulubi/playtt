@@ -1,16 +1,11 @@
-import { ChatCircleDots } from "phosphor-react-native/src/icons/ChatCircleDots"
-import { IdentificationCard } from "phosphor-react-native/src/icons/IdentificationCard"
-import { UserPlus } from "phosphor-react-native/src/icons/UserPlus"
-import { useMemo } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import type { ComponentProps } from "react"
+import { StyleSheet, View } from "react-native"
 
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-  PlayTTTypography,
-} from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PressableScale } from "@/components/kit/pressable-scale"
+import { AppText } from "@/components/ui/app-text"
+import { IconSymbol } from "@/components/ui/icon-symbol"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAppTheme } from "@/hooks/use-app-theme"
 
 type CommunityHeaderProps = {
   venueName?: string | null
@@ -21,6 +16,43 @@ type CommunityHeaderProps = {
   requestCount?: number
 }
 
+type ActionProps = {
+  icon: ComponentProps<typeof IconSymbol>["name"]
+  label: string
+  accessibilityLabel: string
+  onPress: () => void
+  badge?: string
+  dot?: boolean
+}
+
+/** Labelled pill: words, not a bare icon, so everyone knows what it does. */
+function HeaderAction({ icon, label, accessibilityLabel, onPress, badge, dot }: ActionProps) {
+  const { colors } = useAppTheme()
+
+  return (
+    <PressableScale
+      onPress={onPress}
+      accessibilityLabel={accessibilityLabel}
+      style={[styles.action, { backgroundColor: colors.surface }]}
+    >
+      <IconSymbol name={icon} size={18} color={colors.accentText} />
+      <AppText variant="subheadline" weight="600" maxFontSizeMultiplier={1.5}>
+        {label}
+      </AppText>
+      {badge ? (
+        <View style={[styles.badge, { backgroundColor: colors.destructive }]}>
+          <AppText variant="caption" weight="700" style={styles.badgeText} maxFontSizeMultiplier={1.3}>
+            {badge}
+          </AppText>
+        </View>
+      ) : dot ? (
+        // Requests are quiet: a dot, not a number.
+        <View style={[styles.dot, { backgroundColor: colors.accent }]} />
+      ) : null}
+    </PressableScale>
+  )
+}
+
 export function CommunityHeader({
   venueName,
   onEditCard,
@@ -29,135 +61,36 @@ export function CommunityHeader({
   unreadCount = 0,
   requestCount = 0,
 }: CommunityHeaderProps) {
-  const theme = useProductTheme()
-
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        root: {
-          gap: PlayTTSpacing["2xs"],
-        },
-        row: {
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: PlayTTSpacing.sm,
-        },
-        title: {
-          ...PlayTTTypography.headline,
-          fontSize: 26,
-          lineHeight: 30,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: theme.foreground,
-          flex: 1,
-        },
-        venue: {
-          color: theme.muted,
-        },
-        subtitle: {
-          fontSize: 15,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-          lineHeight: 22,
-        },
-        iconButton: {
-          width: 40,
-          height: 40,
-          borderRadius: 20,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: theme.elevated,
-        },
-        actions: {
-          flexDirection: "row",
-          gap: PlayTTSpacing.xs,
-        },
-        badge: {
-          position: "absolute",
-          top: -2,
-          right: -2,
-          minWidth: 18,
-          height: 18,
-          borderRadius: 9,
-          paddingHorizontal: 4,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: PlayTTColors.primary,
-          borderWidth: 2,
-          borderColor: theme.background,
-        },
-        badgeText: {
-          fontFamily: PlayTTFontFamilies.bold,
-          fontSize: 10,
-          color: PlayTTColors.primaryForeground,
-        },
-        requestDot: {
-          position: "absolute",
-          top: 0,
-          right: 0,
-          width: 10,
-          height: 10,
-          borderRadius: 5,
-          backgroundColor: theme.muted,
-          borderWidth: 2,
-          borderColor: theme.background,
-        },
-      }),
-    [theme],
-  )
+  const hasActions = Boolean(onOpenInbox || onInvite || onEditCard)
 
   return (
     <View style={styles.root}>
-      <View style={styles.row}>
-        <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
-          Players
-          {venueName ? <Text style={styles.venue}> · {venueName}</Text> : null}
-        </Text>
+      <AppText variant="largeTitle" accessibilityRole="header">
+        Players
+      </AppText>
+      <AppText variant="subheadline" color="secondaryLabel">
+        {venueName ? `Find someone to play with at ${venueName}.` : "Find someone to play with at your venue."}
+      </AppText>
+      {hasActions ? (
         <View style={styles.actions}>
-          {onInvite ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Invite a friend"
-              hitSlop={6}
-              onPress={onInvite}
-              style={styles.iconButton}
-            >
-              <UserPlus size={20} color={theme.foreground} />
-            </Pressable>
-          ) : null}
           {onOpenInbox ? (
-            <Pressable
-              accessibilityRole="button"
+            <HeaderAction
+              icon="bubble.left.and.bubble.right.fill"
+              label="Messages"
               accessibilityLabel={inboxLabel(unreadCount, requestCount)}
-              hitSlop={6}
               onPress={onOpenInbox}
-              style={styles.iconButton}
-            >
-              <ChatCircleDots size={20} color={theme.foreground} />
-              {unreadCount > 0 ? (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
-                </View>
-              ) : requestCount > 0 ? (
-                // Requests are quiet: a dot, not a number.
-                <View style={styles.requestDot} />
-              ) : null}
-            </Pressable>
+              badge={unreadCount > 0 ? (unreadCount > 9 ? "9+" : String(unreadCount)) : undefined}
+              dot={unreadCount === 0 && requestCount > 0}
+            />
+          ) : null}
+          {onInvite ? (
+            <HeaderAction icon="person.badge.plus" label="Invite" accessibilityLabel="Invite a friend" onPress={onInvite} />
           ) : null}
           {onEditCard ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Edit my player card"
-              hitSlop={6}
-              onPress={onEditCard}
-              style={styles.iconButton}
-            >
-              <IdentificationCard size={20} color={theme.foreground} />
-            </Pressable>
+            <HeaderAction icon="pencil" label="My card" accessibilityLabel="Edit my player card" onPress={onEditCard} />
           ) : null}
         </View>
-      </View>
-      <Text style={styles.subtitle}>Find someone to play with at your venue.</Text>
+      ) : null}
     </View>
   )
 }
@@ -168,3 +101,30 @@ function inboxLabel(unread: number, requests: number) {
   if (requests > 0) parts.push(`${requests} ${requests === 1 ? "request" : "requests"}`)
   return parts.join(", ")
 }
+
+const styles = StyleSheet.create({
+  root: { gap: PlayTTSpacing["2xs"] },
+  actions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: PlayTTSpacing.xs,
+    marginTop: PlayTTSpacing.sm,
+  },
+  action: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: PlayTTSpacing.xs,
+    paddingHorizontal: PlayTTSpacing.md,
+    borderRadius: 24,
+  },
+  badge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: { color: "#FFFFFF" },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+})

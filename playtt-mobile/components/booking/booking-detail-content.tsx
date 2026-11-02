@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { type ComponentProps, useState } from "react"
+import { StyleSheet, View } from "react-native"
 
 import { BookingAccessCard } from "@/components/booking/booking-access-card"
 import { BookingCancelActions } from "@/components/booking/booking-cancel-actions"
@@ -7,109 +7,127 @@ import { BookingEditFlow } from "@/components/booking/booking-edit-flow"
 import { BookingDetailPaymentActions } from "@/components/booking/booking-detail-payment-actions"
 import { BookingPastSessionCard } from "@/components/booking/booking-past-session-card"
 import { BookingReceiptSection } from "@/components/booking/booking-receipt-section"
-import { Button } from "@/components/ui/button"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-  PlayTTTypography,
-} from "@/constants/playtt-tokens"
-import { ProductThemes } from "@/constants/product-theme"
-import { useProductTheme, useSkeletonSurface } from "@/hooks/use-product-theme"
+import { Button } from "@/components/kit/button"
+import { Card } from "@/components/kit/card"
+import { ListRow } from "@/components/kit/list-row"
+import { ListSection } from "@/components/kit/list-section"
+import { AppText } from "@/components/ui/app-text"
+import { IconSymbol } from "@/components/ui/icon-symbol"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import type { UserBookingSummary } from "@/lib/booking-types"
 import {
-  formatBookingStatus,
   formatKes,
   formatTimeRange,
   isPastBooking,
+  needsBookingPayment,
 } from "@/lib/booking-utils"
 
 type BookingDetailContentProps = {
   booking: UserBookingSummary
+  /** @deprecated The redesign theme follows the phone's light/dark setting. */
   surface?: "dark" | "product"
   onBookingUpdated?: (booking: UserBookingSummary) => void
   onBookingCancelled?: () => void
 }
 
+type StatusTone = "success" | "warning" | "secondaryLabel"
+
+function bookingStatus(booking: UserBookingSummary): {
+  icon: ComponentProps<typeof IconSymbol>["name"]
+  word: string
+  tone: StatusTone
+} {
+  if (booking.status === "cancelled") return { icon: "xmark.circle.fill", word: "Cancelled", tone: "secondaryLabel" }
+  if (needsBookingPayment(booking)) {
+    return { icon: "exclamationmark.triangle.fill", word: "Pay to keep this booking", tone: "warning" }
+  }
+  if (booking.status === "confirmed" || booking.paymentStatus === "paid") {
+    return { icon: "checkmark.circle.fill", word: "Confirmed", tone: "success" }
+  }
+  return { icon: "info.circle.fill", word: "Booked", tone: "secondaryLabel" }
+}
+
+function formatDay(iso: string) {
+  return new Date(iso).toLocaleDateString("en-KE", { weekday: "long", day: "numeric", month: "long" })
+}
+
 export function BookingDetailContent({
   booking,
-  surface,
   onBookingUpdated,
   onBookingCancelled,
 }: BookingDetailContentProps) {
+  const { colors } = useAppTheme()
   const [editFlowVisible, setEditFlowVisible] = useState(false)
-  const defaultSurface = useSkeletonSurface()
-  const resolvedSurface = surface ?? defaultSurface
-  const productTheme = useProductTheme()
-  const theme =
-    resolvedSurface === "product" ? ProductThemes.light : ProductThemes.dark
+  const status = bookingStatus(booking)
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, { color: theme.foreground }]}>
-        {booking.locationName}
-      </Text>
-      <Text style={[styles.subtitle, { color: theme.muted }]}>
-        {booking.resourceName}
-      </Text>
-      <Text style={[styles.time, { color: theme.foreground }]}>
-        {formatTimeRange(booking.startTime, booking.endTime)}
-      </Text>
-      <Text style={[styles.status, { color: theme.muted }]}>
-        {formatBookingStatus(booking.status, booking.paymentStatus)}
-      </Text>
-      <Text style={[styles.meta, { color: theme.muted }]}>
-        {booking.groupSize} players
-      </Text>
-      <Text style={styles.price}>
-        {formatKes(booking.totalAmount, booking.currency)}
-      </Text>
-      {booking.expiresAt ? (
-        <Text style={[styles.meta, { color: theme.muted }]}>
-          Hold expires:{" "}
-          {new Date(booking.expiresAt).toLocaleString("en-KE")}
-        </Text>
+      <View style={styles.header}>
+        <AppText variant="title1" tabular>
+          {formatTimeRange(booking.startTime, booking.endTime)}
+        </AppText>
+        <AppText variant="headline" color="secondaryLabel">
+          {formatDay(booking.startTime)}
+        </AppText>
+        <View style={styles.status}>
+          <IconSymbol name={status.icon} size={18} color={colors[status.tone]} />
+          <AppText variant="callout" weight="600" color={status.tone}>
+            {status.word}
+          </AppText>
+        </View>
+      </View>
+
+      <ListSection>
+        <ListRow icon="location.fill" title="Where" subtitle={`${booking.locationName} · ${booking.resourceName}`} />
+        <ListRow icon="person.2.fill" title="Players" subtitle={`${booking.groupSize} players · ${booking.durationMinutes} min`} />
+        <ListRow
+          icon="checkmark"
+          tone="success"
+          title="Total"
+          accessory={{ kind: "value", value: formatKes(booking.totalAmount, booking.currency) }}
+        />
+        {booking.expiresAt && needsBookingPayment(booking) ? (
+          <ListRow
+            icon="clock.fill"
+            tone="warning"
+            title="Held until"
+            subtitle={new Date(booking.expiresAt).toLocaleString("en-KE", {
+              weekday: "short",
+              hour: "numeric",
+              minute: "2-digit",
+            })}
+          />
+        ) : null}
+        {booking.notes ? <ListRow icon="info.circle.fill" tone="neutral" title="Your note" subtitle={booking.notes} /> : null}
+      </ListSection>
+
+      <BookingAccessCard booking={booking} />
+
+      {onBookingUpdated ? (
+        <BookingDetailPaymentActions booking={booking} onBookingUpdated={onBookingUpdated} />
       ) : null}
-      {booking.notes ? (
-        <Text style={[styles.meta, { color: theme.muted }]}>
-          Notes: {booking.notes}
-        </Text>
+
+      {booking.editable ? (
+        <Button label="Change booking" variant="secondary" onPress={() => setEditFlowVisible(true)} />
+      ) : booking.editBlockedReason ? (
+        <Card>
+          <View style={styles.blocked}>
+            <AppText variant="headline">Changes close 2 hours before you play</AppText>
+            <AppText variant="callout" color="secondaryLabel">
+              {booking.editBlockedReason}
+            </AppText>
+          </View>
+        </Card>
+      ) : null}
+
+      {onBookingCancelled ? (
+        <BookingCancelActions booking={booking} onCancelled={onBookingCancelled} />
       ) : null}
 
       <BookingReceiptSection booking={booking} />
 
-      <BookingAccessCard booking={booking} />
-
       {isPastBooking(booking) ? <BookingPastSessionCard /> : null}
-
-      {onBookingCancelled ? (
-        <BookingCancelActions
-          booking={booking}
-          onCancelled={onBookingCancelled}
-        />
-      ) : null}
-
-      {booking.editable ? (
-        <Button
-          label="Edit booking"
-          surface="product"
-          productTheme={productTheme}
-          onPress={() => setEditFlowVisible(true)}
-        />
-      ) : booking.editBlockedReason ? (
-        <View style={[styles.blockedCard, { borderColor: theme.border }]}>
-          <Text style={[styles.blockedTitle, { color: theme.foreground }]}>
-            Edits close 2 hours before start
-          </Text>
-          <Text style={[styles.meta, { color: theme.muted }]}>
-            {booking.editBlockedReason}
-          </Text>
-          <Text style={[styles.meta, { color: theme.muted }]}>
-            {formatTimeRange(booking.startTime, booking.endTime)} ·{" "}
-            {booking.groupSize} players
-          </Text>
-        </View>
-      ) : null}
 
       {onBookingUpdated ? (
         <BookingEditFlow
@@ -119,57 +137,18 @@ export function BookingDetailContent({
           onUpdated={onBookingUpdated}
         />
       ) : null}
-
-      {onBookingUpdated ? (
-        <BookingDetailPaymentActions
-          booking={booking}
-          onBookingUpdated={onBookingUpdated}
-        />
-      ) : null}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: PlayTTSpacing.sm,
-  },
-  title: {
-    ...PlayTTTypography.headline,
-    fontFamily: PlayTTFontFamilies.semiBold,
-  },
-  subtitle: {
-    fontSize: 15,
-    fontFamily: PlayTTFontFamilies.medium,
-  },
-  time: {
-    fontSize: 20,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    marginTop: PlayTTSpacing.xs,
-  },
+  container: { gap: PlayTTSpacing.lg },
+  header: { gap: PlayTTSpacing["2xs"] },
   status: {
-    fontSize: 14,
-    fontFamily: PlayTTFontFamilies.regular,
-  },
-  price: {
-    fontSize: 18,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.primary,
-    marginTop: PlayTTSpacing.xs,
-  },
-  meta: {
-    fontSize: 13,
-    fontFamily: PlayTTFontFamilies.regular,
-  },
-  blockedCard: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: PlayTTSpacing.xs,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: PlayTTSpacing.md,
     marginTop: PlayTTSpacing.xs,
   },
-  blockedTitle: {
-    fontSize: 14,
-    fontFamily: PlayTTFontFamilies.semiBold,
-  },
+  blocked: { gap: PlayTTSpacing["2xs"] },
 })

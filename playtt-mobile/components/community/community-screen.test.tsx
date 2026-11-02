@@ -188,15 +188,14 @@ test("open players see their status bar and can stop", async () => {
   await waitFor(() => expect(screen.queryByText("You're open · until 9PM")).toBeNull())
 })
 
-test("segments and filter chips change the player query", async () => {
+test("the open-now row and the everyone list load separately, and chips filter the list", async () => {
   fetchMe.mockResolvedValue(me())
   const screen = await render(<CommunityScreen />)
 
-  expect(await screen.findByText("AMARA K.")).toBeTruthy()
-  expect(fetchPlayers).toHaveBeenLastCalledWith({ status: "open" })
-
-  await fireEvent.press(screen.getByText("Everyone"))
-  await waitFor(() => expect(fetchPlayers).toHaveBeenLastCalledWith({ status: "all" }))
+  // An open player shows in both the "Open to play now" row and the list.
+  expect((await screen.findAllByText("AMARA K.")).length).toBeGreaterThan(0)
+  expect(fetchPlayers).toHaveBeenCalledWith({ status: "open" })
+  expect(fetchPlayers).toHaveBeenCalledWith({ status: "all" })
 
   await fireEvent.press(screen.getByText("Elite"))
   await waitFor(() => expect(fetchPlayers).toHaveBeenLastCalledWith({ status: "all", skill: "pro" }))
@@ -224,6 +223,8 @@ test("tapping a card opens the player profile", async () => {
   fetchMe.mockResolvedValue(me())
   const screen = await render(<CommunityScreen />)
 
-  await fireEvent.press(await screen.findByLabelText(/^Amara K\., [A-Za-z]+ tier/))
+  // The first match is the card in the "Open to play now" row.
+  const [card] = await screen.findAllByLabelText(/^Amara K\., [A-Za-z]+ tier/)
+  await fireEvent.press(card)
   expect(mockPush).toHaveBeenCalledWith("/community/player/user_amara")
 })

@@ -1,19 +1,12 @@
-import { useEffect, useMemo, useState } from "react"
-import { StyleSheet, Text } from "react-native"
+import { useEffect, useState } from "react"
 
 import { BookingDetailContent } from "@/components/booking/booking-detail-content"
-import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { EmptyState } from "@/components/kit/empty-state"
+import { Sheet } from "@/components/kit/sheet"
 import { BookingDetailSkeleton } from "@/components/ui/skeleton"
-import {
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
+import { useSkeletonSurface } from "@/hooks/use-product-theme"
 import { fetchBookingById } from "@/lib/booking-api"
 import type { UserBookingSummary } from "@/lib/booking-types"
-import {
-  useProductTheme,
-  useSkeletonSurface,
-} from "@/hooks/use-product-theme"
 import { toast } from "@/lib/toast"
 
 type BookingDetailSheetProps = {
@@ -23,102 +16,104 @@ type BookingDetailSheetProps = {
   onBookingChanged?: () => void
 }
 
+/** A booking as a sheet: half height to glance, full height to manage. */
 export function BookingDetailSheet({
   visible,
   bookingId,
   onClose,
   onBookingChanged,
 }: BookingDetailSheetProps) {
-  const theme = useProductTheme()
-  const skeletonSurface = useSkeletonSurface()
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        error: {
-          fontSize: 14,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-          paddingBottom: PlayTTSpacing.md,
-        },
-      }),
-    [theme.muted],
-  )
+  // Keep showing the last booking while the sheet animates closed.
+  const [shownId, setShownId] = useState(bookingId)
+  if (bookingId && bookingId !== shownId) setShownId(bookingId)
 
-  const [booking, setBooking] = useState<UserBookingSummary | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [loadError, setLoadError] = useState(false)
+  return (
+    <Sheet
+      visible={visible}
+      title="Your booking"
+      detents={["medium", "large"]}
+      scrollable
+      onClose={onClose}
+    >
+      {shownId ? (
+        <BookingDetailLoader
+          key={shownId}
+          bookingId={shownId}
+          onClose={onClose}
+          onBookingChanged={onBookingChanged}
+        />
+      ) : null}
+    </Sheet>
+  )
+}
+
+type LoaderProps = {
+  bookingId: string
+  onClose: () => void
+  onBookingChanged?: () => void
+}
+
+type LoadState =
+  | { status: "loading" }
+  | { status: "error" }
+  | { status: "ready"; booking: UserBookingSummary }
+
+function BookingDetailLoader({ bookingId, onClose, onBookingChanged }: LoaderProps) {
+  const skeletonSurface = useSkeletonSurface()
+  const [state, setState] = useState<LoadState>({ status: "loading" })
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
-    if (!visible || !bookingId) {
-      setBooking(null)
-      setLoadError(false)
-      setIsLoading(false)
-      return
-    }
-
     let mounted = true
-    const resolvedBookingId = bookingId
 
     async function load() {
-      setIsLoading(true)
-      setLoadError(false)
-      setBooking(null)
-
       try {
-        const data = await fetchBookingById(resolvedBookingId)
-        if (mounted) {
-          setBooking(data)
-        }
+        const booking = await fetchBookingById(bookingId)
+        if (!mounted) return
+        setState(booking ? { status: "ready", booking } : { status: "error" })
       } catch (error) {
-        if (mounted) {
-          setLoadError(true)
-          toast.apiError(error, "Could not load booking details.")
-        }
-      } finally {
-        if (mounted) {
-          setIsLoading(false)
-        }
+        if (!mounted) return
+        setState({ status: "error" })
+        toast.apiError(error, "Could not load this booking.")
       }
     }
 
     void load()
-
     return () => {
       mounted = false
     }
-  }, [visible, bookingId])
+  }, [attempt, bookingId])
 
-  const title = booking?.locationName ?? "Booking"
-  const sheetSurface = skeletonSurface === "dark" ? "dark" : "product"
+  if (state.status === "loading") return <BookingDetailSkeleton surface={skeletonSurface} />
+
+  if (state.status === "error") {
+    return (
+      <EmptyState
+        icon="exclamationmark.triangle.fill"
+        title="Couldn't load this booking"
+        message="Check your connection, then try again."
+        action={{
+          label: "Try again",
+          onPress: () => {
+            setState({ status: "loading" })
+            setAttempt((value) => value + 1)
+          },
+        }}
+      />
+    )
+  }
 
   return (
-    <BottomSheet
-      visible={visible}
-      title={title}
-      onClose={onClose}
-      surface={sheetSurface}
-      scrollable
-    >
-      {isLoading ? (
-        <BookingDetailSkeleton surface={skeletonSurface} />
-      ) : loadError ? (
-        <Text style={styles.error}>Could not load this booking.</Text>
-      ) : booking ? (
-        <BookingDetailContent
-          booking={booking}
-          surface={skeletonSurface}
-          onBookingUpdated={(updated) => {
-            setBooking(updated)
-            onBookingChanged?.()
-          }}
-          onBookingCancelled={() => {
-            onClose()
-            onBookingChanged?.()
-          }}
-        />
-      ) : (
-        <Text style={styles.error}>Booking not found.</Text>
-      )}
-    </BottomSheet>
+    <BookingDetailContent
+      booking={state.booking}
+      onBookingUpdated={(updated) => {
+        setState({ status: "ready", booking: updated })
+        onBookingChanged?.()
+      }}
+      onBookingCancelled={() => {
+        onClose()
+        onBookingChanged?.()
+      }}
+    />
   )
 }

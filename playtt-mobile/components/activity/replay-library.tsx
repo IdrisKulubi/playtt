@@ -22,6 +22,8 @@ import { toast } from "@/lib/toast"
 
 type ReplayLibraryProps = {
   onSelectedReplayChange?: (replay: ReplaySummary | null) => void
+  /** Opens and plays this replay once the list loads (from a Progress highlight). */
+  initialReplayId?: string
 }
 
 function sharedLocationName(replays: ReplaySummary[]) {
@@ -32,7 +34,8 @@ function sharedLocationName(replays: ReplaySummary[]) {
   return replays.every((row) => row.locationName === first) ? first : null
 }
 
-export function ReplayLibrary({ onSelectedReplayChange }: ReplayLibraryProps) {
+export function ReplayLibrary({ onSelectedReplayChange, initialReplayId }: ReplayLibraryProps) {
+  const pendingInitialIdRef = useRef(initialReplayId ?? null)
   const theme = useProductTheme()
   const skeletonSurface = useSkeletonSurface()
   const [replays, setReplays] = useState<ReplaySummary[]>([])
@@ -53,6 +56,14 @@ export function ReplayLibrary({ onSelectedReplayChange }: ReplayLibraryProps) {
   const applyReplays = useCallback(
     (rows: ReplaySummary[]) => {
       setReplays(rows)
+
+      const initialId = pendingInitialIdRef.current
+      const initialReplay = initialId ? rows.find((row) => row.id === initialId) : undefined
+      if (initialReplay) {
+        pendingInitialIdRef.current = null
+        setSheetAutoPlay(true)
+        setSheetReplay(initialReplay)
+      }
 
       if (rows.length === 0) {
         clearSelection()

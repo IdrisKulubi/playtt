@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { BackHandler, StyleSheet, TextInput, View } from "react-native"
 
 import { BookingSummary } from "@/components/booking/flow/booking-summary"
-import { ChoiceChips } from "@/components/booking/flow/choice-chips"
+import { ChoiceChips } from "@/components/kit/choice-chips"
 import { DateStrip } from "@/components/booking/flow/date-strip"
 import { PayStep } from "@/components/booking/flow/pay-step"
 import { PlayerStepper } from "@/components/booking/flow/player-stepper"

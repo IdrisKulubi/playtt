@@ -79,6 +79,8 @@ export default function AppLayout() {
       <Stack.Screen name="account/help" />
       <Stack.Screen name="account/legal" />
       <Stack.Screen name="coach/index" />
+      <Stack.Screen name="progress/replays" />
+      <Stack.Screen name="progress/stats" />
       <Stack.Screen name="coach/buy-replays" />
       <Stack.Screen name="coach/subscribe" />
       <Stack.Screen name="community/player/[userId]/index" />
