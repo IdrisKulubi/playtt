@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
+import { CardText } from "./card-text"
 
 import { PlayTTFontFamilies } from "@/constants/playtt-tokens"
 import type { CommunityCardStats } from "@/lib/community-types"
@@ -32,7 +33,7 @@ export function CardStatGrid({ stats, keys, tokens, compact = false, highlightSt
 
         return (
           <View key={slot.key} style={styles.slot}>
-            <Text
+            <CardText
               style={[
                 styles.value,
                 compact && styles.valueCompact,
@@ -40,10 +41,10 @@ export function CardStatGrid({ stats, keys, tokens, compact = false, highlightSt
               ]}
             >
               {value}
-            </Text>
-            <Text style={[styles.code, compact && styles.codeCompact, { color: tokens.muted }]}>
+            </CardText>
+            <CardText style={[styles.code, compact && styles.codeCompact, { color: tokens.muted }]}>
               {slot.code}
-            </Text>
+            </CardText>
           </View>
         )
       })}
@@ -72,10 +73,10 @@ const styles = StyleSheet.create({
   },
   code: {
     fontFamily: PlayTTFontFamilies.semiBold,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 0.8,
   },
   codeCompact: {
-    fontSize: 9,
+    fontSize: 10,
   },
 })

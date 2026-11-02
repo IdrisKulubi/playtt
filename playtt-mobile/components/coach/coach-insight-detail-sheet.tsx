@@ -1,13 +1,12 @@
-import { useEffect, useMemo, useState } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { useEffect, useState } from "react"
+import { StyleSheet, View } from "react-native"
 
+import { ListRow } from "@/components/kit/list-row"
+import { ListSection } from "@/components/kit/list-section"
+import { AppText } from "@/components/ui/app-text"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { PreviewBadge } from "@/components/ui/preview-badge"
-import {
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { fetchCoachInsightById } from "@/lib/coach-api"
 import type { CoachInsight, CoachTrainingItem } from "@/lib/coach-types"
 
@@ -17,61 +16,31 @@ type CoachInsightDetailSheetProps = {
   onClose: () => void
 }
 
-export function CoachInsightDetailSheet({
-  insight,
-  visible,
-  onClose,
-}: CoachInsightDetailSheetProps) {
-  const theme = useProductTheme()
+/** One Coach note in full, with the drills it suggests. */
+export function CoachInsightDetailSheet({ insight, visible, onClose }: CoachInsightDetailSheetProps) {
+  // Keep showing the last note while the sheet animates closed.
+  const [shown, setShown] = useState(insight)
+  if (insight && insight !== shown) setShown(insight)
+
+  return (
+    <BottomSheet visible={visible} title={shown?.replayTitle ?? "Coach note"} onClose={onClose} scrollable>
+      {shown ? <InsightBody key={shown.id} insight={shown} /> : null}
+    </BottomSheet>
+  )
+}
+
+function InsightBody({ insight }: { insight: CoachInsight }) {
   const [training, setTraining] = useState<CoachTrainingItem[]>([])
 
   useEffect(() => {
-    if (!insight || !visible) {
-      setTraining([])
-      return
-    }
-
+    let mounted = true
     void fetchCoachInsightById(insight.id).then((result) => {
-      setTraining(result?.training ?? [])
+      if (mounted) setTraining(result?.training ?? [])
     })
-  }, [insight, visible])
-
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        root: {
-          gap: PlayTTSpacing.md,
-        },
-        summary: {
-          fontSize: 15,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.foreground,
-          lineHeight: 22,
-        },
-        meta: {
-          fontSize: 13,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-        },
-        label: {
-          fontSize: 13,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: theme.muted,
-          textTransform: "uppercase",
-          letterSpacing: 0.4,
-        },
-        drill: {
-          fontSize: 14,
-          fontFamily: PlayTTFontFamilies.medium,
-          color: theme.foreground,
-        },
-      }),
-    [theme],
-  )
-
-  if (!insight) {
-    return null
-  }
+    return () => {
+      mounted = false
+    }
+  }, [insight.id])
 
   const recordedLabel = new Date(insight.createdAt).toLocaleString("en-KE", {
     dateStyle: "medium",
@@ -79,28 +48,32 @@ export function CoachInsightDetailSheet({
   })
 
   return (
-    <BottomSheet
-      visible={visible}
-      title={insight.replayTitle}
-      onClose={onClose}
-    >
-      <View style={styles.root}>
-        <Text style={styles.meta}>
-          {insight.focusAreas.join(" · ")} · {recordedLabel}
-        </Text>
-        <Text style={styles.summary}>{insight.summary}</Text>
-        <PreviewBadge />
-        {training.length > 0 ? (
-          <View style={{ gap: PlayTTSpacing.sm }}>
-            <Text style={styles.label}>Suggested drills</Text>
-            {training.map((item) => (
-              <Text key={item.id} style={styles.drill}>
-                {item.title}
-              </Text>
-            ))}
-          </View>
-        ) : null}
+    <View style={styles.root}>
+      <View style={styles.meta}>
+        <AppText variant="headline">{insight.focusAreas.join(" · ")}</AppText>
+        <AppText variant="footnote" color="secondaryLabel">
+          {recordedLabel}
+        </AppText>
       </View>
-    </BottomSheet>
+      <AppText variant="body">{insight.summary}</AppText>
+      <PreviewBadge />
+      {training.length > 0 ? (
+        <ListSection header="Drills to try">
+          {training.map((item) => (
+            <ListRow
+              key={item.id}
+              icon="figure.table.tennis"
+              title={item.title}
+              subtitle={item.durationMinutes ? `${item.durationMinutes} min` : undefined}
+            />
+          ))}
+        </ListSection>
+      ) : null}
+    </View>
   )
 }
+
+const styles = StyleSheet.create({
+  root: { gap: PlayTTSpacing.md },
+  meta: { gap: 2 },
+})

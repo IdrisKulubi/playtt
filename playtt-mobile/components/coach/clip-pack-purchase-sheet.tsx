@@ -1,22 +1,17 @@
-import { useEffect, useMemo, useState } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { useEffect, useState } from "react"
+import { StyleSheet, View } from "react-native"
 
+import { Button } from "@/components/kit/button"
+import { AppText } from "@/components/ui/app-text"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
-import { Button } from "@/components/ui/button"
 import { PreviewBadge } from "@/components/ui/preview-badge"
-import {
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useProductPaymentCheckout } from "@/hooks/use-product-payment-checkout"
-import { useProductTheme } from "@/hooks/use-product-theme"
 import { formatKes } from "@/lib/booking-utils"
 import type { ReplayCreditsStatus } from "@/lib/coach-types"
+import { haptics } from "@/lib/haptics"
 import { USE_MOCK_PLAYER_DATA } from "@/lib/mock/mock-config"
-import {
-  fetchReplayCredits,
-  initiateReplayPackPurchase,
-} from "@/lib/replay-credits-api"
+import { fetchReplayCredits, initiateReplayPackPurchase } from "@/lib/replay-credits-api"
 import { toast } from "@/lib/toast"
 
 type ClipPackPurchaseSheetProps = {
@@ -25,118 +20,78 @@ type ClipPackPurchaseSheetProps = {
   onPurchased?: () => void
 }
 
-export function ClipPackPurchaseSheet({
-  visible,
-  onClose,
-  onPurchased,
-}: ClipPackPurchaseSheetProps) {
-  const theme = useProductTheme()
+function replaysLeft(balance: number) {
+  if (balance === 0) return "You have no replays left"
+  return balance === 1 ? "You have 1 replay left" : `You have ${balance} replays left`
+}
+
+/** Buy a replay pack: price, what one replay is, what you have now, one button. */
+export function ClipPackPurchaseSheet({ visible, onClose, onPurchased }: ClipPackPurchaseSheetProps) {
   const [credits, setCredits] = useState<ReplayCreditsStatus | null>(null)
 
-  const { displayText, isPaying, isWaiting, payLabel, handlePay } =
-    useProductPaymentCheckout({
-      initiate: initiateReplayPackPurchase,
-      onConfirmed: async () => {
-        const next = await fetchReplayCredits()
-        setCredits(next)
-        onPurchased?.()
-        onClose()
-        toast.success("Clip pack added to your balance.")
-      },
-    })
+  const { displayText, isPaying, isWaiting, payLabel, handlePay } = useProductPaymentCheckout({
+    initiate: initiateReplayPackPurchase,
+    onConfirmed: async () => {
+      const next = await fetchReplayCredits()
+      setCredits(next)
+      onPurchased?.()
+      onClose()
+      haptics.success()
+      toast.success("Replays added to your account.")
+    },
+  })
 
   useEffect(() => {
-    if (!visible) {
-      return
-    }
+    if (!visible) return
     void fetchReplayCredits().then(setCredits)
   }, [visible])
-
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        root: {
-          gap: PlayTTSpacing.md,
-        },
-        row: {
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        },
-        body: {
-          fontSize: 15,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-          lineHeight: 22,
-        },
-        balance: {
-          fontSize: 15,
-          fontFamily: PlayTTFontFamilies.medium,
-          color: theme.foreground,
-        },
-        price: {
-          fontSize: 16,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: theme.foreground,
-        },
-        footnote: {
-          fontSize: 13,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-          lineHeight: 18,
-        },
-      }),
-    [theme],
-  )
 
   const packCredits = credits?.packCredits ?? 10
   const packPrice = credits?.packPriceKes ?? 0
 
   const handlePress = () => {
     if (USE_MOCK_PLAYER_DATA) {
-      toast.info("Clip pack checkout is preview only until payments go live.")
+      toast.info("Replay packs are a preview for now. You can't pay for them yet.")
       return
     }
     void handlePay()
   }
 
   return (
-    <BottomSheet visible={visible} title="10-clip pack" onClose={onClose}>
+    <BottomSheet visible={visible} title={`${packCredits} replays`} onClose={onClose}>
       <View style={styles.root}>
-        <View style={styles.row}>
-          <Text style={styles.price}>{formatKes(packPrice)}</Text>
+        <View style={styles.priceRow}>
+          <AppText variant="title2" tabular>
+            {formatKes(packPrice)}
+          </AppText>
           <PreviewBadge />
         </View>
-        <Text style={styles.body}>
-          Each clip saves the last 30 seconds from your session. One credit is
-          used each time you press Replay at the venue.
-        </Text>
-        {credits ? (
-          <Text style={styles.balance}>
-            You have {credits.balance} clips left
-          </Text>
-        ) : null}
+        <AppText variant="body" color="secondaryLabel">
+          Each replay saves the last 30 seconds of your game. One is used each time you press Replay at the venue.
+        </AppText>
+        {credits ? <AppText variant="headline">{replaysLeft(credits.balance)}</AppText> : null}
         {displayText && !USE_MOCK_PLAYER_DATA ? (
-          <Text style={styles.footnote}>{displayText}</Text>
+          <AppText variant="callout" color="secondaryLabel">
+            {displayText}
+          </AppText>
         ) : null}
         <Button
-          label={
-            USE_MOCK_PLAYER_DATA
-              ? `Buy ${packCredits}-clip pack`
-              : payLabel
-          }
-          surface="product"
-          productTheme={theme}
+          label={USE_MOCK_PLAYER_DATA ? `Buy ${packCredits} replays` : payLabel}
           onPress={handlePress}
           loading={isPaying || isWaiting}
           disabled={USE_MOCK_PLAYER_DATA ? false : isWaiting}
         />
         {USE_MOCK_PLAYER_DATA ? (
-          <Text style={styles.footnote}>
-            Preview mode. Checkout opens when clip payments ship.
-          </Text>
+          <AppText variant="footnote" color="secondaryLabel">
+            Preview: buying replays opens when replay payments go live.
+          </AppText>
         ) : null}
       </View>
     </BottomSheet>
   )
 }
+
+const styles = StyleSheet.create({
+  root: { gap: PlayTTSpacing.md },
+  priceRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+})

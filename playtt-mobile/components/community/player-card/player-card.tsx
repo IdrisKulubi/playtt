@@ -6,7 +6,6 @@ import {
   AccessibilityInfo,
   Pressable,
   StyleSheet,
-  Text,
   View,
   type LayoutChangeEvent,
   type StyleProp,
@@ -22,12 +21,14 @@ import Animated, {
 } from "react-native-reanimated"
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg"
 
+import { AppText } from "@/components/ui/app-text"
 import { resolveColorScheme, type AppColorScheme } from "@/constants/theme"
 import { PlayTTFontFamilies } from "@/constants/playtt-tokens"
 import { useColorScheme } from "@/hooks/use-color-scheme"
 import { resolveMediaUrl } from "@/lib/media-url"
 
 import { CardBack } from "./card-back"
+import { CardText } from "./card-text"
 import { CardBackground } from "./card-background"
 import { CardBadges } from "./card-badges"
 import { CardShine, FoundingStamp } from "./card-foil"
@@ -116,9 +117,9 @@ function CardAvatar({
           accessible={false}
         />
       ) : (
-        <Text style={{ fontFamily: PlayTTFontFamilies.bold, fontSize: size * 0.36, color: tokens.text }}>
+        <CardText style={{ fontFamily: PlayTTFontFamilies.bold, fontSize: size * 0.36, color: tokens.text }}>
           {cardInitials(player.displayName)}
-        </Text>
+        </CardText>
       )}
     </View>
   )
@@ -189,7 +190,7 @@ function CardPortrait({
               { borderColor: tokens.accent, backgroundColor: tokens.plate },
             ]}
           >
-            <Text
+            <CardText
               numberOfLines={1}
               adjustsFontSizeToFit
               style={[
@@ -199,7 +200,7 @@ function CardPortrait({
               ]}
             >
               {cardInitials(player.displayName)}
-            </Text>
+            </CardText>
           </View>
         </View>
       )}
@@ -216,7 +217,7 @@ function TierProgress({ player, tokens, scheme }: { player: PlayerCardData; toke
       <View style={[styles.progressTrack, { backgroundColor: tokens.plate }]}>
         <View style={[styles.progressFill, { width: `${progress.fraction * 100}%`, backgroundColor: tokens.accent }]} />
       </View>
-      <Text style={[styles.progressLabel, { color: tokens.muted }]}>{progress.label}</Text>
+      <CardText style={[styles.progressLabel, { color: tokens.muted }]}>{progress.label}</CardText>
     </View>
   )
 }
@@ -255,7 +256,7 @@ function MiniCard({ player, onPress, style }: PlayerCardProps) {
     >
       <Animated.View style={[styles.miniRow, press.style, style]}>
         <View>
-          <CardAvatar player={player} tokens={tokens} size={44} />
+          <CardAvatar player={player} tokens={tokens} size={48} />
           {ribbon ? (
             <View style={styles.miniDot}>
               <PulseDot
@@ -266,23 +267,27 @@ function MiniCard({ player, onPress, style }: PlayerCardProps) {
             </View>
           ) : null}
         </View>
+        {/* A list row, not card art: system type that grows with the phone's text size. */}
         <View style={styles.miniCopy}>
           <View style={styles.miniNameRow}>
-            <Text numberOfLines={1} style={[styles.miniName, { color: scheme === "dark" ? "#fff" : "#0a1628" }]}>
+            <AppText variant="headline" numberOfLines={1} style={styles.miniName}>
               {player.displayName}
-            </Text>
+            </AppText>
             {player.relationship?.rallyPartner ? (
-              <Handshake size={14} color={tokens.accent} weight="fill" />
+              <Handshake size={16} color={tokens.accent} weight="fill" />
             ) : null}
           </View>
           <View style={styles.miniMetaRow}>
             <View style={[styles.tierChip, { borderColor: tokens.accent }]}>
-              <Text style={[styles.tierChipText, { color: tokens.accent }]}>{tokens.name.toUpperCase()}</Text>
+              <View style={[styles.tierDot, { backgroundColor: tokens.accent }]} />
+              <AppText variant="footnote" weight="600">
+                {tokens.name}
+              </AppText>
             </View>
             {ribbon ? (
-              <Text numberOfLines={1} style={[styles.miniStatus, { color: scheme === "dark" ? "rgba(255,255,255,0.62)" : "#5a6b82" }]}>
+              <AppText variant="subheadline" color={ribbon.kind === "now" ? "success" : "secondaryLabel"} style={styles.miniStatus}>
                 {ribbon.kind === "now" ? ribbon.label.replace("→", "until ") : `Open ${ribbon.label.toLowerCase()}`}
-              </Text>
+              </AppText>
             ) : null}
           </View>
         </View>
@@ -318,31 +323,32 @@ function CardFront({
       <View style={styles.hero}>
         <View style={[styles.ratingColumn, compact ? styles.ratingColumnCompact : styles.ratingColumnFull]}>
           {/* Rating from earned card points (wins, sessions, drills, kudos). */}
-          <Text
+          <CardText
             numberOfLines={1}
             adjustsFontSizeToFit
             style={[styles.rating, compact && styles.ratingCompact, { color: tokens.text }]}
           >
             {ratingLabel(player)}
-          </Text>
-          <Text
+          </CardText>
+          <CardText
             numberOfLines={1}
             adjustsFontSizeToFit
             style={[styles.tier, compact && styles.tierCompact, { color: tokens.accent }]}
           >
             {tokens.name.toUpperCase()}
-          </Text>
+          </CardText>
           {!compact && (style || hand) ? (
             <>
               <View style={[styles.columnRule, { backgroundColor: tokens.accent }]} />
-              {style ? <Text style={[styles.styleCode, { color: tokens.text }]}>{style}</Text> : null}
-              {hand ? <Text style={[styles.styleCode, { color: tokens.muted }]}>{hand}</Text> : null}
+              {style ? <CardText style={[styles.styleCode, { color: tokens.text }]}>{style}</CardText> : null}
+              {hand ? <CardText style={[styles.styleCode, { color: tokens.muted }]}>{hand}</CardText> : null}
             </>
           ) : null}
           {!compact && variant === "founding" ? <FoundingStamp tokens={tokens} /> : null}
           {variant === "in_form" ? (
             <View style={[styles.inFormTag, { borderColor: IN_FORM_ORANGE }]}>
-              <Text style={[styles.inFormText, { color: IN_FORM_ORANGE }]}>IN FORM</Text>
+              {/* Orange border, readable text: orange text fails contrast on the light cards. */}
+              <CardText style={[styles.inFormText, { color: tokens.text }]}>IN FORM</CardText>
             </View>
           ) : null}
         </View>
@@ -358,13 +364,13 @@ function CardFront({
       </View>
 
       <View style={[styles.namePlate, { borderColor: tokens.accent }]}>
-        <Text
+        <CardText
           numberOfLines={1}
           adjustsFontSizeToFit
           style={[styles.name, compact && styles.nameCompact, { color: tokens.text }]}
         >
           {player.displayName.toUpperCase()}
-        </Text>
+        </CardText>
         {player.relationship?.rallyPartner ? <Handshake size={compact ? 12 : 16} color={tokens.accent} weight="fill" /> : null}
       </View>
 
@@ -381,9 +387,9 @@ function CardFront({
           <TierProgress player={player} tokens={tokens} scheme={scheme} />
           <View style={[styles.divider, { backgroundColor: tokens.muted }]} />
           <CardBadges player={player} tokens={tokens} />
-          <Text style={[styles.footer, { color: tokens.muted }]}>
+          <CardText style={[styles.footer, { color: tokens.muted }]}>
             PlayTT{player.homeVenue ? ` · ${player.homeVenue.name}` : ""}
-          </Text>
+          </CardText>
         </>
       ) : null}
     </View>
@@ -574,11 +580,11 @@ const styles = StyleSheet.create({
   },
   tier: {
     fontFamily: PlayTTFontFamilies.bold,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.2,
   },
   tierCompact: {
-    fontSize: 7,
+    fontSize: 9,
     letterSpacing: 0.6,
   },
   columnRule: {
@@ -661,7 +667,7 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontFamily: PlayTTFontFamilies.semiBold,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 0.4,
     textAlign: "center",
   },
@@ -689,7 +695,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     fontFamily: PlayTTFontFamilies.medium,
-    fontSize: 11,
+    fontSize: 12,
     textAlign: "center",
     letterSpacing: 0.4,
   },
@@ -701,7 +707,7 @@ const styles = StyleSheet.create({
   },
   inFormText: {
     fontFamily: PlayTTFontFamilies.bold,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1.2,
   },
   flameEdge: {
@@ -729,29 +735,29 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   miniName: {
-    fontFamily: PlayTTFontFamilies.semiBold,
-    fontSize: 16,
     flexShrink: 1,
   },
   miniMetaRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     gap: 8,
   },
   tierChip: {
-    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderWidth: 1.5,
     borderRadius: 999,
-    paddingHorizontal: 7,
+    paddingHorizontal: 8,
     paddingVertical: 1,
   },
-  tierChipText: {
-    fontFamily: PlayTTFontFamilies.bold,
-    fontSize: 9,
-    letterSpacing: 1,
+  tierDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   miniStatus: {
-    fontFamily: PlayTTFontFamilies.medium,
-    fontSize: 12,
     flexShrink: 1,
   },
 })

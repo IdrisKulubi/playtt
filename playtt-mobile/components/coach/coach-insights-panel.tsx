@@ -1,14 +1,12 @@
-import { router } from "expo-router"
-import { useMemo, useState } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { type Href, router } from "expo-router"
+import { useState } from "react"
+import { StyleSheet, View } from "react-native"
 
 import { CoachInsightDetailSheet } from "@/components/coach/coach-insight-detail-sheet"
-import { Button } from "@/components/ui/button"
-import {
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { Button } from "@/components/kit/button"
+import { Card } from "@/components/kit/card"
+import { AppText } from "@/components/ui/app-text"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import type { CoachInsight, CoachStatus } from "@/lib/coach-types"
 
 type CoachInsightsPanelProps = {
@@ -16,109 +14,59 @@ type CoachInsightsPanelProps = {
   status: CoachStatus
 }
 
-export function CoachInsightsPanel({
-  insights,
-  status,
-}: CoachInsightsPanelProps) {
-  const theme = useProductTheme()
+const PROGRESS_HREF = "/(app)/(tabs)/activity" as Href
+
+/** What Coach noticed in each replay, as cards you can open. */
+export function CoachInsightsPanel({ insights, status }: CoachInsightsPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const selected = insights.find((item) => item.id === selectedId) ?? null
 
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        root: {
-          gap: PlayTTSpacing.md,
-        },
-        empty: {
-          gap: PlayTTSpacing.sm,
-        },
-        emptyText: {
-          fontSize: 15,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-          lineHeight: 22,
-        },
-        card: {
-          gap: PlayTTSpacing.xs,
-          paddingVertical: PlayTTSpacing.md,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: theme.border,
-        },
-        pressed: {
-          opacity: 0.7,
-        },
-        meta: {
-          fontSize: 12,
-          fontFamily: PlayTTFontFamilies.medium,
-          color: theme.muted,
-          textTransform: "uppercase",
-          letterSpacing: 0.4,
-        },
-        title: {
-          fontSize: 16,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: theme.foreground,
-        },
-        summary: {
-          fontSize: 14,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-          lineHeight: 20,
-        },
-      }),
-    [theme],
-  )
-
   if (!status.isActive) {
     return (
-      <Text style={styles.emptyText}>
-        Subscribe to Coach to see insights from your captured clips.
-      </Text>
+      <AppText variant="body" color="secondaryLabel">
+        Start Coach to see what it notices in your replays.
+      </AppText>
     )
   }
 
   if (insights.length === 0) {
     return (
-      <View style={styles.empty}>
-        <Text style={styles.emptyText}>
-          Play a session and capture a clip. Your first insight will appear
-          here.
-        </Text>
-        <Button
-          label="View Activity"
-          variant="outline"
-          surface="product"
-          productTheme={theme}
-          onPress={() => router.push("/(app)/(tabs)/activity")}
-        />
+      <View style={styles.stack}>
+        <AppText variant="body" color="secondaryLabel">
+          Play a game and save a replay. Coach&apos;s first notes will appear here.
+        </AppText>
+        <Button label="See my replays" variant="secondary" onPress={() => router.push(PROGRESS_HREF)} />
       </View>
     )
   }
 
   return (
-    <View style={styles.root}>
+    <View style={styles.stack}>
       {insights.map((insight) => (
-        <Pressable
+        <Card
           key={insight.id}
           onPress={() => setSelectedId(insight.id)}
-          style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+          accessibilityLabel={`${insight.focusAreas.join(", ")}. From ${insight.replayTitle}`}
+          accessibilityHint="Opens the full note"
         >
-          <Text style={styles.meta}>{insight.replayTitle}</Text>
-          <Text style={styles.title} numberOfLines={1}>
-            {insight.focusAreas.join(" · ")}
-          </Text>
-          <Text style={styles.summary} numberOfLines={3}>
-            {insight.summary}
-          </Text>
-        </Pressable>
+          <View style={styles.card}>
+            <AppText variant="footnote" color="secondaryLabel">
+              {insight.replayTitle}
+            </AppText>
+            <AppText variant="headline">{insight.focusAreas.join(" · ")}</AppText>
+            <AppText variant="callout" color="secondaryLabel" numberOfLines={3}>
+              {insight.summary}
+            </AppText>
+          </View>
+        </Card>
       ))}
 
-      <CoachInsightDetailSheet
-        insight={selected}
-        visible={selected !== null}
-        onClose={() => setSelectedId(null)}
-      />
+      <CoachInsightDetailSheet insight={selected} visible={selected !== null} onClose={() => setSelectedId(null)} />
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  stack: { gap: PlayTTSpacing.sm },
+  card: { gap: 4 },
+})

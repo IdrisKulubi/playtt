@@ -1,12 +1,9 @@
-import { useMemo } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 
-import { Button } from "@/components/ui/button"
-import {
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { Button } from "@/components/kit/button"
+import { Card } from "@/components/kit/card"
+import { AppText } from "@/components/ui/app-text"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { formatKes } from "@/lib/booking-utils"
 import type { CoachStatus } from "@/lib/coach-types"
 
@@ -15,43 +12,27 @@ type CoachSubscriptionBandProps = {
   onSubscribe: () => void
 }
 
-export function CoachSubscriptionBand({
-  status,
-  onSubscribe,
-}: CoachSubscriptionBandProps) {
-  const theme = useProductTheme()
-
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        band: {
-          gap: PlayTTSpacing.sm,
-          paddingVertical: PlayTTSpacing.md,
-        },
-        price: {
-          fontSize: 14,
-          fontFamily: PlayTTFontFamilies.medium,
-          color: theme.muted,
-        },
-      }),
-    [theme],
-  )
-
-  if (status.isActive) {
-    return null
-  }
+/** Price and one clear button, shown until Coach is on. */
+export function CoachSubscriptionBand({ status, onSubscribe }: CoachSubscriptionBandProps) {
+  if (status.isActive) return null
 
   return (
-    <View style={styles.band}>
-      <Text style={styles.price}>
-        {formatKes(status.monthlyPriceKes)} per month
-      </Text>
-      <Button
-        label="Start Coach"
-        surface="product"
-        productTheme={theme}
-        onPress={onSubscribe}
-      />
-    </View>
+    <Card>
+      <View style={styles.stack}>
+        <AppText variant="headline">Get Coach</AppText>
+        <AppText variant="title2" tabular>
+          {formatKes(status.monthlyPriceKes)}{" "}
+          <AppText variant="callout" color="secondaryLabel">
+            a month
+          </AppText>
+        </AppText>
+        <Button label="Start Coach" onPress={onSubscribe} style={styles.cta} />
+      </View>
+    </Card>
   )
 }
+
+const styles = StyleSheet.create({
+  stack: { gap: PlayTTSpacing.xs },
+  cta: { marginTop: PlayTTSpacing.sm },
+})

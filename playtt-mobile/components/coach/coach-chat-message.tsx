@@ -1,63 +1,53 @@
-import { useMemo } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 
-import {
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { AppText } from "@/components/ui/app-text"
+import { KitLayout } from "@/constants/kit-layout"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import type { CoachChatMessage } from "@/lib/mock/mock-coach-chat"
 
 type CoachChatMessageBubbleProps = {
   message: CoachChatMessage
 }
 
+/** Coach on the left (with its name), you on the right, same look as player chats. */
 export function CoachChatMessageBubble({ message }: CoachChatMessageBubbleProps) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const isCoach = message.role === "coach"
 
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        row: {
-          flexDirection: "row",
-          justifyContent: isCoach ? "flex-start" : "flex-end",
-          paddingHorizontal: PlayTTSpacing.xl,
-          marginBottom: PlayTTSpacing.sm,
-        },
-        bubble: {
-          maxWidth: "82%",
-          borderRadius: 18,
-          paddingHorizontal: PlayTTSpacing.md,
-          paddingVertical: PlayTTSpacing.sm,
-          backgroundColor: isCoach ? theme.elevated : "rgba(0, 183, 255, 0.14)",
-          borderWidth: isCoach ? StyleSheet.hairlineWidth : 0,
-          borderColor: theme.border,
-        },
-        label: {
-          fontSize: 11,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: theme.muted,
-          marginBottom: 4,
-          textTransform: "uppercase",
-          letterSpacing: 0.4,
-        },
-        text: {
-          fontSize: 15,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.foreground,
-          lineHeight: 22,
-        },
-      }),
-    [isCoach, theme],
-  )
-
   return (
-    <View style={styles.row}>
-      <View style={styles.bubble}>
-        {isCoach ? <Text style={styles.label}>Coach</Text> : null}
-        <Text style={styles.text}>{message.text}</Text>
+    <View style={[styles.row, { justifyContent: isCoach ? "flex-start" : "flex-end" }]}>
+      <View
+        style={[
+          styles.bubble,
+          isCoach ? styles.bubbleCoach : styles.bubbleMine,
+          {
+            backgroundColor: isCoach ? colors.surface : colors.fill,
+            borderColor: colors.separator,
+            borderWidth: isCoach ? StyleSheet.hairlineWidth : 0,
+          },
+        ]}
+      >
+        {isCoach ? (
+          <AppText variant="footnote" weight="600" color="accentText" style={styles.label}>
+            Coach
+          </AppText>
+        ) : null}
+        <AppText variant="body">{message.text}</AppText>
       </View>
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  row: { flexDirection: "row", paddingHorizontal: KitLayout.screenGutter, marginBottom: PlayTTSpacing.sm },
+  bubble: {
+    maxWidth: "84%",
+    borderRadius: 20,
+    paddingHorizontal: PlayTTSpacing.md,
+    paddingVertical: PlayTTSpacing.sm,
+  },
+  bubbleCoach: { borderBottomLeftRadius: 6 },
+  bubbleMine: { borderBottomRightRadius: 6 },
+  label: { marginBottom: 2 },
+})

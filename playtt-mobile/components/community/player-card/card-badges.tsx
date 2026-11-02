@@ -3,7 +3,8 @@ import { Fire } from "phosphor-react-native/src/icons/Fire"
 import { Handshake } from "phosphor-react-native/src/icons/Handshake"
 import { Medal } from "phosphor-react-native/src/icons/Medal"
 import { Star } from "phosphor-react-native/src/icons/Star"
-import { StyleSheet, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
+import { CardText } from "./card-text"
 
 import { PlayTTFontFamilies } from "@/constants/playtt-tokens"
 
@@ -44,9 +45,9 @@ export function CardBadges({ player, tokens }: { player: PlayerCardData; tokens:
       {badges.map(({ key, label, Icon }) => (
         <View key={key} style={styles.badge}>
           <Icon size={13} color={tokens.accent} weight="fill" />
-          <Text numberOfLines={1} style={[styles.label, { color: tokens.muted }]}>
+          <CardText numberOfLines={1} style={[styles.label, { color: tokens.muted }]}>
             {label}
-          </Text>
+          </CardText>
         </View>
       ))}
     </View>
@@ -68,6 +69,6 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: PlayTTFontFamilies.medium,
-    fontSize: 11,
+    fontSize: 12,
   },
 })

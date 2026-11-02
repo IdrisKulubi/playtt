@@ -1,5 +1,6 @@
 import { useEffect } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
+import { CardText } from "./card-text"
 import Animated, {
   Easing,
   cancelAnimation,
@@ -84,7 +85,7 @@ export function FoundingStamp({ tokens }: { tokens: CardTierTokens }) {
       accessible={false}
       style={[styles.stamp, { borderColor: tokens.accent, backgroundColor: tokens.plate }]}
     >
-      <Text style={[styles.stampText, { color: tokens.accent }]}>FOUNDING</Text>
+      <CardText style={[styles.stampText, { color: tokens.accent }]}>FOUNDING</CardText>
     </View>
   )
 }
@@ -108,7 +109,7 @@ const styles = StyleSheet.create({
   },
   stampText: {
     fontFamily: PlayTTFontFamilies.bold,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1.2,
   },
 })

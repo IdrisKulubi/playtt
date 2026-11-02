@@ -1,12 +1,10 @@
-import { useMemo } from "react"
-import { Pressable, ScrollView, StyleSheet, Text } from "react-native"
+import { ScrollView, StyleSheet } from "react-native"
 
-import {
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-  PlayTTRadius,
-} from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PressableScale } from "@/components/kit/pressable-scale"
+import { AppText } from "@/components/ui/app-text"
+import { KitLayout } from "@/constants/kit-layout"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import type { CoachQuickPrompt } from "@/lib/mock/mock-coach-chat"
 
 type CoachChatQuickPromptsProps = {
@@ -15,42 +13,9 @@ type CoachChatQuickPromptsProps = {
   disabled?: boolean
 }
 
-export function CoachChatQuickPrompts({
-  prompts,
-  onSelect,
-  disabled = false,
-}: CoachChatQuickPromptsProps) {
-  const theme = useProductTheme()
-
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        scroll: {
-          paddingHorizontal: PlayTTSpacing.xl,
-          gap: PlayTTSpacing.xs,
-        },
-        chip: {
-          borderRadius: PlayTTRadius.pill,
-          borderWidth: 1,
-          borderColor: theme.border,
-          backgroundColor: theme.card,
-          paddingHorizontal: PlayTTSpacing.sm,
-          paddingVertical: 6,
-        },
-        chipPressed: {
-          opacity: 0.7,
-        },
-        chipDisabled: {
-          opacity: 0.45,
-        },
-        label: {
-          fontSize: 12,
-          fontFamily: PlayTTFontFamilies.medium,
-          color: theme.foreground,
-        },
-      }),
-    [theme],
-  )
+/** Ready-made questions for people who don't know what to ask. */
+export function CoachChatQuickPrompts({ prompts, onSelect, disabled = false }: CoachChatQuickPromptsProps) {
+  const { colors } = useAppTheme()
 
   return (
     <ScrollView
@@ -60,19 +25,23 @@ export function CoachChatQuickPrompts({
       keyboardShouldPersistTaps="handled"
     >
       {prompts.map((prompt) => (
-        <Pressable
+        <PressableScale
           key={prompt.id}
           disabled={disabled}
+          accessibilityLabel={`Ask Coach: ${prompt.label}`}
           onPress={() => onSelect(prompt)}
-          style={({ pressed }) => [
-            styles.chip,
-            disabled && styles.chipDisabled,
-            pressed && !disabled && styles.chipPressed,
-          ]}
+          style={[styles.chip, { borderColor: colors.separator, backgroundColor: colors.surface }]}
         >
-          <Text style={styles.label}>{prompt.label}</Text>
-        </Pressable>
+          <AppText variant="subheadline" weight="500">
+            {prompt.label}
+          </AppText>
+        </PressableScale>
       ))}
     </ScrollView>
   )
 }
+
+const styles = StyleSheet.create({
+  scroll: { paddingHorizontal: KitLayout.screenGutter, gap: PlayTTSpacing.xs },
+  chip: { borderRadius: 24, borderWidth: 1, paddingHorizontal: PlayTTSpacing.md, justifyContent: "center" },
+})

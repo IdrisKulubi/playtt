@@ -1,5 +1,6 @@
 import { useEffect } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
+import { CardText } from "./card-text"
 import Animated, {
   cancelAnimation,
   useAnimatedStyle,
@@ -60,18 +61,18 @@ export function CardStatusRibbon({ ribbon, tokens, compact = false, animate }: C
         ]}
       >
         {isNow ? <PulseDot color={OPEN_NOW_GREEN} animate={animate} size={6} /> : null}
-        <Text
+        <CardText
           numberOfLines={1}
           style={[styles.label, compact && styles.labelCompact, { color: isNow ? tokens.text : tokens.accent }]}
         >
           {label}
-        </Text>
+        </CardText>
       </View>
       {ribbon.doubles ? (
         <View style={[styles.chip, { borderColor: tokens.accent, backgroundColor: tokens.plate }]}>
-          <Text style={[styles.label, compact && styles.labelCompact, { color: tokens.accent }]}>
+          <CardText style={[styles.label, compact && styles.labelCompact, { color: tokens.accent }]}>
             {compact ? ribbon.doublesLabel.replace(" · ", " ") : ribbon.doublesLabel}
-          </Text>
+          </CardText>
         </View>
       ) : null}
     </View>
@@ -94,9 +95,9 @@ export function AtVenueChip({
   return (
     <View style={[styles.chip, { borderColor: OPEN_NOW_GREEN, backgroundColor: "rgba(46, 232, 122, 0.10)" }]}>
       <PulseDot color={OPEN_NOW_GREEN} animate={animate} size={6} />
-      <Text numberOfLines={1} style={[styles.label, compact && styles.labelCompact, { color: tokens.text }]}>
+      <CardText numberOfLines={1} style={[styles.label, compact && styles.labelCompact, { color: tokens.text }]}>
         {label}
-      </Text>
+      </CardText>
     </View>
   )
 }
@@ -120,10 +121,10 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: PlayTTFontFamilies.bold,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 0.6,
   },
   labelCompact: {
-    fontSize: 9,
+    fontSize: 10,
   },
 })

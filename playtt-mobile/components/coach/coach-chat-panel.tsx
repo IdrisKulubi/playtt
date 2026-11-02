@@ -4,7 +4,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
-  Text,
   View,
 } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -13,12 +12,10 @@ import { CoachChatComposer } from "@/components/coach/coach-chat-composer"
 import { CoachChatMessageBubble } from "@/components/coach/coach-chat-message"
 import { CoachChatQuickPrompts } from "@/components/coach/coach-chat-quick-prompts"
 import { CoachChatTypingIndicator } from "@/components/coach/coach-chat-typing-indicator"
+import { AppText } from "@/components/ui/app-text"
 import { PreviewBadge } from "@/components/ui/preview-badge"
-import { getFloatingTabBarInset } from "@/constants/navigation-layout"
-import {
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
+import { KitLayout } from "@/constants/kit-layout"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { sendCoachChatMessage } from "@/lib/coach-chat-api"
 import {
   createPlayerMessage,
@@ -28,67 +25,21 @@ import {
   type CoachQuickPrompt,
 } from "@/lib/mock/mock-coach-chat"
 import { toast } from "@/lib/toast"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { useAppTheme } from "@/hooks/use-app-theme"
 
 type ListItem =
   | { type: "message"; message: CoachChatMessage }
   | { type: "typing" }
 
 export function CoachChatPanel() {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const insets = useSafeAreaInsets()
-  const tabBarInset = getFloatingTabBarInset(insets.bottom) + PlayTTSpacing.md
   const listRef = useRef<FlatList<ListItem>>(null)
   const [messages, setMessages] = useState<CoachChatMessage[]>(
     INITIAL_COACH_MESSAGES,
   )
   const [draft, setDraft] = useState("")
   const [isSending, setIsSending] = useState(false)
-
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        root: {
-          flex: 1,
-          backgroundColor: theme.background,
-        },
-        header: {
-          gap: 2,
-          paddingHorizontal: PlayTTSpacing.xl,
-          paddingTop: PlayTTSpacing.xs,
-          paddingBottom: PlayTTSpacing.xs,
-        },
-        headerRow: {
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: PlayTTSpacing.sm,
-        },
-        title: {
-          fontSize: 18,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: theme.foreground,
-        },
-        subtitle: {
-          fontSize: 13,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-          lineHeight: 18,
-        },
-        list: {
-          flexGrow: 1,
-          justifyContent: "flex-end",
-          paddingVertical: PlayTTSpacing.xs,
-        },
-        footer: {
-          flexShrink: 0,
-          gap: PlayTTSpacing.xs,
-          paddingBottom: tabBarInset,
-          backgroundColor: theme.background,
-        },
-      }),
-    [tabBarInset, theme],
-  )
 
   const listData = useMemo<ListItem[]>(() => {
     const items: ListItem[] = messages.map((message) => ({
@@ -143,23 +94,25 @@ export function CoachChatPanel() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.root}
+      style={[styles.root, { backgroundColor: colors.background }]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
     >
       <View style={styles.header}>
         <View style={styles.headerRow}>
-          <Text style={styles.title}>Your coach</Text>
+          <AppText variant="title3" accessibilityRole="header">
+            Ask your coach
+          </AppText>
           <PreviewBadge />
         </View>
-        <Text style={styles.subtitle}>
-          Ask about technique, drills, or your last session.
-        </Text>
+        <AppText variant="callout" color="secondaryLabel">
+          Ask about technique, drills, or your last game.
+        </AppText>
       </View>
 
       <FlatList
         ref={listRef}
-        style={{ flex: 1 }}
+        style={styles.flex}
         data={listData}
         keyExtractor={(item, index) =>
           item.type === "typing" ? `typing-${index}` : item.message.id
@@ -177,7 +130,7 @@ export function CoachChatPanel() {
         keyboardDismissMode="interactive"
       />
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + PlayTTSpacing.xs, backgroundColor: colors.background }]}>
         <CoachChatQuickPrompts
           prompts={QUICK_PROMPTS}
           onSelect={handleQuickPrompt}
@@ -194,3 +147,17 @@ export function CoachChatPanel() {
     </KeyboardAvoidingView>
   )
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  flex: { flex: 1 },
+  header: {
+    gap: 2,
+    paddingHorizontal: KitLayout.screenGutter,
+    paddingTop: PlayTTSpacing.xs,
+    paddingBottom: PlayTTSpacing.xs,
+  },
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: PlayTTSpacing.sm },
+  list: { flexGrow: 1, justifyContent: "flex-end", paddingVertical: PlayTTSpacing.xs },
+  footer: { flexShrink: 0, gap: PlayTTSpacing.xs },
+})

@@ -1,16 +1,13 @@
-import { router } from "expo-router"
-import { useMemo, useState } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
-
-import { Button } from "@/components/ui/button"
+import { type Href, router } from "expo-router"
+import { useState } from "react"
+import { StyleSheet, View } from "react-native"
 
 import { CoachTrainingDetailSheet } from "@/components/coach/coach-training-detail-sheet"
-import { IconSymbol } from "@/components/ui/icon-symbol"
-import {
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { Button } from "@/components/kit/button"
+import { ListRow } from "@/components/kit/list-row"
+import { ListSection } from "@/components/kit/list-section"
+import { AppText } from "@/components/ui/app-text"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import type { CoachStatus, CoachTrainingItem } from "@/lib/coach-types"
 
 type CoachTrainingPanelProps = {
@@ -19,123 +16,60 @@ type CoachTrainingPanelProps = {
   onViewInsights?: () => void
 }
 
-export function CoachTrainingPanel({
-  items,
-  status,
-  onViewInsights,
-}: CoachTrainingPanelProps) {
-  const theme = useProductTheme()
+const PROGRESS_HREF = "/(app)/(tabs)/activity" as Href
+
+/** Drills as a list: done ones say "Done" with a tick, not just a strike-through. */
+export function CoachTrainingPanel({ items, status, onViewInsights }: CoachTrainingPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const selected = items.find((item) => item.id === selectedId) ?? null
 
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        root: {
-          gap: 0,
-        },
-        empty: {
-          gap: PlayTTSpacing.sm,
-        },
-        emptyText: {
-          fontSize: 15,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-          lineHeight: 22,
-        },
-        row: {
-          paddingVertical: PlayTTSpacing.md,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: theme.border,
-        },
-        pressed: {
-          opacity: 0.7,
-        },
-        rowInner: {
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: PlayTTSpacing.sm,
-        },
-        copy: {
-          flex: 1,
-          gap: 2,
-        },
-        title: {
-          fontSize: 16,
-          fontFamily: PlayTTFontFamilies.medium,
-          color: theme.foreground,
-        },
-        meta: {
-          fontSize: 13,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-        },
-        done: {
-          textDecorationLine: "line-through",
-          opacity: 0.6,
-        },
-      }),
-    [theme],
-  )
-
   if (!status.isActive) {
     return (
-      <Text style={styles.emptyText}>
-        Subscribe to Coach to get personalized drills from your sessions.
-      </Text>
+      <AppText variant="body" color="secondaryLabel">
+        Start Coach to get drills picked for your game.
+      </AppText>
     )
   }
 
   if (items.length === 0) {
     return (
-      <View style={styles.empty}>
-        <Text style={styles.emptyText}>
-          Training suggestions will appear after your first coach insight.
-        </Text>
+      <View style={styles.stack}>
+        <AppText variant="body" color="secondaryLabel">
+          Drills appear after Coach&apos;s first note on your game.
+        </AppText>
         <Button
-          label="View insights"
-          variant="outline"
-          surface="product"
-          productTheme={theme}
-          onPress={onViewInsights ?? (() => router.push("/(app)/(tabs)/activity"))}
+          label="See Coach's notes"
+          variant="secondary"
+          onPress={onViewInsights ?? (() => router.push(PROGRESS_HREF))}
         />
       </View>
     )
   }
 
   return (
-    <View style={styles.root}>
-      {items.map((item, index) => (
-        <Pressable
-          key={item.id}
-          onPress={() => setSelectedId(item.id)}
-          style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-        >
-          <View style={styles.rowInner}>
-            <View style={styles.copy}>
-              <Text
-                style={[styles.title, item.completedAt ? styles.done : null]}
-              >
-                {item.title}
-              </Text>
-              <Text style={styles.meta}>
-                {item.durationMinutes
-                  ? `${item.durationMinutes} min`
-                  : "Practice drill"}
-                {item.completedAt ? " · Done" : ""}
-              </Text>
-            </View>
-            <IconSymbol name="chevron.right" size={18} color={theme.muted} />
-          </View>
-        </Pressable>
-      ))}
+    <View style={styles.stack}>
+      <ListSection header="Your drills">
+        {items.map((item) => {
+          const length = item.durationMinutes ? `${item.durationMinutes} min` : "Practice drill"
+          return (
+            <ListRow
+              key={item.id}
+              icon={item.completedAt ? "checkmark" : "figure.table.tennis"}
+              tone={item.completedAt ? "success" : "accent"}
+              title={item.title}
+              subtitle={item.completedAt ? `${length} · Done` : length}
+              accessibilityHint="Opens the drill"
+              onPress={() => setSelectedId(item.id)}
+            />
+          )
+        })}
+      </ListSection>
 
-      <CoachTrainingDetailSheet
-        item={selected}
-        visible={selected !== null}
-        onClose={() => setSelectedId(null)}
-      />
+      <CoachTrainingDetailSheet item={selected} visible={selected !== null} onClose={() => setSelectedId(null)} />
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  stack: { gap: PlayTTSpacing.sm },
+})

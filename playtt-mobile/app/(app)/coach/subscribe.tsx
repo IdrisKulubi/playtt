@@ -1,19 +1,17 @@
 import { router } from "expo-router"
-import { useEffect, useState } from "react"
-import { View } from "react-native"
+import { useState } from "react"
+import { StyleSheet, View } from "react-native"
 
 import { CoachSubscribeSheet } from "@/components/coach/coach-subscribe-sheet"
+import { useAppTheme } from "@/hooks/use-app-theme"
 
-/** Deep-link wrapper: opens Coach subscribe sheet then returns. */
+/** Deep-link wrapper: opens the Start Coach sheet, then returns. */
 export default function CoachSubscribeScreen() {
+  const { colors } = useAppTheme()
   const [open, setOpen] = useState(true)
 
-  useEffect(() => {
-    setOpen(true)
-  }, [])
-
   return (
-    <View style={{ flex: 1 }}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <CoachSubscribeSheet
         visible={open}
         onClose={() => {
@@ -24,3 +22,7 @@ export default function CoachSubscribeScreen() {
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+})

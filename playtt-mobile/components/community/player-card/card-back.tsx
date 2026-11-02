@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
+import { CardText } from "./card-text"
 
 import { PlayTTFontFamilies } from "@/constants/playtt-tokens"
 import { KUDOS_EMOJI, KUDOS_LABELS } from "@/lib/community-types"
@@ -24,51 +25,51 @@ export function CardBack({ player, tokens }: CardBackProps) {
 
   return (
     <View style={styles.root}>
-      <Text style={[styles.name, { color: tokens.text }]}>{player.displayName}</Text>
+      <CardText style={[styles.name, { color: tokens.text }]}>{player.displayName}</CardText>
       {details.length > 0 ? (
-        <Text style={[styles.meta, { color: tokens.muted }]}>{details.join(" · ")}</Text>
+        <CardText style={[styles.meta, { color: tokens.muted }]}>{details.join(" · ")}</CardText>
       ) : null}
 
       <View style={styles.section}>
-        <Text style={[styles.heading, { color: tokens.accent }]}>ABOUT</Text>
-        <Text style={[styles.body, { color: player.bio ? tokens.text : tokens.muted }]}>
+        <CardText style={[styles.heading, { color: tokens.accent }]}>ABOUT</CardText>
+        <CardText style={[styles.body, { color: player.bio ? tokens.text : tokens.muted }]}>
           {player.bio ?? "No bio yet."}
-        </Text>
+        </CardText>
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.heading, { color: tokens.accent }]}>USUALLY PLAYS</Text>
+        <CardText style={[styles.heading, { color: tokens.accent }]}>USUALLY PLAYS</CardText>
         {player.usualTimes.length > 0 ? (
           <View style={styles.chips}>
             {player.usualTimes.map((key) => (
               <View key={key} style={[styles.chip, { backgroundColor: tokens.plate }]}>
-                <Text style={[styles.chipText, { color: tokens.text }]}>{USUAL_TIME_LABELS[key]}</Text>
+                <CardText style={[styles.chipText, { color: tokens.text }]}>{USUAL_TIME_LABELS[key]}</CardText>
               </View>
             ))}
           </View>
         ) : (
-          <Text style={[styles.body, { color: tokens.muted }]}>Not set yet.</Text>
+          <CardText style={[styles.body, { color: tokens.muted }]}>Not set yet.</CardText>
         )}
       </View>
 
       {headToHeadLine(player.headToHead, player.displayName) ? (
         <View style={styles.section}>
-          <Text style={[styles.heading, { color: tokens.accent }]}>HEAD-TO-HEAD</Text>
-          <Text style={[styles.body, { color: tokens.text }]}>
+          <CardText style={[styles.heading, { color: tokens.accent }]}>HEAD-TO-HEAD</CardText>
+          <CardText style={[styles.body, { color: tokens.text }]}>
             {headToHeadLine(player.headToHead, player.displayName)}
-          </Text>
+          </CardText>
         </View>
       ) : null}
 
       {player.kudos && player.kudos.length > 0 ? (
         <View style={styles.section}>
-          <Text style={[styles.heading, { color: tokens.accent }]}>KUDOS</Text>
+          <CardText style={[styles.heading, { color: tokens.accent }]}>KUDOS</CardText>
           <View style={styles.chips}>
             {player.kudos.map((entry) => (
               <View key={entry.type} style={[styles.chip, { backgroundColor: tokens.plate }]}>
-                <Text style={[styles.chipText, { color: tokens.text }]}>
+                <CardText style={[styles.chipText, { color: tokens.text }]}>
                   {KUDOS_EMOJI[entry.type]} {KUDOS_LABELS[entry.type]} · {entry.count}
-                </Text>
+                </CardText>
               </View>
             ))}
           </View>
@@ -76,10 +77,10 @@ export function CardBack({ player, tokens }: CardBackProps) {
       ) : null}
 
       <View style={styles.footer}>
-        <Text style={[styles.footerText, { color: tokens.muted }]}>
+        <CardText style={[styles.footerText, { color: tokens.muted }]}>
           PlayTT{player.homeVenue ? ` · ${player.homeVenue.name}` : ""}
-        </Text>
-        <Text style={[styles.footerText, { color: tokens.muted }]}>Tap to flip</Text>
+        </CardText>
+        <CardText style={[styles.footerText, { color: tokens.muted }]}>Tap to flip</CardText>
       </View>
     </View>
   )
@@ -109,7 +110,7 @@ const styles = StyleSheet.create({
   },
   heading: {
     fontFamily: PlayTTFontFamilies.bold,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.2,
   },
   body: {
@@ -138,6 +139,6 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontFamily: PlayTTFontFamilies.medium,
-    fontSize: 11,
+    fontSize: 12,
   },
 })

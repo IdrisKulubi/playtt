@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { useMinimizeOnScroll } from "expo-glass-tabs"
-import { RefreshControl, Text, View } from "react-native"
-import Animated from "react-native-reanimated"
+import { useCallback, useEffect, useState } from "react"
+import { RefreshControl, ScrollView, StyleSheet, View } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { CoachChatPanel } from "@/components/coach/coach-chat-panel"
 import { CoachHeader } from "@/components/coach/coach-header"
@@ -10,15 +9,11 @@ import { ClipPackPurchaseSheet } from "@/components/coach/clip-pack-purchase-she
 import { CoachSubscribeSheet } from "@/components/coach/coach-subscribe-sheet"
 import { CoachSubscriptionBand } from "@/components/coach/coach-subscription-band"
 import { CoachTrainingPanel } from "@/components/coach/coach-training-panel"
-import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
-import { GlassSegmentControl } from "@/components/ui/glass-segment-control"
-import { Button } from "@/components/ui/button"
-import { SkeletonGate } from "@/components/ui/skeleton"
-import { FLOATING_TAB_BAR_CLEARANCE } from "@/constants/navigation-layout"
-import {
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
+import { ChoiceChips } from "@/components/kit/choice-chips"
+import { EmptyState } from "@/components/kit/empty-state"
+import { Skeleton, SkeletonGate } from "@/components/ui/skeleton"
+import { KitLayout } from "@/constants/kit-layout"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import {
   fetchCoachInsights,
   fetchCoachStatus,
@@ -26,24 +21,18 @@ import {
 } from "@/lib/coach-api"
 import type { CoachInsight, CoachSegment, CoachStatus, CoachTrainingItem } from "@/lib/coach-types"
 import { fetchReplayCredits } from "@/lib/replay-credits-api"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { useAppTheme } from "@/hooks/use-app-theme"
+import { useSkeletonSurface } from "@/hooks/use-product-theme"
 
 export type { CoachSegment } from "@/lib/coach-types"
 
 function CoachScreenSkeleton() {
-  const theme = useProductTheme()
+  const surface = useSkeletonSurface()
   return (
-    <View style={{ gap: PlayTTSpacing.lg, paddingTop: PlayTTSpacing.md }}>
-      <View
-        style={{
-          height: 120,
-          borderRadius: 28,
-          backgroundColor: theme.elevated,
-        }}
-      />
-      <View style={{ height: 36, borderRadius: 999, backgroundColor: theme.elevated }} />
-      <View style={{ height: 80, backgroundColor: theme.elevated, borderRadius: 12 }} />
-      <View style={{ height: 80, backgroundColor: theme.elevated, borderRadius: 12 }} />
+    <View style={styles.skeleton}>
+      <Skeleton surface={surface} height={96} borderRadius={20} />
+      <Skeleton surface={surface} height={56} borderRadius={12} />
+      <Skeleton surface={surface} height={56} borderRadius={12} />
     </View>
   )
 }
@@ -53,9 +42,8 @@ type CoachHomePanelProps = {
 }
 
 export function CoachHomePanel({ isActive }: CoachHomePanelProps) {
-  const theme = useProductTheme()
-  const styles = useMemo(() => createAppScreenStyles(theme), [theme])
-  const onScroll = useMinimizeOnScroll()
+  const { colors } = useAppTheme()
+  const insets = useSafeAreaInsets()
   const [segment, setSegment] = useState<CoachSegment>("chat")
   const [status, setStatus] = useState<CoachStatus | null>(null)
   const [insights, setInsights] = useState<CoachInsight[]>([])
@@ -114,21 +102,17 @@ export function CoachHomePanel({ isActive }: CoachHomePanelProps) {
     cancelAtPeriodEnd: false,
   }
 
+  // Three clearly different jobs, so they stay as a choice at the top.
   const segmentControl = (
-    <View
-      style={{
-        paddingHorizontal: PlayTTSpacing.xl,
-        paddingTop: PlayTTSpacing.xs,
-        paddingBottom: PlayTTSpacing.xs,
-      }}
-    >
-      <GlassSegmentControl
-        value={segment}
+    <View style={styles.segment}>
+      <ChoiceChips
+        label="Show"
         options={[
-          { value: "chat", label: "Chat" },
-          { value: "insights", label: "Insights" },
-          { value: "training", label: "Training" },
+          { value: "chat" as const, label: "Chat" },
+          { value: "insights" as const, label: "Insights" },
+          { value: "training" as const, label: "Training" },
         ]}
+        value={segment}
         onChange={setSegment}
       />
     </View>
@@ -136,52 +120,30 @@ export function CoachHomePanel({ isActive }: CoachHomePanelProps) {
 
   return (
     <>
-      <View style={{ flex: 1 }}>
+      <View style={styles.root}>
         {segmentControl}
 
         {segment === "chat" ? (
           <CoachChatPanel />
         ) : (
-          <Animated.ScrollView
-            onScroll={onScroll}
-            scrollEventThrottle={16}
-            contentContainerStyle={[
-              styles.scroll,
-              {
-                gap: PlayTTSpacing.lg,
-                paddingTop: PlayTTSpacing.md,
-                paddingBottom: FLOATING_TAB_BAR_CLEARANCE,
-              },
-            ]}
+          <ScrollView
+            contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + PlayTTSpacing.xl }]}
             refreshControl={
               <RefreshControl
                 refreshing={isRefreshing}
                 onRefresh={() => void loadCoach(true)}
-                tintColor={theme.foreground}
+                tintColor={colors.secondaryLabel}
               />
             }
           >
             <SkeletonGate loading={isLoading} skeleton={<CoachScreenSkeleton />}>
               {loadError ? (
-                <View style={{ gap: PlayTTSpacing.md }}>
-                  <Text
-                    style={{
-                      fontSize: 15,
-                      fontFamily: PlayTTFontFamilies.regular,
-                      color: theme.muted,
-                      lineHeight: 22,
-                    }}
-                  >
-                    Could not load Coach. Pull to refresh or try again.
-                  </Text>
-                  <Button
-                    label="Try again"
-                    variant="outline"
-                    surface="product"
-                    productTheme={theme}
-                    onPress={() => void loadCoach()}
-                  />
-                </View>
+                <EmptyState
+                  icon="exclamationmark.triangle.fill"
+                  title="Coach couldn't load"
+                  message="Check your connection, then try again."
+                  action={{ label: "Try again", onPress: () => void loadCoach() }}
+                />
               ) : (
                 <>
                   <CoachHeader
@@ -208,7 +170,7 @@ export function CoachHomePanel({ isActive }: CoachHomePanelProps) {
                 </>
               )}
             </SkeletonGate>
-          </Animated.ScrollView>
+          </ScrollView>
         )}
       </View>
 
@@ -225,3 +187,10 @@ export function CoachHomePanel({ isActive }: CoachHomePanelProps) {
     </>
   )
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  segment: { paddingHorizontal: KitLayout.screenGutter, paddingTop: PlayTTSpacing.xs, paddingBottom: PlayTTSpacing.xs },
+  scroll: { paddingHorizontal: KitLayout.screenGutter, paddingTop: PlayTTSpacing.md, gap: PlayTTSpacing.lg },
+  skeleton: { gap: PlayTTSpacing.md },
+})
