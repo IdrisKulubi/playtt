@@ -18,17 +18,24 @@ import {
 import { resolveColorScheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-type TabIconName = 'house.fill' | 'calendar' | 'chart.bar.fill' | 'person.2.fill' | 'person.fill';
+type TabIconName =
+  | 'figure.table.tennis'
+  | 'calendar'
+  | 'chart.bar.fill'
+  | 'person.2.fill'
+  | 'person.crop.circle.fill';
 
 type TabItem = GlassTabItem & { href: Href };
 
+// Labels name what's inside each tab (redesign plan). Route names stay the same
+// so deep links and notifications keep working.
 // Group-qualified hrefs: "/" alone resolves to the root app/index.tsx, not this layout.
 const TABS: { name: string; label: string; href: Href; icon: TabIconName }[] = [
-  { name: 'index', label: 'Home', href: '/(app)/(tabs)', icon: 'house.fill' },
+  { name: 'index', label: 'Play', href: '/(app)/(tabs)', icon: 'figure.table.tennis' },
   { name: 'bookings', label: 'Bookings', href: '/(app)/(tabs)/bookings', icon: 'calendar' },
-  { name: 'activity', label: 'Activity', href: '/(app)/(tabs)/activity', icon: 'chart.bar.fill' },
-  { name: 'community', label: 'Community', href: '/(app)/(tabs)/community', icon: 'person.2.fill' },
-  { name: 'account', label: 'Account', href: '/(app)/(tabs)/account', icon: 'person.fill' },
+  { name: 'activity', label: 'Progress', href: '/(app)/(tabs)/activity', icon: 'chart.bar.fill' },
+  { name: 'community', label: 'Players', href: '/(app)/(tabs)/community', icon: 'person.2.fill' },
+  { name: 'account', label: 'Me', href: '/(app)/(tabs)/account', icon: 'person.crop.circle.fill' },
 ];
 
 // IconSymbol renders SF Symbols on iOS and Material Icons on Android/web,
@@ -76,7 +83,7 @@ export default function TabLayout() {
             ))}
           </GlassTabBar>
         </TabList>
-        {/* Hidden route: coach redirects into Home's coach panel. */}
+        {/* Hidden route: old coach tab links redirect to the Coach screen. */}
         <TabList style={{ display: 'none' }}>
           <TabTrigger name="coach" href="/(app)/(tabs)/coach" />
         </TabList>

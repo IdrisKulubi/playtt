@@ -68,6 +68,7 @@ export default function AppLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="book" />
+      <Stack.Screen name="kit-demo" />
       <Stack.Screen name="booking/[id]/index" />
       <Stack.Screen name="booking/[id]/edit" />
       <Stack.Screen name="account/edit-profile" />
@@ -77,6 +78,7 @@ export default function AppLayout() {
       <Stack.Screen name="account/community-profile" />
       <Stack.Screen name="account/help" />
       <Stack.Screen name="account/legal" />
+      <Stack.Screen name="coach/index" />
       <Stack.Screen name="coach/buy-replays" />
       <Stack.Screen name="coach/subscribe" />
       <Stack.Screen name="community/player/[userId]/index" />

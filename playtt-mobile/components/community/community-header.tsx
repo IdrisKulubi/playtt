@@ -110,7 +110,7 @@ export function CommunityHeader({
     <View style={styles.root}>
       <View style={styles.row}>
         <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
-          Community
+          Players
           {venueName ? <Text style={styles.venue}> · {venueName}</Text> : null}
         </Text>
         <View style={styles.actions}>

@@ -1,4 +1,4 @@
-import { router } from "expo-router"
+import { type Href, router } from "expo-router"
 import { useMemo } from "react"
 import { useMinimizeOnScroll } from "expo-glass-tabs"
 import { StyleSheet } from "react-native"
@@ -7,6 +7,7 @@ import { Bell } from "phosphor-react-native/src/icons/Bell"
 import { FileText } from "phosphor-react-native/src/icons/FileText"
 import { IdentificationCard } from "phosphor-react-native/src/icons/IdentificationCard"
 import { Lifebuoy } from "phosphor-react-native/src/icons/Lifebuoy"
+import { Palette } from "phosphor-react-native/src/icons/Palette"
 import { Play } from "phosphor-react-native/src/icons/Play"
 
 import { AccountGlassRow } from "@/components/account/account-glass-row"
@@ -65,8 +66,19 @@ export function AccountSettingsPanel() {
           icon={<Play size={20} color={iconColor} weight="regular" />}
           onPress={() => goToWelcome(true)}
           accessibilityHint="Opens the welcome carousel again"
-          isLast
+          isLast={!__DEV__}
         />
+        {__DEV__ ? (
+          <AccountGlassRow
+            title="Design kit"
+            subtitle="Redesign components (development only)"
+            icon={<Palette size={20} color={iconColor} weight="regular" />}
+            // Cast until Expo regenerates typed routes on the next dev-server start.
+            onPress={() => router.push("/(app)/kit-demo" as Href)}
+            accessibilityHint="Opens the component kit demo"
+            isLast
+          />
+        ) : null}
       </AccountGlassSection>
 
       <AccountGlassSection title="Support">

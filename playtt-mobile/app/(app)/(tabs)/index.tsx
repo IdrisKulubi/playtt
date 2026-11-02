@@ -1,24 +1,28 @@
-import { useFocusEffect, useLocalSearchParams } from "expo-router"
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { View } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { type Href, router, useFocusEffect } from "expo-router"
+import { useCallback, useState } from "react"
+import { Linking, RefreshControl } from "react-native"
 
-import { CoachHomePanel } from "@/components/coach/coach-home-panel"
-import { PlayHomePanel } from "@/components/home/play-home-panel"
 import { BookingDetailSheet } from "@/components/booking/booking-detail-sheet"
-import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
-import {
-  HomeSubnav,
-  type HomeTab,
-} from "@/components/navigation/home-subnav"
-import {
-  fetchMyBookings,
-  fetchStartingPriceHint,
-} from "@/lib/booking-api"
+import { BookTableCard } from "@/components/home/book-table-card"
+import { NextGameCard } from "@/components/home/next-game-card"
+import { isRecentGame, RecentGameCard } from "@/components/home/recent-game-card"
+import { ListRow } from "@/components/kit/list-row"
+import { ListSection } from "@/components/kit/list-section"
+import { Screen } from "@/components/kit/screen"
+import { HomeTicketSkeleton } from "@/components/ui/skeleton"
+import { useAppTheme } from "@/hooks/use-app-theme"
+import { useSkeletonSurface } from "@/hooks/use-product-theme"
+import { fetchMyBookings, fetchStartingPriceHint } from "@/lib/booking-api"
 import type { UserBookingSummary } from "@/lib/booking-types"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import {
+  formatLastSessionLabel,
+  formatSecondSessionLabel,
+  formatTimeOfDayGreeting,
+} from "@/lib/booking-utils"
 
 const UPCOMING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+const BOOK_HREF = "/(app)/book" as Href
+const COACH_HREF = "/(app)/coach" as Href
 
 function findUpcomingBookings(bookings: UserBookingSummary[]) {
   const now = Date.now()
@@ -51,39 +55,29 @@ function findLastPastBooking(bookings: UserBookingSummary[]) {
   )
 }
 
-function parseHomeTab(value: string | string[] | undefined): HomeTab {
-  const raw = Array.isArray(value) ? value[0] : value
-  return raw === "coach" ? "coach" : "play"
+function openDirections(locationName: string) {
+  const query = encodeURIComponent(locationName)
+  void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`)
 }
 
-export default function AppHomeScreen() {
-  const theme = useProductTheme()
-  const styles = useMemo(() => createAppScreenStyles(theme), [theme])
-  const { homeTab: homeTabParam } = useLocalSearchParams<{ homeTab?: string }>()
-  const [homeTab, setHomeTab] = useState<HomeTab>(() => parseHomeTab(homeTabParam))
-
-  const [upcomingBooking, setUpcomingBooking] =
-    useState<UserBookingSummary | null>(null)
+/** Play tab — job: show my next game, or help me book one. */
+export default function PlayScreen() {
+  const { colors } = useAppTheme()
+  const skeletonSurface = useSkeletonSurface()
+  const [upcomingBooking, setUpcomingBooking] = useState<UserBookingSummary | null>(null)
   const [secondUpcomingBooking, setSecondUpcomingBooking] =
     useState<UserBookingSummary | null>(null)
-  const [lastPastBooking, setLastPastBooking] =
-    useState<UserBookingSummary | null>(null)
-  const [startingPriceLabel, setStartingPriceLabel] = useState<string | null>(
-    null,
-  )
-  const [isLoadingUpcoming, setIsLoadingUpcoming] = useState(true)
+  const [lastPastBooking, setLastPastBooking] = useState<UserBookingSummary | null>(null)
+  const [startingPriceLabel, setStartingPriceLabel] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
 
-  useEffect(() => {
-    setHomeTab(parseHomeTab(homeTabParam))
-  }, [homeTabParam])
-
-  const loadHome = useCallback(async (silent = false) => {
+  const loadPlay = useCallback(async (silent = false) => {
     if (silent) {
       setIsRefreshing(true)
     } else {
-      setIsLoadingUpcoming(true)
+      setIsLoading(true)
     }
 
     try {
@@ -94,67 +88,100 @@ export default function AppHomeScreen() {
 
       const upcoming = findUpcomingBookings(upcomingBookings)
       const primary = upcoming[0] ?? null
-      const secondary = upcoming[1] ?? null
 
       setUpcomingBooking(primary)
-      setSecondUpcomingBooking(secondary)
+      setSecondUpcomingBooking(upcoming[1] ?? null)
       setLastPastBooking(findLastPastBooking(pastBookings))
-
-      if (!primary) {
-        const priceHint = await fetchStartingPriceHint()
-        setStartingPriceLabel(priceHint)
-      } else {
-        setStartingPriceLabel(null)
-      }
+      setStartingPriceLabel(primary ? null : await fetchStartingPriceHint())
     } catch {
       setUpcomingBooking(null)
       setSecondUpcomingBooking(null)
       setLastPastBooking(null)
       setStartingPriceLabel(null)
     } finally {
-      if (!silent) {
-        setIsLoadingUpcoming(false)
-      }
+      if (!silent) setIsLoading(false)
       setIsRefreshing(false)
     }
   }, [])
 
   useFocusEffect(
     useCallback(() => {
-      if (homeTab === "play") {
-        void loadHome()
-      }
-    }, [homeTab, loadHome]),
+      void loadPlay()
+    }, [loadPlay]),
   )
 
-  return (
-    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
-      <HomeSubnav value={homeTab} onChange={setHomeTab} />
+  const book = () => router.push(BOOK_HREF)
+  const showRecentGame = !isLoading && isRecentGame(lastPastBooking)
 
-      <View style={{ flex: 1 }}>
-        {homeTab === "play" ? (
-          <PlayHomePanel
-            upcomingBooking={upcomingBooking}
-            secondUpcomingBooking={secondUpcomingBooking}
-            lastPastBooking={lastPastBooking}
-            startingPriceLabel={startingPriceLabel}
-            isLoadingUpcoming={isLoadingUpcoming}
-            isRefreshing={isRefreshing}
-            onRefresh={() => void loadHome(true)}
-            onOpenBooking={setSelectedBookingId}
-            onOpenCoach={() => setHomeTab("coach")}
+  return (
+    <Screen
+      title="Play"
+      subtitle={formatTimeOfDayGreeting()}
+      inTabs
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={() => void loadPlay(true)}
+          tintColor={colors.secondaryLabel}
+        />
+      }
+    >
+      {isLoading ? (
+        <HomeTicketSkeleton surface={skeletonSurface} />
+      ) : upcomingBooking ? (
+        <NextGameCard
+          booking={upcomingBooking}
+          onOpen={() => setSelectedBookingId(upcomingBooking.id)}
+          onDirections={() => openDirections(upcomingBooking.locationName)}
+        />
+      ) : (
+        <BookTableCard startingPriceLabel={startingPriceLabel} onBook={book} />
+      )}
+
+      {showRecentGame && lastPastBooking ? (
+        <RecentGameCard
+          booking={lastPastBooking}
+          onSeeReplays={() => router.navigate("/(app)/(tabs)/activity")}
+        />
+      ) : null}
+
+      {!isLoading ? (
+        <ListSection header="Shortcuts">
+          {upcomingBooking ? (
+            <ListRow icon="plus" title="Book another table" onPress={book} />
+          ) : null}
+          {secondUpcomingBooking ? (
+            <ListRow
+              icon="calendar"
+              title="Your next game after this"
+              subtitle={formatSecondSessionLabel(secondUpcomingBooking)}
+              onPress={() => setSelectedBookingId(secondUpcomingBooking.id)}
+            />
+          ) : null}
+          {!upcomingBooking && lastPastBooking ? (
+            <ListRow
+              icon="clock.fill"
+              title="Book again"
+              subtitle={formatLastSessionLabel(lastPastBooking)}
+              onPress={book}
+            />
+          ) : null}
+          <ListRow
+            icon="sparkles"
+            tone="success"
+            title="Coach"
+            subtitle="Tips and training from your games"
+            onPress={() => router.push(COACH_HREF)}
           />
-        ) : (
-          <CoachHomePanel isActive={homeTab === "coach"} />
-        )}
-      </View>
+        </ListSection>
+      ) : null}
 
       <BookingDetailSheet
         visible={selectedBookingId !== null}
         bookingId={selectedBookingId}
         onClose={() => setSelectedBookingId(null)}
-        onBookingChanged={() => void loadHome()}
+        onBookingChanged={() => void loadPlay()}
       />
-    </SafeAreaView>
+    </Screen>
   )
 }

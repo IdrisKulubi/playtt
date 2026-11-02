@@ -19,6 +19,7 @@ There is no root workspace orchestrator. Install and run each app from its own d
 | Run project | `.cursor/skills/run-project/SKILL.md` | Starting dev servers, builds, database setup |
 | Code structure | `.cursor/skills/code-structure/SKILL.md` | Finding files, adding features, onboarding |
 | Liquid glass UI | `.cursor/skills/liquid-glass-ui/SKILL.md` | **Required** for `playtt-mobile/` tab bars, segments, glass panels, or floating chrome |
+| Apple design | `.cursor/skills/apple-design/SKILL.md` | Gesture-driven UI, springs, drag/swipe/sheets, momentum, translucent materials, typography, reduced motion |
 | Self-improving | `.cursor/skills/self-improving/SKILL.md` | After fixing outdated docs or discovering new conventions |
 
 ## Subagent routing

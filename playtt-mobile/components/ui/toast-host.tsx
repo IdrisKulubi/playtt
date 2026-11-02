@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from "react-native"
 import Animated, {
   Easing,
   FadeInUp,
@@ -8,6 +8,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { IconSymbol } from "@/components/ui/icon-symbol"
+import { AppColors } from "@/constants/colors"
 import {
   PlayTTColors,
   PlayTTElevation,
@@ -118,6 +119,17 @@ export function ToastHost() {
           alignItems: "center",
           justifyContent: "center",
         },
+        action: {
+          minHeight: 44,
+          paddingHorizontal: PlayTTSpacing.sm,
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        actionLabel: {
+          color: AppColors[isDark ? "dark" : "light"].accentText,
+          fontSize: 17,
+          fontWeight: "600",
+        },
       }),
     [isDark, theme.border, theme.card, theme.foreground],
   )
@@ -137,9 +149,14 @@ export function ToastHost() {
       return
     }
 
+    const announcement = toast.action
+      ? `${toast.message}. ${toast.action.label} available.`
+      : toast.message
+    AccessibilityInfo.announceForAccessibility(announcement)
+
     const timeoutId = setTimeout(() => {
       setToast(null)
-    }, TOAST_DURATION_MS)
+    }, toast.durationMs ?? TOAST_DURATION_MS)
 
     return () => {
       clearTimeout(timeoutId)
@@ -177,6 +194,21 @@ export function ToastHost() {
         <Text style={styles.message} numberOfLines={3}>
           {toast.message}
         </Text>
+
+        {toast.action ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={toast.action.label}
+            hitSlop={8}
+            onPress={() => {
+              toast.action?.onPress()
+              setToast(null)
+            }}
+            style={styles.action}
+          >
+            <Text style={styles.actionLabel}>{toast.action.label}</Text>
+          </Pressable>
+        ) : null}
 
         <Pressable
           accessibilityRole="button"

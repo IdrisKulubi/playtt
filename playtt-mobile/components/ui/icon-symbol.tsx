@@ -15,6 +15,16 @@ type IconSymbolName = keyof typeof MAPPING;
  */
 const MAPPING = {
   'house.fill': 'home',
+  'figure.table.tennis': 'sports-tennis',
+  'person.crop.circle.fill': 'account-circle',
+  'location.fill': 'place',
+  'qrcode': 'qr-code-2',
+  'clock.fill': 'schedule',
+  'sparkles': 'auto-awesome',
+  'exclamationmark.triangle.fill': 'warning',
+  'minus': 'remove',
+  'plus': 'add',
+  'checkmark': 'check',
   'paperplane.fill': 'send',
   calendar: 'event',
   'chart.bar.fill': 'bar-chart',

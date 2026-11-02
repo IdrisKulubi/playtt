@@ -79,7 +79,7 @@ export function ActivityHeader({
   return (
     <View style={styles.root}>
       <View style={styles.topRow}>
-        <Text style={styles.leadHeadline}>Activity</Text>
+        <Text style={styles.leadHeadline}>Progress</Text>
         {previewLabel ? <PreviewBadge label={previewLabel} /> : null}
       </View>
       <Text style={styles.intro}>{INTRO_COPY[segment]}</Text>
