@@ -7,9 +7,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
-  Text,
   View,
 } from "react-native"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
@@ -18,12 +16,15 @@ import { ChatComposer } from "@/components/community/chat/chat-composer"
 import { ChatMessageBubble } from "@/components/community/chat/chat-message-bubble"
 import { groupSubtitle } from "@/components/community/chat/group-row"
 import { PlayerCard } from "@/components/community/player-card/player-card"
-import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
-import { ScreenBackButton } from "@/components/navigation/screen-back-button"
+import { BackButton } from "@/components/kit/back-button"
+import { Button } from "@/components/kit/button"
+import { EmptyState } from "@/components/kit/empty-state"
+import { PressableScale } from "@/components/kit/pressable-scale"
+import { AppText } from "@/components/ui/app-text"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
-import { PlayTTColors, PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { useGroupChat, type GroupChatItem } from "@/hooks/use-group-chat"
-import { useProductTheme } from "@/hooks/use-product-theme"
 import { leaveGroup, muteGroup, removeGroupMember } from "@/lib/community-chat-api"
 import { chatRows } from "@/lib/community-chat-merge"
 import { communityPlayerHref } from "@/lib/community-types"
@@ -31,9 +32,8 @@ import { toast } from "@/lib/toast"
 
 export default function CommunityGroupScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>()
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const insets = useSafeAreaInsets()
-  const screenStyles = useMemo(() => createAppScreenStyles(theme), [theme])
   const chat = useGroupChat(groupId)
   const [draft, setDraft] = useState("")
   const [membersOpen, setMembersOpen] = useState(false)
@@ -104,84 +104,59 @@ export default function CommunityGroupScreen() {
     ])
   }
 
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        header: {
-          flexDirection: "row",
-          alignItems: "center",
-          gap: PlayTTSpacing.xs,
-          paddingHorizontal: PlayTTSpacing.md,
-          paddingBottom: PlayTTSpacing.xs,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: theme.border,
-        },
-        headerCopy: { flex: 1 },
-        title: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 17, color: theme.foreground },
-        subtitle: { fontFamily: PlayTTFontFamilies.regular, fontSize: 13, color: theme.muted },
-        menu: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
-        day: {
-          alignSelf: "center",
-          fontFamily: PlayTTFontFamilies.medium,
-          fontSize: 12,
-          color: theme.muted,
-          marginVertical: PlayTTSpacing.xs,
-        },
-        center: { flex: 1, alignItems: "center", justifyContent: "center", padding: PlayTTSpacing.lg, gap: 6 },
-        centerTitle: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 18, color: theme.foreground },
-        centerText: { fontFamily: PlayTTFontFamilies.regular, fontSize: 14, color: theme.muted, textAlign: "center" },
-        description: {
-          fontFamily: PlayTTFontFamilies.regular,
-          fontSize: 14,
-          color: theme.muted,
-          textAlign: "center",
-          paddingHorizontal: PlayTTSpacing.xl,
-          paddingVertical: PlayTTSpacing.lg,
-          lineHeight: 20,
-          transform: [{ scaleY: -1 }],
-        },
-        memberRow: { flexDirection: "row", alignItems: "center", gap: PlayTTSpacing.sm },
-        memberCard: { flex: 1 },
-        admin: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 12, color: PlayTTColors.primary },
-        remove: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 13, color: PlayTTColors.destructive },
-      }),
-    [theme],
-  )
-
   if (chat.missing) {
     return (
-      <SafeAreaView style={screenStyles.safeArea} edges={["top", "left", "right"]}>
-        <View style={{ paddingHorizontal: PlayTTSpacing.md }}>
-          <ScreenBackButton />
+      <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={["top", "left", "right"]}>
+        <View style={styles.missingBack}>
+          <BackButton label="Messages" fallbackHref={INBOX_HREF} />
         </View>
-        <View style={styles.center}>
-          <Text style={styles.centerTitle}>Group not available</Text>
-          <Text style={styles.centerText}>You left this group or it has closed.</Text>
-        </View>
+        <EmptyState
+          icon="person.2.fill"
+          title="This group isn't available"
+          message="You left this group, or it has closed."
+          action={{ label: "Back to Messages", onPress: () => router.replace(INBOX_HREF) }}
+        />
       </SafeAreaView>
     )
   }
 
   return (
-    <SafeAreaView style={screenStyles.safeArea} edges={["top", "left", "right"]}>
-      <View style={styles.header}>
-        <ScreenBackButton />
-        <Pressable style={styles.headerCopy} onPress={() => setMembersOpen(true)} accessibilityRole="button">
-          <Text style={styles.title} numberOfLines={1}>
+    <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={["top", "left", "right"]}>
+      <View style={[styles.header, { borderBottomColor: colors.separator }]}>
+        <BackButton label="Back" fallbackHref={INBOX_HREF} />
+        <PressableScale
+          style={styles.headerCopy}
+          pressedScale={1}
+          onPress={() => setMembersOpen(true)}
+          accessibilityHint="Shows who's playing"
+        >
+          <AppText variant="headline" numberOfLines={1}>
             {group?.title ?? "Group"}
-          </Text>
-          {group ? <Text style={styles.subtitle}>{groupSubtitle(group)}</Text> : null}
-        </Pressable>
+          </AppText>
+          {group ? (
+            <AppText variant="footnote" color="secondaryLabel">
+              {groupSubtitle(group)}
+            </AppText>
+          ) : null}
+        </PressableScale>
         {group ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="Group options" onPress={openMenu} style={styles.menu}>
-            <DotsThreeVertical size={22} color={theme.foreground} weight="bold" />
-          </Pressable>
+          <PressableScale
+            accessibilityLabel="Group options"
+            accessibilityHint="Mute or leave the group"
+            onPress={openMenu}
+            style={[styles.menu, { backgroundColor: colors.surface }]}
+          >
+            <DotsThreeVertical size={18} color={colors.accentText} weight="bold" />
+            <AppText variant="subheadline" weight="600">
+              More
+            </AppText>
+          </PressableScale>
         ) : null}
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         {!chat.loaded ? (
-          <ActivityIndicator style={{ marginTop: PlayTTSpacing.xl }} color={theme.muted} />
+          <ActivityIndicator style={styles.loading} color={colors.secondaryLabel} />
         ) : (
           <FlatList
             inverted
@@ -190,7 +165,9 @@ export default function CommunityGroupScreen() {
             keyboardShouldPersistTaps="handled"
             renderItem={({ item: row }) =>
               row.type === "day" ? (
-                <Text style={styles.day}>{row.label}</Text>
+                <AppText variant="footnote" weight="600" color="secondaryLabel" style={styles.day}>
+                  {row.label}
+                </AppText>
               ) : (
                 <ChatMessageBubble
                   item={row.item}
@@ -201,9 +178,9 @@ export default function CommunityGroupScreen() {
               )
             }
             ListEmptyComponent={
-              <Text style={styles.description}>
+              <AppText variant="callout" color="secondaryLabel" style={styles.description}>
                 {group?.description ?? "Say hi and agree who books the table."}
-              </Text>
+              </AppText>
             }
           />
         )}
@@ -222,8 +199,8 @@ export default function CommunityGroupScreen() {
       </KeyboardAvoidingView>
 
       {group ? (
-        <BottomSheet visible={membersOpen} title="Players" onClose={() => setMembersOpen(false)} scrollable>
-          <View style={{ gap: PlayTTSpacing.xs }}>
+        <BottomSheet visible={membersOpen} title="Who's playing" onClose={() => setMembersOpen(false)} scrollable>
+          <View style={styles.members}>
             {group.members.map((member) => (
               <View key={member.id} style={styles.memberRow}>
                 <View style={styles.memberCard}>
@@ -236,16 +213,19 @@ export default function CommunityGroupScreen() {
                     }}
                   />
                 </View>
-                {member.groupRole === "admin" ? <Text style={styles.admin}>Host</Text> : null}
+                {member.groupRole === "admin" ? (
+                  <AppText variant="footnote" weight="700" color="accentText">
+                    Host
+                  </AppText>
+                ) : null}
                 {group.myRole === "admin" && member.groupRole !== "admin" ? (
-                  <Pressable
-                    accessibilityRole="button"
+                  <Button
+                    label="Remove"
+                    variant="destructive"
+                    fullWidth={false}
                     accessibilityLabel={`Remove ${member.displayName}`}
-                    hitSlop={6}
                     onPress={() => confirmRemove(member.id, member.displayName)}
-                  >
-                    <Text style={styles.remove}>Remove</Text>
-                  </Pressable>
+                  />
                 ) : null}
               </View>
             ))}
@@ -255,3 +235,38 @@ export default function CommunityGroupScreen() {
     </SafeAreaView>
   )
 }
+
+const INBOX_HREF = "/(app)/community/inbox" as Href
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: PlayTTSpacing.xs,
+    paddingHorizontal: PlayTTSpacing.md,
+    paddingBottom: PlayTTSpacing.xs,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerCopy: { flex: 1, justifyContent: "center" },
+  menu: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: PlayTTSpacing["2xs"],
+    paddingHorizontal: PlayTTSpacing.sm,
+    borderRadius: 24,
+  },
+  missingBack: { paddingHorizontal: PlayTTSpacing.md },
+  loading: { marginTop: PlayTTSpacing.xl },
+  day: { alignSelf: "center", marginVertical: PlayTTSpacing.xs },
+  description: {
+    textAlign: "center",
+    paddingHorizontal: PlayTTSpacing.xl,
+    paddingVertical: PlayTTSpacing.lg,
+    // Inverted list: undo the flip for the empty state.
+    transform: [{ scaleY: -1 }],
+  },
+  members: { gap: PlayTTSpacing.xs },
+  memberRow: { flexDirection: "row", alignItems: "center", gap: PlayTTSpacing.sm },
+  memberCard: { flex: 1 },
+})

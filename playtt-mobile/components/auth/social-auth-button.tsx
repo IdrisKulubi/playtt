@@ -63,7 +63,7 @@ export function SocialAuthButton({
           ) : (
             <AppleLogo size={18} weight="fill" color={theme.foreground} />
           )}
-          <Text style={[styles.label, { color: theme.foreground }]}>{label}</Text>
+          <Text style={[styles.label, { color: theme.foreground }]}>Continue with {label}</Text>
         </View>
       )}
     </Pressable>
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   label: {
-    fontSize: 14,
+    fontSize: 17,
     fontFamily: PlayTTFontFamilies.medium,
   },
 });

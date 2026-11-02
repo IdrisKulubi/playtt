@@ -1,12 +1,9 @@
 import type { AuthThemeColors } from '@/constants/auth-theme';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-  PlayTTTypography,
-} from '@/constants/playtt-tokens';
+import { AppText } from '@/components/ui/app-text';
+import { PlayTTSpacing } from '@/constants/playtt-tokens';
+import { useAppTheme } from '@/hooks/use-app-theme';
 
 type FormDividerProps = {
   label: string;
@@ -15,20 +12,19 @@ type FormDividerProps = {
   authTheme?: AuthThemeColors;
 };
 
-export function FormDivider({
-  label,
-  compact = false,
-  variant = 'product',
-  authTheme,
-}: FormDividerProps) {
+/** "or use your email" between two ways of doing the same thing. */
+export function FormDivider({ label, compact = false, variant = 'product', authTheme }: FormDividerProps) {
+  const { colors } = useAppTheme();
   const isAuth = variant === 'auth' && authTheme;
-  const lineColor = isAuth ? authTheme.divider : PlayTTColors.productBorder;
-  const labelColor = isAuth ? authTheme.muted : PlayTTColors.productMuted;
+  const lineColor = isAuth ? authTheme.divider : colors.separator;
+  const labelColor = isAuth ? authTheme.muted : colors.secondaryLabel;
 
   return (
     <View style={[styles.container, compact && styles.containerCompact]}>
       <View style={[styles.line, { backgroundColor: lineColor }]} />
-      <Text style={[styles.label, { color: labelColor }]}>{label}</Text>
+      <AppText variant="footnote" style={{ color: labelColor }}>
+        {label}
+      </AppText>
       <View style={[styles.line, { backgroundColor: lineColor }]} />
     </View>
   );
@@ -47,12 +43,6 @@ const styles = StyleSheet.create({
   },
   line: {
     flex: 1,
-    height: 1,
-  },
-  label: {
-    ...PlayTTTypography.label,
-    fontSize: 12,
-    fontFamily: PlayTTFontFamilies.regular,
-    letterSpacing: 0.2,
+    height: StyleSheet.hairlineWidth,
   },
 });

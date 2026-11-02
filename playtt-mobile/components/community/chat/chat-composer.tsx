@@ -1,12 +1,16 @@
 import { Plus } from "phosphor-react-native/src/icons/Plus"
-import { useMemo } from "react"
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
+import { ScrollView, StyleSheet, TextInput, View } from "react-native"
 
-import { PlayTTColors, PlayTTFontFamilies, PlayTTRadius, PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PressableScale } from "@/components/kit/pressable-scale"
+import { AppText } from "@/components/ui/app-text"
+import { KitLayout } from "@/constants/kit-layout"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { QUICK_REPLIES } from "@/lib/community-types"
 
 const MESSAGE_MAX = 1000
+const BODY = typeStyle("body")
 
 type ChatComposerProps = {
   value: string
@@ -21,8 +25,10 @@ type ChatComposerProps = {
   showActions?: boolean
 }
 
-// Same shape as components/coach/coach-chat-composer.tsx, plus quick replies
-// and the booking actions button.
+/**
+ * Quick replies, a 17 pt message field, and a Send button that says "Send".
+ * Same shape as components/coach/coach-chat-composer.tsx plus booking actions.
+ */
 export function ChatComposer({
   value,
   onChange,
@@ -34,141 +40,116 @@ export function ChatComposer({
   bottomInset,
   showActions = true,
 }: ChatComposerProps) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const canSend = value.trim().length > 0 && !disabled
-
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        root: {
-          borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: theme.border,
-          backgroundColor: theme.background,
-          paddingTop: PlayTTSpacing.xs,
-          paddingBottom: bottomInset + PlayTTSpacing.xs,
-          gap: PlayTTSpacing.xs,
-        },
-        chips: { gap: PlayTTSpacing.xs, paddingHorizontal: PlayTTSpacing.md },
-        chip: {
-          borderRadius: PlayTTRadius.pill,
-          borderWidth: 1,
-          borderColor: theme.border,
-          paddingHorizontal: PlayTTSpacing.sm,
-          paddingVertical: 6,
-        },
-        chipText: { fontFamily: PlayTTFontFamilies.medium, fontSize: 13, color: theme.foreground },
-        row: { flexDirection: "row", alignItems: "flex-end", gap: PlayTTSpacing.xs, paddingHorizontal: PlayTTSpacing.md },
-        plus: {
-          width: 40,
-          height: 40,
-          borderRadius: 20,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: theme.elevated,
-        },
-        inputWrap: {
-          flex: 1,
-          minHeight: 40,
-          maxHeight: 110,
-          borderRadius: 20,
-          borderWidth: 1,
-          borderColor: theme.border,
-          backgroundColor: theme.card,
-          paddingHorizontal: PlayTTSpacing.sm,
-          paddingVertical: PlayTTSpacing.xs,
-          justifyContent: "center",
-        },
-        input: {
-          fontSize: 15,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.foreground,
-          lineHeight: 20,
-          paddingVertical: 0,
-        },
-        send: {
-          minWidth: 56,
-          height: 40,
-          borderRadius: PlayTTRadius.pill,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: canSend ? PlayTTColors.primary : theme.elevated,
-        },
-        sendLabel: {
-          fontSize: 14,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: canSend ? PlayTTColors.primaryForeground : theme.muted,
-        },
-        disabled: {
-          fontFamily: PlayTTFontFamilies.regular,
-          fontSize: 13,
-          color: theme.muted,
-          textAlign: "center",
-          paddingHorizontal: PlayTTSpacing.lg,
-          paddingVertical: PlayTTSpacing.xs,
-        },
-      }),
-    [bottomInset, canSend, theme],
-  )
+  const rootStyle = [
+    styles.root,
+    { borderTopColor: colors.separator, backgroundColor: colors.background, paddingBottom: bottomInset + PlayTTSpacing.xs },
+  ]
 
   if (disabled && disabledReason) {
     return (
-      <View style={styles.root}>
-        <Text style={styles.disabled}>{disabledReason}</Text>
+      <View style={rootStyle}>
+        <AppText variant="callout" color="secondaryLabel" style={styles.disabled}>
+          {disabledReason}
+        </AppText>
       </View>
     )
   }
 
   return (
-    <View style={styles.root}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
+    <View style={rootStyle}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chips}
+        keyboardShouldPersistTaps="handled"
+      >
         {QUICK_REPLIES.map((reply) => (
-          <Pressable
+          <PressableScale
             key={reply}
-            accessibilityRole="button"
             accessibilityLabel={`Send quick reply: ${reply}`}
             disabled={disabled}
             onPress={() => onQuickReply(reply)}
-            style={styles.chip}
+            style={[styles.chip, { backgroundColor: colors.surface, borderColor: colors.separator }]}
           >
-            <Text style={styles.chipText}>{reply}</Text>
-          </Pressable>
+            <AppText variant="subheadline" weight="500">
+              {reply}
+            </AppText>
+          </PressableScale>
         ))}
       </ScrollView>
       <View style={styles.row}>
         {showActions ? (
-          <Pressable
-            accessibilityRole="button"
+          <PressableScale
             accessibilityLabel="Book or share a table"
             disabled={disabled}
+            haptic="commit"
             onPress={onOpenActions}
-            style={styles.plus}
+            style={[styles.round, { backgroundColor: colors.fill }]}
           >
-            <Plus size={20} color={theme.foreground} weight="bold" />
-          </Pressable>
+            <Plus size={22} color={colors.accentText} weight="bold" />
+          </PressableScale>
         ) : null}
-        <View style={styles.inputWrap}>
+        <View style={[styles.inputWrap, { backgroundColor: colors.surface, borderColor: colors.separator }]}>
           <TextInput
             value={value}
             onChangeText={(text) => onChange(text.slice(0, MESSAGE_MAX))}
             placeholder="Message"
-            placeholderTextColor={theme.muted}
-            style={styles.input}
+            placeholderTextColor={colors.tertiaryLabel}
+            style={[styles.input, { color: colors.label }]}
             multiline
             maxLength={MESSAGE_MAX}
             editable={!disabled}
             accessibilityLabel="Message"
           />
         </View>
-        <Pressable
-          accessibilityRole="button"
+        <PressableScale
           accessibilityLabel="Send message"
           disabled={!canSend}
+          haptic="commit"
           onPress={onSend}
-          style={styles.send}
+          style={[styles.send, { backgroundColor: canSend ? colors.accent : colors.fill }]}
         >
-          <Text style={styles.sendLabel}>Send</Text>
-        </Pressable>
+          <AppText variant="headline" color={canSend ? "onAccent" : "secondaryLabel"}>
+            Send
+          </AppText>
+        </PressableScale>
       </View>
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  root: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: PlayTTSpacing.xs, gap: PlayTTSpacing.xs },
+  chips: { gap: PlayTTSpacing.xs, paddingHorizontal: PlayTTSpacing.md },
+  chip: { borderRadius: 24, borderWidth: 1, paddingHorizontal: PlayTTSpacing.md, justifyContent: "center" },
+  row: { flexDirection: "row", alignItems: "flex-end", gap: PlayTTSpacing.xs, paddingHorizontal: PlayTTSpacing.md },
+  round: {
+    width: KitLayout.minTouchTarget,
+    height: KitLayout.minTouchTarget,
+    borderRadius: KitLayout.minTouchTarget / 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inputWrap: {
+    flex: 1,
+    minHeight: KitLayout.minTouchTarget,
+    maxHeight: 132,
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingHorizontal: PlayTTSpacing.md,
+    paddingVertical: PlayTTSpacing.xs,
+    justifyContent: "center",
+  },
+  input: { ...BODY, paddingVertical: 0 },
+  send: {
+    minWidth: 72,
+    height: KitLayout.minTouchTarget,
+    borderRadius: 24,
+    paddingHorizontal: PlayTTSpacing.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  disabled: { textAlign: "center", paddingHorizontal: PlayTTSpacing.lg, paddingVertical: PlayTTSpacing.xs },
+})

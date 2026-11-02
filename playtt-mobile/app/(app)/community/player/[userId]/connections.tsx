@@ -1,14 +1,15 @@
 import { type Href, router, useFocusEffect, useLocalSearchParams } from "expo-router"
-import { useCallback, useMemo, useRef, useState } from "react"
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native"
+import { useCallback, useRef, useState } from "react"
+import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { CommunityScreenHeader } from "@/components/community/community-screen-header"
 import { PlayerCard } from "@/components/community/player-card/player-card"
-import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
-import { GlassSegmentControl } from "@/components/ui/glass-segment-control"
-import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { ChoiceChips } from "@/components/kit/choice-chips"
+import { AppText } from "@/components/ui/app-text"
+import { KitLayout } from "@/constants/kit-layout"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { fetchPlayerConnections } from "@/lib/community-api"
 import { communityPlayerHref, type CommunityPlayer } from "@/lib/community-types"
 import { toast } from "@/lib/toast"
@@ -22,8 +23,7 @@ const KINDS: { value: Kind; label: string }[] = [
 
 export default function CommunityConnectionsScreen() {
   const params = useLocalSearchParams<{ userId: string; kind?: string; name?: string }>()
-  const theme = useProductTheme()
-  const screenStyles = useMemo(() => createAppScreenStyles(theme), [theme])
+  const { colors } = useAppTheme()
   const [kind, setKind] = useState<Kind>(params.kind === "following" ? "following" : "followers")
   const [players, setPlayers] = useState<CommunityPlayer[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
@@ -71,34 +71,17 @@ export default function CommunityConnectionsScreen() {
     }
   }
 
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        segment: { paddingHorizontal: 20, paddingBottom: PlayTTSpacing.sm },
-        list: { paddingHorizontal: 20, paddingBottom: PlayTTSpacing["2xl"] },
-        separator: { height: StyleSheet.hairlineWidth, backgroundColor: theme.border },
-        empty: {
-          fontFamily: PlayTTFontFamilies.regular,
-          fontSize: 14,
-          color: theme.muted,
-          textAlign: "center",
-          marginTop: PlayTTSpacing.xl,
-        },
-      }),
-    [theme],
-  )
-
   return (
-    <SafeAreaView style={screenStyles.safeArea} edges={["top", "left", "right"]}>
+    <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={["top", "left", "right"]}>
       <CommunityScreenHeader title={params.name || "Connections"} />
       <View style={styles.segment}>
-        <GlassSegmentControl value={kind} options={KINDS} onChange={setKind} />
+        <ChoiceChips label="Show" options={KINDS} value={kind} onChange={setKind} />
       </View>
       <FlatList
         data={loading ? [] : players}
         keyExtractor={(player) => player.id}
         contentContainerStyle={styles.list}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: colors.separator }]} />}
         renderItem={({ item }) => (
           <PlayerCard
             player={item}
@@ -110,17 +93,26 @@ export default function CommunityConnectionsScreen() {
         )}
         ListEmptyComponent={
           loading ? (
-            <ActivityIndicator style={{ marginTop: PlayTTSpacing.xl }} color={theme.muted} />
+            <ActivityIndicator style={styles.loading} color={colors.secondaryLabel} />
           ) : (
-            <Text style={styles.empty}>
+            <AppText variant="body" color="secondaryLabel" style={styles.empty}>
               {kind === "followers" ? "No followers yet." : "Not following anyone yet."}
-            </Text>
+            </AppText>
           )
         }
-        ListFooterComponent={loadingMore ? <ActivityIndicator color={theme.muted} /> : undefined}
+        ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.secondaryLabel} /> : undefined}
         onEndReached={() => void loadMore()}
         onEndReachedThreshold={0.4}
       />
     </SafeAreaView>
   )
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  segment: { paddingHorizontal: KitLayout.screenGutter, paddingBottom: PlayTTSpacing.sm },
+  list: { paddingHorizontal: KitLayout.screenGutter, paddingBottom: PlayTTSpacing["2xl"] },
+  separator: { height: StyleSheet.hairlineWidth },
+  loading: { marginTop: PlayTTSpacing.xl },
+  empty: { textAlign: "center", marginTop: PlayTTSpacing.xl },
+})

@@ -1,81 +1,69 @@
-import { useMemo } from "react"
-import { StyleSheet, Text } from "react-native"
+import { Linking, StyleSheet, View } from "react-native"
 
 import { AccountStackScreen } from "@/components/account/account-stack-screen"
-import { GlassPanel } from "@/components/ui/glass-panel"
-import {
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { Button } from "@/components/kit/button"
+import { Card } from "@/components/kit/card"
+import { AppText } from "@/components/ui/app-text"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+
+const SUPPORT_EMAIL = "hello@theplaytt.com"
 
 const FAQ = [
   {
-    question: "How do I book a session?",
+    question: "How do I book a table?",
     answer:
-      "Tap Book on Home, pick a time, choose your group size, and confirm. Pay to lock in your slot.",
+      "On Play, tap Book a table. Pick a day and time, choose how many players, check the details, then pay to confirm.",
   },
   {
     question: "Can I change my booking?",
     answer:
-      "Yes. Open your booking and tap Edit. You can change time or add players up to 2 hours before start.",
+      "Yes. Open the booking in Bookings and tap Change booking. You can change the time or add players up to 2 hours before you play.",
   },
   {
-    question: "How do I get into the pod?",
+    question: "How do I get in at the venue?",
     answer:
-      "Open your confirmed booking, reveal the entry code, and use that same code at each listed venue door during its validity window.",
+      "Open your confirmed booking and tap Show entry code. Use that code at the venue door while it's valid.",
   },
   {
     question: "Need help at the venue?",
-    answer: "Message support at hello@theplaytt.com and we will assist you.",
+    answer: `Email us at ${SUPPORT_EMAIL} and we'll help you.`,
   },
   {
-    question: "How do clip packs work?",
+    question: "How do replays work?",
     answer:
-      "Buy a 10-clip pack in Activity or Coach. Each clip captures the last 30 seconds when you press Replay during a session.",
+      "Buy a pack of replay credits in Progress or Coach. Each replay saves the last 30 seconds when you press Replay during a game.",
   },
   {
     question: "What is Coach?",
     answer:
-      "Coach is a monthly subscription that reviews your captured clips and suggests drills to practice. Clip packs are sold separately.",
+      "Coach is a monthly subscription that looks at your replays and suggests drills to practise. Replay packs are sold separately.",
   },
 ]
 
 export default function HelpScreen() {
-  const theme = useProductTheme()
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        question: {
-          fontSize: 15,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: theme.foreground,
-        },
-        answer: {
-          fontSize: 14,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-          lineHeight: 20,
-          marginTop: PlayTTSpacing.xs,
-        },
-        card: {
-          gap: PlayTTSpacing.xs,
-        },
-      }),
-    [theme],
-  )
-
   return (
-    <AccountStackScreen
-      title="Help"
-      description="Quick answers about bookings, access, clips, and Coach."
-    >
+    <AccountStackScreen title="Help" description="Quick answers about bookings, entry codes, replays and Coach.">
       {FAQ.map((item) => (
-        <GlassPanel key={item.question} contentStyle={styles.card}>
-          <Text style={styles.question}>{item.question}</Text>
-          <Text style={styles.answer}>{item.answer}</Text>
-        </GlassPanel>
+        <Card key={item.question}>
+          <View style={styles.card}>
+            <AppText variant="headline" accessibilityRole="header">
+              {item.question}
+            </AppText>
+            <AppText variant="body" color="secondaryLabel">
+              {item.answer}
+            </AppText>
+          </View>
+        </Card>
       ))}
+      <Button
+        label="Email support"
+        variant="secondary"
+        onPress={() => void Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}
+      />
     </AccountStackScreen>
   )
 }
+
+const styles = StyleSheet.create({
+  card: { gap: PlayTTSpacing.xs },
+})

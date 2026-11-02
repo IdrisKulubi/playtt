@@ -200,7 +200,7 @@ test("the open-now row and the everyone list load separately, and chips filter t
   await fireEvent.press(screen.getByText("Elite"))
   await waitFor(() => expect(fetchPlayers).toHaveBeenLastCalledWith({ status: "all", skill: "pro" }))
 
-  await fireEvent.press(screen.getByText("2v2"))
+  await fireEvent.press(screen.getByText("Doubles"))
   await waitFor(() =>
     expect(fetchPlayers).toHaveBeenLastCalledWith({ status: "all", skill: "pro", doubles: true }),
   )

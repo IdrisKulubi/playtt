@@ -1,6 +1,7 @@
 import type { AuthThemeColors } from '@/constants/auth-theme';
 import type { ProductThemeColors } from '@/constants/product-theme';
 import { AuthGlass } from '@/components/auth/auth-glass';
+import { Button as KitButton } from '@/components/kit/button';
 import * as Haptics from 'expo-haptics';
 import {
   ActivityIndicator,
@@ -29,6 +30,7 @@ type ButtonProps = PressableProps & {
   fullWidth?: boolean;
   compact?: boolean;
   authTheme?: AuthThemeColors;
+  /** @deprecated Product buttons render the kit button, which follows the app theme. */
   productTheme?: ProductThemeColors;
 };
 
@@ -47,31 +49,32 @@ export function Button({
   style,
   ...props
 }: ButtonProps) {
+  // In-app buttons now render the redesign kit button (50 pt, shared theme,
+  // touch-down feedback). Sign-in ("auth") and marketing surfaces keep their own look.
+  if (surface === 'product') {
+    return (
+      <KitButton
+        label={label}
+        variant={variant === 'outline' ? 'secondary' : variant === 'ghost' ? 'plain' : 'primary'}
+        loading={loading}
+        disabled={Boolean(disabled)}
+        fullWidth={fullWidth}
+        accessibilityHint={props.accessibilityHint}
+        style={typeof style === 'function' ? undefined : (style as ViewStyle | undefined)}
+        onPress={() => onPress?.(undefined as never)}
+      />
+    );
+  }
+
   const isDisabled = disabled || loading;
   const isAuth = surface === 'auth' && authTheme;
-  const isProduct = surface === 'product' && productTheme;
-
-  const outlineStyle = isProduct
-    ? { backgroundColor: productTheme.elevated, borderWidth: 1, borderColor: productTheme.border }
-    : surface === 'product'
-      ? styles.outlineProduct
-      : styles.outlineMarketing;
-  const outlineLabelStyle = isProduct
-    ? { color: productTheme.foreground }
-    : surface === 'product'
-      ? styles.labelOutlineProduct
-      : styles.labelOutlineMarketing;
   const spinnerColor = isAuth
     ? variant === 'primary'
       ? authTheme.primaryForeground
       : authTheme.foreground
     : variant === 'primary'
       ? PlayTTColors.primaryForeground
-      : isProduct
-        ? productTheme.foreground
-        : surface === 'product'
-          ? PlayTTColors.productForeground
-          : PlayTTColors.foreground;
+      : PlayTTColors.foreground;
 
   return (
     <Pressable
@@ -91,7 +94,7 @@ export function Button({
         isAuth && styles.authBase,
         isAuth && variant === 'primary' && { backgroundColor: authTheme.primary },
         !isAuth && variant === 'primary' && styles.primary,
-        !isAuth && variant === 'outline' && outlineStyle,
+        !isAuth && variant === 'outline' && styles.outlineMarketing,
         variant === 'ghost' && styles.ghost,
         fullWidth && styles.fullWidth,
         pressed && !isDisabled && styles.pressed,
@@ -110,14 +113,8 @@ export function Button({
             isAuth && variant === 'primary' && { color: authTheme.primaryForeground },
             isAuth && variant !== 'primary' && { color: authTheme.foreground },
             !isAuth && variant === 'primary' && styles.labelPrimary,
-            !isAuth && variant === 'outline' && outlineLabelStyle,
-            variant === 'ghost' &&
-              !isAuth &&
-              (isProduct
-                ? { color: productTheme.foreground }
-                : surface === 'product'
-                  ? styles.labelGhostProduct
-                  : styles.labelGhostMarketing),
+            !isAuth && variant === 'outline' && styles.labelOutlineMarketing,
+            variant === 'ghost' && !isAuth && styles.labelGhostMarketing,
           ]}>
           {label}
         </Text>
@@ -174,11 +171,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: PlayTTColors.border,
   },
-  outlineProduct: {
-    backgroundColor: PlayTTColors.productElevated,
-    borderWidth: 1,
-    borderColor: PlayTTColors.productBorder,
-  },
   ghost: {
     backgroundColor: 'transparent',
   },
@@ -188,13 +180,7 @@ const styles = StyleSheet.create({
   labelOutlineMarketing: {
     color: PlayTTColors.foreground,
   },
-  labelOutlineProduct: {
-    color: PlayTTColors.productForeground,
-  },
   labelGhostMarketing: {
     color: PlayTTColors.foreground,
-  },
-  labelGhostProduct: {
-    color: PlayTTColors.productForeground,
   },
 });

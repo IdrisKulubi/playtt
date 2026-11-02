@@ -1,9 +1,13 @@
+import { Image } from "expo-image"
 import type { ReactNode } from "react"
-import { StyleSheet, useWindowDimensions, View } from "react-native"
-import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg"
+import { StyleSheet, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg"
 
+import { KitLayout } from "@/constants/kit-layout"
 import { PlayTTColors, PlayTTSpacing } from "@/constants/playtt-tokens"
+
+const VENUE_PHOTO = require("@/assets/images/playtt-hurlingham-venue.png")
 
 type WelcomeShellProps = {
   header?: ReactNode
@@ -11,37 +15,33 @@ type WelcomeShellProps = {
   children: ReactNode
 }
 
-function DiagonalBackground({ width, height }: { width: number; height: number }) {
+/**
+ * Full-bleed venue photo under a dark wash: the photo sets the mood, the wash
+ * keeps every line of text readable (strongest where the buttons sit).
+ */
+function PhotoBackdrop() {
   return (
-    <Svg
-      width={width}
-      height={height}
-      style={StyleSheet.absoluteFill}
-      pointerEvents="none"
-    >
-      <Defs>
-        <LinearGradient id="azureGlow" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={PlayTTColors.background} stopOpacity="1" />
-          <Stop offset="0.55" stopColor={PlayTTColors.background} stopOpacity="1" />
-          <Stop offset="0.72" stopColor="#0a3d5c" stopOpacity="1" />
-          <Stop offset="1" stopColor="#0066aa" stopOpacity="1" />
-        </LinearGradient>
-      </Defs>
-      <Path d={`M 0 0 H ${width} V ${height} H 0 Z`} fill="url(#azureGlow)" />
-      <Path
-        d={`M 0 ${height * 0.58} L ${width} ${height * 0.42} L ${width} ${height * 0.48} L 0 ${height * 0.64} Z`}
-        fill="rgba(0, 183, 255, 0.08)"
-      />
-    </Svg>
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Image source={VENUE_PHOTO} style={StyleSheet.absoluteFill} contentFit="cover" accessible={false} />
+      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
+        <Defs>
+          <LinearGradient id="welcomeWash" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={PlayTTColors.background} stopOpacity="0.55" />
+            <Stop offset="0.45" stopColor={PlayTTColors.background} stopOpacity="0.72" />
+            <Stop offset="0.75" stopColor={PlayTTColors.background} stopOpacity="0.92" />
+            <Stop offset="1" stopColor={PlayTTColors.background} stopOpacity="1" />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#welcomeWash)" />
+      </Svg>
+    </View>
   )
 }
 
 export function WelcomeShell({ header, footer, children }: WelcomeShellProps) {
-  const { width, height } = useWindowDimensions()
-
   return (
     <View style={styles.root}>
-      <DiagonalBackground width={width} height={height} />
+      <PhotoBackdrop />
       <SafeAreaView style={styles.safeArea}>
         {header ? <View style={styles.header}>{header}</View> : null}
         <View style={styles.content}>{children}</View>
@@ -56,20 +56,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: PlayTTColors.background,
   },
-  safeArea: {
-    flex: 1,
-  },
+  safeArea: { flex: 1 },
   header: {
-    paddingHorizontal: PlayTTSpacing.xl,
+    paddingHorizontal: KitLayout.screenGutter,
     paddingTop: PlayTTSpacing.xs,
     alignItems: "flex-end",
   },
-  content: {
-    flex: 1,
-  },
+  content: { flex: 1 },
   footer: {
-    paddingHorizontal: PlayTTSpacing.xl,
+    paddingHorizontal: PlayTTSpacing.lg,
     paddingBottom: PlayTTSpacing.lg,
-    gap: PlayTTSpacing.md,
+    gap: PlayTTSpacing.sm,
   },
 })

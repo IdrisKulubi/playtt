@@ -1,12 +1,14 @@
-import { useMemo } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 import { useReducedMotion } from "react-native-reanimated"
 
-import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { Button } from "@/components/kit/button"
+import { Card } from "@/components/kit/card"
+import { AppText } from "@/components/ui/app-text"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import type { CommunityAvailability } from "@/lib/community-types"
 
-import { OPEN_NOW_GREEN, formatNairobiClock } from "./player-card/card-tiers"
+import { formatNairobiClock } from "./player-card/card-tiers"
 import { PulseDot } from "./player-card/card-status-ribbon"
 
 const LATER_COPY = {
@@ -32,65 +34,55 @@ type OpenStatusBarProps = {
   onStop: () => void
 }
 
+/** Your own "open to play" status as a card with two clear buttons: change it or stop. */
 export function OpenStatusBar({ availability, onChange, onStop }: OpenStatusBarProps) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const reduceMotion = useReducedMotion()
-
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        bar: {
-          flexDirection: "row",
-          alignItems: "center",
-          gap: PlayTTSpacing.sm,
-          borderRadius: 16,
-          borderWidth: 1,
-          borderColor: "rgba(46, 232, 122, 0.45)",
-          backgroundColor: "rgba(46, 232, 122, 0.10)",
-          paddingVertical: PlayTTSpacing.sm,
-          paddingHorizontal: PlayTTSpacing.md,
-        },
-        copy: { flex: 1, gap: 2 },
-        title: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 15, color: theme.foreground },
-        note: { fontFamily: PlayTTFontFamilies.regular, fontSize: 13, color: theme.muted },
-        stop: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 14, color: theme.foreground },
-        stopButton: {
-          paddingHorizontal: PlayTTSpacing.sm,
-          paddingVertical: 6,
-          borderRadius: 999,
-          backgroundColor: theme.elevated,
-        },
-      }),
-    [theme],
-  )
+  const note = [availability.lookingForDoubles ? "Looking for doubles" : null, availability.note]
+    .filter(Boolean)
+    .join(" · ")
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${availabilitySummary(availability)}. Change status`}
-      onPress={onChange}
-      style={styles.bar}
-    >
-      <PulseDot color={OPEN_NOW_GREEN} animate={availability.openNow && !reduceMotion} size={9} />
-      <View style={styles.copy}>
-        <Text style={styles.title}>{availabilitySummary(availability)}</Text>
-        {availability.note || availability.lookingForDoubles ? (
-          <Text style={styles.note} numberOfLines={1}>
-            {[availability.lookingForDoubles ? "Looking for doubles" : null, availability.note]
-              .filter(Boolean)
-              .join(" · ")}
-          </Text>
+    <Card style={{ borderWidth: 1.5, borderColor: colors.success }}>
+      <View style={styles.stack}>
+        <View style={styles.titleRow}>
+          <PulseDot color={colors.success} animate={availability.openNow && !reduceMotion} size={10} />
+          <AppText variant="headline" style={styles.flex}>
+            {availabilitySummary(availability)}
+          </AppText>
+        </View>
+        {note ? (
+          <AppText variant="callout" color="secondaryLabel">
+            {note}
+          </AppText>
         ) : null}
+        <View style={styles.actions}>
+          <Button
+            label="Change"
+            variant="secondary"
+            fullWidth={false}
+            accessibilityLabel="Change when you're open to play"
+            onPress={onChange}
+            style={styles.action}
+          />
+          <Button
+            label="Stop"
+            variant="destructive"
+            fullWidth={false}
+            accessibilityLabel="Stop being open to play"
+            onPress={onStop}
+            style={styles.action}
+          />
+        </View>
       </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Stop being open to play"
-        hitSlop={6}
-        onPress={onStop}
-        style={styles.stopButton}
-      >
-        <Text style={styles.stop}>Stop</Text>
-      </Pressable>
-    </Pressable>
+    </Card>
   )
 }
+
+const styles = StyleSheet.create({
+  stack: { gap: PlayTTSpacing.xs },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: PlayTTSpacing.xs },
+  flex: { flex: 1 },
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: PlayTTSpacing.xs, marginTop: PlayTTSpacing.xs },
+  action: { flexGrow: 1 },
+})

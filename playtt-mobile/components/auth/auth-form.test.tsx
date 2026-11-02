@@ -51,7 +51,7 @@ describe('Google sign in', () => {
       () => new Promise((resolve) => { finishBrowser = resolve; }) as never,
     );
     jest.mocked(refreshSession).mockResolvedValue({ data: { session: {} }, error: null } as never);
-    const screen = render(<AuthForm />);
+    const screen = await render(<AuthForm />);
     fireEvent.press(screen.getByText('google'));
     expect(refreshSession).not.toHaveBeenCalled();
     expect(routeAfterAuth).not.toHaveBeenCalled();
@@ -62,7 +62,7 @@ describe('Google sign in', () => {
   it('does not reuse stored Apple auth after the Google browser is canceled', async () => {
     jest.mocked(authClient.signIn.social).mockResolvedValue({ error: null } as never);
     jest.mocked(refreshSession).mockResolvedValue({ data: null, error: null } as never);
-    const screen = render(<AuthForm />);
+    const screen = await render(<AuthForm />);
     fireEvent.press(screen.getByText('google'));
     await waitFor(() => expect(refreshSession).toHaveBeenCalled());
     expect(waitForStoredAuth).not.toHaveBeenCalled();
@@ -73,7 +73,7 @@ describe('Google sign in', () => {
     jest.mocked(authClient.signIn.social).mockResolvedValue({
       error: { code: 'INVALID_CALLBACK_URL', message: 'Invalid callback URL' },
     } as never);
-    const screen = render(<AuthForm />);
+    const screen = await render(<AuthForm />);
     fireEvent.press(screen.getByText('google'));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith(
       'Google sign in could not return to this app. Please try another sign-in method.',
@@ -98,7 +98,7 @@ describe('Apple sign in', () => {
     jest.replaceProperty(Platform, 'OS', 'android');
     jest.mocked(authClient.signIn.social).mockResolvedValue({ error: null } as never);
     jest.mocked(refreshSession).mockResolvedValue({ data: { session: {} }, error: null } as never);
-    const screen = render(<AuthForm />);
+    const screen = await render(<AuthForm />);
     fireEvent.press(screen.getByText('apple'));
     await waitFor(() => expect(routeAfterAuth).toHaveBeenCalledTimes(1));
     expect(authClient.signIn.social).toHaveBeenCalledWith({
@@ -114,7 +114,7 @@ describe('Apple sign in', () => {
     jest.mocked(signInWithApple).mockResolvedValue(credential);
     const user = { id: 'apple-user', email: 'player@example.com', name: 'Player' };
     jest.mocked(signInWithAppleApi).mockResolvedValue({ user, token: 'apple-token', isNewUser: false } as never);
-    const screen = render(<AuthForm />);
+    const screen = await render(<AuthForm />);
     await waitFor(() => expect(screen.getByRole('button', { name: 'apple' })).not.toBeDisabled());
     fireEvent.press(screen.getByText('apple'));
     await waitFor(() => expect(routeAfterAuth).toHaveBeenCalledTimes(1));

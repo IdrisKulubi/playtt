@@ -7,6 +7,7 @@ import { ChoiceChips } from "@/components/kit/choice-chips"
 import { DateStrip } from "@/components/booking/flow/date-strip"
 import { PayStep } from "@/components/booking/flow/pay-step"
 import { PlayerStepper } from "@/components/booking/flow/player-stepper"
+import { ReminderPrompt } from "@/components/booking/flow/reminder-prompt"
 import { TimeGrid } from "@/components/booking/flow/time-grid"
 import { Button } from "@/components/kit/button"
 import { Card } from "@/components/kit/card"
@@ -519,6 +520,7 @@ export function BookingFlow() {
               <AppText variant="body" color="secondaryLabel" style={styles.center}>
                 See you at the table. Your entry code is in Bookings.
               </AppText>
+              <ReminderPrompt />
               <BookingSummary
                 venue={venueName}
                 startIso={selectedSlot.startsAt}

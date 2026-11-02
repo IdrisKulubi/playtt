@@ -1,47 +1,28 @@
+import type { Href } from "expo-router"
 import type { ReactNode } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 
-import { ScreenBackButton } from "@/components/navigation/screen-back-button"
-import { PlayTTFontFamilies, PlayTTSpacing, PlayTTTypography } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { StackHeader } from "@/components/kit/stack-header"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
 
-/** Back button, centered title and an optional trailing action. */
-export function CommunityScreenHeader({ title, trailing }: { title: string; trailing?: ReactNode }) {
-  const theme = useProductTheme()
+const PLAYERS_HREF = "/(app)/(tabs)/community" as Href
 
+type CommunityScreenHeaderProps = {
+  title: string
+  trailing?: ReactNode
+  /** Names where back goes; "Back" when the screen can be reached from many places. */
+  backLabel?: string
+}
+
+/** Pushed Players screens: back button that names where it goes, large title, optional action. */
+export function CommunityScreenHeader({ title, trailing, backLabel = "Back" }: CommunityScreenHeaderProps) {
   return (
-    <View style={styles.header}>
-      <ScreenBackButton />
-      <Text
-        numberOfLines={1}
-        accessibilityRole="header"
-        style={[styles.title, { color: theme.foreground }]}
-      >
-        {title}
-      </Text>
-      <View style={styles.trailing}>{trailing}</View>
+    <View style={styles.root}>
+      <StackHeader title={title} backLabel={backLabel} fallbackHref={PLAYERS_HREF} trailing={trailing} />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: PlayTTSpacing.sm,
-    paddingHorizontal: 20,
-    paddingTop: PlayTTSpacing.sm,
-    paddingBottom: PlayTTSpacing.md,
-  },
-  title: {
-    ...PlayTTTypography.title,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    flex: 1,
-    textAlign: "center",
-  },
-  trailing: {
-    minWidth: 40,
-    alignItems: "flex-end",
-  },
+  root: { paddingBottom: PlayTTSpacing.sm },
 })

@@ -1,148 +1,98 @@
 import { useState } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 
-import { OptionChips } from "@/components/onboarding/option-chips"
-import { Button } from "@/components/ui/button"
-import { FormField } from "@/components/ui/form-field"
-import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useAuthTheme } from "@/hooks/use-auth-theme"
-import { toast } from "@/lib/toast"
+import { Button } from "@/components/kit/button"
+import { RadioList } from "@/components/kit/radio-list"
+import { StepHeader } from "@/components/kit/step-header"
 import {
   PLAY_INTENT_OPTIONS,
   REFERRAL_SOURCE_OPTIONS,
   type PlayIntent,
   type ReferralSource,
 } from "@/lib/onboarding-options"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { toast } from "@/lib/toast"
 import { patchOnboarding, routeAfterAuth } from "@/lib/user-api"
 
+type Feedback = "yes" | "no"
+
+const FEEDBACK_OPTIONS = [
+  { value: "yes" as const, label: "Yes, ask me what I think" },
+  { value: "no" as const, label: "No thanks" },
+]
+
+const QUESTIONS = [
+  "How did you hear about PlayTT?",
+  "What brings you here?",
+  "Can we ask for your feedback now and then?",
+] as const
+
+/** The profile step plus one step per survey question. */
+export const ONBOARDING_STEPS = 1 + QUESTIONS.length
+
+/**
+ * Onboarding survey, one question per screen with big answers.
+ * Both of the first two answers are required by the server.
+ */
 export function OnboardingSurveyForm() {
-  const theme = useAuthTheme()
-  const [referralSource, setReferralSource] = useState<ReferralSource | null>(
-    null,
-  )
+  const [question, setQuestion] = useState(0)
+  const [referralSource, setReferralSource] = useState<ReferralSource | null>(null)
   const [playIntent, setPlayIntent] = useState<PlayIntent | null>(null)
-  const [earlyAdopterOptIn, setEarlyAdopterOptIn] = useState(false)
+  const [feedback, setFeedback] = useState<Feedback | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  const fieldProps = { variant: "auth" as const, authTheme: theme, compact: true }
+  const answered = [referralSource, playIntent, feedback][question] !== null
+  const isLast = question === QUESTIONS.length - 1
 
   async function handleFinish() {
-    if (!referralSource) {
-      toast.error("Tell us how you heard about PlayTT.")
-      return
-    }
-
-    if (!playIntent) {
-      toast.error("Tell us what brings you here.")
-      return
-    }
+    if (!referralSource || !playIntent) return
 
     setIsLoading(true)
-
     try {
       await patchOnboarding({
         step: 2,
         referralSource,
         playIntent,
-        earlyAdopterOptIn,
+        earlyAdopterOptIn: feedback === "yes",
       })
       await routeAfterAuth()
     } catch (error) {
-      toast.apiError(error, "Could not finish onboarding.")
+      toast.apiError(error, "Could not finish setting up.")
       setIsLoading(false)
     }
   }
 
   return (
     <View style={styles.form}>
-      <Text style={[styles.progress, { color: theme.muted }]}>Step 2 of 2</Text>
+      <StepHeader step={question + 2} total={ONBOARDING_STEPS} title={QUESTIONS[question]} />
 
-      <FormField label="How did you hear about PlayTT?" {...fieldProps}>
-        <OptionChips
-          theme={theme}
+      {question === 0 ? (
+        <RadioList
+          label={QUESTIONS[0]}
           options={REFERRAL_SOURCE_OPTIONS}
           value={referralSource}
-          onChange={(value) => setReferralSource(value as ReferralSource)}
+          onChange={setReferralSource}
         />
-      </FormField>
-
-      <FormField label="What brings you here?" {...fieldProps}>
-        <OptionChips
-          theme={theme}
-          options={PLAY_INTENT_OPTIONS}
-          value={playIntent}
-          onChange={(value) => setPlayIntent(value as PlayIntent)}
-        />
-      </FormField>
-
-      <Pressable
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: earlyAdopterOptIn }}
-        onPress={() => setEarlyAdopterOptIn((current) => !current)}
-        style={styles.optInRow}
-      >
-        <View
-          style={[
-            styles.checkbox,
-            {
-              borderColor: theme.divider,
-              backgroundColor: earlyAdopterOptIn ? theme.primary : theme.socialFill,
-            },
-          ]}
-        >
-          {earlyAdopterOptIn ? (
-            <Text style={[styles.checkmark, { color: theme.primaryForeground }]}>
-              ✓
-            </Text>
-          ) : null}
-        </View>
-        <Text style={[styles.optInLabel, { color: theme.foreground }]}>
-          Keep me in the early feedback loop
-        </Text>
-      </Pressable>
+      ) : question === 1 ? (
+        <RadioList label={QUESTIONS[1]} options={PLAY_INTENT_OPTIONS} value={playIntent} onChange={setPlayIntent} />
+      ) : (
+        <RadioList label={QUESTIONS[2]} options={FEEDBACK_OPTIONS} value={feedback} onChange={setFeedback} />
+      )}
 
       <Button
-        label="Finish setup"
-        surface="auth"
-        authTheme={theme}
-        onPress={handleFinish}
+        label={isLast ? "Finish" : "Continue"}
+        disabled={!answered}
+        accessibilityHint={answered ? undefined : "Choose an answer first"}
         loading={isLoading}
+        onPress={() => (isLast ? void handleFinish() : setQuestion((value) => value + 1))}
       />
+      {question > 0 ? (
+        <Button label="Back" variant="plain" onPress={() => setQuestion((value) => value - 1)} />
+      ) : null}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  form: {
-    gap: PlayTTSpacing.md,
-  },
-  progress: {
-    fontSize: 12,
-    fontFamily: PlayTTFontFamilies.medium,
-    textAlign: "center",
-  },
-  optInRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: PlayTTSpacing.sm,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  checkmark: {
-    fontSize: 14,
-    fontFamily: PlayTTFontFamilies.bold,
-    lineHeight: 16,
-  },
-  optInLabel: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: PlayTTFontFamilies.regular,
-    lineHeight: 20,
-  },
+  form: { gap: PlayTTSpacing.md },
 })

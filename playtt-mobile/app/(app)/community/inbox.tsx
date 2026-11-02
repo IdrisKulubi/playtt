@@ -1,15 +1,16 @@
 import { type Href, router, useFocusEffect } from "expo-router"
-import { useCallback, useMemo, useRef, useState } from "react"
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native"
+import { useCallback, useRef, useState } from "react"
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { ConversationRow } from "@/components/community/chat/conversation-row"
 import { GroupRow } from "@/components/community/chat/group-row"
 import { CommunityScreenHeader } from "@/components/community/community-screen-header"
-import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
-import { GlassSegmentControl } from "@/components/ui/glass-segment-control"
-import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { ChoiceChips } from "@/components/kit/choice-chips"
+import { EmptyState } from "@/components/kit/empty-state"
+import { KitLayout } from "@/constants/kit-layout"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { useCommunityUnread } from "@/hooks/use-community-unread"
 import { fetchConversations, fetchGroups } from "@/lib/community-chat-api"
 import {
@@ -23,24 +24,29 @@ import { toast } from "@/lib/toast"
 
 type InboxFolder = ConversationFolder | "groups"
 
-const EMPTY_COPY: Record<InboxFolder, { title: string; detail: string }> = {
+const PLAYERS_HREF = "/(app)/(tabs)/community" as Href
+
+const EMPTY_COPY: Record<InboxFolder, { title: string; detail: string; action: string }> = {
   inbox: {
     title: "No chats yet",
     detail: "Find someone who's open to play and tap Let's play.",
+    action: "Find someone to play",
   },
   requests: {
     title: "No message requests",
-    detail: "Messages from players you don't follow land here first.",
+    detail: "Messages from players you don't follow arrive here first.",
+    action: "Back to Players",
   },
   groups: {
-    title: "No groups yet",
-    detail: "Join a 2v2 or an event from the Community tab.",
+    title: "No group chats yet",
+    detail: "Join a doubles game or an event on Players to get a group chat.",
+    action: "See events",
   },
 }
 
+/** Messages: chats, requests from new people, and group chats. */
 export default function CommunityInboxScreen() {
-  const theme = useProductTheme()
-  const screenStyles = useMemo(() => createAppScreenStyles(theme), [theme])
+  const { colors } = useAppTheme()
   const [folder, setFolder] = useState<InboxFolder>("inbox")
   const [conversations, setConversations] = useState<CommunityConversation[]>([])
   const [groups, setGroups] = useState<CommunityGroup[]>([])
@@ -100,43 +106,23 @@ export default function CommunityInboxScreen() {
   }
 
   const loading = loadedFolder !== folder
-  const segments = [
-    { value: "inbox" as const, label: unread.inbox > 0 ? `Inbox · ${unread.inbox}` : "Inbox" },
-    { value: "requests" as const, label: unread.requests > 0 ? `Requests · ${unread.requests}` : "Requests" },
-    { value: "groups" as const, label: unread.groups ? `Groups · ${unread.groups}` : "Groups" },
+  const folders: { value: InboxFolder; label: string }[] = [
+    { value: "inbox", label: unread.inbox > 0 ? `Chats (${unread.inbox})` : "Chats" },
+    { value: "requests", label: unread.requests > 0 ? `Requests (${unread.requests})` : "Requests" },
+    { value: "groups", label: unread.groups ? `Groups (${unread.groups})` : "Groups" },
   ]
 
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        segment: { paddingHorizontal: 20, paddingBottom: PlayTTSpacing.sm },
-        list: { paddingHorizontal: 20, paddingBottom: PlayTTSpacing["2xl"] },
-        separator: { height: StyleSheet.hairlineWidth, backgroundColor: theme.border, marginLeft: 56 },
-        empty: { alignItems: "center", gap: PlayTTSpacing.xs, paddingTop: PlayTTSpacing.xl },
-        emptyTitle: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 17, color: theme.foreground },
-        emptyDetail: {
-          fontFamily: PlayTTFontFamilies.regular,
-          fontSize: 14,
-          color: theme.muted,
-          textAlign: "center",
-          maxWidth: 280,
-          lineHeight: 20,
-        },
-      }),
-    [theme],
-  )
-
   return (
-    <SafeAreaView style={screenStyles.safeArea} edges={["top", "left", "right"]}>
-      <CommunityScreenHeader title="Messages" />
-      <View style={styles.segment}>
-        <GlassSegmentControl value={folder} options={segments} onChange={setFolder} />
+    <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={["top", "left", "right"]}>
+      <CommunityScreenHeader title="Messages" backLabel="Players" />
+      <View style={styles.folders}>
+        <ChoiceChips label="Show" options={folders} value={folder} onChange={setFolder} />
       </View>
       <FlatList
         data={loading ? [] : folder === "groups" ? groups : conversations}
         keyExtractor={(item: CommunityConversation | CommunityGroup) => item.id}
         contentContainerStyle={styles.list}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: colors.separator }]} />}
         renderItem={({ item }) =>
           "members" in item ? (
             <GroupRow group={item} onPress={() => router.push(communityGroupHref(item.id) as Href)} />
@@ -146,18 +132,28 @@ export default function CommunityInboxScreen() {
         }
         ListEmptyComponent={
           loading ? (
-            <ActivityIndicator style={{ marginTop: PlayTTSpacing.xl }} color={theme.muted} />
+            <ActivityIndicator style={styles.loading} color={colors.secondaryLabel} />
           ) : (
-            <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>{EMPTY_COPY[folder].title}</Text>
-              <Text style={styles.emptyDetail}>{EMPTY_COPY[folder].detail}</Text>
-            </View>
+            <EmptyState
+              icon="bubble.left.and.bubble.right.fill"
+              title={EMPTY_COPY[folder].title}
+              message={EMPTY_COPY[folder].detail}
+              action={{ label: EMPTY_COPY[folder].action, onPress: () => router.navigate(PLAYERS_HREF) }}
+            />
           )
         }
         onEndReached={() => void loadMore()}
         onEndReachedThreshold={0.4}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.muted} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.secondaryLabel} />}
       />
     </SafeAreaView>
   )
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  folders: { paddingHorizontal: KitLayout.screenGutter, paddingBottom: PlayTTSpacing.sm },
+  list: { paddingHorizontal: KitLayout.screenGutter, paddingBottom: PlayTTSpacing["2xl"] },
+  separator: { height: StyleSheet.hairlineWidth, marginLeft: 56 },
+  loading: { marginTop: PlayTTSpacing.xl },
+})

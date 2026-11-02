@@ -1,19 +1,25 @@
 import * as Clipboard from "expo-clipboard"
 import { router } from "expo-router"
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { AppState, StyleSheet, Text, View } from "react-native"
+import { useCallback, useEffect, useState } from "react"
+import { AppState, StyleSheet, View } from "react-native"
 
-import { Button } from "@/components/ui/button"
-import { PlayTTColors, PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { Button } from "@/components/kit/button"
+import { Card } from "@/components/kit/card"
+import { AppText } from "@/components/ui/app-text"
+import { IconSymbol } from "@/components/ui/icon-symbol"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { fetchBookingAccess, revealBookingAccess } from "@/lib/booking-access-api"
 import { formatAccessWindow, getBookingAccessPresentation } from "@/lib/booking-access-presentation"
 import type { BookingAccess } from "@/lib/booking-access-types"
 import type { UserBookingSummary } from "@/lib/booking-types"
 import { toast } from "@/lib/toast"
 
+const HELP_HREF = "/(app)/account/help"
+
+/** Entry code for the venue door: hidden until asked for, cleared when the app goes to the background. */
 export function BookingAccessCard({ booking }: { booking: UserBookingSummary }) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const [access, setAccess] = useState<BookingAccess | null>(null)
   const [code, setCode] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -46,24 +52,13 @@ export function BookingAccessCard({ booking }: { booking: UserBookingSummary }) 
     }
   }, [])
 
-  const styles = useMemo(() => StyleSheet.create({
-    card: { gap: PlayTTSpacing.sm, borderWidth: 1, borderColor: "rgba(0, 183, 255, 0.35)", borderRadius: 12, padding: PlayTTSpacing.md, backgroundColor: theme.card, overflow: "hidden" },
-    glow: { ...StyleSheet.absoluteFillObject, backgroundColor: PlayTTColors.primaryGlow, opacity: 0.15, borderRadius: 12 },
-    title: { fontSize: 15, fontFamily: PlayTTFontFamilies.semiBold, color: theme.foreground },
-    code: { fontSize: 32, fontFamily: PlayTTFontFamilies.semiBold, color: theme.foreground, letterSpacing: 5, textAlign: "center", marginVertical: PlayTTSpacing.sm },
-    meta: { fontSize: 13, fontFamily: PlayTTFontFamilies.regular, color: theme.muted, lineHeight: 18 },
-    doorList: { gap: 4 },
-    door: { fontSize: 13, fontFamily: PlayTTFontFamilies.medium, color: theme.foreground },
-    actions: { gap: PlayTTSpacing.xs },
-  }), [theme])
-
   async function reveal() {
     setCode(null)
     setIsRevealing(true)
     try {
       setCode((await revealBookingAccess(booking.id)).code)
     } catch (error) {
-      toast.apiError(error, "Could not reveal your entry code.")
+      toast.apiError(error, "Could not show your entry code.")
       await loadAccess()
     } finally {
       setIsRevealing(false)
@@ -77,47 +72,102 @@ export function BookingAccessCard({ booking }: { booking: UserBookingSummary }) 
   }
 
   if (isLoading) {
-    return <View style={styles.card} accessibilityLiveRegion="polite"><Text style={styles.title}>Checking venue access…</Text><Text style={styles.meta}>Your booking remains confirmed while we check.</Text></View>
+    return (
+      <Card>
+        <View style={styles.stack} accessibilityLiveRegion="polite">
+          <AppText variant="headline">Checking your entry code…</AppText>
+          <AppText variant="callout" color="secondaryLabel">
+            Your booking is still confirmed while we check.
+          </AppText>
+        </View>
+      </Card>
+    )
   }
 
   if (loadFailed || !access) {
     return (
-      <View style={styles.card} accessibilityLiveRegion="polite">
-        <Text style={styles.title}>Access is temporarily unavailable</Text>
-        <Text style={styles.meta}>Refresh in a moment. Your booking is still confirmed.</Text>
-        <View style={styles.actions}>
-          <Button label="Refresh access" surface="product" productTheme={theme} variant="outline" onPress={() => void loadAccess()} />
-          <Button label="Get help" surface="product" productTheme={theme} variant="ghost" onPress={() => router.push("/(app)/account/help")} />
+      <Card>
+        <View style={styles.stack} accessibilityLiveRegion="polite">
+          <AppText variant="headline">Entry code isn&apos;t available right now</AppText>
+          <AppText variant="callout" color="secondaryLabel">
+            Try again in a moment. Your booking is still confirmed.
+          </AppText>
+          <Button label="Try again" variant="secondary" onPress={() => void loadAccess()} style={styles.firstAction} />
+          <Button label="Get help" variant="plain" onPress={() => router.push(HELP_HREF)} />
         </View>
-      </View>
+      </Card>
     )
   }
 
   const presentation = getBookingAccessPresentation(access.status)
   const windowLabel = formatAccessWindow(access.validFrom, access.validUntil)
   const showSupport = access.status === "action_required" || access.status === "temporarily_unavailable"
+  const ready = access.status === "ready"
+  const doors = [...access.doors].sort((a, b) => a.sortOrder - b.sortOrder)
 
   return (
-    <View style={styles.card} accessibilityLiveRegion="polite">
-      {access.status === "ready" ? <View style={styles.glow} pointerEvents="none" /> : null}
-      <Text style={styles.title}>{presentation.title}</Text>
-      <Text style={styles.meta}>{access.supportMessage || presentation.body}</Text>
-      {code ? <Text selectable style={styles.code} accessibilityLabel={`Entry code ${code}`}>{code}</Text> : null}
-      {windowLabel ? <Text style={styles.meta}>Valid {windowLabel}</Text> : null}
-      {access.doors.length > 0 ? (
-        <View style={styles.doorList}>
-          <Text style={styles.meta}>Use the same code at:</Text>
-          {[...access.doors].sort((a, b) => a.sortOrder - b.sortOrder).map((door, index) => (
-            <Text key={door.accessPointId} style={styles.door}>{index + 1}. {door.name}</Text>
-          ))}
+    <Card style={ready ? { borderWidth: 1.5, borderColor: colors.accent } : undefined}>
+      <View style={styles.stack} accessibilityLiveRegion="polite">
+        <View style={styles.titleRow}>
+          <IconSymbol name="qrcode" size={22} color={colors.accentText} />
+          <AppText variant="headline" style={styles.flex}>
+            {presentation.title}
+          </AppText>
         </View>
-      ) : null}
-      <View style={styles.actions}>
-        {access.status === "ready" && access.revealable && !code ? <Button label="Reveal entry code" surface="product" productTheme={theme} loading={isRevealing} onPress={() => void reveal()} /> : null}
-        {code ? <Button label="Copy code" surface="product" productTheme={theme} onPress={() => void copyCode()} /> : null}
-        <Button label="Refresh access" surface="product" productTheme={theme} variant="outline" onPress={() => void loadAccess()} />
-        {showSupport ? <Button label="Get help" surface="product" productTheme={theme} variant="ghost" onPress={() => router.push("/(app)/account/help")} /> : null}
+        <AppText variant="callout" color="secondaryLabel">
+          {access.supportMessage || presentation.body}
+        </AppText>
+
+        {code ? (
+          <AppText
+            variant="largeTitle"
+            tabular
+            selectable
+            style={styles.code}
+            accessibilityLabel={`Entry code ${code.split("").join(" ")}`}
+          >
+            {code}
+          </AppText>
+        ) : null}
+
+        {windowLabel ? (
+          <AppText variant="callout" color="secondaryLabel">
+            Works {windowLabel}
+          </AppText>
+        ) : null}
+
+        {doors.length > 0 ? (
+          <View style={styles.doors}>
+            <AppText variant="callout" color="secondaryLabel">
+              Use the same code at:
+            </AppText>
+            {doors.map((door, index) => (
+              <AppText key={door.accessPointId} variant="callout" weight="600">
+                {index + 1}. {door.name}
+              </AppText>
+            ))}
+          </View>
+        ) : null}
+
+        <View style={styles.actions}>
+          {ready && access.revealable && !code ? (
+            <Button label="Show entry code" loading={isRevealing} onPress={() => void reveal()} />
+          ) : null}
+          {code ? <Button label="Copy code" variant="secondary" onPress={() => void copyCode()} /> : null}
+          <Button label="Check again" variant="plain" onPress={() => void loadAccess()} />
+          {showSupport ? <Button label="Get help" variant="plain" onPress={() => router.push(HELP_HREF)} /> : null}
+        </View>
       </View>
-    </View>
+    </Card>
   )
 }
+
+const styles = StyleSheet.create({
+  stack: { gap: PlayTTSpacing.xs },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: PlayTTSpacing.xs },
+  flex: { flex: 1 },
+  code: { textAlign: "center", letterSpacing: 6, marginVertical: PlayTTSpacing.sm },
+  doors: { gap: 2 },
+  actions: { gap: PlayTTSpacing.xs, marginTop: PlayTTSpacing.sm },
+  firstAction: { marginTop: PlayTTSpacing.sm },
+})

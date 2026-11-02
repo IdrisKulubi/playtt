@@ -13,6 +13,20 @@ export async function isPushPermissionGranted(): Promise<boolean> {
   return current.status === Notifications.PermissionStatus.GRANTED
 }
 
+export type PushPermissionState = "granted" | "undetermined" | "denied" | "unsupported"
+
+/**
+ * Where we stand without prompting: "undetermined" means the system prompt
+ * hasn't been shown yet, so a reason screen should come before it.
+ */
+export async function getPushPermissionState(): Promise<PushPermissionState> {
+  if (Platform.OS === "web") return "unsupported"
+  const current = await Notifications.getPermissionsAsync()
+  if (current.status === Notifications.PermissionStatus.GRANTED) return "granted"
+  if (current.status === Notifications.PermissionStatus.UNDETERMINED && current.canAskAgain) return "undetermined"
+  return "denied"
+}
+
 async function getDevicePushToken() {
   if (Platform.OS === "web") {
     throw new Error("Push notifications require the PlayTT mobile app.")

@@ -14,15 +14,17 @@ const BUTTON_SIZE = 64
 type PlayerStepperProps = {
   value: GroupSize
   onChange: (next: GroupSize) => void
+  /** Smallest allowed size (e.g. when a change can't drop players). */
+  min?: GroupSize
 }
 
 /** Big − / + with the number in the middle. Adjustable by swipe for screen readers. */
-export function PlayerStepper({ value, onChange }: PlayerStepperProps) {
+export function PlayerStepper({ value, onChange, min = MIN }: PlayerStepperProps) {
   const { colors } = useAppTheme()
-  const canDecrease = value > MIN
+  const canDecrease = value > min
   const canIncrease = value < MAX
   const step = (delta: number) => {
-    const next = Math.min(MAX, Math.max(MIN, value + delta)) as GroupSize
+    const next = Math.min(MAX, Math.max(min, value + delta)) as GroupSize
     if (next !== value) onChange(next)
   }
 
@@ -46,7 +48,7 @@ export function PlayerStepper({ value, onChange }: PlayerStepperProps) {
       accessible
       accessibilityRole="adjustable"
       accessibilityLabel="Number of players"
-      accessibilityValue={{ min: MIN, max: MAX, now: value, text: `${value} players` }}
+      accessibilityValue={{ min, max: MAX, now: value, text: `${value} players` }}
       accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
       onAccessibilityAction={(event) => step(event.nativeEvent.actionName === "increment" ? 1 : -1)}
     >

@@ -1,10 +1,11 @@
-import { useMemo } from "react"
-import { Pressable, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 
-import { createEditIntentSheetStyles } from "@/components/booking/booking-theme"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/kit/button"
+import { ListRow } from "@/components/kit/list-row"
+import { ListSection } from "@/components/kit/list-section"
+import { AppText } from "@/components/ui/app-text"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
 
 export type EditIntent = "time" | "players"
 
@@ -17,19 +18,7 @@ type BookingEditIntentSheetProps = {
   onContinue: () => void
 }
 
-const OPTIONS: { id: EditIntent; label: string; description: string }[] = [
-  {
-    id: "time",
-    label: "Change time",
-    description: "Pick a new slot at the same venue",
-  },
-  {
-    id: "players",
-    label: "Change players",
-    description: "Add or reduce players before the cutoff",
-  },
-]
-
+/** First step of a change: pick one or both things to change. */
 export function BookingEditIntentSheet({
   visible,
   changeTime,
@@ -38,44 +27,37 @@ export function BookingEditIntentSheet({
   onToggle,
   onContinue,
 }: BookingEditIntentSheetProps) {
-  const theme = useProductTheme()
-  const styles = useMemo(() => createEditIntentSheetStyles(theme), [theme])
-
-  const selected = {
-    time: changeTime,
-    players: addPlayers,
-  }
-
   return (
-    <BottomSheet visible={visible} title="Edit booking" onClose={onClose}>
-      <Text style={styles.intro}>What do you want to change?</Text>
-
-      <View style={styles.list}>
-        {OPTIONS.map((option) => {
-          const active = selected[option.id]
-          return (
-            <Pressable
-              key={option.id}
-              onPress={() => onToggle(option.id)}
-              style={[styles.row, active && styles.rowActive]}
-            >
-              <View>
-                <Text style={styles.rowLabel}>{option.label}</Text>
-                <Text style={styles.rowMeta}>{option.description}</Text>
-              </View>
-              {active ? <Text style={styles.check}>✓</Text> : null}
-            </Pressable>
-          )
-        })}
+    <BottomSheet visible={visible} title="Change booking" onClose={onClose}>
+      <View style={styles.stack}>
+        <AppText variant="body" color="secondaryLabel">
+          What do you want to change? You can pick both.
+        </AppText>
+        <ListSection>
+          <ListRow
+            icon="clock.fill"
+            title="The time"
+            subtitle="Pick a new time at the same venue"
+            accessory={{ kind: "toggle", value: changeTime, onValueChange: () => onToggle("time") }}
+          />
+          <ListRow
+            icon="person.2.fill"
+            title="The number of players"
+            subtitle="Add or remove players"
+            accessory={{ kind: "toggle", value: addPlayers, onValueChange: () => onToggle("players") }}
+          />
+        </ListSection>
+        <Button
+          label="Continue"
+          onPress={onContinue}
+          disabled={!changeTime && !addPlayers}
+          accessibilityHint={changeTime || addPlayers ? undefined : "Choose what to change first"}
+        />
       </View>
-
-      <Button
-        label="Continue"
-        surface="product"
-        productTheme={theme}
-        onPress={onContinue}
-        disabled={!changeTime && !addPlayers}
-      />
     </BottomSheet>
   )
 }
+
+const styles = StyleSheet.create({
+  stack: { gap: PlayTTSpacing.md },
+})

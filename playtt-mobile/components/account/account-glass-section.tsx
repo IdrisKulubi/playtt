@@ -1,12 +1,10 @@
-import { ReactNode, useMemo } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import type { ReactNode } from "react"
+import { StyleSheet, View } from "react-native"
 
-import { GlassPanel } from "@/components/ui/glass-panel"
-import {
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { AppText } from "@/components/ui/app-text"
+import { KitLayout } from "@/constants/kit-layout"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAppTheme } from "@/hooks/use-app-theme"
 
 type AccountGlassSectionProps = {
   title?: string
@@ -14,51 +12,36 @@ type AccountGlassSectionProps = {
   children: ReactNode
 }
 
-export function AccountGlassSection({
-  title,
-  description,
-  children,
-}: AccountGlassSectionProps) {
-  const theme = useProductTheme()
-
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        section: {
-          gap: PlayTTSpacing.sm,
-        },
-        title: {
-          fontSize: 15,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: theme.muted,
-          paddingHorizontal: PlayTTSpacing["2xs"],
-        },
-        description: {
-          fontSize: 13,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-          paddingHorizontal: PlayTTSpacing["2xs"],
-          marginTop: -PlayTTSpacing["2xs"],
-        },
-        panel: {
-          borderRadius: 16,
-          shadowOpacity: 0,
-          elevation: 0,
-        },
-        panelContent: {
-          padding: 0,
-        },
-      }),
-    [theme],
-  )
+/**
+ * Grouped section for Me sub-screens. Despite the old name it is now a solid
+ * surface: glass is for floating chrome only, never content.
+ */
+export function AccountGlassSection({ title, description, children }: AccountGlassSectionProps) {
+  const { colors } = useAppTheme()
 
   return (
     <View style={styles.section}>
-      {title ? <Text style={styles.title}>{title}</Text> : null}
-      {description ? (
-        <Text style={styles.description}>{description}</Text>
+      {title ? (
+        <AppText variant="footnote" color="secondaryLabel" accessibilityRole="header" style={styles.label}>
+          {title}
+        </AppText>
       ) : null}
-      <GlassPanel style={styles.panel} contentStyle={styles.panelContent}>{children}</GlassPanel>
+      {description ? (
+        <AppText variant="footnote" color="secondaryLabel" style={styles.label}>
+          {description}
+        </AppText>
+      ) : null}
+      <View style={[styles.group, { backgroundColor: colors.surface }]}>{children}</View>
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  section: { gap: PlayTTSpacing.xs },
+  label: { paddingHorizontal: PlayTTSpacing.md },
+  group: {
+    borderRadius: KitLayout.groupRadius,
+    borderCurve: "continuous",
+    overflow: "hidden",
+  },
+})

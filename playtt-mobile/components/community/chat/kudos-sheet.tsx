@@ -1,11 +1,13 @@
-import * as Haptics from "expo-haptics"
-import { useMemo, useState } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { useState } from "react"
+import { StyleSheet, View } from "react-native"
 
+import { Button } from "@/components/kit/button"
+import { PressableScale } from "@/components/kit/pressable-scale"
+import { AppText } from "@/components/ui/app-text"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
-import { Button } from "@/components/ui/button"
-import { PlayTTColors, PlayTTFontFamilies, PlayTTRadius, PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { IconSymbol } from "@/components/ui/icon-symbol"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { giveKudos } from "@/lib/community-api"
 import {
   KUDOS_EMOJI,
@@ -15,6 +17,7 @@ import {
   type CommunitySharedBooking,
   type KudosType,
 } from "@/lib/community-types"
+import { haptics } from "@/lib/haptics"
 import { toast } from "@/lib/toast"
 
 type KudosSheetProps = {
@@ -28,7 +31,7 @@ type KudosSheetProps = {
 
 // The parent remounts this (via `key`) each time it opens.
 export function KudosSheet({ visible, booking, receiverId, receiverName, onClose, onGiven }: KudosSheetProps) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const given = booking.kudosGiven[receiverId] ?? []
   const [picked, setPicked] = useState<KudosType[]>([])
   const [saving, setSaving] = useState(false)
@@ -36,7 +39,6 @@ export function KudosSheet({ visible, booking, receiverId, receiverName, onClose
 
   function toggle(type: KudosType) {
     if (given.includes(type)) return
-    void Haptics.selectionAsync().catch(() => undefined)
     setPicked((current) =>
       current.includes(type) ? current.filter((value) => value !== type) : remaining > 0 ? [...current, type] : current,
     )
@@ -47,7 +49,7 @@ export function KudosSheet({ visible, booking, receiverId, receiverName, onClose
     setSaving(true)
     try {
       onGiven(await giveKudos(booking.bookingId, receiverId, picked))
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined)
+      haptics.success()
       toast.success(`Kudos sent to ${receiverName} 🏓`)
       onClose()
     } catch (error) {
@@ -57,34 +59,12 @@ export function KudosSheet({ visible, booking, receiverId, receiverName, onClose
     }
   }
 
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        body: { gap: PlayTTSpacing.md },
-        hint: { fontFamily: PlayTTFontFamilies.regular, fontSize: 14, color: theme.muted, lineHeight: 20 },
-        grid: { flexDirection: "row", flexWrap: "wrap", gap: PlayTTSpacing.xs },
-        option: {
-          width: "48.5%",
-          borderRadius: PlayTTRadius.lg,
-          borderWidth: 1.5,
-          borderColor: theme.border,
-          paddingVertical: PlayTTSpacing.sm,
-          paddingHorizontal: PlayTTSpacing.sm,
-          gap: 2,
-        },
-        optionActive: { borderColor: PlayTTColors.primary, backgroundColor: "rgba(0, 183, 255, 0.12)" },
-        optionGiven: { opacity: 0.55 },
-        emoji: { fontSize: 22 },
-        label: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 14, color: theme.foreground },
-        sub: { fontFamily: PlayTTFontFamilies.regular, fontSize: 12, color: theme.muted },
-      }),
-    [theme],
-  )
-
   if (!booking.kudosOpen) {
     return (
       <BottomSheet visible={visible} title="Give kudos" onClose={onClose}>
-        <Text style={styles.hint}>Kudos open when your match ends and stay open for 72 hours.</Text>
+        <AppText variant="body" color="secondaryLabel">
+          You can give kudos once your match ends, for up to 3 days afterwards.
+        </AppText>
       </BottomSheet>
     )
   }
@@ -92,34 +72,47 @@ export function KudosSheet({ visible, booking, receiverId, receiverName, onClose
   return (
     <BottomSheet visible={visible} title={`Kudos for ${receiverName}`} onClose={onClose} scrollable>
       <View style={styles.body}>
-        <Text style={styles.hint}>
-          Pick up to {MAX_KUDOS_PER_MATCH}. Kudos are positive only; if something went wrong, use Report instead.
-        </Text>
+        <AppText variant="body" color="secondaryLabel">
+          Pick up to {MAX_KUDOS_PER_MATCH}. Kudos are for good things only; if something went wrong, use Report instead.
+        </AppText>
         <View style={styles.grid} accessibilityRole="list">
           {KUDOS_TYPES.map((type) => {
             const isGiven = given.includes(type)
             const active = isGiven || picked.includes(type)
             return (
-              <Pressable
+              <PressableScale
                 key={type}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: active, disabled: isGiven }}
                 accessibilityLabel={KUDOS_LABELS[type]}
+                haptic="selection"
                 disabled={isGiven}
+                pressedScale={0.97}
                 onPress={() => toggle(type)}
-                style={[styles.option, active && styles.optionActive, isGiven && styles.optionGiven]}
+                style={[
+                  styles.option,
+                  {
+                    borderColor: active ? colors.accent : colors.separator,
+                    backgroundColor: active ? colors.fill : colors.surface,
+                  },
+                ]}
               >
-                <Text style={styles.emoji}>{KUDOS_EMOJI[type]}</Text>
-                <Text style={styles.label}>{KUDOS_LABELS[type]}</Text>
-                {isGiven ? <Text style={styles.sub}>Sent</Text> : null}
-              </Pressable>
+                <View style={styles.optionTop}>
+                  <AppText variant="title2">{KUDOS_EMOJI[type]}</AppText>
+                  {active ? <IconSymbol name="checkmark.circle.fill" size={20} color={colors.accentText} /> : null}
+                </View>
+                <AppText variant="headline">{KUDOS_LABELS[type]}</AppText>
+                {isGiven ? (
+                  <AppText variant="footnote" color="secondaryLabel">
+                    Sent
+                  </AppText>
+                ) : null}
+              </PressableScale>
             )
           })}
         </View>
         <Button
           label={picked.length > 0 ? `Send ${picked.length} kudos` : "Pick kudos"}
-          surface="product"
-          productTheme={theme}
           disabled={picked.length === 0 || saving}
           loading={saving}
           onPress={submit}
@@ -128,3 +121,17 @@ export function KudosSheet({ visible, booking, receiverId, receiverName, onClose
     </BottomSheet>
   )
 }
+
+const styles = StyleSheet.create({
+  body: { gap: PlayTTSpacing.md },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: PlayTTSpacing.xs },
+  option: {
+    flexGrow: 1,
+    flexBasis: "45%",
+    borderRadius: 14,
+    borderWidth: 1.5,
+    padding: PlayTTSpacing.sm,
+    gap: 2,
+  },
+  optionTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+})

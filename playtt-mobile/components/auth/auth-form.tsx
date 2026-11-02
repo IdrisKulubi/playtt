@@ -331,8 +331,29 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
     );
   }
 
+  // One-tap sign-in first (Apple on iPhone leads), email underneath (redesign plan).
+  const appleButton = (
+    <SocialAuthButton
+      provider="apple"
+      theme={theme}
+      onPress={handleAppleSignIn}
+      loading={isLoading}
+      disabled={isIos && appleAvailable === null}
+    />
+  );
+  const googleButton = (
+    <SocialAuthButton provider="google" theme={theme} onPress={handleGoogleSignIn} loading={isLoading} />
+  );
+
   return (
     <View style={styles.form}>
+      <View style={styles.socialStack}>
+        {isIos ? appleButton : googleButton}
+        {isIos ? googleButton : appleButton}
+      </View>
+
+      <FormDivider label="or use your email" variant="auth" authTheme={theme} compact />
+
       {isSignIn ? (
         <>
           <FormField label="Email" error={signInErrors.email} {...fieldProps}>
@@ -439,42 +460,15 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
         loading={isLoading}
       />
 
-      <FormDivider
-        label="or continue with"
-        variant="auth"
-        authTheme={theme}
-        compact
-      />
-
-      <View style={styles.socialRow}>
-        <View style={styles.socialButtonSlot}>
-          <SocialAuthButton
-            provider="google"
-            theme={theme}
-            onPress={handleGoogleSignIn}
-            loading={isLoading}
-          />
-        </View>
-          <View style={styles.socialButtonSlot}>
-            <SocialAuthButton
-              provider="apple"
-              theme={theme}
-              onPress={handleAppleSignIn}
-              loading={isLoading}
-              disabled={isIos && appleAvailable === null}
-            />
-          </View>
-      </View>
-
       <Pressable
         accessibilityRole="button"
         disabled={isLoading}
         style={styles.modeButton}
         onPress={() => handleModeChange(isSignIn ? 'sign-up' : 'sign-in')}>
         <Text style={[styles.modePrompt, { color: theme.muted }]}>
-          {isSignIn ? 'New here? ' : 'Existing user? '}
+          {isSignIn ? 'New to PlayTT? ' : 'Already have an account? '}
           <Text style={[styles.modeLink, { color: theme.foreground }]}>
-            {isSignIn ? 'Create account' : 'Log in'}
+            {isSignIn ? 'Create an account' : 'Sign in'}
           </Text>
         </Text>
       </Pressable>
@@ -490,19 +484,14 @@ const styles = StyleSheet.create({
   forgotButton: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', marginTop: -12, marginBottom: -4 },
   modeButton: { minHeight: 44, justifyContent: 'center', marginTop: 12 },
   inlineLink: {
-    fontSize: 12,
+    fontSize: 15,
     fontFamily: PlayTTFontFamilies.semiBold,
   },
-  socialRow: {
-    flexDirection: 'row',
+  socialStack: {
     gap: PlayTTSpacing.sm,
   },
-  socialButtonSlot: {
-    flex: 1,
-    minWidth: 0,
-  },
   modePrompt: {
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: PlayTTFontFamilies.regular,
     textAlign: 'center',
     marginTop: PlayTTSpacing.xs,

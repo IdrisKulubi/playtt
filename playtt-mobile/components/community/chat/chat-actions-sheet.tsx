@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from "react"
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native"
+import { useEffect, useState } from "react"
+import { ActivityIndicator, StyleSheet, View } from "react-native"
 
 import { formatNairobiClock } from "@/components/community/player-card/card-tiers"
+import { Button } from "@/components/kit/button"
+import { ListRow } from "@/components/kit/list-row"
+import { ListSection } from "@/components/kit/list-section"
+import { AppText } from "@/components/ui/app-text"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
-import { Button } from "@/components/ui/button"
-import { PlayTTColors, PlayTTFontFamilies, PlayTTRadius, PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { fetchMyBookings } from "@/lib/booking-api"
 import type { UserBookingSummary } from "@/lib/booking-types"
 import { chatDayLabel } from "@/lib/community-chat-merge"
@@ -26,8 +29,9 @@ export function shareableBookings(bookings: UserBookingSummary[], now = new Date
     .sort((a, b) => a.startTime.localeCompare(b.startTime))
 }
 
+/** The chat's "+" sheet: book a table, or share one you already have. */
 export function ChatActionsSheet({ visible, partnerName, onClose, onBookTable, onShareBooking }: ChatActionsSheetProps) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const [bookings, setBookings] = useState<UserBookingSummary[] | null>(null)
 
   useEffect(() => {
@@ -44,60 +48,39 @@ export function ChatActionsSheet({ visible, partnerName, onClose, onBookTable, o
     }
   }, [visible])
 
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        body: { gap: PlayTTSpacing.md },
-        hint: { fontFamily: PlayTTFontFamilies.regular, fontSize: 14, color: theme.muted, lineHeight: 20 },
-        label: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 14, color: theme.foreground },
-        booking: {
-          borderRadius: PlayTTRadius.lg,
-          borderWidth: 1,
-          borderColor: theme.border,
-          padding: PlayTTSpacing.sm,
-          gap: 2,
-        },
-        when: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 15, color: theme.foreground },
-        where: { fontFamily: PlayTTFontFamilies.regular, fontSize: 13, color: theme.muted },
-        share: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 13, color: PlayTTColors.primary, marginTop: 2 },
-      }),
-    [theme],
-  )
-
   return (
     <BottomSheet visible={visible} title="Play together" onClose={onClose} scrollable>
       <View style={styles.body}>
-        <Text style={styles.hint}>
+        <AppText variant="body" color="secondaryLabel">
           Agreed a time with {partnerName}? Book a table, then share it here so they have the details.
-        </Text>
-        <Button label="Book a table" surface="product" productTheme={theme} onPress={onBookTable} />
+        </AppText>
+        <Button label="Book a table" onPress={onBookTable} />
 
-        <Text style={styles.label}>Share an upcoming booking</Text>
         {bookings === null ? (
-          <ActivityIndicator color={theme.muted} />
+          <ActivityIndicator color={colors.secondaryLabel} />
         ) : bookings.length === 0 ? (
-          <Text style={styles.hint}>No upcoming confirmed bookings yet.</Text>
+          <AppText variant="callout" color="secondaryLabel">
+            You don&apos;t have any confirmed bookings coming up to share yet.
+          </AppText>
         ) : (
-          bookings.map((booking) => (
-            <Pressable
-              key={booking.id}
-              accessibilityRole="button"
-              accessibilityLabel={`Share ${booking.resourceName}, ${chatDayLabel(booking.startTime)} at ${formatNairobiClock(booking.startTime)}`}
-              onPress={() => onShareBooking(booking.id)}
-              style={styles.booking}
-            >
-              <Text style={styles.when}>
-                {chatDayLabel(booking.startTime)} · {formatNairobiClock(booking.startTime)}–
-                {formatNairobiClock(booking.endTime)}
-              </Text>
-              <Text style={styles.where}>
-                {booking.resourceName} · {booking.locationName}
-              </Text>
-              <Text style={styles.share}>Share to chat</Text>
-            </Pressable>
-          ))
+          <ListSection header="Share a booking you already have">
+            {bookings.map((booking) => (
+              <ListRow
+                key={booking.id}
+                icon="square.and.arrow.up"
+                title={`${chatDayLabel(booking.startTime)} · ${formatNairobiClock(booking.startTime)} to ${formatNairobiClock(booking.endTime)}`}
+                subtitle={`${booking.resourceName} · ${booking.locationName}`}
+                accessibilityHint="Shares this booking in the chat"
+                onPress={() => onShareBooking(booking.id)}
+              />
+            ))}
+          </ListSection>
         )}
       </View>
     </BottomSheet>
   )
 }
+
+const styles = StyleSheet.create({
+  body: { gap: PlayTTSpacing.md },
+})

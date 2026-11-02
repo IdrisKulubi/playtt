@@ -1,12 +1,8 @@
 import type { ReactNode } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-  PlayTTTypography,
-} from "@/constants/playtt-tokens"
+import { AppText } from "@/components/ui/app-text"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
 
 export type WelcomeSlideData = {
   id: string
@@ -20,12 +16,19 @@ type WelcomeSlideProps = {
   width: number
 }
 
+/** One intro page: brand headline (Space Grotesk), picture, one plain sentence. */
 export function WelcomeSlide({ slide, width }: WelcomeSlideProps) {
   return (
     <View style={[styles.container, { width }]}>
-      <Text style={styles.headline}>{slide.headline}</Text>
-      <View style={styles.illustration}>{slide.illustration}</View>
-      <Text style={styles.body}>{slide.body}</Text>
+      <AppText variant="brandTitle" accessibilityRole="header" style={styles.center}>
+        {slide.headline}
+      </AppText>
+      <View style={styles.illustration} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        {slide.illustration}
+      </View>
+      <AppText variant="body" color="secondaryLabel" style={[styles.center, styles.body]}>
+        {slide.body}
+      </AppText>
     </View>
   )
 }
@@ -38,22 +41,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: PlayTTSpacing.lg,
   },
-  headline: {
-    ...PlayTTTypography.headline,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.foreground,
-    textAlign: "center",
-  },
+  center: { textAlign: "center" },
   illustration: {
     alignItems: "center",
     justifyContent: "center",
     minHeight: 180,
   },
-  body: {
-    ...PlayTTTypography.body,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.mutedText,
-    textAlign: "center",
-    maxWidth: 320,
-  },
+  body: { maxWidth: 340 },
 })

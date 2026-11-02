@@ -1,97 +1,65 @@
 import { useLocalSearchParams } from "expo-router"
-import { useEffect, useState } from "react"
-import {
-  AccessibilityInfo,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native"
 import { StatusBar } from "expo-status-bar"
+import { useState } from "react"
+import { StyleSheet } from "react-native"
+import { useReducedMotion } from "react-native-reanimated"
 
+import { Button } from "@/components/kit/button"
+import { PressableScale } from "@/components/kit/pressable-scale"
+import { AppText } from "@/components/ui/app-text"
 import { WelcomeCarousel } from "@/components/welcome/welcome-carousel"
 import { WelcomeDots } from "@/components/welcome/welcome-dots"
 import { WelcomeShell } from "@/components/welcome/welcome-shell"
-import { Button } from "@/components/ui/button"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-  PlayTTTypography,
-} from "@/constants/playtt-tokens"
-import {
-  completeWelcomeSignIn,
-  completeWelcomeSignUp,
-} from "@/lib/auth-navigation"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { ForceColorScheme } from "@/hooks/use-app-theme"
+import { completeWelcomeSignIn, completeWelcomeSignUp } from "@/lib/auth-navigation"
 
+/** First impression: the venue, three plain sentences, and two clear ways in. */
 export default function WelcomeScreen() {
   const { replay } = useLocalSearchParams<{ replay?: string }>()
   const isReplay = replay === "1"
   const [activeIndex, setActiveIndex] = useState(0)
-  const [reduceMotion, setReduceMotion] = useState(false)
-
-  useEffect(() => {
-    void AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion)
-  }, [])
+  const reduceMotion = useReducedMotion()
 
   return (
-    <View style={styles.root}>
+    // Always dark: the text sits on the venue photo's dark wash.
+    <ForceColorScheme value="dark">
       <StatusBar style="light" />
       <WelcomeShell
         header={
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Skip intro"
+          <PressableScale
             onPress={() => void completeWelcomeSignIn(isReplay)}
-            hitSlop={12}
+            accessibilityLabel="Skip the intro"
+            style={styles.skip}
+            hitSlop={8}
           >
-            <Text style={styles.skipLabel}>Skip</Text>
-          </Pressable>
+            <AppText variant="body" weight="600">
+              Skip
+            </AppText>
+          </PressableScale>
         }
         footer={
           <>
-            <WelcomeDots
-              activeIndex={activeIndex}
-              animate={!reduceMotion}
-            />
+            <WelcomeDots activeIndex={activeIndex} animate={!reduceMotion} />
+            <Button label="Get started" onPress={() => void completeWelcomeSignUp(isReplay)} />
             <Button
-              label="Get started"
-              surface="marketing"
-              onPress={() => void completeWelcomeSignUp(isReplay)}
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Already have an account? Sign in"
+              label="I already have an account"
+              variant="secondary"
               onPress={() => void completeWelcomeSignIn(isReplay)}
-            >
-              <Text style={styles.secondaryLink}>Already have an account?</Text>
-            </Pressable>
+            />
           </>
         }
       >
         <WelcomeCarousel onIndexChange={setActiveIndex} />
       </WelcomeShell>
-    </View>
+    </ForceColorScheme>
   )
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: PlayTTColors.background,
-  },
-  skipLabel: {
-    ...PlayTTTypography.label,
-    fontFamily: PlayTTFontFamilies.medium,
-    color: PlayTTColors.mutedText,
-    paddingVertical: PlayTTSpacing.xs,
-  },
-  secondaryLink: {
-    ...PlayTTTypography.body,
-    fontFamily: PlayTTFontFamilies.medium,
-    color: PlayTTColors.foreground,
-    textAlign: "center",
-    textDecorationLine: "underline",
-    paddingVertical: PlayTTSpacing.xs,
+  skip: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: PlayTTSpacing.md,
   },
 })

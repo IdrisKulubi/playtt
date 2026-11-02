@@ -1,93 +1,44 @@
-import { type ReactNode, useMemo } from "react"
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { type Href, router } from "expo-router"
+import type { ReactNode } from "react"
+import type { StyleProp, ViewStyle } from "react-native"
 
-import { AccountScreenHeader } from "@/components/account/account-screen-header"
-import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
-import {
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-  PlayTTTypography,
-} from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { Screen } from "@/components/kit/screen"
+import { AppText } from "@/components/ui/app-text"
+
+const ME_HREF = "/(app)/(tabs)/account" as Href
 
 type AccountStackScreenProps = {
   title: string
   description?: string
   children: ReactNode
   contentContainerStyle?: StyleProp<ViewStyle>
-  showHeader?: boolean
+  /** Where back goes; every Me sub-screen returns to Me. */
+  backLabel?: string
 }
 
+/** Me sub-screens: large title, "< Me" back button, content on the shared theme. */
 export function AccountStackScreen({
   title,
   description,
   children,
   contentContainerStyle,
-  showHeader = true,
+  backLabel = "Me",
 }: AccountStackScreenProps) {
-  const theme = useProductTheme()
-  const screenStyles = useMemo(() => createAppScreenStyles(theme), [theme])
-
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        scroll: {
-          paddingHorizontal: 20,
-          paddingTop: PlayTTSpacing.sm,
-          paddingBottom: PlayTTSpacing["2xl"],
-          gap: PlayTTSpacing.md,
-        },
-        heroTitle: {
-          ...PlayTTTypography.headline,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: theme.foreground,
-        },
-        description: {
-          fontSize: 14,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-          lineHeight: 20,
-        },
-        intro: {
-          gap: PlayTTSpacing.xs,
-          marginBottom: PlayTTSpacing["2xs"],
-        },
-      }),
-    [theme],
-  )
-
   return (
-    <SafeAreaView style={screenStyles.safeArea} edges={["top", "left", "right"]}>
-      {showHeader ? <AccountScreenHeader title={title} /> : null}
-      <ScrollView
-        contentContainerStyle={[styles.scroll, contentContainerStyle]}
-        showsVerticalScrollIndicator={false}
-        // Default "never" blurs on touch end when the tap target isn't the focused
-        // input — multiline fields on iOS report an inner view, so the keyboard flickers.
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-        automaticallyAdjustKeyboardInsets
-      >
-        {!showHeader ? (
-          <View style={styles.intro}>
-            <Text style={styles.heroTitle}>{title}</Text>
-            {description ? (
-              <Text style={styles.description}>{description}</Text>
-            ) : null}
-          </View>
-        ) : description ? (
-          <Text style={styles.description}>{description}</Text>
-        ) : null}
-        {children}
-      </ScrollView>
-    </SafeAreaView>
+    <Screen
+      title={title}
+      back={{
+        label: backLabel,
+        onPress: () => (router.canGoBack() ? router.back() : router.replace(ME_HREF)),
+      }}
+      contentContainerStyle={contentContainerStyle}
+    >
+      {description ? (
+        <AppText variant="body" color="secondaryLabel">
+          {description}
+        </AppText>
+      ) : null}
+      {children}
+    </Screen>
   )
 }

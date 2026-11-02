@@ -1,12 +1,11 @@
-import { router, type Href } from "expo-router"
+import type { Href } from "expo-router"
+import type { ReactNode } from "react"
 import { StyleSheet, View } from "react-native"
 
-import { PressableScale } from "@/components/kit/pressable-scale"
+import { BackButton } from "@/components/kit/back-button"
 import { AppText } from "@/components/ui/app-text"
-import { IconSymbol } from "@/components/ui/icon-symbol"
 import { KitLayout } from "@/constants/kit-layout"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useAppTheme } from "@/hooks/use-app-theme"
 
 type StackHeaderProps = {
   title: string
@@ -14,28 +13,21 @@ type StackHeaderProps = {
   backLabel: string
   /** Where to go when there's no screen to pop back to (deep links). */
   fallbackHref: Href
+  /** Small labelled actions on the right of the back row. */
+  trailing?: ReactNode
 }
 
 /**
  * Back button plus large title for pushed screens that own their scroll view
  * (and so can't use `<Screen>`). Place it inside the screen's scroll content.
  */
-export function StackHeader({ title, backLabel, fallbackHref }: StackHeaderProps) {
-  const { colors } = useAppTheme()
-
+export function StackHeader({ title, backLabel, fallbackHref, trailing }: StackHeaderProps) {
   return (
     <View style={styles.root}>
-      <PressableScale
-        onPress={() => (router.canGoBack() ? router.back() : router.replace(fallbackHref))}
-        accessibilityLabel={`Back to ${backLabel}`}
-        style={styles.back}
-        hitSlop={8}
-      >
-        <IconSymbol name="chevron.left" size={22} color={colors.accentText} />
-        <AppText variant="body" color="accentText">
-          {backLabel}
-        </AppText>
-      </PressableScale>
+      <View style={styles.topRow}>
+        <BackButton label={backLabel} fallbackHref={fallbackHref} />
+        {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
+      </View>
       <AppText variant="largeTitle" accessibilityRole="header">
         {title}
       </AppText>
@@ -45,11 +37,6 @@ export function StackHeader({ title, backLabel, fallbackHref }: StackHeaderProps
 
 const styles = StyleSheet.create({
   root: { gap: PlayTTSpacing["2xs"], paddingHorizontal: KitLayout.screenGutter },
-  back: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    marginLeft: -PlayTTSpacing.xs,
-    minHeight: 44,
-  },
+  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: PlayTTSpacing.sm },
+  trailing: { flexDirection: "row", alignItems: "center", gap: PlayTTSpacing.xs },
 })

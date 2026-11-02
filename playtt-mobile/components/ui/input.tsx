@@ -9,14 +9,10 @@ import {
   View,
 } from 'react-native';
 
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTRadius,
-  PlayTTSpacing,
-  PlayTTTypography,
-} from '@/constants/playtt-tokens';
-import { useProductTheme } from '@/hooks/use-product-theme';
+import { KitLayout } from '@/constants/kit-layout';
+import { PlayTTRadius, PlayTTSpacing } from '@/constants/playtt-tokens';
+import { typeStyle } from '@/constants/type';
+import { useAppTheme } from '@/hooks/use-app-theme';
 
 type InputProps = TextInputProps & {
   hasError?: boolean;
@@ -46,7 +42,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const isAuth = variant === 'auth' && authTheme;
-  const productTheme = useProductTheme();
+  const { colors } = useAppTheme();
 
   function setRefs(instance: TextInput | null) {
     inputRef.current = instance;
@@ -74,17 +70,20 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
       ]
     : [
         styles.wrapper,
-        { backgroundColor: productTheme.input, borderColor: productTheme.border },
+        {
+          backgroundColor: colors.surface,
+          // Focus and error change both colour and thickness, so they don't rely on colour alone.
+          borderColor: hasError ? colors.destructive : isFocused ? colors.accent : colors.separator,
+          borderWidth: hasError || isFocused ? 2 : 1,
+        },
         compact && styles.wrapperCompact,
-        isFocused && !hasError && styles.wrapperFocused,
-        hasError && styles.wrapperError,
       ];
 
   const inputStyle = isAuth
     ? [styles.authInput, Boolean(leadingIcon || trailingAccessory) && styles.authInputWithIcon, { color: authTheme.foreground }, style]
     : [
         styles.input,
-        { color: productTheme.foreground },
+        { color: colors.label },
         compact && styles.inputCompact,
         props.multiline && styles.inputMultiline,
         style,
@@ -102,7 +101,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
         <TextInput
           ref={setRefs}
           placeholderTextColor={
-            placeholderTextColor ?? (isAuth ? authTheme.muted : productTheme.muted)
+            placeholderTextColor ?? (isAuth ? authTheme.muted : colors.tertiaryLabel)
           }
           style={inputStyle}
           onFocus={(event) => {
@@ -121,31 +120,17 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   );
 });
 
+// Body text (17 pt, system font) everywhere: fields are where people read most carefully.
+const BODY = typeStyle('body');
+
 const styles = StyleSheet.create({
   wrapper: {
-    borderWidth: 1.5,
-    borderColor: PlayTTColors.productBorder,
-    backgroundColor: PlayTTColors.productInput,
-    borderRadius: PlayTTRadius.field,
+    borderRadius: KitLayout.groupRadius,
+    borderCurve: 'continuous',
     minHeight: 52,
   },
   wrapperCompact: {
-    minHeight: 44,
-    borderRadius: PlayTTRadius.lg,
-    borderWidth: 1,
-  },
-  wrapperFocused: {
-    borderColor: PlayTTColors.primary,
-    shadowColor: PlayTTColors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  wrapperError: {
-    borderColor: PlayTTColors.destructive,
-    shadowOpacity: 0,
-    elevation: 0,
+    minHeight: KitLayout.minTouchTarget,
   },
   authWrapper: {
     borderRadius: PlayTTRadius.pill,
@@ -160,31 +145,22 @@ const styles = StyleSheet.create({
     borderColor: '#ffb7ae',
   },
   input: {
-    ...PlayTTTypography.body,
-    fontSize: 15,
-    lineHeight: 22,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.productForeground,
+    ...BODY,
     width: '100%',
     minHeight: 52,
     paddingHorizontal: PlayTTSpacing.md,
-    paddingVertical: PlayTTSpacing.sm + 2,
+    paddingVertical: PlayTTSpacing.sm,
   },
   inputMultiline: {
-    minHeight: 88,
+    minHeight: 96,
     textAlignVertical: 'top',
   },
   inputCompact: {
-    fontSize: 14,
-    lineHeight: 20,
-    minHeight: 44,
-    paddingHorizontal: PlayTTSpacing.sm + 4,
-    paddingVertical: PlayTTSpacing.xs + 2,
+    minHeight: KitLayout.minTouchTarget,
+    paddingVertical: PlayTTSpacing.xs,
   },
   authInput: {
-    fontSize: 15,
-    lineHeight: 22,
-    fontFamily: PlayTTFontFamilies.regular,
+    ...BODY,
     width: '100%',
     minHeight: 52,
     paddingHorizontal: 20,

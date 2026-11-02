@@ -38,7 +38,8 @@ import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useAppTheme } from "@/hooks/use-app-theme"
 import { haptics } from "@/lib/haptics"
 
-export type SheetDetent = "medium" | "large" | number
+/** "content" fits the sheet to what's inside (up to "large"); use it on its own. */
+export type SheetDetent = "medium" | "large" | "content" | number
 
 const DETENT_FRACTIONS = { medium: 0.5, large: 0.92 } as const
 
@@ -67,7 +68,7 @@ type SheetProps = {
   dismissible?: boolean
 }
 
-function toFraction(detent: SheetDetent): number {
+function toFraction(detent: Exclude<SheetDetent, "content">): number {
   return typeof detent === "number" ? detent : DETENT_FRACTIONS[detent]
 }
 
@@ -92,16 +93,30 @@ export function Sheet({
   const { colors } = useAppTheme()
   const reducedMotion = useReducedMotion()
   const [mounted, setMounted] = useState(visible)
+  const fitToContent = detents.includes("content")
+  // Fit-to-content sheets size themselves; this is their measured height.
+  const [contentHeight, setContentHeight] = useState<number | null>(null)
+  const maxHeight = DETENT_FRACTIONS.large * screenHeight
 
   const { stops, sheetHeight } = useMemo(() => {
-    const fractions = [...new Set(detents.map(toFraction))].sort((a, b) => a - b)
+    if (fitToContent) {
+      return { sheetHeight: contentHeight ?? screenHeight, stops: [0] }
+    }
+    const fractions = [
+      ...new Set(
+        detents.filter((detent): detent is Exclude<SheetDetent, "content"> => detent !== "content").map(toFraction),
+      ),
+    ].sort((a, b) => a - b)
     const largest = fractions[fractions.length - 1]
     return {
       sheetHeight: largest * screenHeight,
       // translateY for each detent, smallest detent first (largest offset).
       stops: fractions.map((fraction) => (largest - fraction) * screenHeight),
     }
-  }, [detents, screenHeight])
+  }, [contentHeight, detents, fitToContent, screenHeight])
+
+  // A fit-to-content sheet can only slide in once we know how tall it is.
+  const readyToOpen = !fitToContent || contentHeight !== null
 
   const closed = sheetHeight
   const openStop = stops[Math.min(Math.max(initialDetent, 0), stops.length - 1)]
@@ -119,6 +134,7 @@ export function Sheet({
   // Open and parent-driven close.
   useEffect(() => {
     if (visible) {
+      if (!readyToOpen) return
       restingStop.set(openStop)
       if (reducedMotion) {
         translateY.set(openStop)
@@ -140,8 +156,8 @@ export function Sheet({
     } else {
       translateY.set(withSpring(closed, spring("default"), done))
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs on visibility changes only
-  }, [visible])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs on visibility changes (and first measure) only
+  }, [visible, readyToOpen])
 
   /** User-initiated close (scrim, Close button, back): animate, then tell the parent. */
   const requestDismiss = useCallback(() => {
@@ -241,7 +257,8 @@ export function Sheet({
 
   const body = scrollable ? (
     <ScrollView
-      style={styles.scroll}
+      // Fit-to-content: grow with the content, shrink to scroll once it hits the cap.
+      style={fitToContent ? styles.scrollFit : styles.scroll}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
@@ -256,10 +273,20 @@ export function Sheet({
   const sheetSurface = (
     <Animated.View
       accessibilityViewIsModal
+      onLayout={
+        fitToContent
+          ? (event) => {
+              const height = Math.round(event.nativeEvent.layout.height - OVERDRAG_ROOM)
+              if (height > 0 && height !== contentHeight) setContentHeight(height)
+            }
+          : undefined
+      }
       style={[
         styles.sheet,
         {
-          height: sheetHeight + OVERDRAG_ROOM,
+          ...(fitToContent
+            ? { maxHeight: maxHeight + OVERDRAG_ROOM }
+            : { height: sheetHeight + OVERDRAG_ROOM }),
           paddingBottom: OVERDRAG_ROOM,
           backgroundColor: colors.surfaceElevated,
         },
@@ -329,4 +356,5 @@ const styles = StyleSheet.create({
   title: { flex: 1 },
   close: { justifyContent: "center", alignItems: "flex-end", paddingLeft: PlayTTSpacing.xs },
   scroll: { flex: 1 },
+  scrollFit: { flexGrow: 0, flexShrink: 1 },
 })

@@ -1,13 +1,12 @@
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 
+import { PressableScale } from "@/components/kit/pressable-scale"
+import { AppText } from "@/components/ui/app-text"
+import { IconSymbol } from "@/components/ui/icon-symbol"
 import type { AuthThemeColors } from "@/constants/auth-theme"
 import type { ProductThemeColors } from "@/constants/product-theme"
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTRadius,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAppTheme } from "@/hooks/use-app-theme"
 
 type OptionChip = {
   value: string
@@ -18,71 +17,57 @@ type OptionChipsProps = {
   options: readonly OptionChip[]
   value: string | null
   onChange: (value: string) => void
+  /** Sign-in screens pass their glass theme; everywhere else uses the app theme. */
   theme?: AuthThemeColors
+  /** @deprecated Chips follow the app theme now. */
   productTheme?: ProductThemeColors
 }
 
-export function OptionChips({
-  options,
-  value,
-  onChange,
-  theme,
-  productTheme,
-}: OptionChipsProps) {
-  const chipTheme = productTheme
+/** Short single-choice answers as big pills; the chosen one also gets a tick. */
+export function OptionChips({ options, value, onChange, theme }: OptionChipsProps) {
+  const { colors } = useAppTheme()
+  const palette = theme
     ? {
-        selectedBg: PlayTTColors.primary,
-        selectedFg: PlayTTColors.primaryForeground,
-        idleBg: productTheme.elevated,
-        idleFg: productTheme.foreground,
-        border: productTheme.border,
-        selectedBorder: PlayTTColors.primary,
+        selectedBg: theme.primary,
+        selectedFg: theme.primaryForeground,
+        idleBg: theme.socialFill,
+        idleFg: theme.foreground,
+        border: theme.divider,
       }
-    : theme
-      ? {
-          selectedBg: theme.primary,
-          selectedFg: theme.primaryForeground,
-          idleBg: theme.socialFill,
-          idleFg: theme.foreground,
-          border: theme.divider,
-          selectedBorder: theme.primary,
-        }
-      : null
-
-  if (!chipTheme) {
-    return null
-  }
+    : {
+        selectedBg: colors.accent,
+        selectedFg: colors.onAccent,
+        idleBg: colors.surface,
+        idleFg: colors.label,
+        border: colors.separator,
+      }
 
   return (
-    <View style={styles.wrap}>
+    <View style={styles.wrap} accessibilityRole="radiogroup">
       {options.map((option) => {
         const selected = value === option.value
 
         return (
-          <Pressable
+          <PressableScale
             key={option.value}
-            accessibilityRole="button"
-            accessibilityState={{ selected }}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: selected }}
+            accessibilityLabel={option.label}
+            haptic="selection"
             onPress={() => onChange(option.value)}
             style={[
               styles.chip,
               {
-                backgroundColor: selected ? chipTheme.selectedBg : chipTheme.idleBg,
-                borderColor: selected ? chipTheme.selectedBorder : chipTheme.border,
+                backgroundColor: selected ? palette.selectedBg : palette.idleBg,
+                borderColor: selected ? palette.selectedBg : palette.border,
               },
             ]}
           >
-            <Text
-              style={[
-                styles.label,
-                {
-                  color: selected ? chipTheme.selectedFg : chipTheme.idleFg,
-                },
-              ]}
-            >
+            {selected ? <IconSymbol name="checkmark" size={16} color={palette.selectedFg} /> : null}
+            <AppText variant="callout" weight={selected ? "700" : "500"} style={{ color: selected ? palette.selectedFg : palette.idleFg }}>
               {option.label}
-            </Text>
-          </Pressable>
+            </AppText>
+          </PressableScale>
         )
       })}
     </View>
@@ -96,13 +81,11 @@ const styles = StyleSheet.create({
     gap: PlayTTSpacing.xs,
   },
   chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: PlayTTSpacing["2xs"],
     borderWidth: 1,
-    borderRadius: PlayTTRadius.pill,
-    paddingHorizontal: PlayTTSpacing.sm,
-    paddingVertical: PlayTTSpacing.xs,
-  },
-  label: {
-    fontSize: 13,
-    fontFamily: PlayTTFontFamilies.medium,
+    borderRadius: 24,
+    paddingHorizontal: PlayTTSpacing.md,
   },
 })

@@ -93,7 +93,7 @@ test("group chats show who said what and send to the group", async () => {
   expect(await screen.findByText("Who's booking?")).toBeTruthy()
   expect(screen.getByText("Amara K.")).toBeTruthy()
   expect(screen.getByText("2v2 with Amara K.")).toBeTruthy()
-  expect(screen.getByText("3/4 players")).toBeTruthy()
+  expect(screen.getByText("3 of 4 players")).toBeTruthy()
 
   await fireEvent.changeText(screen.getByLabelText("Message"), "Me, Table 2")
   await fireEvent.press(screen.getByLabelText("Send message"))

@@ -1,17 +1,20 @@
-import { useMemo } from "react"
-import { View } from "react-native"
+import { StyleSheet, View } from "react-native"
 
-import { TimingPanel } from "@/components/booking/timing-panel"
-import { Button } from "@/components/ui/button"
+import { DateStrip } from "@/components/booking/flow/date-strip"
+import { TimeGrid } from "@/components/booking/flow/time-grid"
+import { Button } from "@/components/kit/button"
+import { AppText } from "@/components/ui/app-text"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import type { LocationSummary, SlotAvailability } from "@/lib/booking-types"
+import { addDaysToDateKey } from "@/lib/booking-utils"
 
 type BookingEditTimeSheetProps = {
   visible: boolean
   location: LocationSummary | null
   dateStrip: Date[]
   selectedDate: string
+  /** Kept for callers; a time change keeps the booking's length. */
   durationMinutes: 30 | 60
   slots: SlotAvailability[]
   selectedSlot: SlotAvailability | null
@@ -23,6 +26,7 @@ type BookingEditTimeSheetProps = {
   onContinue: () => void
 }
 
+/** Change time: the same day strip and time buttons as booking. */
 export function BookingEditTimeSheet({
   visible,
   location,
@@ -38,44 +42,35 @@ export function BookingEditTimeSheet({
   onSlotSelect,
   onContinue,
 }: BookingEditTimeSheetProps) {
-  const theme = useProductTheme()
-  const canContinue = useMemo(() => {
-    if (!selectedSlot) {
-      return false
-    }
-
-    const slotDate = selectedSlot.startsAt.slice(0, 10)
-    return slotDate === selectedDate
-  }, [selectedDate, selectedSlot])
+  const canContinue = Boolean(selectedSlot && selectedSlot.startsAt.slice(0, 10) === selectedDate)
 
   return (
     <BottomSheet visible={visible} title="Change time" onClose={onClose} scrollable>
-      <TimingPanel
-        location={location}
-        dateStrip={dateStrip}
-        selectedDate={selectedDate}
-        durationMinutes={durationMinutes}
-        slots={slots}
-        selectedSlot={selectedSlot}
-        isLoadingSlots={isLoadingSlots}
-        nowMs={nowMs}
-        compact
-        hideDurationToggle
-        heading="Pick a new time"
-        onDateChange={onDateChange}
-        onDurationChange={() => {}}
-        onSlotSelect={onSlotSelect}
-      />
-
-      <View>
+      <View style={styles.stack}>
+        <AppText variant="callout" color="secondaryLabel">
+          {location ? `${location.name} · ` : ""}
+          {durationMinutes === 60 ? "1 hour" : "30 min"}, same as now
+        </AppText>
+        <DateStrip days={dateStrip} selectedDate={selectedDate} onChange={onDateChange} />
+        <TimeGrid
+          slots={slots}
+          selectedSlot={selectedSlot}
+          nowMs={nowMs}
+          isLoading={isLoadingSlots}
+          onSelect={onSlotSelect}
+          onTryTomorrow={() => onDateChange(addDaysToDateKey(selectedDate, 1))}
+        />
         <Button
           label="Continue"
-          surface="product"
-          productTheme={theme}
           onPress={onContinue}
           disabled={!canContinue}
+          accessibilityHint={canContinue ? undefined : "Pick a new time first"}
         />
       </View>
     </BottomSheet>
   )
 }
+
+const styles = StyleSheet.create({
+  stack: { gap: PlayTTSpacing.lg },
+})

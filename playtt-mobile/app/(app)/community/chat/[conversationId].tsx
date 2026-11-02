@@ -7,9 +7,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
-  Text,
   View,
 } from "react-native"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
@@ -22,12 +20,14 @@ import { IncomingRequestBanner, PendingRequestNote } from "@/components/communit
 import { PlayerCard } from "@/components/community/player-card/player-card"
 import { headToHeadLine } from "@/components/community/player-card/card-tiers"
 import { ReportPlayerSheet } from "@/components/community/report-player-sheet"
-import { ScreenBackButton } from "@/components/navigation/screen-back-button"
-import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
-import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
+import { BackButton } from "@/components/kit/back-button"
+import { EmptyState } from "@/components/kit/empty-state"
+import { PressableScale } from "@/components/kit/pressable-scale"
+import { AppText } from "@/components/ui/app-text"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { useCommunityChat } from "@/hooks/use-community-chat"
 import { useSharedBookings } from "@/hooks/use-shared-bookings"
-import { useProductTheme } from "@/hooks/use-product-theme"
 import {
   assignMatchSides,
   blockPlayer,
@@ -42,9 +42,8 @@ import { toast } from "@/lib/toast"
 
 export default function CommunityChatScreen() {
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>()
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const insets = useSafeAreaInsets()
-  const screenStyles = useMemo(() => createAppScreenStyles(theme), [theme])
   const chat = useCommunityChat(conversationId)
   const [draft, setDraft] = useState("")
   const [actionsOpen, setActionsOpen] = useState(false)
@@ -228,57 +227,18 @@ export default function CommunityChatScreen() {
     ])
   }
 
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        header: {
-          flexDirection: "row",
-          alignItems: "center",
-          gap: PlayTTSpacing.xs,
-          paddingHorizontal: PlayTTSpacing.md,
-          paddingBottom: PlayTTSpacing.xs,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: theme.border,
-        },
-        headerCard: { flex: 1 },
-        h2h: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 12, color: theme.muted, marginLeft: 56, marginTop: -6 },
-        menu: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
-        list: { paddingTop: PlayTTSpacing.sm },
-        day: {
-          alignSelf: "center",
-          fontFamily: PlayTTFontFamilies.medium,
-          fontSize: 12,
-          color: theme.muted,
-          marginVertical: PlayTTSpacing.xs,
-        },
-        center: { flex: 1, alignItems: "center", justifyContent: "center", gap: PlayTTSpacing.xs, padding: PlayTTSpacing.lg },
-        title: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 18, color: theme.foreground },
-        detail: { fontFamily: PlayTTFontFamilies.regular, fontSize: 14, color: theme.muted, textAlign: "center" },
-        intro: {
-          fontFamily: PlayTTFontFamilies.regular,
-          fontSize: 14,
-          color: theme.muted,
-          textAlign: "center",
-          paddingHorizontal: PlayTTSpacing.xl,
-          paddingVertical: PlayTTSpacing.lg,
-          lineHeight: 20,
-          // Inverted list: undo the flip for the empty state.
-          transform: [{ scaleY: -1 }],
-        },
-      }),
-    [theme],
-  )
-
   if (chat.missing) {
     return (
-      <SafeAreaView style={screenStyles.safeArea} edges={["top", "left", "right"]}>
-        <View style={{ paddingHorizontal: PlayTTSpacing.md }}>
-          <ScreenBackButton />
+      <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={["top", "left", "right"]}>
+        <View style={styles.missingBack}>
+          <BackButton label="Messages" fallbackHref={INBOX_HREF} />
         </View>
-        <View style={styles.center}>
-          <Text style={styles.title}>Chat not available</Text>
-          <Text style={styles.detail}>This chat was deleted or the player is no longer in Community.</Text>
-        </View>
+        <EmptyState
+          icon="bubble.left.and.bubble.right.fill"
+          title="This chat isn't available"
+          message="It was deleted, or the player has left Players."
+          action={{ label: "Back to Messages", onPress: () => router.replace(INBOX_HREF) }}
+        />
       </SafeAreaView>
     )
   }
@@ -292,27 +252,37 @@ export default function CommunityChatScreen() {
         : null
 
   return (
-    <SafeAreaView style={screenStyles.safeArea} edges={["top", "left", "right"]}>
-      <View style={styles.header}>
-        <ScreenBackButton />
+    <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={["top", "left", "right"]}>
+      <View style={[styles.header, { borderBottomColor: colors.separator }]}>
+        <BackButton label="Back" fallbackHref={INBOX_HREF} />
         <View style={styles.headerCard}>
           {player ? (
             <PlayerCard player={player} size="mini" onPress={() => router.push(communityPlayerHref(player.id) as Href)} />
           ) : null}
           {player && headToHeadLine(h2h, player.displayName) ? (
-            <Text style={styles.h2h}>{headToHeadLine(h2h, player.displayName)}</Text>
+            <AppText variant="footnote" weight="600" color="secondaryLabel" style={styles.h2h}>
+              {headToHeadLine(h2h, player.displayName)}
+            </AppText>
           ) : null}
         </View>
         {player ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="Chat options" onPress={openMenu} style={styles.menu}>
-            <DotsThreeVertical size={22} color={theme.foreground} weight="bold" />
-          </Pressable>
+          <PressableScale
+            accessibilityLabel="Chat options"
+            accessibilityHint="Report, block or leave the chat"
+            onPress={openMenu}
+            style={[styles.menu, { backgroundColor: colors.surface }]}
+          >
+            <DotsThreeVertical size={18} color={colors.accentText} weight="bold" />
+            <AppText variant="subheadline" weight="600">
+              More
+            </AppText>
+          </PressableScale>
         ) : null}
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         {!chat.loaded ? (
-          <ActivityIndicator style={{ marginTop: PlayTTSpacing.xl }} color={theme.muted} />
+          <ActivityIndicator style={styles.loading} color={colors.secondaryLabel} />
         ) : (
           <FlatList
             inverted
@@ -322,7 +292,9 @@ export default function CommunityChatScreen() {
             keyboardShouldPersistTaps="handled"
             renderItem={({ item: row }) =>
               row.type === "day" ? (
-                <Text style={styles.day}>{row.label}</Text>
+                <AppText variant="footnote" weight="600" color="secondaryLabel" style={styles.day}>
+                  {row.label}
+                </AppText>
               ) : (
                 <ChatMessageBubble
                   item={row.item}
@@ -351,13 +323,13 @@ export default function CommunityChatScreen() {
               )
             }
             ListEmptyComponent={
-              <Text style={styles.intro}>
+              <AppText variant="callout" color="secondaryLabel" style={styles.intro}>
                 Say hi to {name} and agree a time. When you&apos;re set, book a table with the + button.
-              </Text>
+              </AppText>
             }
             onEndReached={() => void chat.loadOlder()}
             onEndReachedThreshold={0.3}
-            ListFooterComponent={chat.loadingOlder ? <ActivityIndicator color={theme.muted} /> : undefined}
+            ListFooterComponent={chat.loadingOlder ? <ActivityIndicator color={colors.secondaryLabel} /> : undefined}
           />
         )}
 
@@ -432,3 +404,37 @@ export default function CommunityChatScreen() {
     </SafeAreaView>
   )
 }
+
+const INBOX_HREF = "/(app)/community/inbox" as Href
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: PlayTTSpacing.xs,
+    paddingHorizontal: PlayTTSpacing.md,
+    paddingBottom: PlayTTSpacing.xs,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerCard: { flex: 1 },
+  h2h: { marginLeft: 56, marginTop: -4 },
+  menu: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: PlayTTSpacing["2xs"],
+    paddingHorizontal: PlayTTSpacing.sm,
+    borderRadius: 24,
+  },
+  missingBack: { paddingHorizontal: PlayTTSpacing.md },
+  loading: { marginTop: PlayTTSpacing.xl },
+  list: { paddingTop: PlayTTSpacing.sm },
+  day: { alignSelf: "center", marginVertical: PlayTTSpacing.xs },
+  intro: {
+    textAlign: "center",
+    paddingHorizontal: PlayTTSpacing.xl,
+    paddingVertical: PlayTTSpacing.lg,
+    // Inverted list: undo the flip for the empty state.
+    transform: [{ scaleY: -1 }],
+  },
+})

@@ -1,104 +1,62 @@
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
-import { useCallback, useMemo, useRef, useState } from "react"
-import { Alert, View } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { type Href, router, useFocusEffect } from "expo-router"
+import { useCallback, useRef, useState } from "react"
+import { Alert, RefreshControl } from "react-native"
 
-import { AccountProfilePanel } from "@/components/account/account-profile-panel"
-import { AccountSettingsPanel } from "@/components/account/account-settings-panel"
-import { createAppScreenStyles } from "@/components/layout/app-screen-styles"
-import type { AccountTab } from "@/components/navigation/account-subnav"
-import { GlassSegmentControl } from "@/components/ui/glass-segment-control"
-import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { MeProfileCard } from "@/components/account/me-profile-card"
+import { EmptyState } from "@/components/kit/empty-state"
+import { ListRow } from "@/components/kit/list-row"
+import { ListSection } from "@/components/kit/list-section"
+import { Screen } from "@/components/kit/screen"
+import { AccountHubSkeleton } from "@/components/ui/skeleton"
+import { useAppTheme } from "@/hooks/use-app-theme"
+import { useSkeletonSurface } from "@/hooks/use-product-theme"
+import { canChangePassword, formatPersonalDetailsPreview } from "@/lib/account-utils"
 import { clearSession } from "@/lib/auth-helpers"
-import { goToSignIn } from "@/lib/auth-navigation"
+import { goToSignIn, goToWelcome } from "@/lib/auth-navigation"
 import { fetchCurrentUser, type UserProfile } from "@/lib/user-api"
-import { useProductTheme } from "@/hooks/use-product-theme"
 
-function parseAccountTab(value: string | string[] | undefined): AccountTab {
-  const raw = Array.isArray(value) ? value[0] : value
-  return raw === "settings" ? "settings" : "account"
-}
-
-export default function AccountScreen() {
-  const theme = useProductTheme()
-  const styles = useMemo(() => createAppScreenStyles(theme), [theme])
-  const { accountTab: accountTabParam } = useLocalSearchParams<{
-    accountTab?: string
-  }>()
-  const [accountTab, setAccountTab] = useState<AccountTab>(() =>
-    parseAccountTab(accountTabParam),
-  )
-
+/** Me tab — job: my details and app settings in one place. */
+export default function MeScreen() {
+  const { colors } = useAppTheme()
+  const skeletonSurface = useSkeletonSurface()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [hasFetchedProfile, setHasFetchedProfile] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const hasLoadedRef = useRef(false)
 
   const loadProfile = useCallback(async (silent = false) => {
-    if (silent) {
-      setIsRefreshing(true)
-    } else {
-      setIsLoading(true)
-    }
+    if (silent) setIsRefreshing(true)
 
     try {
       const response = await fetchCurrentUser()
       setProfile(response.data?.user ?? null)
     } catch {
-      if (!silent) {
-        setProfile(null)
-      }
+      if (!silent) setProfile(null)
     } finally {
-      if (!silent) {
-        setIsLoading(false)
-        setHasFetchedProfile(true)
-      }
+      setIsLoading(false)
       setIsRefreshing(false)
     }
   }, [])
 
-  function handleAccountTabChange(tab: AccountTab) {
-    setAccountTab(tab)
-    if (tab === "account" && !hasFetchedProfile) {
-      void loadProfile(false)
-    }
-  }
-
   useFocusEffect(
     useCallback(() => {
-      if (accountTab === "account") {
-        void loadProfile(hasLoadedRef.current)
-        hasLoadedRef.current = true
-      }
-    }, [accountTab, loadProfile]),
+      void loadProfile(hasLoadedRef.current)
+      hasLoadedRef.current = true
+    }, [loadProfile]),
   )
 
   function goToVerifyEmail() {
-    if (!profile?.email) {
-      return
-    }
-
-    router.push({
-      pathname: "/(app)/account/verify-email",
-      params: { email: profile.email },
-    })
+    if (!profile?.email) return
+    router.push({ pathname: "/(app)/account/verify-email", params: { email: profile.email } })
   }
 
+  // Signing back in costs real effort for some players, so this one asks first.
   function handleSignOutPress() {
-    Alert.alert(
-      "Sign out?",
-      "You will need to sign in again to book.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Sign out",
-          style: "destructive",
-          onPress: () => void handleSignOut(),
-        },
-      ],
-    )
+    Alert.alert("Sign out?", "You'll need to sign in again to book.", [
+      { text: "Stay signed in", style: "cancel" },
+      { text: "Sign out", style: "destructive", onPress: () => void handleSignOut() },
+    ])
   }
 
   async function handleSignOut() {
@@ -108,44 +66,118 @@ export default function AccountScreen() {
     setIsSigningOut(false)
   }
 
-  const hubPadding = useMemo(
-    () => ({
-      paddingHorizontal: 20,
-      paddingTop: PlayTTSpacing.sm,
-      gap: PlayTTSpacing.md,
-    }),
-    [],
-  )
-
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
-      <View style={hubPadding}>
-        <GlassSegmentControl
-          value={accountTab}
-          options={[
-            { value: "account", label: "Profile" },
-            { value: "settings", label: "Settings" },
-          ]}
-          onChange={handleAccountTabChange}
+    <Screen
+      title="Me"
+      inTabs
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={() => void loadProfile(true)}
+          tintColor={colors.secondaryLabel}
         />
-      </View>
+      }
+    >
+      {isLoading && !profile ? (
+        <AccountHubSkeleton surface={skeletonSurface} />
+      ) : profile ? (
+        <MeProfileCard
+          profile={profile}
+          onEdit={() => router.push("/(app)/account/edit-profile")}
+          onVerifyEmail={goToVerifyEmail}
+        />
+      ) : (
+        <EmptyState
+          icon="exclamationmark.triangle.fill"
+          title="Couldn't load your account"
+          message="Check your connection, then try again."
+          action={{ label: "Try again", onPress: () => void loadProfile(false) }}
+        />
+      )}
 
-      <View style={{ flex: 1 }}>
-        {accountTab === "account" ? (
-          <AccountProfilePanel
-            profile={profile}
-            isLoading={isLoading || !hasFetchedProfile}
-            isRefreshing={isRefreshing}
-            isSigningOut={isSigningOut}
-            onRefresh={() => void loadProfile(true)}
-            onRetry={() => void loadProfile(false)}
-            onVerifyEmail={goToVerifyEmail}
-            onSignOutPress={handleSignOutPress}
+      {profile ? (
+        <ListSection header="Your account">
+          <ListRow
+            icon="person.fill"
+            title="Personal details"
+            subtitle={formatPersonalDetailsPreview(profile)}
+            onPress={() => router.push("/(app)/account/edit-profile")}
+            accessibilityHint="Edit your name, phone and skill level"
           />
-        ) : (
-          <AccountSettingsPanel />
-        )}
-      </View>
-    </SafeAreaView>
+          {canChangePassword(profile.authMethods) ? (
+            <ListRow
+              icon="lock.fill"
+              tone="neutral"
+              title="Password"
+              subtitle="Change your sign-in password"
+              onPress={() => router.push("/(app)/account/change-password")}
+            />
+          ) : null}
+        </ListSection>
+      ) : null}
+
+      <ListSection header="Preferences">
+        <ListRow
+          icon="bell.fill"
+          tone="destructive"
+          title="Notifications"
+          subtitle="Game reminders and booking updates"
+          onPress={() => router.push("/(app)/account/notifications")}
+        />
+        <ListRow
+          icon="person.text.rectangle"
+          tone="success"
+          title="Player card and privacy"
+          subtitle="What other players see"
+          onPress={() => router.push("/(app)/account/community-profile")}
+        />
+      </ListSection>
+
+      <ListSection header="Help">
+        <ListRow
+          icon="questionmark.circle.fill"
+          title="Questions and support"
+          subtitle="Bookings, entry codes, replays and Coach"
+          onPress={() => router.push("/(app)/account/help")}
+        />
+        <ListRow
+          icon="play.circle.fill"
+          tone="neutral"
+          title="Watch the intro again"
+          subtitle="A quick tour of PlayTT"
+          onPress={() => goToWelcome(true)}
+        />
+        {__DEV__ ? (
+          <ListRow
+            icon="paintpalette.fill"
+            tone="warning"
+            title="Design kit"
+            subtitle="Redesign components (development only)"
+            onPress={() => router.push("/(app)/kit-demo" as Href)}
+          />
+        ) : null}
+      </ListSection>
+
+      <ListSection header="Legal">
+        <ListRow
+          icon="doc.text.fill"
+          tone="neutral"
+          title="Terms and privacy"
+          onPress={() => router.push("/(app)/account/legal")}
+        />
+      </ListSection>
+
+      {profile ? (
+        <ListSection>
+          <ListRow
+            icon="rectangle.portrait.and.arrow.right"
+            tone="destructive"
+            title={isSigningOut ? "Signing out…" : "Sign out"}
+            destructive
+            onPress={isSigningOut ? undefined : handleSignOutPress}
+          />
+        </ListSection>
+      ) : null}
+    </Screen>
   )
 }

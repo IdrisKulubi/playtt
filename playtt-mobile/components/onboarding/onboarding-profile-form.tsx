@@ -1,11 +1,13 @@
 import { useState } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 
+import { StepHeader } from "@/components/kit/step-header"
 import { OptionChips } from "@/components/onboarding/option-chips"
+import { ONBOARDING_STEPS } from "@/components/onboarding/onboarding-survey-form"
 import { Button } from "@/components/ui/button"
 import { FormField } from "@/components/ui/form-field"
 import { Input } from "@/components/ui/input"
-import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useAuthTheme } from "@/hooks/use-auth-theme"
 import { toast } from "@/lib/toast"
 import {
@@ -67,7 +69,7 @@ export function OnboardingProfileForm({
 
   return (
     <View style={styles.form}>
-      <Text style={[styles.progress, { color: theme.muted }]}>Step 1 of 2</Text>
+      <StepHeader step={1} total={ONBOARDING_STEPS} title="About you" />
 
       <FormField label="Display name" {...fieldProps}>
         <Input
@@ -113,10 +115,5 @@ export function OnboardingProfileForm({
 const styles = StyleSheet.create({
   form: {
     gap: PlayTTSpacing.md,
-  },
-  progress: {
-    fontSize: 12,
-    fontFamily: PlayTTFontFamilies.medium,
-    textAlign: "center",
   },
 })

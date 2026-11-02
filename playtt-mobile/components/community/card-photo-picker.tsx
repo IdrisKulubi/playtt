@@ -2,7 +2,7 @@ import * as ImagePicker from "expo-image-picker"
 import { Camera } from "phosphor-react-native/src/icons/Camera"
 import { Trash } from "phosphor-react-native/src/icons/Trash"
 import { useState } from "react"
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native"
+import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native"
 
 import { PlayTTColors, PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useProductTheme } from "@/hooks/use-product-theme"
@@ -24,7 +24,15 @@ export function CardPhotoPicker({ hasPhoto, onChange }: CardPhotoPickerProps) {
   async function pick() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (!permission.granted) {
-      toast.error("Allow photo access in Settings to add a card photo.")
+      // Once refused, only the phone's Settings can change it, so take people there.
+      Alert.alert(
+        "Photo access is off",
+        "To add a card photo, allow PlayTT to use your photos in Settings.",
+        [
+          { text: "Not now", style: "cancel" },
+          { text: "Open Settings", onPress: () => void Linking.openSettings() },
+        ],
+      )
       return
     }
 

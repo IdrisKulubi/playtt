@@ -124,7 +124,10 @@ export function Screen({
           contentContainerStyle,
         ]}
         showsVerticalScrollIndicator={false}
+        // "handled" keeps a tap on another field from blurring and flickering the keyboard.
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
       >
         <Animated.View onLayout={onTitleLayout} style={[styles.largeTitle, largeTitleStyle]}>
           <AppText variant="largeTitle" accessibilityRole="header">

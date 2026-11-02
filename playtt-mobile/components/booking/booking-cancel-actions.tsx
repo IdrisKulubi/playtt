@@ -1,12 +1,9 @@
-import { useMemo, useState } from "react"
-import { Alert, StyleSheet, Text, View } from "react-native"
+import { useState } from "react"
+import { Alert, StyleSheet, View } from "react-native"
 
-import { Button } from "@/components/ui/button"
-import {
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { Button } from "@/components/kit/button"
+import { AppText } from "@/components/ui/app-text"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { cancelBooking } from "@/lib/booking-api"
 import type { UserBookingSummary } from "@/lib/booking-types"
 import { canCancelBooking } from "@/lib/booking-utils"
@@ -17,71 +14,46 @@ type BookingCancelActionsProps = {
   onCancelled: () => void
 }
 
-export function BookingCancelActions({
-  booking,
-  onCancelled,
-}: BookingCancelActionsProps) {
-  const theme = useProductTheme()
+/** Release an unpaid hold. It frees the table for others, so it asks first. */
+export function BookingCancelActions({ booking, onCancelled }: BookingCancelActionsProps) {
   const [isCancelling, setIsCancelling] = useState(false)
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        copy: {
-          fontSize: 13,
-          fontFamily: PlayTTFontFamilies.regular,
-          color: theme.muted,
-          lineHeight: 18,
-        },
-      }),
-    [theme.muted],
-  )
 
-  if (!canCancelBooking(booking)) {
-    return null
-  }
+  if (!canCancelBooking(booking)) return null
 
   function confirmCancel() {
     Alert.alert(
-      "Release this hold?",
-      "This unpaid booking will be cancelled and the slot will open for others.",
+      "Let this table go?",
+      "Your booking isn't paid yet. If you let it go, someone else can book this time.",
       [
-        { text: "Keep hold", style: "cancel" },
-        {
-          text: "Release hold",
-          style: "destructive",
-          onPress: () => void handleCancel(),
-        },
+        { text: "Keep my booking", style: "cancel" },
+        { text: "Let it go", style: "destructive", onPress: () => void handleCancel() },
       ],
     )
   }
 
   async function handleCancel() {
     setIsCancelling(true)
-
     try {
       await cancelBooking(booking.id)
-      toast.success("Booking released.")
+      toast.success("Booking cancelled. The table is free for others.")
       onCancelled()
     } catch (error) {
-      toast.apiError(error, "Could not release this booking.")
+      toast.apiError(error, "Could not cancel this booking.")
     } finally {
       setIsCancelling(false)
     }
   }
 
   return (
-    <View style={{ gap: PlayTTSpacing.sm }}>
-      <Text style={styles.copy}>
-        This slot is held but not paid. Release it if you no longer need it.
-      </Text>
-      <Button
-        label="Release hold"
-        variant="outline"
-        surface="product"
-        productTheme={theme}
-        onPress={confirmCancel}
-        loading={isCancelling}
-      />
+    <View style={styles.root}>
+      <AppText variant="callout" color="secondaryLabel">
+        Don&apos;t need this table any more? You haven&apos;t paid, so cancelling costs nothing.
+      </AppText>
+      <Button label="Cancel booking" variant="destructive" onPress={confirmCancel} loading={isCancelling} />
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  root: { gap: PlayTTSpacing.sm },
+})

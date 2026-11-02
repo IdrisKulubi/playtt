@@ -1,70 +1,59 @@
 import { ChatCircleDots } from "phosphor-react-native/src/icons/ChatCircleDots"
 import { IdentificationCard } from "phosphor-react-native/src/icons/IdentificationCard"
 import { PingPong } from "phosphor-react-native/src/icons/PingPong"
-import { useMemo } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 
-import { GlassPanel } from "@/components/ui/glass-panel"
-import { Button } from "@/components/ui/button"
-import { PlayTTColors, PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { Button } from "@/components/kit/button"
+import { Card } from "@/components/kit/card"
+import { AppText } from "@/components/ui/app-text"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAppTheme } from "@/hooks/use-app-theme"
 
 const STEPS = [
-  { title: "Get your card", detail: "Your skill tier, play style and real stats.", Icon: IdentificationCard },
-  { title: "Go open", detail: "Tap Open to play so players at your venue can find you.", Icon: PingPong },
+  { title: "Make your player card", detail: "Your level, how you like to play, and your real stats.", Icon: IdentificationCard },
+  { title: "Say you're open to play", detail: "Players at your venue can then see you and invite you.", Icon: PingPong },
   { title: "Play", detail: "Agree a time in chat, then book a table as usual.", Icon: ChatCircleDots },
 ]
 
-/** First-time gate shown until the player turns on their community profile. */
+/** First-time gate shown until the player turns on their player card. */
 export function CommunityIntro({ onCreate, onEnterCode }: { onCreate: () => void; onEnterCode?: () => void }) {
-  const theme = useProductTheme()
-
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        panel: { borderRadius: 20 },
-        content: { gap: PlayTTSpacing.md, padding: PlayTTSpacing.lg },
-        title: { fontFamily: PlayTTFontFamilies.bold, fontSize: 22, color: theme.foreground },
-        step: { flexDirection: "row", gap: PlayTTSpacing.sm, alignItems: "flex-start" },
-        badge: {
-          width: 36,
-          height: 36,
-          borderRadius: 18,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "rgba(0, 183, 255, 0.14)",
-        },
-        copy: { flex: 1, gap: 2 },
-        stepTitle: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 16, color: theme.foreground },
-        stepDetail: { fontFamily: PlayTTFontFamilies.regular, fontSize: 14, color: theme.muted, lineHeight: 20 },
-        privacy: { fontFamily: PlayTTFontFamilies.regular, fontSize: 12, color: theme.muted, lineHeight: 18 },
-      }),
-    [theme],
-  )
+  const { colors } = useAppTheme()
 
   return (
-    <GlassPanel style={styles.panel} contentStyle={styles.content}>
-      <Text style={styles.title}>Meet players at your venue</Text>
-      {STEPS.map(({ title, detail, Icon }, index) => (
-        <View key={title} style={styles.step}>
-          <View style={styles.badge}>
-            <Icon size={18} color={PlayTTColors.primary} weight="bold" />
+    <Card>
+      <View style={styles.stack}>
+        <AppText variant="title2" accessibilityRole="header">
+          Meet players at your venue
+        </AppText>
+        {STEPS.map(({ title, detail, Icon }, index) => (
+          <View key={title} style={styles.step}>
+            <View style={[styles.badge, { backgroundColor: colors.fill }]}>
+              <Icon size={20} color={colors.accentText} weight="bold" />
+            </View>
+            <View style={styles.copy}>
+              <AppText variant="headline">
+                {index + 1}. {title}
+              </AppText>
+              <AppText variant="callout" color="secondaryLabel">
+                {detail}
+              </AppText>
+            </View>
           </View>
-          <View style={styles.copy}>
-            <Text style={styles.stepTitle}>
-              {index + 1}. {title}
-            </Text>
-            <Text style={styles.stepDetail}>{detail}</Text>
-          </View>
-        </View>
-      ))}
-      <Button label="Create my card" surface="product" productTheme={theme} onPress={onCreate} />
-      {onEnterCode ? (
-        <Button label="I have an invite code" variant="ghost" surface="product" productTheme={theme} onPress={onEnterCode} />
-      ) : null}
-      <Text style={styles.privacy}>
-        Only your first name and last initial are shown. You can hide your card at any time.
-      </Text>
-    </GlassPanel>
+        ))}
+        <Button label="Create my card" onPress={onCreate} style={styles.cta} />
+        {onEnterCode ? <Button label="I have an invite code" variant="plain" onPress={onEnterCode} /> : null}
+        <AppText variant="footnote" color="secondaryLabel">
+          Only your first name and last initial are shown. You can hide your card at any time.
+        </AppText>
+      </View>
+    </Card>
   )
 }
+
+const styles = StyleSheet.create({
+  stack: { gap: PlayTTSpacing.md },
+  step: { flexDirection: "row", gap: PlayTTSpacing.sm, alignItems: "flex-start" },
+  badge: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  copy: { flex: 1, gap: 2 },
+  cta: { marginTop: PlayTTSpacing.xs },
+})

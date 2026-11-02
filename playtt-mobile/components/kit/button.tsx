@@ -21,6 +21,8 @@ type KitButtonProps = {
   /** Stretch to the container width (default) or hug the label. */
   fullWidth?: boolean
   accessibilityHint?: string
+  /** When the visible label needs context to make sense when read aloud. */
+  accessibilityLabel?: string
   style?: StyleProp<ViewStyle>
 }
 
@@ -46,6 +48,7 @@ export function Button({
   disabled = false,
   fullWidth = true,
   accessibilityHint,
+  accessibilityLabel,
   style,
 }: KitButtonProps) {
   const { colors } = useAppTheme()
@@ -57,7 +60,7 @@ export function Button({
       onPress={loading ? undefined : onPress}
       disabled={disabled}
       haptic={variant === "plain" ? undefined : "commit"}
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ busy: loading }}
       style={[

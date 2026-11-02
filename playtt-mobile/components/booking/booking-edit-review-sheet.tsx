@@ -1,15 +1,14 @@
-import { useMemo } from "react"
-import { Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 
-import { createEditReviewSheetStyles } from "@/components/booking/booking-theme"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/kit/button"
+import { ListRow } from "@/components/kit/list-row"
+import { ListSection } from "@/components/kit/list-section"
+import { AppText } from "@/components/ui/app-text"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useProductTheme, useSkeletonSurface } from "@/hooks/use-product-theme"
-import type {
-  ModificationPreview,
-  UserBookingSummary,
-} from "@/lib/booking-types"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useSkeletonSurface } from "@/hooks/use-product-theme"
+import type { ModificationPreview, UserBookingSummary } from "@/lib/booking-types"
 import { formatKes, formatTimeRange } from "@/lib/booking-utils"
 
 type BookingEditReviewSheetProps = {
@@ -24,16 +23,11 @@ type BookingEditReviewSheetProps = {
   onConfirm: () => void
 }
 
-function formatSummaryLine(
-  startTime: string,
-  endTime: string,
-  groupSize: number,
-  total: string,
-  currency: string
-) {
-  return `${formatTimeRange(startTime, endTime)} · ${groupSize} players · ${formatKes(total, currency)}`
+function formatDay(iso: string) {
+  return new Date(iso).toLocaleDateString("en-KE", { weekday: "short", day: "numeric", month: "short" })
 }
 
+/** Before and after, side by side as two short lists, then what it costs. */
 export function BookingEditReviewSheet({
   visible,
   booking,
@@ -45,18 +39,7 @@ export function BookingEditReviewSheet({
   onClose,
   onConfirm,
 }: BookingEditReviewSheetProps) {
-  const theme = useProductTheme()
   const skeletonSurface = useSkeletonSurface()
-  const styles = useMemo(() => createEditReviewSheetStyles(theme), [theme])
-
-  const currentLine = formatSummaryLine(
-    booking.startTime,
-    booking.endTime,
-    booking.groupSize,
-    booking.totalAmount,
-    booking.currency
-  )
-
   const delta = preview ? Number(preview.deltaAmount) : 0
   const credit = preview ? Number(preview.creditAmount) : 0
 
@@ -68,72 +51,67 @@ export function BookingEditReviewSheet({
         : "Confirm changes"
 
   return (
-    <BottomSheet visible={visible} title="Review changes" onClose={onClose}>
-      <Text style={styles.anchor}>{booking.locationName} · Same venue</Text>
+    <BottomSheet visible={visible} title="Check your changes" onClose={onClose}>
+      <View style={styles.stack}>
+        <AppText variant="callout" color="secondaryLabel">
+          {booking.locationName} · same venue
+        </AppText>
 
-      <View style={styles.diffBlock}>
-        <View style={styles.diffRow}>
-          <Text style={styles.diffLabel}>Current</Text>
-          <Text style={[styles.diffValue, styles.diffValueMuted]}>
-            {currentLine}
-          </Text>
-        </View>
+        <ListSection header="Now" separatorInset={16}>
+          <ListRow
+            title={`${formatDay(booking.startTime)}, ${formatTimeRange(booking.startTime, booking.endTime)}`}
+            subtitle={`${booking.groupSize} players`}
+            accessory={{ kind: "value", value: formatKes(booking.totalAmount, booking.currency) }}
+          />
+        </ListSection>
 
-        <View style={styles.diffRow}>
-          <Text style={styles.diffLabel}>Updated</Text>
-          {isQuoting || !preview ? (
-            <View style={styles.quotingRow}>
-              <Skeleton width="100%" height={20} surface={skeletonSurface} />
-            </View>
-          ) : (
-            <Text style={styles.diffValue}>
-              {formatSummaryLine(
-                preview.newStartTime,
-                preview.newEndTime,
-                preview.newGroupSize,
-                preview.newTotal,
-                preview.currency
-              )}
-            </Text>
-          )}
-        </View>
-      </View>
-
-      {preview && credit > 0 ? (
-        <Text style={styles.savingsNote}>
-          New total {formatKes(preview.newTotal, preview.currency)} (
-          {formatKes(preview.creditAmount, preview.currency)} kept as PlayTT
-          credit).
-        </Text>
-      ) : null}
-
-      {preview && !isQuoting ? (
-        delta > 0 ? (
-          <View style={styles.paymentRow}>
-            <Text style={styles.paymentLabel}>Due today</Text>
-            <Text style={styles.paymentAmount}>
-              {formatKes(preview.deltaAmount, preview.currency)}
-            </Text>
+        {isQuoting || !preview ? (
+          <View style={styles.quoting} accessibilityLiveRegion="polite">
+            <Skeleton width="100%" height={56} borderRadius={12} surface={skeletonSurface} />
+            <AppText variant="callout" color="secondaryLabel">
+              Working out the new price…
+            </AppText>
           </View>
         ) : (
-          <Text style={styles.savingsNote}>
-            {credit > 0
-              ? "No extra payment needed. The difference stays on your PlayTT account."
-              : "No extra payment needed."}
-          </Text>
-        )
-      ) : isQuoting ? (
-        <Text style={styles.savingsNote}>Calculating new total…</Text>
-      ) : null}
+          <ListSection header="After the change" separatorInset={16}>
+            <ListRow
+              title={`${formatDay(preview.newStartTime)}, ${formatTimeRange(preview.newStartTime, preview.newEndTime)}`}
+              subtitle={`${preview.newGroupSize} players`}
+              accessory={{ kind: "value", value: formatKes(preview.newTotal, preview.currency) }}
+            />
+          </ListSection>
+        )}
 
-      <Button
-        label={ctaLabel}
-        surface="product"
-        productTheme={theme}
-        onPress={onConfirm}
-        loading={isApplying || isConfirming}
-        disabled={!preview || isQuoting}
-      />
+        {preview && !isQuoting ? (
+          delta > 0 ? (
+            <View style={styles.due}>
+              <AppText variant="headline">To pay now</AppText>
+              <AppText variant="title2" tabular>
+                {formatKes(preview.deltaAmount, preview.currency)}
+              </AppText>
+            </View>
+          ) : (
+            <AppText variant="callout" color="secondaryLabel">
+              {credit > 0
+                ? `Nothing to pay. ${formatKes(preview.creditAmount, preview.currency)} stays on your PlayTT account as credit.`
+                : "Nothing extra to pay."}
+            </AppText>
+          )
+        ) : null}
+
+        <Button
+          label={ctaLabel}
+          onPress={onConfirm}
+          loading={isApplying || isConfirming}
+          disabled={!preview || isQuoting}
+        />
+      </View>
     </BottomSheet>
   )
 }
+
+const styles = StyleSheet.create({
+  stack: { gap: PlayTTSpacing.md },
+  quoting: { gap: PlayTTSpacing.xs },
+  due: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+})

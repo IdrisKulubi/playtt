@@ -1,77 +1,78 @@
 import { UsersThree } from "phosphor-react-native/src/icons/UsersThree"
-import { useMemo } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 
 import { formatNairobiClock } from "@/components/community/player-card/card-tiers"
-import { PlayTTColors, PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PressableScale } from "@/components/kit/pressable-scale"
+import { AppText } from "@/components/ui/app-text"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { chatDayLabel, inboxTimeLabel } from "@/lib/community-chat-merge"
 import type { CommunityGroup } from "@/lib/community-types"
 
 export function groupSubtitle(group: CommunityGroup) {
-  const parts = [`${group.memberCount}${group.maxMembers ? `/${group.maxMembers}` : ""} players`]
+  const parts = [`${group.memberCount}${group.maxMembers ? ` of ${group.maxMembers}` : ""} players`]
   if (group.startsAt) parts.push(`${chatDayLabel(group.startsAt)} ${formatNairobiClock(group.startsAt)}`)
   if (group.mutedUntil) parts.push("Muted")
   return parts.join(" · ")
 }
 
+/** One group chat in Messages (a doubles game or an event). */
 export function GroupRow({ group, onPress }: { group: CommunityGroup; onPress: () => void }) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const unread = group.unreadCount > 0
   const last = group.lastMessage
-
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        row: { flexDirection: "row", alignItems: "center", gap: PlayTTSpacing.sm, paddingVertical: PlayTTSpacing.sm },
-        icon: {
-          width: 44,
-          height: 44,
-          borderRadius: 22,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: group.type === "event" ? "rgba(245, 200, 76, 0.16)" : "rgba(0, 183, 255, 0.14)",
-        },
-        copy: { flex: 1, gap: 2 },
-        title: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 16, color: theme.foreground },
-        subtitle: { fontFamily: PlayTTFontFamilies.regular, fontSize: 12, color: theme.muted },
-        preview: {
-          fontFamily: unread ? PlayTTFontFamilies.semiBold : PlayTTFontFamilies.regular,
-          fontSize: 14,
-          color: unread ? theme.foreground : theme.muted,
-        },
-        meta: { alignItems: "flex-end", gap: 6 },
-        time: { fontFamily: PlayTTFontFamilies.regular, fontSize: 12, color: unread ? PlayTTColors.primary : theme.muted },
-        dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: PlayTTColors.primary },
-      }),
-    [group.type, theme, unread],
-  )
+  const isEvent = group.type === "event"
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${group.title}, ${groupSubtitle(group)}${unread ? `, ${group.unreadCount} unread` : ""}`}
+    <PressableScale
       onPress={onPress}
+      pressedScale={0.99}
+      accessibilityLabel={`${group.title}, ${groupSubtitle(group)}${unread ? `, ${group.unreadCount} new` : ""}`}
       style={styles.row}
     >
-      <View style={styles.icon}>
-        <UsersThree size={20} color={group.type === "event" ? "#f5c84c" : PlayTTColors.primary} weight="bold" />
+      <View style={[styles.icon, { backgroundColor: colors.fill }]}>
+        <UsersThree size={22} color={isEvent ? colors.warning : colors.accentText} weight="bold" />
       </View>
       <View style={styles.copy}>
-        <Text style={styles.title} numberOfLines={1}>
+        <AppText variant="headline" numberOfLines={1}>
           {group.title}
-        </Text>
-        <Text style={styles.subtitle}>{groupSubtitle(group)}</Text>
+        </AppText>
+        <AppText variant="footnote" color="secondaryLabel">
+          {groupSubtitle(group)}
+        </AppText>
         {last ? (
-          <Text style={styles.preview} numberOfLines={1}>
+          <AppText
+            variant="subheadline"
+            numberOfLines={1}
+            weight={unread ? "600" : undefined}
+            color={unread ? "label" : "secondaryLabel"}
+          >
             {last.mine ? `You: ${last.body}` : last.body}
-          </Text>
+          </AppText>
         ) : null}
       </View>
       <View style={styles.meta}>
-        {last ? <Text style={styles.time}>{inboxTimeLabel(last.createdAt, formatNairobiClock)}</Text> : null}
-        {unread ? <View style={styles.dot} /> : null}
+        {last ? (
+          <AppText variant="footnote" color={unread ? "accentText" : "secondaryLabel"} weight={unread ? "600" : undefined}>
+            {inboxTimeLabel(last.createdAt, formatNairobiClock)}
+          </AppText>
+        ) : null}
+        {unread ? (
+          <View style={[styles.badge, { backgroundColor: colors.accent }]}>
+            <AppText variant="caption" weight="700" color="onAccent">
+              {group.unreadCount > 9 ? "9+" : group.unreadCount} new
+            </AppText>
+          </View>
+        ) : null}
       </View>
-    </Pressable>
+    </PressableScale>
   )
 }
+
+const styles = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "center", gap: PlayTTSpacing.sm, paddingVertical: PlayTTSpacing.sm },
+  icon: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
+  copy: { flex: 1, gap: 2 },
+  meta: { alignItems: "flex-end", gap: 6 },
+  badge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+})

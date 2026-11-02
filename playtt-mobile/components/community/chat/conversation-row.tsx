@@ -1,10 +1,11 @@
-import { useMemo } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 
 import { PlayerCard } from "@/components/community/player-card/player-card"
 import { formatNairobiClock } from "@/components/community/player-card/card-tiers"
-import { PlayTTColors, PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PressableScale } from "@/components/kit/pressable-scale"
+import { AppText } from "@/components/ui/app-text"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { inboxTimeLabel } from "@/lib/community-chat-merge"
 import type { CommunityConversation } from "@/lib/community-types"
 
@@ -20,53 +21,59 @@ type ConversationRowProps = {
   onPress: () => void
 }
 
+/** One chat in Messages: who, the last message, when, and how many are new (in words, not just a dot). */
 export function ConversationRow({ conversation, onPress }: ConversationRowProps) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const unread = conversation.unreadCount > 0
   const last = conversation.lastMessage
 
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        row: { flexDirection: "row", alignItems: "center", gap: PlayTTSpacing.sm, paddingVertical: PlayTTSpacing.xs },
-        card: { flex: 1 },
-        meta: { alignItems: "flex-end", gap: 6, minWidth: 48 },
-        time: { fontFamily: PlayTTFontFamilies.regular, fontSize: 12, color: unread ? PlayTTColors.primary : theme.muted },
-        dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: PlayTTColors.primary },
-        preview: {
-          fontFamily: unread ? PlayTTFontFamilies.semiBold : PlayTTFontFamilies.regular,
-          fontSize: 14,
-          color: unread ? theme.foreground : theme.muted,
-          marginLeft: 56,
-          marginTop: -6,
-          paddingBottom: PlayTTSpacing.xs,
-        },
-      }),
-    [theme, unread],
-  )
-
   const label = [
     conversation.player.displayName,
-    unread ? `${conversation.unreadCount} unread` : null,
+    unread ? `${conversation.unreadCount} new` : null,
     conversationPreview(conversation),
   ]
     .filter(Boolean)
     .join(", ")
 
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress}>
+    <PressableScale onPress={onPress} pressedScale={0.99} accessibilityLabel={label} style={styles.press}>
       <View style={styles.row} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <View style={styles.card}>
           <PlayerCard player={conversation.player} size="mini" />
         </View>
         <View style={styles.meta}>
-          {last ? <Text style={styles.time}>{inboxTimeLabel(last.createdAt, formatNairobiClock)}</Text> : null}
-          {unread ? <View style={styles.dot} /> : null}
+          {last ? (
+            <AppText variant="footnote" color={unread ? "accentText" : "secondaryLabel"} weight={unread ? "600" : undefined}>
+              {inboxTimeLabel(last.createdAt, formatNairobiClock)}
+            </AppText>
+          ) : null}
+          {unread ? (
+            <View style={[styles.badge, { backgroundColor: colors.accent }]}>
+              <AppText variant="caption" weight="700" color="onAccent">
+                {conversation.unreadCount > 9 ? "9+" : conversation.unreadCount} new
+              </AppText>
+            </View>
+          ) : null}
         </View>
       </View>
-      <Text numberOfLines={1} style={styles.preview}>
+      <AppText
+        variant="subheadline"
+        numberOfLines={2}
+        weight={unread ? "600" : undefined}
+        color={unread ? "label" : "secondaryLabel"}
+        style={styles.preview}
+      >
         {conversationPreview(conversation)}
-      </Text>
-    </Pressable>
+      </AppText>
+    </PressableScale>
   )
 }
+
+const styles = StyleSheet.create({
+  press: { paddingVertical: PlayTTSpacing.xs },
+  row: { flexDirection: "row", alignItems: "center", gap: PlayTTSpacing.sm },
+  card: { flex: 1 },
+  meta: { alignItems: "flex-end", gap: 6, minWidth: 56 },
+  badge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  preview: { marginLeft: 56, marginTop: -4 },
+})

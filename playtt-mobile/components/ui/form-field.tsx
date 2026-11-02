@@ -1,24 +1,27 @@
 import type { AuthThemeColors } from '@/constants/auth-theme';
-import { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import type { ReactNode } from 'react';
+import { StyleSheet, View } from 'react-native';
 
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-  PlayTTTypography,
-} from '@/constants/playtt-tokens';
+import { AppText } from '@/components/ui/app-text';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { PlayTTSpacing } from '@/constants/playtt-tokens';
+import { useAppTheme } from '@/hooks/use-app-theme';
 
 type FormFieldProps = {
   label: string;
   error?: string;
   accessory?: ReactNode;
   children: ReactNode;
+  /** Tighter spacing between label, field and error. */
   compact?: boolean;
   variant?: 'product' | 'auth';
   authTheme?: AuthThemeColors;
 };
 
+/**
+ * Label above, field, then the error next to the problem: an icon plus words
+ * (never colour alone), announced to screen readers as it appears.
+ */
 export function FormField({
   label,
   error,
@@ -28,43 +31,38 @@ export function FormField({
   variant = 'product',
   authTheme,
 }: FormFieldProps) {
+  const { colors } = useAppTheme();
   const isAuth = variant === 'auth' && authTheme;
+  const errorColor = isAuth ? authTheme.destructive : colors.destructive;
 
   return (
     <View style={[styles.container, compact && styles.containerCompact]}>
       <View style={styles.labelRow}>
-        <Text
-          style={[
-            styles.label,
-            compact && styles.labelCompact,
-            isAuth && { color: authTheme.foreground, fontSize: 13, fontFamily: PlayTTFontFamilies.medium },
-          ]}>
+        <AppText
+          variant="subheadline"
+          weight="600"
+          style={[styles.label, isAuth ? { color: authTheme.foreground } : null]}
+        >
           {label}
-        </Text>
+        </AppText>
         {accessory}
       </View>
       {children}
       {error ? (
-        <Text
-          style={[
-            styles.error,
-            compact && styles.errorCompact,
-            isAuth && { color: authTheme.destructive },
-          ]}>
-          {error}
-        </Text>
+        <View style={styles.errorRow} accessibilityLiveRegion="polite">
+          <IconSymbol name="exclamationmark.triangle.fill" size={16} color={errorColor} />
+          <AppText variant="footnote" weight="600" style={[styles.errorText, { color: errorColor }]}>
+            {error}
+          </AppText>
+        </View>
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: PlayTTSpacing.xs,
-  },
-  containerCompact: {
-    gap: 4,
-  },
+  container: { gap: PlayTTSpacing.xs },
+  containerCompact: { gap: PlayTTSpacing['2xs'] },
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -72,23 +70,12 @@ const styles = StyleSheet.create({
     gap: PlayTTSpacing.sm,
     paddingHorizontal: 2,
   },
-  label: {
-    ...PlayTTTypography.label,
-    fontSize: 13,
-    fontFamily: PlayTTFontFamilies.semiBold,
-    color: PlayTTColors.productForeground,
-  },
-  labelCompact: {
-    fontSize: 12,
-  },
-  error: {
-    ...PlayTTTypography.label,
-    fontSize: 13,
-    fontFamily: PlayTTFontFamilies.regular,
-    color: PlayTTColors.destructive,
+  label: { flexShrink: 1 },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: PlayTTSpacing['2xs'],
     paddingHorizontal: 2,
   },
-  errorCompact: {
-    fontSize: 12,
-  },
+  errorText: { flex: 1 },
 });
