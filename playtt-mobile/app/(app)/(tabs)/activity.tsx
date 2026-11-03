@@ -19,6 +19,8 @@ import { fetchActivityReplayCredits } from "@/lib/replay-credits-api"
 
 const REPLAYS_HREF = "/(app)/progress/replays"
 const STATS_HREF = "/(app)/progress/stats" as Href
+import { COACH_ENABLED, REPLAY_PURCHASES_ENABLED } from "@/lib/release-flags"
+
 const COACH_HREF = "/(app)/coach" as Href
 const BOOK_HREF = "/(app)/book" as Href
 
@@ -93,6 +95,7 @@ export default function ProgressScreen() {
         />
       </View>
 
+      {COACH_ENABLED ? (
       <Card>
         <View style={styles.coach}>
           <View style={[styles.coachIcon, { backgroundColor: colors.fill }]}>
@@ -107,6 +110,7 @@ export default function ProgressScreen() {
           <Button label="Open Coach" onPress={() => router.push(COACH_HREF)} style={styles.cardButton} />
         </View>
       </Card>
+      ) : null}
 
       <ListSection header="Replays">
         <ListRow
@@ -115,13 +119,15 @@ export default function ProgressScreen() {
           subtitle={clipBalance === null ? undefined : creditsSentence(clipBalance)}
           onPress={() => router.push(REPLAYS_HREF as Href)}
         />
-        <ListRow
-          icon="cart.fill"
-          tone="success"
-          title="Get more replays"
-          subtitle="Buy a pack of replay credits"
-          onPress={() => setClipSheetOpen(true)}
-        />
+        {REPLAY_PURCHASES_ENABLED ? (
+          <ListRow
+            icon="cart.fill"
+            tone="success"
+            title="Get more replays"
+            subtitle="Buy a pack of replay credits"
+            onPress={() => setClipSheetOpen(true)}
+          />
+        ) : null}
       </ListSection>
 
       <ClipPackPurchaseSheet

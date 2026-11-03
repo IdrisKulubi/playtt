@@ -1,20 +1,25 @@
 import { StyleSheet, View } from "react-native"
 
 import { AccountStackScreen } from "@/components/account/account-stack-screen"
+import { Button } from "@/components/kit/button"
 import { Card } from "@/components/kit/card"
 import { AppText } from "@/components/ui/app-text"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { openWebPage } from "@/lib/open-web-page"
+import { PRIVACY_URL, SUPPORT_EMAIL, TERMS_URL } from "@/lib/release-flags"
 
 const SECTIONS = [
   {
     heading: "Terms of service",
-    body:
-      "Full terms will be published at theplaytt.com/terms. By using PlayTT you agree to book in good faith and arrive on time for paid sessions.",
+    body: "The rules for booking and playing at PlayTT: book in good faith, arrive on time, look after the pods and be kind to other players.",
+    label: "Read the terms",
+    url: TERMS_URL,
   },
   {
     heading: "Privacy policy",
-    body:
-      "Full privacy details will be published at theplaytt.com/privacy. We use your contact details for bookings and account security only.",
+    body: "What PlayTT collects, why, who sees it, how long we keep it, and how to delete your account.",
+    label: "Read the privacy policy",
+    url: PRIVACY_URL,
   },
 ]
 
@@ -30,13 +35,17 @@ export default function LegalScreen() {
             <AppText variant="body" color="secondaryLabel">
               {section.body}
             </AppText>
+            <Button label={section.label} variant="secondary" onPress={() => void openWebPage(section.url)} />
           </View>
         </Card>
       ))}
+      <AppText variant="footnote" color="secondaryLabel">
+        Questions about your data? Email {SUPPORT_EMAIL}.
+      </AppText>
     </AccountStackScreen>
   )
 }
 
 const styles = StyleSheet.create({
-  card: { gap: PlayTTSpacing.xs },
+  card: { gap: PlayTTSpacing.sm },
 })

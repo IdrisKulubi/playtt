@@ -23,6 +23,8 @@ import {
 } from "@/lib/booking-utils"
 
 const UPCOMING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+import { COACH_ENABLED } from "@/lib/release-flags"
+
 const BOOK_HREF = "/(app)/book" as Href
 const COACH_HREF = "/(app)/coach" as Href
 
@@ -177,13 +179,15 @@ export default function PlayScreen() {
               onPress={book}
             />
           ) : null}
-          <ListRow
-            icon="sparkles"
-            tone="success"
-            title="Coach"
-            subtitle="Tips and training from your games"
-            onPress={() => router.push(COACH_HREF)}
-          />
+          {COACH_ENABLED ? (
+            <ListRow
+              icon="sparkles"
+              tone="success"
+              title="Coach"
+              subtitle="Tips and training from your games"
+              onPress={() => router.push(COACH_HREF)}
+            />
+          ) : null}
         </ListSection>
       ) : null}
 

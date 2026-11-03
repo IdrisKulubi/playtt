@@ -1,5 +1,9 @@
-/** Home, Coach, and Community previews; Activity stats and clips have separate live flags. */
-export const USE_MOCK_PLAYER_DATA = true
+/**
+ * Coach and replay-credit previews. Development builds only, so release builds never
+ * show sample data; set EXPO_PUBLIC_MOCK_PLAYER_DATA=true to force it elsewhere.
+ * Activity stats and clips have separate live flags.
+ */
+export const USE_MOCK_PLAYER_DATA = __DEV__ || process.env.EXPO_PUBLIC_MOCK_PLAYER_DATA === "true"
 
 /** When true, Activity highlights load from /api/replays/mine instead of mock replays. */
 export const USE_LIVE_REPLAY_LIBRARY =

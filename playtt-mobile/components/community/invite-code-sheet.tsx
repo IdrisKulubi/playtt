@@ -1,11 +1,10 @@
-import { useMemo, useState } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { useState } from "react"
+import { StyleSheet, TextInput, View } from "react-native"
 
-import { BottomSheet } from "@/components/ui/bottom-sheet"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Button } from "@/components/kit/button"
+import { Sheet } from "@/components/kit/sheet"
+import { AppText } from "@/components/ui/app-text"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
-import { typeStyle } from "@/constants/type"
 import { useAppTheme } from "@/hooks/use-app-theme"
 import { normalizeInviteCode } from "@/lib/community-invite"
 
@@ -17,50 +16,66 @@ type InviteCodeSheetProps = {
 
 // The parent remounts this (via `key`) each time it opens.
 export function InviteCodeSheet({ visible, onClose, onSubmit }: InviteCodeSheetProps) {
-  const { colors } = useAppTheme()
+  const { colors, scheme } = useAppTheme()
   const [value, setValue] = useState("")
   const [saving, setSaving] = useState(false)
   const code = normalizeInviteCode(value)
 
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        body: { gap: PlayTTSpacing.md },
-        hint: { ...typeStyle("subheadline"), color: colors.secondaryLabel },
-      }),
-    [colors],
-  )
+  async function submit() {
+    if (!code || saving) return
+    setSaving(true)
+    try {
+      await onSubmit(code)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
-    <BottomSheet visible={visible} title="Have an invite code?" onClose={onClose}>
+    // The kit sheet rises above the keyboard, so the code stays in view as you type.
+    <Sheet visible={visible} title="Have an invite code?" detents={["content"]} scrollable onClose={onClose}>
       <View style={styles.body}>
-        <Text style={styles.hint}>
+        <AppText variant="subheadline" color="secondaryLabel">
           Enter the 8-character code from your friend&apos;s invite. You&apos;ll follow each other and a chat opens.
-        </Text>
-        <Input
+        </AppText>
+        <TextInput
           value={value}
-          onChangeText={(text) => setValue(text.toUpperCase().slice(0, 12))}
-          placeholder="e.g. K7QM2XHP"
+          onChangeText={(text) => setValue(text.replace(/\s/g, "").toUpperCase().slice(0, 12))}
+          placeholder="K7QM2XHP"
+          placeholderTextColor={colors.tertiaryLabel}
+          selectionColor={colors.accent}
+          style={[styles.input, { color: colors.label, backgroundColor: colors.fill }]}
+          autoFocus
           autoCapitalize="characters"
           autoCorrect={false}
+          spellCheck={false}
+          autoComplete="off"
+          textContentType="oneTimeCode"
+          keyboardAppearance={scheme === "dark" ? "dark" : "light"}
+          returnKeyType="go"
+          enablesReturnKeyAutomatically
+          onSubmitEditing={() => void submit()}
+          maxFontSizeMultiplier={1.3}
           accessibilityLabel="Invite code"
         />
-        <Button
-          label="Use code"
-          surface="product"
-          disabled={!code || saving}
-          loading={saving}
-          onPress={async () => {
-            if (!code) return
-            setSaving(true)
-            try {
-              await onSubmit(code)
-            } finally {
-              setSaving(false)
-            }
-          }}
-        />
+        <Button label="Use code" disabled={!code || saving} loading={saving} onPress={() => void submit()} />
       </View>
-    </BottomSheet>
+    </Sheet>
   )
 }
+
+const styles = StyleSheet.create({
+  body: { gap: PlayTTSpacing.md },
+  input: {
+    minHeight: 64,
+    borderRadius: 18,
+    borderCurve: "continuous",
+    textAlign: "center",
+    fontSize: 28,
+    fontWeight: "700",
+    letterSpacing: 4,
+    fontVariant: ["tabular-nums"],
+    paddingVertical: 0,
+    paddingHorizontal: PlayTTSpacing.md,
+  },
+})

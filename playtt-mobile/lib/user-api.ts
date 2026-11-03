@@ -15,6 +15,11 @@ async function assertCurrentSession(revision: number) {
   }
 }
 
+/** Permanently delete this account (App Store 5.1.1(v)). The server signs the player out everywhere. */
+export async function deleteAccount() {
+  await apiFetch<null>("/api/user/me", { method: "DELETE" })
+}
+
 export type UserAuthMethods = {
   providers: ("credential" | "google" | "apple")[]
   hasPassword: boolean

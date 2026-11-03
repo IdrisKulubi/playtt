@@ -14,6 +14,7 @@ import Animated, {
   Extrapolation,
   interpolate,
   runOnJS,
+  useAnimatedKeyboard,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -239,10 +240,18 @@ export function Sheet({
     height: Math.max(restingStop.get(), 0),
   }))
 
-  const sheetStyle = useAnimatedStyle(() => ({
-    opacity: fade.get(),
-    transform: [{ translateY: translateY.get() }],
-  }))
+  // The sheet is absolutely placed, so the keyboard would cover it: lift it by the
+  // keyboard's height (following the keyboard's own animation), never past the top.
+  const keyboard = useAnimatedKeyboard()
+  const sheetStyle = useAnimatedStyle(() => {
+    const visibleHeight = sheetHeight - translateY.get()
+    const room = Math.max(screenHeight - visibleHeight - insets.top - PlayTTSpacing.xs, 0)
+    const lift = Math.min(keyboard.height.get(), room)
+    return {
+      opacity: fade.get(),
+      transform: [{ translateY: translateY.get() - lift }],
+    }
+  })
 
   const scrimStyle = useAnimatedStyle(() => ({
     opacity:

@@ -8,6 +8,7 @@ import {
 } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { AiConsentCard } from "@/components/coach/ai-consent-card"
 import { CoachChatComposer } from "@/components/coach/coach-chat-composer"
 import { CoachChatMessageBubble } from "@/components/coach/coach-chat-message"
 import { CoachChatQuickPrompts } from "@/components/coach/coach-chat-quick-prompts"
@@ -16,6 +17,7 @@ import { AppText } from "@/components/ui/app-text"
 import { PreviewBadge } from "@/components/ui/preview-badge"
 import { KitLayout } from "@/constants/kit-layout"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAiConsent } from "@/lib/ai-consent"
 import { sendCoachChatMessage } from "@/lib/coach-chat-api"
 import {
   createPlayerMessage,
@@ -40,6 +42,7 @@ export function CoachChatPanel() {
   )
   const [draft, setDraft] = useState("")
   const [isSending, setIsSending] = useState(false)
+  const consent = useAiConsent()
 
   const listData = useMemo<ListItem[]>(() => {
     const items: ListItem[] = messages.map((message) => ({
@@ -92,6 +95,11 @@ export function CoachChatPanel() {
     void sendMessage(prompt.message)
   }
 
+  // Nothing is sent to the AI service until you say yes (App Store 5.1.2(i)).
+  if (consent !== "granted") {
+    return <AiConsentCard />
+  }
+
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: colors.background }]}
@@ -106,7 +114,7 @@ export function CoachChatPanel() {
           <PreviewBadge />
         </View>
         <AppText variant="callout" color="secondaryLabel">
-          Ask about technique, drills, or your last game.
+          Ask about technique, drills, or your last game. Replies are written by AI and are not professional advice.
         </AppText>
       </View>
 

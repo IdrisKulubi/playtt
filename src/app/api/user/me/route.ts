@@ -6,7 +6,8 @@ import {
   getUserAuthMethods,
   serializeUserProfile,
 } from "@/server/users/profile"
-import { mapUserRouteError } from "@/server/users/http"
+import { deleteUserAccount } from "@/server/users/delete-account"
+import { mapUserRouteError, userError } from "@/server/users/http"
 
 export async function GET(req: NextRequest) {
   try {
@@ -57,6 +58,29 @@ export async function GET(req: NextRequest) {
         },
       },
     )
+  } catch (error) {
+    return mapUserRouteError(error)
+  }
+}
+
+/** Permanently delete the signed-in player's account (App Store 5.1.1(v)). */
+export async function DELETE(req: NextRequest) {
+  try {
+    const resolvedSession = await getSessionWithBearerFallback(req)
+    if (!resolvedSession) {
+      return userError({ code: "UNAUTHENTICATED", message: "Sign in is required.", status: 401 })
+    }
+
+    const result = await deleteUserAccount(resolvedSession.user.id)
+    if (!result.ok) {
+      return userError({
+        code: result.code,
+        message: result.message,
+        status: result.code === "ACTIVE_BOOKINGS" ? 409 : 404,
+      })
+    }
+
+    return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } })
   } catch (error) {
     return mapUserRouteError(error)
   }

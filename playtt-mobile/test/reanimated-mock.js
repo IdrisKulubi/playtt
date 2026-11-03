@@ -36,6 +36,7 @@ module.exports = {
   useComposedEventHandler: () => undefined,
   useDerivedValue: (fn) => ({ value: fn() }),
   useReducedMotion: () => false,
+  useAnimatedKeyboard: () => ({ height: { get: () => 0, set: () => undefined }, state: { get: () => 0 } }),
   cancelAnimation: () => undefined,
   runOnJS: identity,
   withTiming: identity,

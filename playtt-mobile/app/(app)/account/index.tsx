@@ -184,6 +184,14 @@ export default function MeScreen() {
       {profile ? (
         <ListSection>
           <ListRow
+            icon="trash.fill"
+            tone="destructive"
+            title="Delete account"
+            subtitle="Erase your account and personal details"
+            destructive
+            onPress={() => router.push("/(app)/account/delete-account" as Href)}
+          />
+          <ListRow
             icon="rectangle.portrait.and.arrow.right"
             tone="destructive"
             title={isSigningOut ? "Signing out…" : "Sign out"}

@@ -25,7 +25,11 @@ import Animated, {
 } from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { LiquidGlassSurface, liquidGlassFill, useNativeLiquidGlass } from "@/components/ui/liquid-glass-surface"
+import { BlurView } from "expo-blur"
+import { GlassView } from "expo-glass-effect"
+import { LinearGradient } from "expo-linear-gradient"
+
+import { useNativeLiquidGlass } from "@/components/ui/liquid-glass-surface"
 import { FLOATING_TAB_BAR_PILL_HEIGHT } from "@/constants/navigation-layout"
 
 const EXPANDED_HEIGHT = FLOATING_TAB_BAR_PILL_HEIGHT
@@ -42,8 +46,52 @@ const LABEL_SIZE = 12
 const LABEL_BLOCK = 16
 const CHIP_EXPANDED = EXPANDED_HEIGHT - ROW_PAD * 2
 const CHIP_MINIMIZED = MINIMIZED_HEIGHT - ROW_PAD * 2
-/** How far the soft fade behind the bar reaches above it. */
-const FADE_BLEED = 48
+
+const HIGHLIGHT_EDGE = "rgba(255, 255, 255, 0.14)"
+/** Dark mode, like Health: a smoky grey chip, never a white one. */
+const DARK_CHIP = "rgba(118, 118, 128, 0.36)"
+
+/**
+ * Liquid glass like iOS 26: clear enough to see the page moving through it, with a
+ * bright rim and a soft sheen from the top-left corner. Native glass where the
+ * phone has it; elsewhere a light blur with the same sheen and rim.
+ */
+function TabGlass({ scheme, native }: { scheme: "light" | "dark"; native: boolean }) {
+  const dark = scheme === "dark"
+  return (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.capsule]}>
+      {native ? (
+        <GlassView glassEffectStyle="clear" colorScheme={scheme} style={StyleSheet.absoluteFill} />
+      ) : (
+        <BlurView
+          intensity={dark ? 45 : 55}
+          tint={dark ? "dark" : "light"}
+          blurMethod="dimezisBlurViewSdk31Plus"
+          style={StyleSheet.absoluteFill}
+        />
+      )}
+      {dark ? <View style={[StyleSheet.absoluteFill, styles.smoke]} /> : null}
+      <LinearGradient
+        colors={[
+          dark ? "rgba(255,255,255,0.09)" : "rgba(255,255,255,0.65)",
+          dark ? "rgba(255,255,255,0)" : "rgba(255,255,255,0.12)",
+          dark ? "rgba(255,255,255,0.035)" : "rgba(255,255,255,0.3)",
+        ]}
+        locations={[0, 0.55, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          styles.capsule,
+          { borderWidth: 1, borderColor: dark ? "rgba(255,255,255,0.13)" : "rgba(255,255,255,0.8)" },
+        ]}
+      />
+    </View>
+  )
+}
 
 /** Interruptible: hopping between tabs retargets with the velocity kept. */
 const SLIDE_SPRING = { duration: 420, dampingRatio: 0.82 }
@@ -171,26 +219,8 @@ export function GlassTabBar({ children, onIndexSelected, theme, ...props }: Glas
   const bottomOffset = Math.max(insets.bottom - 14, 12)
   const barContext = useMemo(() => ({ slideIndex, isDragging, theme }), [slideIndex, isDragging, theme])
   const nativeGlass = useNativeLiquidGlass()
-  // Fade into the page colour itself, so it reads as depth, not a dark band.
-  const page = /^#[0-9a-f]{6}$/i.test(theme.background)
-    ? theme.background
-    : theme.scheme === "dark"
-      ? "#000000"
-      : "#FFFFFF"
-
   return (
     <View {...props} pointerEvents="box-none" style={styles.host}>
-      {/* A soft fade so content dissolves before it reaches the bar. */}
-      <View
-        pointerEvents="none"
-        style={[
-          styles.fade,
-          {
-            height: bottomOffset + EXPANDED_HEIGHT + FADE_BLEED,
-            experimental_backgroundImage: `linear-gradient(to top, ${page}D9 0%, ${page}66 50%, ${page}00 100%)`,
-          },
-        ]}
-      />
       <View pointerEvents="box-none" style={[styles.center, { marginBottom: bottomOffset }]}>
         <GestureDetector gesture={gesture}>
           <Animated.View
@@ -200,11 +230,10 @@ export function GlassTabBar({ children, onIndexSelected, theme, ...props }: Glas
               barStyle,
             ]}
           >
-            {/* The same glass as the toast banners, so the chrome reads as one material. */}
-            <View style={[StyleSheet.absoluteFill, styles.capsule, { borderColor: theme.border, borderWidth: StyleSheet.hairlineWidth }]}>
-              <LiquidGlassSurface colorScheme={theme.scheme} style={liquidGlassFill} />
-            </View>
-            <Animated.View style={[styles.chip, { backgroundColor: theme.highlight }, chipStyle]} />
+            <TabGlass scheme={theme.scheme} native={nativeGlass} />
+            <Animated.View
+              style={[styles.chip, { backgroundColor: theme.scheme === "dark" ? DARK_CHIP : theme.highlight, borderColor: HIGHLIGHT_EDGE }, chipStyle]}
+            />
             <View style={styles.row}>
               <BarContext.Provider value={barContext}>{children}</BarContext.Provider>
             </View>
@@ -281,7 +310,6 @@ export function GlassTabButton({
 
 const styles = StyleSheet.create({
   host: { position: "absolute", left: 0, right: 0, bottom: 0 },
-  fade: { position: "absolute", left: 0, right: 0, bottom: 0 },
   center: { alignItems: "center", justifyContent: "center" },
   bar: { borderCurve: "continuous" },
   capsule: { borderRadius: 999, borderCurve: "continuous", overflow: "hidden" },
@@ -292,7 +320,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 10,
   },
-  chip: { position: "absolute", left: 0, top: ROW_PAD, borderCurve: "continuous" },
+  smoke: { backgroundColor: "rgba(18, 18, 20, 0.4)" },
+  chip: { position: "absolute", left: 0, top: ROW_PAD, borderCurve: "continuous", borderWidth: StyleSheet.hairlineWidth },
   row: { flex: 1, flexDirection: "row", alignItems: "center", paddingHorizontal: ROW_PAD },
   item: { flex: 1, alignSelf: "stretch", alignItems: "center", justifyContent: "center", overflow: "hidden" },
   label: { fontSize: LABEL_SIZE, lineHeight: LABEL_BLOCK, fontWeight: "600", marginTop: 2 },

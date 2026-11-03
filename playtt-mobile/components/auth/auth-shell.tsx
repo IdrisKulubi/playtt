@@ -18,6 +18,8 @@ import { AuthGlassContext } from '@/components/auth/auth-glass';
 import { PlayTTSpacing } from '@/constants/playtt-tokens';
 import { typeStyle } from '@/constants/type';
 import { useAuthTheme } from '@/hooks/use-auth-theme';
+import { openWebPage } from '@/lib/open-web-page';
+import { PRIVACY_URL, TERMS_URL } from '@/lib/release-flags';
 
 type AuthShellProps = {
   children: ReactNode;
@@ -87,7 +89,15 @@ export function AuthShell({
 
             <View style={styles.footer}>
               <Text style={[styles.legal, { color: theme.muted }]}>
-                By continuing, you agree to our Terms and Privacy Policy.
+                By continuing, you agree to our{' '}
+                <Text accessibilityRole="link" style={styles.legalLink} onPress={() => void openWebPage(TERMS_URL)}>
+                  Terms
+                </Text>{' '}
+                and{' '}
+                <Text accessibilityRole="link" style={styles.legalLink} onPress={() => void openWebPage(PRIVACY_URL)}>
+                  Privacy Policy
+                </Text>
+                .
               </Text>
             </View>
           </ScrollView>
@@ -141,6 +151,7 @@ const styles = StyleSheet.create({
     paddingTop: PlayTTSpacing.sm,
     marginTop: 'auto',
   },
+  legalLink: { textDecorationLine: 'underline', fontWeight: '600' },
   legal: {
     ...typeStyle('footnote'),
     textAlign: 'center',

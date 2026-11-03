@@ -43,7 +43,7 @@ const SLIDES: WelcomeSlideData[] = [
   {
     id: "play",
     headline: "Every session counts.",
-    body: "Track scores, save replays, and improve with Coach.",
+    body: "Track scores and save your replays.",
     illustration: <WelcomePaddles />,
   },
 ]

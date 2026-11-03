@@ -14,6 +14,7 @@ import {
   getCachedSessionRoute,
 } from "@/lib/session-cache"
 import { setProfileSummary } from "@/hooks/use-profile-summary"
+import { resetAiConsent } from "@/lib/ai-consent"
 import { resetWeeklyGoal } from "@/lib/weekly-goal"
 
 const STORAGE_PREFIX = "playtt"
@@ -168,6 +169,7 @@ export async function clearSession() {
     authDebugError("clear-session:sign-out-failed", error)
   }
   await resetWeeklyGoal()
+  await resetAiConsent()
 
   await Promise.all(
     Object.values(AUTH_KEYS).map((key) => SecureStore.deleteItemAsync(key))

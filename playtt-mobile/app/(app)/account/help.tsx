@@ -8,7 +8,7 @@ import { PlayTTSpacing } from "@/constants/playtt-tokens"
 
 const SUPPORT_EMAIL = "hello@theplaytt.com"
 
-const FAQ = [
+const ALL_FAQ = [
   {
     question: "How do I book a table?",
     answer:
@@ -31,18 +31,19 @@ const FAQ = [
   {
     question: "How do replays work?",
     answer:
-      "Buy a pack of replay credits in Progress or Coach. Each replay saves the last 30 seconds when you press Replay during a game.",
+      "Press Replay during a game and PlayTT saves the last 30 seconds. Find your clips in Progress.",
   },
   {
-    question: "What is Coach?",
-    answer:
-      "Coach is a monthly subscription that looks at your replays and suggests drills to practise. Replay packs are sold separately.",
+    question: "Can I delete my account?",
+    answer: "Yes. Open Me, then Delete account. Cancel any upcoming bookings first.",
   },
 ]
 
+const FAQ = ALL_FAQ
+
 export default function HelpScreen() {
   return (
-    <AccountStackScreen title="Help" description="Quick answers about bookings, entry codes, replays and Coach.">
+    <AccountStackScreen title="Help" description="Quick answers about bookings, entry codes and replays.">
       {FAQ.map((item) => (
         <Card key={item.question}>
           <View style={styles.card}>

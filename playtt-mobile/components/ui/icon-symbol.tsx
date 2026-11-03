@@ -43,6 +43,8 @@ const MAPPING = {
   calendar: 'event',
   'chart.bar.fill': 'bar-chart',
   'person.fill': 'person',
+  'trash.fill': 'delete',
+  'photo.fill': 'photo',
   'book.fill': 'menu-book',
   'person.2.fill': 'people',
   'chevron.left.forwardslash.chevron.right': 'code',
