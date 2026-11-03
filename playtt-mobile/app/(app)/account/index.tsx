@@ -67,9 +67,14 @@ export default function MeScreen() {
 
   async function handleSignOut() {
     setIsSigningOut(true)
-    await clearSession()
-    goToSignIn()
-    setIsSigningOut(false)
+    try {
+      await clearSession()
+    } finally {
+      // Leave the signed-in stack entirely, so Back can never return to it.
+      if (router.canDismiss()) router.dismissAll()
+      goToSignIn()
+      setIsSigningOut(false)
+    }
   }
 
   return (

@@ -58,6 +58,10 @@ const MAPPING = {
   link: 'link',
   ellipsis: 'more-horiz',
   'star.fill': 'star',
+  'arrow.right': 'arrow-forward',
+  'chevron.down': 'expand-more',
+  'slider.horizontal.3': 'tune',
+  'trophy.fill': 'emoji-events',
 } as IconMapping;
 
 /**

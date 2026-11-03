@@ -47,8 +47,8 @@ jest.mock("@/components/ui/skeleton/skeleton", () => ({
 jest.mock("@/components/activity/stats-share-sheet", () => ({
   StatsShareSheet: () => null,
 }))
-jest.mock("@/components/ui/bottom-sheet", () => ({
-  BottomSheet: ({ children, visible }: any) => (visible ? children : null),
+jest.mock("@/components/kit/sheet", () => ({
+  Sheet: ({ children, visible }: any) => (visible ? children : null),
 }))
 const fetchStats = jest.mocked(fetchActivityStats)
 beforeEach(() => {
@@ -65,16 +65,13 @@ jest.mock("expo-router", () => ({
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 59, bottom: 34, left: 0, right: 0 }),
 }))
-jest.mock("@/components/activity/activity-stats-sticky-chrome", () => ({
-  ActivityStatsStickyChrome: ({ children }: any) => children,
-}))
 
-test("Stats screen pins period controls under the title and loads analytics", async () => {
+test("Stats screen has a floating header with back, date and share, and loads analytics", async () => {
   const screen = await render(<StatsScreen />)
   expect(screen.getByText("Stats")).toBeTruthy()
   expect(screen.getByLabelText("Back to Progress")).toBeTruthy()
-  expect(screen.getByTestId("stats-scroll").props.stickyHeaderIndices).toEqual([1])
-  expect(screen.getByTestId("activity-stats-sticky-boundary")).toBeTruthy()
+  expect(screen.getByLabelText("Choose a date")).toBeTruthy()
+  expect(screen.getByTestId("stats-scroll")).toBeTruthy()
   expect(screen.getByText("Year")).toBeTruthy()
   expect(screen.getByText("Month")).toBeTruthy()
   expect(screen.getByText("Day")).toBeTruthy()

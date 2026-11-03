@@ -7,20 +7,34 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native"
-import Animated, { useComposedEventHandler } from "react-native-reanimated"
+import Animated, {
+  runOnJS,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useComposedEventHandler,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { EdgeBackdrop, EdgeFade } from "@/components/kit/edge-fade"
 import {
   HeaderBar,
   LargeTitle,
   useCollapsingHeader,
   useHeaderContentInset,
 } from "@/components/kit/collapsing-header"
-import { LiquidGlassSurface } from "@/components/ui/liquid-glass-surface"
+import { FADE_QUICK, spring } from "@/constants/motion"
 import { KitLayout } from "@/constants/kit-layout"
 import { getFloatingTabBarInset } from "@/constants/navigation-layout"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useAppTheme } from "@/hooks/use-app-theme"
+
+/** How far the fade above a footer reaches, and how dark the footer is. */
+const FOOTER_FADE_HEIGHT = 72
+const FOOTER_DARKNESS = 0.96
 
 type ScreenProps = {
   /** Matches the tab label or the row that opened this screen. */
@@ -35,6 +49,11 @@ type ScreenProps = {
   cornerAccessory?: ReactNode
   /** Sticky bottom bar, e.g. price + Continue. Sits on glass above content. */
   footer?: ReactNode
+  /**
+   * Hide the footer until the content has scrolled this far (pt), then float it
+   * up; scrolling back above that point tucks it away again.
+   */
+  footerRevealOffset?: number
   /** Tab screens add tab-bar clearance and minimize the bar on scroll. */
   inTabs?: boolean
   refreshControl?: ReactElement<RefreshControlProps>
@@ -54,6 +73,7 @@ export function Screen({
   headerRight,
   cornerAccessory,
   footer,
+  footerRevealOffset,
   inTabs = false,
   refreshControl,
   contentContainerStyle,
@@ -67,8 +87,37 @@ export function Screen({
 
   const minimizeTabBar = useMinimizeOnScroll()
   const onScroll = useComposedEventHandler(
-    inTabs ? [header.trackScroll, minimizeTabBar] : [header.trackScroll],
+    inTabs ? [header.trackScroll, minimizeTabBar] : [header.trackScroll]
   )
+
+  const reducedMotion = useReducedMotion()
+  const reveals = footerRevealOffset !== undefined
+  const shown = useSharedValue(reveals ? 0 : 1)
+  const [footerActive, setFooterActive] = useState(!reveals)
+  useAnimatedReaction(
+    () =>
+      footerRevealOffset === undefined
+        ? true
+        : header.scrollY.get() > footerRevealOffset,
+    (visible, previous) => {
+      if (visible === previous) return
+      shown.set(
+        reducedMotion
+          ? withTiming(visible ? 1 : 0, FADE_QUICK)
+          : withSpring(visible ? 1 : 0, spring("default"))
+      )
+      runOnJS(setFooterActive)(visible)
+    },
+    [footerRevealOffset, reducedMotion]
+  )
+  const footerStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(Math.max(shown.get(), 0), 1),
+    transform: [
+      {
+        translateY: reducedMotion ? 0 : (1 - shown.get()) * (footerHeight + 40),
+      },
+    ],
+  }))
 
   const bottomInset =
     (inTabs ? getFloatingTabBarInset(insets.bottom) : insets.bottom) +
@@ -114,19 +163,37 @@ export function Screen({
       />
 
       {footer ? (
-        <View
+        <Animated.View
           onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}
+          pointerEvents={footerActive ? "box-none" : "none"}
           style={[
             styles.footer,
+            footerStyle,
             {
               paddingBottom:
-                (inTabs ? getFloatingTabBarInset(insets.bottom) : insets.bottom) + PlayTTSpacing.sm,
+                (inTabs
+                  ? getFloatingTabBarInset(insets.bottom)
+                  : insets.bottom) + PlayTTSpacing.sm,
             },
           ]}
         >
-          <LiquidGlassSurface colorScheme={scheme} style={StyleSheet.absoluteFill} />
+          {/* No bar edge: a solid base, and a fade rising from its top that
+              meets it at the same darkness, so content just sinks in. */}
+          <EdgeBackdrop
+            color={colors.background}
+            scheme={scheme}
+            darkness={FOOTER_DARKNESS}
+          />
+          <EdgeFade
+            edge="bottom"
+            height={FOOTER_FADE_HEIGHT}
+            color={colors.background}
+            scheme={scheme}
+            darkness={FOOTER_DARKNESS}
+            style={{ bottom: footerHeight }}
+          />
           {footer}
-        </View>
+        </Animated.View>
       ) : null}
     </View>
   )
@@ -145,6 +212,5 @@ const styles = StyleSheet.create({
     bottom: 0,
     paddingTop: PlayTTSpacing.sm,
     paddingHorizontal: KitLayout.screenGutter,
-    overflow: "hidden",
   },
 })

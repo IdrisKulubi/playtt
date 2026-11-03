@@ -73,6 +73,9 @@ const DURATION_OPTIONS = [
   { value: 30 as const, label: "30 min" },
 ]
 
+/** The times scroll in their own box, about three and a half rows tall. */
+const TIME_GRID_MAX_HEIGHT = 340
+
 const BOOKINGS_HREF = "/(app)/(tabs)/bookings" as Href
 const PLAY_HREF = "/(app)/(tabs)" as Href
 
@@ -457,6 +460,7 @@ export function BookingFlow() {
                 isLoading={isLoadingSlots}
                 onSelect={setSelectedSlot}
                 onTryTomorrow={() => handleDateChange(addDaysToDateKey(selectedDate, 1))}
+                maxHeight={TIME_GRID_MAX_HEIGHT}
               />
             </View>
           ) : null}

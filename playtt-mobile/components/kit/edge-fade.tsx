@@ -72,6 +72,24 @@ export function EdgeFade({ edge, height, color, scheme, darkness = 0.94, style }
   )
 }
 
+/**
+ * The solid base behind a bar that content scrolls under (a footer): the
+ * same blur and darkness a fade has at its strongest, so an EdgeFade sitting
+ * on top of the bar meets it with no step.
+ */
+export function EdgeBackdrop({ color, scheme, darkness = 0.94 }: Pick<EdgeFadeProps, "color" | "scheme" | "darkness">) {
+  const solid = /^#[0-9a-f]{6}$/i.test(color) ? color : scheme === "dark" ? "#000000" : "#FFFFFF"
+
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {Platform.OS === "ios" ? (
+        <BlurView tint={scheme === "dark" ? "dark" : "light"} intensity={28} style={StyleSheet.absoluteFill} />
+      ) : null}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: rgba(solid, darkness) }]} />
+    </View>
+  )
+}
+
 /** How tall the soft edge is where content slides out of a scrolling area. */
 const SCROLL_EDGE_HEIGHT = 44
 /** Scroll distance over which an edge fade comes in, so it never pops. */

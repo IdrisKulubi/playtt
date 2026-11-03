@@ -1,17 +1,12 @@
-import { ActivityStatsStickyChrome } from "@/components/activity/activity-stats-sticky-chrome"
 import { useActivityStats } from "@/components/activity/activity-stats-context"
 
-/** Renders inside the native View used by ScrollView stickyHeaderIndices. */
-export function ActivityStatsStickySlot() {
+/** The period picker and date row, above the numbers. */
+export function ActivityStatsControlsSlot() {
   const stats = useActivityStats()
-  return (
-    <ActivityStatsStickyChrome>
-      {stats.renderStickyBar()}
-    </ActivityStatsStickyChrome>
-  )
+  return stats.renderControls()
 }
 
-/** Direct ScrollView child — scrolls under pinned period chrome. */
+/** The ring, chart and details. */
 export function ActivityStatsScrollSlot() {
   const stats = useActivityStats()
   return stats.renderScrollContent()
@@ -21,4 +16,3 @@ export function ActivityStatsOverlaysSlot() {
   const stats = useActivityStats()
   return stats.renderOverlays()
 }
-

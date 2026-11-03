@@ -11,6 +11,8 @@ type AccountStackScreenProps = {
   title: string
   description?: string
   children: ReactNode
+  footer?: ReactNode
+  footerRevealOffset?: number
   contentContainerStyle?: StyleProp<ViewStyle>
   /** Where back goes; every Me sub-screen returns to Me. */
   backLabel?: string
@@ -21,6 +23,8 @@ export function AccountStackScreen({
   title,
   description,
   children,
+  footer,
+  footerRevealOffset,
   contentContainerStyle,
   backLabel = "Me",
 }: AccountStackScreenProps) {
@@ -29,8 +33,11 @@ export function AccountStackScreen({
       title={title}
       back={{
         label: backLabel,
-        onPress: () => (router.canGoBack() ? router.back() : router.replace(ME_HREF)),
+        onPress: () =>
+          router.canGoBack() ? router.back() : router.replace(ME_HREF),
       }}
+      footer={footer}
+      footerRevealOffset={footerRevealOffset}
       contentContainerStyle={contentContainerStyle}
     >
       {description ? (

@@ -1,55 +1,66 @@
-import type { Href } from "expo-router"
-import { ScrollView, StyleSheet, View } from "react-native"
+import { StyleSheet, View } from "react-native"
+import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { ActivityStatsProvider } from "@/components/activity/activity-stats-context"
+import { useActivityStats, ActivityStatsProvider } from "@/components/activity/activity-stats-context"
 import {
+  ActivityStatsControlsSlot,
   ActivityStatsOverlaysSlot,
   ActivityStatsScrollSlot,
-  ActivityStatsStickySlot,
 } from "@/components/activity/activity-stats-slots"
-import { StackHeader } from "@/components/kit/stack-header"
+import { STATS_HEADER_ROW, StatsHeader } from "@/components/activity/stats-header"
 import { KitLayout } from "@/constants/kit-layout"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useAppTheme } from "@/hooks/use-app-theme"
 
-const PROGRESS_HREF = "/(app)/(tabs)/activity" as Href
-
-/** Detailed stats (year, month, day), opened from Progress. */
-export default function StatsScreen() {
+function StatsBody() {
   const insets = useSafeAreaInsets()
   const { colors } = useAppTheme()
+  const stats = useActivityStats()
+  const scrollY = useSharedValue(0)
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.set(event.contentOffset.y)
+    },
+  })
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <ActivityStatsProvider>
-        <ScrollView
-          contentContainerStyle={{
-            paddingTop: insets.top + PlayTTSpacing.xs,
-            paddingBottom: insets.bottom + PlayTTSpacing.xl,
-            gap: PlayTTSpacing.md,
-          }}
-          showsVerticalScrollIndicator={false}
-          // The period picker pins under the title while the details scroll.
-          stickyHeaderIndices={[1]}
-          testID="stats-scroll"
-        >
-          <StackHeader title="Stats" backLabel="Progress" fallbackHref={PROGRESS_HREF} />
-          {/* ScrollView clones this child with native style/onLayout props. */}
-          <View collapsable={false} style={styles.gutter} testID="activity-stats-sticky-boundary">
-            <ActivityStatsStickySlot />
-          </View>
-          <View style={styles.gutter}>
-            <ActivityStatsScrollSlot />
-          </View>
-        </ScrollView>
-        <ActivityStatsOverlaysSlot />
-      </ActivityStatsProvider>
+      <Animated.ScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={{
+          paddingTop: insets.top + STATS_HEADER_ROW,
+          paddingBottom: insets.bottom + PlayTTSpacing["2xl"],
+          paddingHorizontal: KitLayout.screenGutter,
+          gap: PlayTTSpacing.lg,
+        }}
+        showsVerticalScrollIndicator={false}
+        testID="stats-scroll"
+      >
+        <ActivityStatsControlsSlot />
+        <ActivityStatsScrollSlot />
+      </Animated.ScrollView>
+      <StatsHeader
+        title="Stats"
+        scrollY={scrollY}
+        onCalendar={stats.openPicker}
+        onShare={stats.ready ? stats.openShare : undefined}
+      />
+      <ActivityStatsOverlaysSlot />
     </View>
+  )
+}
+
+/** Detailed stats (year, month, day), opened from Progress. */
+export default function StatsScreen() {
+  return (
+    <ActivityStatsProvider>
+      <StatsBody />
+    </ActivityStatsProvider>
   )
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  gutter: { paddingHorizontal: KitLayout.screenGutter },
 })

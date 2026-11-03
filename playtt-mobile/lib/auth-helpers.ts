@@ -14,6 +14,7 @@ import {
   getCachedSessionRoute,
 } from "@/lib/session-cache"
 import { setProfileSummary } from "@/hooks/use-profile-summary"
+import { resetWeeklyGoal } from "@/lib/weekly-goal"
 
 const STORAGE_PREFIX = "playtt"
 
@@ -157,11 +158,16 @@ export async function clearSession() {
   // The next person to sign in must not see this player's name or photo.
   setProfileSummary(null)
 
+  // Ending the session on the server must never hold the player on this screen.
   try {
-    await authClient.signOut()
+    await Promise.race([
+      authClient.signOut(),
+      new Promise((resolve) => setTimeout(resolve, 4000)),
+    ])
   } catch (error) {
     authDebugError("clear-session:sign-out-failed", error)
   }
+  await resetWeeklyGoal()
 
   await Promise.all(
     Object.values(AUTH_KEYS).map((key) => SecureStore.deleteItemAsync(key))

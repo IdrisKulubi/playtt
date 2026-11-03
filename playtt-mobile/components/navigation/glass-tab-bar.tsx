@@ -7,8 +7,6 @@
  * spans the full width. Scrubbing, the sliding chip and minimize-on-scroll
  * work the same way and share its minimize state.
  */
-import { BlurView } from "expo-blur"
-import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect"
 import * as Haptics from "expo-haptics"
 import type { TabListProps, TabTriggerSlotProps } from "expo-router/ui"
 import { setMinimized, useMinimizeState } from "expo-glass-tabs/build/minimize-context"
@@ -27,6 +25,7 @@ import Animated, {
 } from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { LiquidGlassSurface, liquidGlassFill, useNativeLiquidGlass } from "@/components/ui/liquid-glass-surface"
 import { FLOATING_TAB_BAR_PILL_HEIGHT } from "@/constants/navigation-layout"
 
 const EXPANDED_HEIGHT = FLOATING_TAB_BAR_PILL_HEIGHT
@@ -171,7 +170,7 @@ export function GlassTabBar({ children, onIndexSelected, theme, ...props }: Glas
 
   const bottomOffset = Math.max(insets.bottom - 14, 12)
   const barContext = useMemo(() => ({ slideIndex, isDragging, theme }), [slideIndex, isDragging, theme])
-  const nativeGlass = isLiquidGlassAvailable()
+  const nativeGlass = useNativeLiquidGlass()
   // Fade into the page colour itself, so it reads as depth, not a dark band.
   const page = /^#[0-9a-f]{6}$/i.test(theme.background)
     ? theme.background
@@ -197,26 +196,14 @@ export function GlassTabBar({ children, onIndexSelected, theme, ...props }: Glas
           <Animated.View
             style={[
               styles.bar,
-              !nativeGlass && { borderColor: theme.border, borderWidth: StyleSheet.hairlineWidth },
               !nativeGlass && styles.shadow,
               barStyle,
             ]}
           >
-            {nativeGlass ? (
-              <GlassView
-                glassEffectStyle="regular"
-                colorScheme={theme.scheme}
-                style={[StyleSheet.absoluteFill, styles.capsule, { backgroundColor: theme.glassTint }]}
-              />
-            ) : Platform.OS === "ios" ? (
-              <BlurView
-                intensity={80}
-                tint={theme.scheme === "dark" ? "systemChromeMaterialDark" : "systemChromeMaterialLight"}
-                style={[StyleSheet.absoluteFill, styles.capsule]}
-              />
-            ) : (
-              <View style={[StyleSheet.absoluteFill, styles.capsule, { backgroundColor: theme.solidFallback }]} />
-            )}
+            {/* The same glass as the toast banners, so the chrome reads as one material. */}
+            <View style={[StyleSheet.absoluteFill, styles.capsule, { borderColor: theme.border, borderWidth: StyleSheet.hairlineWidth }]}>
+              <LiquidGlassSurface colorScheme={theme.scheme} style={liquidGlassFill} />
+            </View>
             <Animated.View style={[styles.chip, { backgroundColor: theme.highlight }, chipStyle]} />
             <View style={styles.row}>
               <BarContext.Provider value={barContext}>{children}</BarContext.Provider>

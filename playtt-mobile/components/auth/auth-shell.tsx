@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { BlurTargetView } from 'expo-blur';
 import {
-  KeyboardAvoidingView,
   AccessibilityInfo,
   Platform,
   ScrollView,
@@ -11,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import Animated, { FadeIn, FadeInDown, FadeOut, useReducedMotion } from 'react-native-reanimated';
 
 import { BrandMark } from '@/components/brand/brand-mark';
 import { AuthBackdrop } from '@/components/auth/auth-backdrop';
@@ -31,6 +31,7 @@ export function AuthShell({
   subtitle,
 }: AuthShellProps) {
   const theme = useAuthTheme();
+  const reducedMotion = useReducedMotion();
   const target = useRef<View | null>(null);
   const [reduceTransparency, setReduceTransparency] = useState(false);
   const glassContext = useMemo(() => ({ target, reduceTransparency }), [reduceTransparency]);
@@ -53,24 +54,33 @@ export function AuthShell({
       </BlurTargetView>
       <SafeAreaView style={styles.safeArea}>
         <StatusBar style={theme.statusBar} />
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {/* The scroll view makes room for the keyboard itself and brings the
+            field you tap into view, with no resize of the page underneath. */}
+        <View style={styles.flex}>
           <ScrollView
             style={styles.flex}
             contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="always"
-            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            automaticallyAdjustKeyboardInsets
             showsVerticalScrollIndicator={false}
-            bounces={false}>
+            alwaysBounceVertical={false}>
             <View style={styles.header}>
-              <BrandMark layout="auth" appearance="dark" />
-              <Text style={[styles.headline, { color: theme.foreground }]}>
-                {headline}
-              </Text>
-              {subtitle ? (
-                <Text style={[styles.subtitle, { color: theme.muted }]}>{subtitle}</Text>
-              ) : null}
+              <Animated.View entering={reducedMotion ? undefined : FadeIn.duration(500)}>
+                <BrandMark layout="auth" appearance="dark" />
+              </Animated.View>
+              <Animated.View
+                key={headline}
+                entering={reducedMotion ? undefined : FadeInDown.duration(380).delay(80)}
+                exiting={reducedMotion ? undefined : FadeOut.duration(100)}
+                style={styles.titleBlock}>
+                <Text maxFontSizeMultiplier={1.3} style={[styles.headline, { color: theme.foreground }]}>
+                  {headline}
+                </Text>
+                {subtitle ? (
+                  <Text maxFontSizeMultiplier={1.3} style={[styles.subtitle, { color: theme.muted }]}>{subtitle}</Text>
+                ) : null}
+              </Animated.View>
             </View>
 
             <View style={styles.formArea}>{children}</View>
@@ -81,7 +91,7 @@ export function AuthShell({
               </Text>
             </View>
           </ScrollView>
-        </KeyboardAvoidingView>
+        </View>
       </SafeAreaView>
     </View>
     </AuthGlassContext.Provider>
@@ -101,22 +111,22 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 28,
-    paddingTop: 48,
-    paddingBottom: 24,
-    gap: 32,
+    paddingTop: 8,
+    paddingBottom: 12,
+    gap: 20,
   },
   header: {
     alignItems: 'center',
-    gap: 12,
+    gap: 4,
     paddingHorizontal: PlayTTSpacing.sm,
   },
   headline: {
-    ...typeStyle('brandTitle'),
+    ...typeStyle('title1', '800'),
     textAlign: 'center',
-    marginTop: 32,
   },
+  titleBlock: { alignItems: 'center', gap: 4, marginTop: 10 },
   subtitle: {
-    ...typeStyle('body'),
+    ...typeStyle('subheadline'),
     textAlign: 'center',
   },
   formArea: {
@@ -128,7 +138,7 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
     gap: PlayTTSpacing.sm,
-    paddingTop: PlayTTSpacing.md,
+    paddingTop: PlayTTSpacing.sm,
     marginTop: 'auto',
   },
   legal: {

@@ -42,11 +42,12 @@ jest.mock("@/components/ui/skeleton/skeleton", () => ({
 jest.mock("@/components/activity/stats-share-sheet", () => ({
   StatsShareSheet: () => null,
 }))
-jest.mock("@/components/ui/bottom-sheet", () => ({
-  BottomSheet: ({ children, visible }: any) => (visible ? children : null),
+jest.mock("@/components/kit/sheet", () => ({
+  Sheet: ({ children, visible }: any) => (visible ? children : null),
 }))
-jest.mock("@/components/ui/glass-segment-control", () => ({
-  GlassSegmentControl: ({ options, onChange }: any) => {
+jest.mock("react-native-reanimated", () => require("@/test/reanimated-mock"))
+jest.mock("@/components/kit/segmented-control", () => ({
+  SegmentedControl: ({ options, onChange }: any) => {
     // Jest mock factories load native components lazily after hoisting.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Pressable, Text } = require("react-native")
@@ -98,7 +99,7 @@ test("hourly details use Nairobi hours with distinct bucket selections", async (
   await screen.findByText("Swipe the chart. Tap a time to explore.")
   await fireEvent.press(screen.getByLabelText("10: 1h 30m. Show details"))
   await fireEvent.press(screen.getByLabelText(/View sessions for 10/))
-  expect(screen.getAllByText(/reservation price/)).toHaveLength(1)
+  expect(screen.getAllByText(/1h 30m reserved/)).toHaveLength(1)
 })
 test("request failures show retry and never sample analytics", async () => {
   fetchStats.mockRejectedValueOnce(new Error("offline"))

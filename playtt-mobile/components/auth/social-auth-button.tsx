@@ -1,10 +1,8 @@
-import * as Haptics from 'expo-haptics';
 import { AppleLogo } from 'phosphor-react-native/src/icons/AppleLogo';
 
 import { GoogleBrandIcon } from '@/components/auth/google-brand-icon';
 import {
   ActivityIndicator,
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -12,7 +10,8 @@ import {
 
 import type { AuthThemeColors } from '@/constants/auth-theme';
 import { AuthGlass } from '@/components/auth/auth-glass';
-import { PlayTTRadius, PlayTTSpacing } from '@/constants/playtt-tokens';
+import { PressableScale } from '@/components/kit/pressable-scale';
+import { PlayTTSpacing } from '@/constants/playtt-tokens';
 import { typeStyle } from '@/constants/type';
 
 type SocialProvider = 'google' | 'apple';
@@ -35,47 +34,43 @@ export function SocialAuthButton({
   const isDisabled = disabled || loading;
   const label = provider === 'google' ? 'Google' : 'Apple';
 
+  const isApple = provider === 'apple';
+  // Apple's own guidance: a solid white button with black lettering on dark backgrounds.
+  const ink = isApple ? '#000000' : theme.foreground;
+
   return (
-    <Pressable
-      accessibilityRole="button"
+    <PressableScale
       accessibilityLabel={`Continue with ${label}`}
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
       onPress={onPress}
-      onPressIn={() => {
-        if (!isDisabled && process.env.EXPO_OS === 'ios') {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
-      }}
-      style={({ pressed }) => [
-        styles.base,
-        {
-          backgroundColor: theme.socialFill,
-          opacity: isDisabled ? 0.45 : pressed ? 0.88 : 1,
-        },
-      ]}>
-      <AuthGlass />
+      haptic="selection"
+      style={[styles.base, isApple && styles.apple]}>
+      {isApple ? null : <AuthGlass />}
       {loading ? (
-        <ActivityIndicator color={theme.foreground} />
+        <ActivityIndicator color={ink} />
       ) : (
         <View style={styles.content}>
           {provider === 'google' ? (
-            <GoogleBrandIcon size={18} />
+            <GoogleBrandIcon size={20} />
           ) : (
-            <AppleLogo size={18} weight="fill" color={theme.foreground} />
+            <AppleLogo size={22} weight="fill" color={ink} />
           )}
-          <Text style={[styles.label, { color: theme.foreground }]}>Continue with {label}</Text>
+          <Text maxFontSizeMultiplier={1.4} style={[styles.label, { color: ink }]}>
+            Continue with {label}
+          </Text>
         </View>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
     width: '100%',
-    minHeight: 52,
-    borderRadius: PlayTTRadius.pill,
+    minHeight: 50,
+    borderRadius: 999,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: 'rgba(181, 230, 255, 0.45)',
     overflow: 'hidden',
@@ -83,12 +78,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: PlayTTSpacing.md,
   },
+  apple: { backgroundColor: '#FFFFFF', borderColor: '#FFFFFF' },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
   label: {
-    ...typeStyle('body', '500'),
+    ...typeStyle('headline', '600'),
   },
 });

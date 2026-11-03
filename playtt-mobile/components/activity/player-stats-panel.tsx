@@ -1,108 +1,66 @@
-import { useEffect, useMemo, useRef, useState } from "react"
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
-import { CaretDownIcon } from "phosphor-react-native/src/icons/CaretDown"
-import { CaretLeftIcon } from "phosphor-react-native/src/icons/CaretLeft"
-import { CaretRightIcon } from "phosphor-react-native/src/icons/CaretRight"
-import { ExportIcon } from "phosphor-react-native/src/icons/Export"
-import { CalendarBlankIcon } from "phosphor-react-native/src/icons/CalendarBlank"
+import { useEffect, useState } from "react"
+import { StyleSheet, View } from "react-native"
+
+import { GoalSheet } from "@/components/activity/goal-sheet"
+import { StatsChart } from "@/components/activity/stats-chart"
+import { StatsHero } from "@/components/activity/stats-hero"
+import { StatsDetailSheet, StatsPickerSheet } from "@/components/activity/stats-sheets"
 import { StatsShareSheet } from "@/components/activity/stats-share-sheet"
-import { BottomSheet } from "@/components/ui/bottom-sheet"
-import { GlassPanel } from "@/components/ui/glass-panel"
-import { GlassSegmentControl } from "@/components/ui/glass-segment-control"
+import { WeekStrip } from "@/components/activity/week-strip"
+import { Button } from "@/components/kit/button"
+import { ListRow } from "@/components/kit/list-row"
+import { ListSection } from "@/components/kit/list-section"
+import { PressableScale } from "@/components/kit/pressable-scale"
+import { SegmentedControl } from "@/components/kit/segmented-control"
+import { AppText } from "@/components/ui/app-text"
+import { IconSymbol } from "@/components/ui/icon-symbol"
 import { PreviewBadge } from "@/components/ui/preview-badge"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton/skeleton"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
-import { typeStyle } from "@/constants/type"
+import { buildWeek, loadMonth, monthsOfWeek, type WeekDay } from "@/hooks/use-progress-summary"
 import { useAppTheme } from "@/hooks/use-app-theme"
-import {
-  fetchActivityStats,
-  type ActivityStats,
-  type StatsPeriod,
-  type StatsSession,
-} from "@/lib/activity-stats-api"
-import { USE_LIVE_PLAYER_STATS } from "@/lib/mock/mock-config"
+import { fetchActivityStats, type ActivityStats, type StatsPeriod, type StatsSession } from "@/lib/activity-stats-api"
 import { sampleActivityStats } from "@/lib/mock/mock-activity-stats"
+import { USE_LIVE_PLAYER_STATS } from "@/lib/mock/mock-config"
+import {
+  daysInMonth,
+  metricValue,
+  money,
+  parseDate,
+  shiftStatsDate,
+  startOfWeek,
+  timeLabel,
+  todayKey,
+  type Metric,
+} from "@/lib/stats-dates"
+import { useWeeklyGoal } from "@/lib/weekly-goal"
 
-type Metric = "minutes" | "sessions" | "spendKes"
-const metrics: { key: Metric; label: string }[] = [
-  { key: "minutes", label: "Table time" },
-  { key: "sessions", label: "Sessions" },
-  { key: "spendKes", label: "Spending" },
-]
-const dateKey = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
-function todayKey() {
+export { shiftStatsDate } from "@/lib/stats-dates"
+
+const nairobiDate = (iso: string) => {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Africa/Nairobi",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).formatToParts(new Date())
+  }).formatToParts(new Date(iso))
   return `${parts.find((p) => p.type === "year")?.value}-${parts.find((p) => p.type === "month")?.value}-${parts.find((p) => p.type === "day")?.value}`
 }
-function parseDate(value: string) {
-  const [y, m, d] = value.split("-").map(Number)
-  return new Date(y, m - 1, d)
-}
-export function shiftStatsDate(
-  date: string,
-  period: StatsPeriod,
-  direction: number
-) {
-  const d = parseDate(date)
-  return dateKey(
-    period === "year"
-      ? new Date(d.getFullYear() + direction, 0, 1)
-      : period === "month"
-        ? new Date(d.getFullYear(), d.getMonth() + direction, 1)
-        : new Date(d.getFullYear(), d.getMonth(), d.getDate() + direction)
-  )
-}
-function timeLabel(minutes: number) {
-  const rounded = Math.round(minutes),
-    hours = Math.floor(rounded / 60),
-    rest = rounded % 60
-  return hours ? `${hours}h${rest ? ` ${rest}m` : ""}` : `${rest}m`
-}
-function money(value: number) {
-  return `KES ${Math.round(value).toLocaleString("en-KE")}`
-}
-function metricValue(key: Metric, value: number) {
-  return key === "minutes"
-    ? timeLabel(value)
-    : key === "spendKes"
-      ? money(value)
-      : value.toLocaleString("en-KE")
-}
-function sessionDate(s: StatsSession) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Africa/Nairobi",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date(s.startTime))
-  return `${parts.find((p) => p.type === "year")?.value}-${parts.find((p) => p.type === "month")?.value}-${parts.find((p) => p.type === "day")?.value}`
-}
+
 function sessionHour(s: StatsSession) {
   return Number(
-    new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Africa/Nairobi",
-      hour: "2-digit",
-      hourCycle: "h23",
-    }).format(new Date(s.startTime))
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Nairobi", hour: "2-digit", hourCycle: "h23" }).format(new Date(s.startTime))
   )
 }
 
+/** All the state and screens behind detailed stats; the route just lays them out. */
 export function usePlayerStatsApi() {
   const { colors } = useAppTheme()
+  const weeklyGoal = useWeeklyGoal()
   const [period, setPeriod] = useState<StatsPeriod>("month"),
     [date, setDate] = useState(todayKey)
   const [metric, setMetric] = useState<Metric>("minutes")
-  const [result, setResult] = useState<{
-      key: string
-      data?: ActivityStats
-      error?: boolean
-    } | null>(null),
+  const [result, setResult] = useState<{ key: string; data?: ActivityStats; error?: boolean } | null>(null),
     [retry, setRetry] = useState(0)
   const requestKey = `${period}-${date}-${retry}`,
     data = result?.key === requestKey ? (result.data ?? null) : null,
@@ -110,229 +68,25 @@ export function usePlayerStatsApi() {
     error = result?.key === requestKey && result.error
   const [selected, setSelected] = useState<number | null>(null),
     [detailOpen, setDetailOpen] = useState(false),
-    [shareOpen, setShareOpen] = useState(false)
+    [shareOpen, setShareOpen] = useState(false),
+    [goalOpen, setGoalOpen] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false),
     [pickerYear, setPickerYear] = useState(Number(date.slice(0, 4))),
     [pickerMonth, setPickerMonth] = useState(Number(date.slice(5, 7)) - 1)
-  const chartRef = useRef<ScrollView>(null),
-    current = todayKey()
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        root: { gap: 20 },
-        row: {
-          flexDirection: "row",
-          flexWrap: "wrap",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-        },
-        title: {
-          ...typeStyle("title3"),
-          flexShrink: 1,
-          color: colors.label,
-        },
-        body: {
-          ...typeStyle("subheadline"),
-          flexShrink: 1,
-          color: colors.secondaryLabel,
-        },
-        label: {
-          ...typeStyle("footnote", "500"),
-          color: colors.secondaryLabel,
-        },
-        value: {
-          ...typeStyle("title2", "600"),
-          color: colors.label,
-          fontVariant: ["tabular-nums"],
-        },
-        button: {
-          minHeight: 44,
-          minWidth: 44,
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: 14,
-        },
-        periodTitle: {
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 8,
-          minHeight: 44,
-          flex: 1,
-          justifyContent: "center",
-        },
-        panel: { borderRadius: 16 },
-        panelContent: { gap: 20, padding: 20 },
-        metricRow: { flexDirection: "row", gap: 4 },
-        metric: {
-          flex: 1,
-          paddingVertical: 10,
-          paddingHorizontal: 4,
-          borderBottomWidth: 2,
-          borderBottomColor: "transparent",
-          gap: 8,
-        },
-        metricActive: { borderBottomColor: colors.accentText },
-        metricValue: {
-          ...typeStyle("title3"),
-          color: colors.label,
-          fontVariant: ["tabular-nums"],
-        },
-        graph: { height: 190, position: "relative" },
-        grid: {
-          position: "absolute",
-          left: 0,
-          right: 0,
-          height: 1,
-          backgroundColor: colors.separator,
-        },
-        columns: {
-          flexDirection: "row",
-          alignItems: "flex-end",
-          paddingTop: 20,
-        },
-        column: {
-          width: 44,
-          minHeight: 164,
-          justifyContent: "flex-end",
-          alignItems: "center",
-          gap: 10,
-          paddingBottom: 4,
-        },
-        bar: {
-          width: 20,
-          borderTopLeftRadius: 5,
-          borderTopRightRadius: 5,
-          backgroundColor: colors.secondaryLabel,
-          opacity: 0.45,
-        },
-        selectedBar: { backgroundColor: colors.accent, opacity: 1 },
-        columnLabel: {
-          ...typeStyle("footnote", "500"),
-          color: colors.secondaryLabel,
-        },
-        selectedLabel: {
-          color: colors.label,
-          fontWeight: "600",
-        },
-        chartTop: {
-          ...typeStyle("footnote"),
-          color: colors.secondaryLabel,
-        },
-        selectedSummary: {
-          gap: 12,
-          paddingTop: 12,
-          borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: colors.separator,
-        },
-        link: {
-          ...typeStyle("subheadline", "600"),
-          color: colors.label,
-        },
-        summary: { gap: 16 },
-        summaryRow: {
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          paddingVertical: 12,
-          gap: 12,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: colors.separator,
-        },
-        summaryNumber: {
-          ...typeStyle("headline"),
-          flexShrink: 1,
-          textAlign: "right",
-          color: colors.label,
-          fontVariant: ["tabular-nums"],
-        },
-        share: {
-          backgroundColor: colors.accent,
-          borderRadius: 20,
-          minHeight: 52,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 10,
-          padding: 12,
-          marginBottom: PlayTTSpacing.sm,
-        },
-        shareText: {
-          ...typeStyle("headline"),
-          color: colors.onAccent,
-        },
-        sheet: { gap: 20 },
-        session: {
-          gap: 7,
-          paddingVertical: 16,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: colors.separator,
-        },
-        sessionTitle: {
-          ...typeStyle("headline"),
-          flexShrink: 1,
-          color: colors.label,
-        },
-        badge: { alignSelf: "flex-start" },
-        empty: { gap: 12, paddingVertical: 20 },
-        pickerGrid: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-        pickerCell: {
-          width: "30%",
-          flexGrow: 1,
-          minHeight: 48,
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: 12,
-          backgroundColor: colors.surface,
-        },
-        dayCell: {
-          width: "12%",
-          minHeight: 44,
-          flexGrow: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: 10,
-        },
-        pickerSelected: { backgroundColor: colors.separator },
-        disabled: { opacity: 0.3 },
-        error: {
-          gap: 12,
-          padding: 20,
-          backgroundColor: colors.surface,
-          borderRadius: 16,
-        },
-        footnote: {
-          ...typeStyle("footnote"),
-          color: colors.secondaryLabel,
-        },
-        change: {
-          ...typeStyle("footnote", "500"),
-          color: colors.label,
-        },
-        chip: {
-          backgroundColor: colors.surface,
-          borderRadius: 12,
-          paddingHorizontal: 14,
-          paddingVertical: 12,
-          minHeight: 44,
-        },
-        dateList: { gap: 12 },
-      }),
-    [colors]
-  )
+  const [week, setWeek] = useState<{ start: string; days: WeekDay[] } | null>(null)
+  const current = todayKey()
+  const weekStart = startOfWeek(date)
+
   useEffect(() => {
     let active = true
-    const request = USE_LIVE_PLAYER_STATS
-      ? fetchActivityStats(period, date)
-      : Promise.resolve(sampleActivityStats(period, date))
+    const request = USE_LIVE_PLAYER_STATS ? fetchActivityStats(period, date) : Promise.resolve(sampleActivityStats(period, date))
     void request
-      .then((result) => {
-        if (active) {
-          setResult({ key: requestKey, data: result })
-          let index = result.buckets.length - 1
-          while (index > 0 && !result.buckets[index].sessions) index--
-          setSelected(index)
-        }
+      .then((stats) => {
+        if (!active) return
+        setResult({ key: requestKey, data: stats })
+        let index = stats.buckets.length - 1
+        while (index > 0 && !stats.buckets[index].sessions) index--
+        setSelected(index)
       })
       .catch(() => {
         if (active) setResult({ key: requestKey, error: true })
@@ -341,13 +95,23 @@ export function usePlayerStatsApi() {
       active = false
     }
   }, [period, date, retry, requestKey])
+
+  // The week row above the day view: needs the whole week's totals.
   useEffect(() => {
-    if (selected !== null)
-      chartRef.current?.scrollTo({
-        x: Math.max(0, selected * 44 - 132),
-        animated: false,
+    if (period !== "day") return
+    let active = true
+    void Promise.all(monthsOfWeek(weekStart).map(loadMonth))
+      .then((stats) => {
+        if (active) setWeek({ start: weekStart, days: buildWeek(weekStart, current, stats) })
       })
-  }, [selected])
+      .catch(() => {
+        if (active) setWeek(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [period, weekStart, current])
+
   const previousDate = shiftStatsDate(date, period, -1),
     canPrevious = previousDate >= "2000-01-01"
   const nextDate = shiftStatsDate(date, period, 1)
@@ -368,29 +132,22 @@ export function usePlayerStatsApi() {
           : { day: "numeric", month: "long", year: "numeric" }
     )
   const bucket = selected !== null ? data?.buckets[selected] : null
-  const max = data ? Math.max(...data.buckets.map((b) => b[metric]), 1) : 1
   const detailSessions = data
     ? data.sessions.filter(
         (s) =>
           !bucket ||
           (period === "year"
-            ? sessionDate(s).slice(0, 7) === bucket.date.slice(0, 7)
+            ? nairobiDate(s.startTime).slice(0, 7) === bucket.date.slice(0, 7)
             : period === "month"
-              ? sessionDate(s) === bucket.date.slice(0, 10)
+              ? nairobiDate(s.startTime) === bucket.date.slice(0, 10)
               : sessionHour(s) === selected)
       )
     : []
   const detailTitle = bucket
     ? period === "year"
-      ? parseDate(bucket.date).toLocaleDateString("en-KE", {
-          month: "long",
-          year: "numeric",
-        })
+      ? parseDate(bucket.date).toLocaleDateString("en-KE", { month: "long", year: "numeric" })
       : period === "month"
-        ? parseDate(bucket.date).toLocaleDateString("en-KE", {
-            day: "numeric",
-            month: "long",
-          })
+        ? parseDate(bucket.date).toLocaleDateString("en-KE", { day: "numeric", month: "long" })
         : `${bucket.label} · ${periodLabel}`
     : periodLabel
   const previous = data?.previous.totals[metric] ?? 0,
@@ -404,9 +161,20 @@ export function usePlayerStatsApi() {
       : !difference
         ? `Same as ${data.previous.label}`
         : `${metricValue(metric, Math.abs(difference))} ${difference > 0 ? "more" : "less"} than ${data.previous.label}`
+
+  // The ring closes at your weekly goal, scaled to the period on screen.
+  const goalMinutes =
+    period === "day" ? weeklyGoal : period === "month" ? (weeklyGoal * daysInMonth(date)) / 7 : weeklyGoal * 52
+  const goalName = period === "day" ? "your weekly goal" : period === "month" ? "your monthly pace" : "your yearly pace"
+
   function chooseDate(value: string) {
     setDate(value)
     setPickerOpen(false)
+  }
+  function openPicker() {
+    setPickerYear(Number(date.slice(0, 4)))
+    setPickerMonth(Number(date.slice(5, 7)) - 1)
+    setPickerOpen(true)
   }
   function drillDown() {
     if (bucket) {
@@ -416,20 +184,26 @@ export function usePlayerStatsApi() {
     }
   }
   function selectPeriod(next: StatsPeriod) {
-    setDate((d) =>
-      next === "year"
-        ? `${d.slice(0, 4)}-01-01`
-        : next === "month"
-          ? `${d.slice(0, 7)}-01`
-          : d
-    )
+    setDate((d) => (next === "year" ? `${d.slice(0, 4)}-01-01` : next === "month" ? `${d.slice(0, 7)}-01` : d))
     setPeriod(next)
   }
-  function renderStickyBar() {
+
+  const styles = StyleSheet.create({
+    controls: { gap: PlayTTSpacing.md },
+    nav: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: PlayTTSpacing.xs },
+    round: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: colors.fill },
+    disabled: { opacity: 0.3 },
+    periodTitle: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 48 },
+    content: { gap: PlayTTSpacing.xl },
+    error: { gap: PlayTTSpacing.sm, padding: PlayTTSpacing.md, borderRadius: 20, backgroundColor: colors.surface },
+    badge: { alignSelf: "flex-start" },
+  })
+
+  function renderControls() {
     return (
-      <>
-        <GlassSegmentControl
-          variant="floating"
+      <View style={styles.controls}>
+        <SegmentedControl
+          label="Period"
           value={period}
           options={[
             { value: "year", label: "Year" },
@@ -438,268 +212,119 @@ export function usePlayerStatsApi() {
           ]}
           onChange={selectPeriod}
         />
-        <View style={styles.row}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Previous ${period}`}
-            disabled={!canPrevious}
-            accessibilityState={{ disabled: !canPrevious }}
+        {period === "day" && week && week.start === weekStart ? (
+          <WeekStrip days={week.days} selectedKey={date} onSelect={(key) => key <= current && setDate(key)} />
+        ) : null}
+        <View style={styles.nav}>
+          <PressableScale
             onPress={() => setDate(previousDate)}
-            style={[styles.button, !canPrevious && styles.disabled]}
+            disabled={!canPrevious}
+            haptic="selection"
+            accessibilityLabel={`Previous ${period}`}
+            accessibilityState={{ disabled: !canPrevious }}
+            style={[styles.round, !canPrevious && styles.disabled]}
           >
-            <CaretLeftIcon size={20} color={colors.label} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
+            <IconSymbol name="chevron.left" size={20} color={colors.accentText} />
+          </PressableScale>
+          <PressableScale
+            onPress={openPicker}
             accessibilityLabel={`Choose ${period}, ${periodLabel}`}
-            onPress={() => {
-              setPickerYear(Number(date.slice(0, 4)))
-              setPickerMonth(Number(date.slice(5, 7)) - 1)
-              setPickerOpen(true)
-            }}
             style={styles.periodTitle}
           >
-            <Text style={styles.title}>{periodLabel}</Text>
-            <CaretDownIcon size={16} color={colors.secondaryLabel} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
+            <AppText variant="title3" numberOfLines={1}>
+              {periodLabel}
+            </AppText>
+            <IconSymbol name="chevron.down" size={16} color={colors.secondaryLabel} />
+          </PressableScale>
+          <PressableScale
+            onPress={() => setDate(nextDate)}
+            disabled={!canNext}
+            haptic="selection"
             accessibilityLabel={`Next ${period}`}
             accessibilityState={{ disabled: !canNext }}
-            disabled={!canNext}
-            onPress={() => setDate(nextDate)}
-            style={[styles.button, !canNext && styles.disabled]}
+            style={[styles.round, !canNext && styles.disabled]}
           >
-            <CaretRightIcon size={20} color={colors.label} />
-          </Pressable>
+            <IconSymbol name="chevron.right" size={20} color={colors.accentText} />
+          </PressableScale>
         </View>
-      </>
+      </View>
     )
   }
 
   function renderScrollContent() {
     return (
-      <View style={styles.root}>
+      <View style={styles.content}>
         {loading ? (
-        <SkeletonGroup gap="lg">
-          <Skeleton width="100%" height={78} borderRadius={20} />
-          <Skeleton width="100%" height={230} borderRadius={20} />
-          <Skeleton width="100%" height={120} borderRadius={20} />
-        </SkeletonGroup>
-      ) : error ? (
-        <View style={styles.error} accessibilityLiveRegion="polite">
-          <Text style={styles.title}>Stats couldn’t load</Text>
-          <Text style={styles.body}>Check your connection and try again.</Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setRetry((r) => r + 1)}
-            style={styles.chip}
-          >
-            <Text style={styles.link}>Try again</Text>
-          </Pressable>
-        </View>
-      ) : data ? (
-        <>
-          <GlassPanel style={styles.panel} contentStyle={styles.panelContent}>
-            <View style={styles.metricRow}>
-              {metrics.map((item) => (
-                <Pressable
-                  key={item.key}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${item.label}: ${metricValue(item.key, data.totals[item.key])}`}
-                  accessibilityState={{ selected: metric === item.key }}
-                  style={[
-                    styles.metric,
-                    metric === item.key && styles.metricActive,
-                  ]}
-                  onPress={() => setMetric(item.key)}
-                >
-                  <Text style={styles.label}>{item.label}</Text>
-                  <Text
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.75}
-                    numberOfLines={1}
-                    style={styles.metricValue}
-                  >
-                    {metricValue(item.key, data.totals[item.key])}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            <Text style={styles.change}>{comparison}</Text>
-            <View style={styles.graph}>
-              {[24, 88, 152].map((top) => (
-                <View key={top} style={[styles.grid, { top }]} />
-              ))}
-              <Text style={styles.chartTop}>
-                {metricValue(
-                  metric,
-                  data.buckets.some((b) => b[metric]) ? max : 0
-                )}
-                {metric === "minutes" ? " booked" : ""}
-              </Text>
-              <ScrollView
-                ref={chartRef}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.columns}
-                onContentSizeChange={() =>
-                  chartRef.current?.scrollTo({
-                    x: Math.max(0, (selected ?? 0) * 44 - 132),
-                    animated: false,
-                  })
-                }
-              >
-                {data.buckets.map((item, index) => (
-                  <Pressable
-                    key={`${item.date}-${index}`}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${item.label}: ${metricValue(metric, item[metric])}. Show details`}
-                    accessibilityState={{ selected: index === selected }}
-                    onPress={() => setSelected(index)}
-                    style={styles.column}
-                  >
-                    <View
-                      style={[
-                        styles.bar,
-                        {
-                          height: item[metric]
-                            ? Math.max(5, (item[metric] / max) * 128)
-                            : 2,
-                        },
-                        index === selected && styles.selectedBar,
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        styles.columnLabel,
-                        index === selected && styles.selectedLabel,
-                      ]}
-                    >
-                      {item.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
-            <Text style={styles.footnote}>
-              Swipe the chart. Tap a{" "}
-              {period === "year"
-                ? "month"
-                : period === "month"
-                  ? "day"
-                  : "time"}{" "}
-              to explore.
-            </Text>
-            {bucket ? (
-              <View style={styles.selectedSummary}>
-                <View style={styles.row}>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.label}>{detailTitle}</Text>
-                    <Text style={styles.value}>
-                      {metricValue(metric, bucket[metric])}
-                    </Text>
-                  </View>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`View sessions for ${detailTitle}`}
-                    onPress={() => setDetailOpen(true)}
-                    style={styles.chip}
-                  >
-                    <Text style={styles.link}>Details</Text>
-                  </Pressable>
-                </View>
-                <Text style={styles.body}>
-                  {bucket.sessions}{" "}
-                  {bucket.sessions === 1 ? "session" : "sessions"} ·{" "}
-                  {timeLabel(bucket.minutes)} booked · {money(bucket.spendKes)}{" "}
-                  paid
-                </Text>
-              </View>
-            ) : null}
-            {!data.totals.bookings ? (
-              <View style={styles.empty}>
-                <CalendarBlankIcon size={24} color={colors.secondaryLabel} />
-                <Text style={styles.sessionTitle}>
-                  Room for your next session
-                </Text>
-                <Text style={styles.body}>
-                  No bookings in this {period}. Try another period, or book a
-                  table to start your story.
-                </Text>
-              </View>
-            ) : null}
-          </GlassPanel>
-          <View style={styles.summary}>
-            <Text style={styles.title}>The details</Text>
-            <View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.body}>Average session</Text>
-                <Text style={styles.summaryNumber}>
-                  {timeLabel(data.totals.averageMinutes)}
-                </Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.body}>Average paid per booking</Text>
-                <Text style={styles.summaryNumber}>
-                  {money(data.totals.averageSpendKes)}
-                </Text>
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`View all ${data.totals.bookings} bookings`}
+          <SkeletonGroup gap="lg">
+            <Skeleton width="100%" height={260} borderRadius={20} />
+            <Skeleton width="100%" height={230} borderRadius={20} />
+            <Skeleton width="100%" height={120} borderRadius={20} />
+          </SkeletonGroup>
+        ) : error ? (
+          <View style={styles.error} accessibilityLiveRegion="polite">
+            <AppText variant="title3">Stats couldn’t load</AppText>
+            <AppText variant="subheadline" color="secondaryLabel">
+              Check your connection and try again.
+            </AppText>
+            <Button label="Try again" variant="secondary" onPress={() => setRetry((r) => r + 1)} />
+          </View>
+        ) : data ? (
+          <>
+            <StatsHero
+              minutes={data.totals.minutes}
+              goalMinutes={goalMinutes}
+              goalName={goalName}
+              onChangeGoal={() => setGoalOpen(true)}
+            />
+            <StatsChart
+              data={data}
+              period={period}
+              metric={metric}
+              onMetric={setMetric}
+              selected={selected}
+              onSelect={setSelected}
+              detailTitle={detailTitle}
+              comparison={comparison}
+              onDetails={() => setDetailOpen(true)}
+            />
+            <ListSection header="The details" separatorInset={PlayTTSpacing.md}>
+              <ListRow title="Average session" accessory={{ kind: "value", value: timeLabel(data.totals.averageMinutes) }} />
+              <ListRow title="Average paid per booking" accessory={{ kind: "value", value: money(data.totals.averageSpendKes) }} />
+              <ListRow
+                title="All bookings"
+                accessory={{ kind: "value", value: String(data.totals.bookings) }}
                 onPress={() => {
                   setSelected(null)
                   setDetailOpen(true)
                 }}
-                style={styles.summaryRow}
-              >
-                <Text style={styles.body}>All bookings</Text>
-                <View style={styles.row}>
-                  <Text style={styles.summaryNumber}>
-                    {data.totals.bookings}
-                  </Text>
-                  <CaretRightIcon size={16} color={colors.secondaryLabel} />
-                </View>
-              </Pressable>
-              <View style={styles.summaryRow}>
-                <Text style={styles.body}>Cancelled bookings</Text>
-                <Text style={styles.summaryNumber}>
-                  {data.totals.cancelledSessions}
-                </Text>
+              />
+              <ListRow title="Cancelled bookings" accessory={{ kind: "value", value: String(data.totals.cancelledSessions) }} />
+            </ListSection>
+            <View style={styles.controls}>
+              <AppText variant="footnote" color="secondaryLabel">
+                Table time is the reserved duration of past sessions, not measured playing time. All dates use Nairobi time.
+              </AppText>
+              {data.notes.map((note) => (
+                <AppText key={note} variant="footnote" color="secondaryLabel">
+                  {note}
+                </AppText>
+              ))}
+            </View>
+            <Button label="Share your table story" onPress={() => setShareOpen(true)} accessibilityHint="Creates a branded stats image" />
+            {!USE_LIVE_PLAYER_STATS ? (
+              <View style={styles.badge}>
+                <PreviewBadge label="Sample" />
               </View>
-            </View>
-            <Text style={styles.footnote}>
-              Table time is the reserved duration of past sessions, not measured
-              playing time. All dates use Nairobi time.
-            </Text>
-            {data.notes.map((note) => (
-              <Text key={note} style={styles.footnote}>
-                {note}
-              </Text>
-            ))}
+            ) : null}
+          </>
+        ) : (
+          <View style={styles.error} accessibilityLiveRegion="polite">
+            <AppText variant="title3">Loading your stats</AppText>
+            <AppText variant="subheadline" color="secondaryLabel">
+              This should only take a moment.
+            </AppText>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Create a branded stats image"
-            onPress={() => setShareOpen(true)}
-            style={styles.share}
-          >
-            <ExportIcon size={20} color={colors.onAccent} />
-            <Text style={styles.shareText}>Share your table story</Text>
-          </Pressable>
-          {!USE_LIVE_PLAYER_STATS ? (
-            <View style={styles.badge}>
-              <PreviewBadge label="Sample" />
-            </View>
-          ) : null}
-        </>
-      ) : (
-        <View style={styles.error} accessibilityLiveRegion="polite">
-          <Text style={styles.title}>Loading your stats</Text>
-          <Text style={styles.body}>This should only take a moment.</Text>
-        </View>
-      )}
+        )}
       </View>
     )
   }
@@ -717,221 +342,43 @@ export function usePlayerStatsApi() {
               minutes: data.totals.minutes,
               spendingKes: data.totals.spendKes,
               preview: !USE_LIVE_PLAYER_STATS,
+              goalMinutes,
+              bars: data.buckets.map((b) => b.minutes),
             }}
           />
         ) : null}
-        <BottomSheet
-        visible={detailOpen}
-        title={detailTitle}
-        onClose={() => setDetailOpen(false)}
-        scrollable
-      >
-        <View style={styles.sheet}>
-          {!USE_LIVE_PLAYER_STATS ? (
-            <View style={styles.badge}>
-              <PreviewBadge label="Sample" />
-            </View>
-          ) : null}
-          {bucket && period !== "day" ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={drillDown}
-              style={[styles.chip, styles.row]}
-            >
-              <Text style={styles.link}>
-                Explore this {period === "year" ? "month" : "day"}
-              </Text>
-              <CaretRightIcon size={18} color={colors.label} />
-            </Pressable>
-          ) : null}
-          {detailSessions.length ? (
-            detailSessions.map((session) => (
-              <View key={session.id} style={styles.session}>
-                <View style={styles.row}>
-                  <Text style={styles.sessionTitle}>
-                    {session.locationName}
-                  </Text>
-                  <Text style={styles.summaryNumber}>
-                    {new Intl.NumberFormat("en-KE", {
-                      style: "currency",
-                      currency: session.currency,
-                      maximumFractionDigits: 0,
-                    }).format(session.totalKes)}
-                  </Text>
-                </View>
-                <Text style={styles.body}>
-                  {new Date(session.startTime).toLocaleString("en-KE", {
-                    timeZone: "Africa/Nairobi",
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}{" "}
-                  · {timeLabel(session.durationMinutes)} reserved
-                </Text>
-                <Text style={styles.footnote}>
-                  {session.resourceName} · {session.status.replaceAll("_", " ")}{" "}
-                  · {session.paymentStatus.replaceAll("_", " ")} � reservation
-                  price
-                </Text>
-              </View>
-            ))
-          ) : (
-            <View style={styles.empty}>
-              <Text style={styles.sessionTitle}>No sessions here</Text>
-              <Text style={styles.body}>
-                Pick another {period === "year" ? "month" : "day"} in the chart
-                to see your bookings.
-              </Text>
-            </View>
-          )}
-          <Text style={styles.footnote}>
-            Prices are per reservation. Spending counts successful payments;
-            cancelled reservations don’t count toward table time.
-          </Text>
-          {metric === "spendKes"
-            ? data?.notes.map((note) => (
-                <Text key={note} style={styles.footnote}>
-                  {note}
-                </Text>
-              ))
-            : null}
-        </View>
-      </BottomSheet>
-      <BottomSheet
-        visible={pickerOpen}
-        title={`Choose a ${period}`}
-        onClose={() => setPickerOpen(false)}
-        scrollable
-      >
-        <View style={styles.dateList}>
-          <View style={styles.row}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Previous year"
-              disabled={pickerYear <= 2000}
-              accessibilityState={{ disabled: pickerYear <= 2000 }}
-              onPress={() => setPickerYear((y) => y - 1)}
-              style={[styles.button, pickerYear <= 2000 && styles.disabled]}
-            >
-              <CaretLeftIcon size={20} color={colors.label} />
-            </Pressable>
-            <Text style={styles.title}>{pickerYear}</Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Next year"
-              disabled={pickerYear >= Number(current.slice(0, 4))}
-              style={[
-                styles.button,
-                pickerYear >= Number(current.slice(0, 4)) && styles.disabled,
-              ]}
-              onPress={() => setPickerYear((y) => y + 1)}
-            >
-              <CaretRightIcon size={20} color={colors.label} />
-            </Pressable>
-          </View>
-          {period === "year" ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => chooseDate(`${pickerYear}-01-01`)}
-              style={styles.share}
-            >
-              <Text style={styles.shareText}>View {pickerYear}</Text>
-            </Pressable>
-          ) : (
-            <View style={styles.pickerGrid}>
-              {Array.from({ length: 12 }, (_, month) => {
-                const key = `${pickerYear}-${String(month + 1).padStart(2, "0")}-01`,
-                  disabled = key.slice(0, 7) > current.slice(0, 7)
-                return (
-                  <Pressable
-                    key={month}
-                    accessibilityRole="button"
-                    accessibilityState={{
-                      selected: pickerMonth === month,
-                      disabled,
-                    }}
-                    disabled={disabled}
-                    style={[
-                      styles.pickerCell,
-                      pickerMonth === month && styles.pickerSelected,
-                      disabled && styles.disabled,
-                    ]}
-                    onPress={() =>
-                      period === "month"
-                        ? chooseDate(key)
-                        : setPickerMonth(month)
-                    }
-                  >
-                    <Text style={styles.link}>
-                      {new Date(pickerYear, month, 1).toLocaleDateString(
-                        "en-KE",
-                        { month: "short" }
-                      )}
-                    </Text>
-                  </Pressable>
-                )
-              })}
-            </View>
-          )}
-          {period === "day" ? (
-            <>
-              <Text style={styles.title}>
-                {new Date(pickerYear, pickerMonth, 1).toLocaleDateString(
-                  "en-KE",
-                  { month: "long" }
-                )}
-              </Text>
-              <View style={styles.pickerGrid}>
-                {Array.from(
-                  {
-                    length: new Date(pickerYear, pickerMonth + 1, 0).getDate(),
-                  },
-                  (_, index) => {
-                    const key = dateKey(
-                        new Date(pickerYear, pickerMonth, index + 1)
-                      ),
-                      disabled = key > current
-                    return (
-                      <Pressable
-                        key={key}
-                        accessibilityRole="button"
-                        accessibilityLabel={`View ${key}`}
-                        accessibilityState={{
-                          disabled,
-                          selected: key === date,
-                        }}
-                        disabled={disabled}
-                        style={[
-                          styles.dayCell,
-                          key === date && styles.pickerSelected,
-                          disabled && styles.disabled,
-                        ]}
-                        onPress={() => chooseDate(key)}
-                      >
-                        <Text style={styles.link}>{index + 1}</Text>
-                      </Pressable>
-                    )
-                  }
-                )}
-              </View>
-            </>
-          ) : null}
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => chooseDate(current)}
-            style={styles.chip}
-          >
-            <Text style={styles.link}>Back to this {period}</Text>
-          </Pressable>
-        </View>
-      </BottomSheet>
+        <StatsDetailSheet
+          visible={detailOpen}
+          title={detailTitle}
+          period={period}
+          sessions={detailSessions}
+          sample={!USE_LIVE_PLAYER_STATS}
+          onDrillDown={bucket && period !== "day" ? drillDown : undefined}
+          notes={metric === "spendKes" ? data?.notes : undefined}
+          onClose={() => setDetailOpen(false)}
+        />
+        <StatsPickerSheet
+          visible={pickerOpen}
+          period={period}
+          date={date}
+          today={current}
+          year={pickerYear}
+          month={pickerMonth}
+          onYear={setPickerYear}
+          onMonth={setPickerMonth}
+          onChoose={chooseDate}
+          onClose={() => setPickerOpen(false)}
+        />
+        <GoalSheet visible={goalOpen} onClose={() => setGoalOpen(false)} />
       </>
     )
   }
 
   return {
-    renderStickyBar,
+    ready: Boolean(data),
+    openPicker,
+    openShare: () => setShareOpen(true),
+    renderControls,
     renderScrollContent,
     renderOverlays,
   }
@@ -942,8 +389,8 @@ export function PlayerStatsPanel() {
 
   return (
     <>
-      <View style={{ gap: 20 }}>
-        {stats.renderStickyBar()}
+      <View style={{ gap: PlayTTSpacing.lg }}>
+        {stats.renderControls()}
         {stats.renderScrollContent()}
       </View>
       {stats.renderOverlays()}

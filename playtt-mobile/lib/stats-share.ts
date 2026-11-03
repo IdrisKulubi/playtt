@@ -8,6 +8,10 @@ export type StatsShareData = {
   minutes: number
   spendingKes: number
   preview: boolean
+  /** Table time that closes the ring for this period. */
+  goalMinutes: number
+  /** Table time in each bar of the period, for the little chart. */
+  bars: number[]
 }
 
 export function shareTimeLabel(minutes: number): string {

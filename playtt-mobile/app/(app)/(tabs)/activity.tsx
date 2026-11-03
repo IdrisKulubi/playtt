@@ -4,7 +4,7 @@ import { RefreshControl, StyleSheet, View } from "react-native"
 
 import { ProfileButton } from "@/components/account/profile-button"
 import { LatestHighlights } from "@/components/activity/latest-highlights"
-import { ProgressStatsCard } from "@/components/activity/progress-stats-card"
+import { ProgressSummary } from "@/components/activity/progress-summary"
 import { ClipPackPurchaseSheet } from "@/components/coach/clip-pack-purchase-sheet"
 import { Button } from "@/components/kit/button"
 import { Card } from "@/components/kit/card"
@@ -25,6 +25,10 @@ const BOOK_HREF = "/(app)/book" as Href
 function creditsSentence(balance: number) {
   if (balance === 0) return "You have no replays left"
   return balance === 1 ? "You have 1 replay left" : `You have ${balance} replays left`
+}
+
+function todaySubtitle() {
+  return new Date().toLocaleDateString("en-KE", { weekday: "long", day: "numeric", month: "short" })
 }
 
 /** Progress tab — job: show how I'm playing and how to get better. */
@@ -50,6 +54,7 @@ export default function ProgressScreen() {
   return (
     <Screen
       title="Progress"
+      subtitle={todaySubtitle()}
       inTabs
       cornerAccessory={<ProfileButton />}
       refreshControl={
@@ -64,7 +69,7 @@ export default function ProgressScreen() {
       }
     >
       <View style={styles.section} key={`stats-${refreshKey}`}>
-        <ProgressStatsCard />
+        <ProgressSummary />
         <Button label="See detailed stats" variant="plain" onPress={() => router.push(STATS_HREF)} />
       </View>
 

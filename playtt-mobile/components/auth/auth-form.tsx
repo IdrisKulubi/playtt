@@ -1,8 +1,9 @@
 import type { AuthMode } from '@/constants/auth-theme';
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
-import { useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
+import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition, useReducedMotion } from 'react-native-reanimated';
 import { EnvelopeSimple } from 'phosphor-react-native/src/icons/EnvelopeSimple';
 import { LockSimple } from 'phosphor-react-native/src/icons/LockSimple';
 import { User } from 'phosphor-react-native/src/icons/User';
@@ -10,10 +11,10 @@ import { Eye } from 'phosphor-react-native/src/icons/Eye';
 import { EyeSlash } from 'phosphor-react-native/src/icons/EyeSlash';
 
 import { SocialAuthButton } from '@/components/auth/social-auth-button';
-import { Button } from '@/components/ui/button';
+import { AuthFieldGroup, AuthRow } from '@/components/auth/auth-field-group';
+import { AuthPrimaryButton } from '@/components/auth/auth-primary-button';
+import { SegmentedControl } from '@/components/kit/segmented-control';
 import { FormDivider } from '@/components/ui/form-divider';
-import { FormField } from '@/components/ui/form-field';
-import { Input } from '@/components/ui/input';
 import { PlayTTSpacing } from '@/constants/playtt-tokens';
 import { typeStyle } from '@/constants/type';
 import { useAuthTheme } from '@/hooks/use-auth-theme';
@@ -52,6 +53,10 @@ type AuthFormProps = {
 
 export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProps) {
   const theme = useAuthTheme();
+  const reducedMotion = useReducedMotion();
+  const emailInput = useRef<ComponentRef<typeof TextInput>>(null);
+  const passwordInput = useRef<ComponentRef<typeof TextInput>>(null);
+  const nameInput = useRef<ComponentRef<typeof TextInput>>(null);
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [isLoading, setIsLoading] = useState(false);
   const [showTwoFactor, setShowTwoFactor] = useState(false);
@@ -292,8 +297,6 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
     }
   }
 
-  const fieldProps = { variant: 'auth' as const, authTheme: theme, compact: true };
-  const inputProps = { variant: 'auth' as const, authTheme: theme };
   const passwordVisibility = (
     <Pressable
       accessibilityRole="button"
@@ -307,26 +310,28 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
   if (showTwoFactor) {
     return (
       <View style={styles.form}>
-        <FormField label="Verification code" error={otpErrors.otp} {...fieldProps}>
-          <Input
-            {...inputProps}
+        <AuthFieldGroup>
+          <AuthRow
+            first
+            theme={theme}
+            icon={({ color }) => <LockSimple size={20} color={color} />}
+            accessibilityLabel="Verification code"
+            error={otpErrors.otp}
             value={otpValues.otp}
             onChangeText={(otp) => setOtpValues((current) => ({ ...current, otp }))}
-            placeholder="123456"
+            placeholder="Verification code"
             keyboardType="number-pad"
             autoComplete="one-time-code"
-            hasError={Boolean(otpErrors.otp)}
+            textContentType="oneTimeCode"
+            maxLength={8}
+            autoFocus
+            returnKeyType="go"
+            onSubmitEditing={handleOtpSubmit}
           />
-        </FormField>
-        <Button
-          label="Verify and continue"
-          surface="auth"
-          authTheme={theme}
-          onPress={handleOtpSubmit}
-          loading={isLoading}
-        />
-        <Pressable onPress={() => setShowTwoFactor(false)}>
-          <Text style={[styles.modeLink, { color: theme.link }]}>Return to sign in</Text>
+        </AuthFieldGroup>
+        <AuthPrimaryButton label="Verify and continue" theme={theme} onPress={handleOtpSubmit} loading={isLoading} />
+        <Pressable accessibilityRole="button" onPress={() => setShowTwoFactor(false)} style={styles.textButton}>
+          <Text style={[styles.inlineLink, { color: theme.link }]}>Return to sign in</Text>
         </Pressable>
       </View>
     );
@@ -346,157 +351,160 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
     <SocialAuthButton provider="google" theme={theme} onPress={handleGoogleSignIn} loading={isLoading} />
   );
 
+  // Each block rises in turn on arrival, like Apple's own onboarding.
+  const rise = (index: number) =>
+    reducedMotion ? undefined : FadeInDown.duration(420).delay(120 + index * 70);
+  const swap = reducedMotion ? undefined : FadeIn.duration(220);
+  const leave = reducedMotion ? undefined : FadeOut.duration(120);
+
   return (
     <View style={styles.form}>
-      <View style={styles.socialStack}>
+      <Animated.View entering={rise(0)}>
+        <SegmentedControl
+          appearance="onGlass"
+          label="Sign in or create an account"
+          value={mode}
+          onChange={handleModeChange}
+          options={[
+            { value: 'sign-in', label: 'Sign in' },
+            { value: 'sign-up', label: 'Create account' },
+          ]}
+        />
+      </Animated.View>
+
+      <Animated.View entering={rise(1)} style={styles.socialStack}>
         {isIos ? appleButton : googleButton}
         {isIos ? googleButton : appleButton}
-      </View>
+      </Animated.View>
 
-      <FormDivider label="or use your email" variant="auth" authTheme={theme} compact />
+      <Animated.View entering={rise(2)}>
+        <FormDivider label="or use your email" variant="auth" authTheme={theme} compact />
+      </Animated.View>
 
-      {isSignIn ? (
-        <>
-          <FormField label="Email" error={signInErrors.email} {...fieldProps}>
-            <Input
-              {...inputProps}
-              accessibilityLabel="Email"
-              leadingIcon={<EnvelopeSimple size={18} color={theme.muted} />}
-              value={signInValues.email}
-              onChangeText={(email) =>
-                setSignInValues((current) => ({ ...current, email }))
-              }
-              placeholder="Enter your email address"
-              autoCapitalize="none"
-              autoComplete="email"
-              keyboardType="email-address"
-              hasError={Boolean(signInErrors.email)}
-            />
-          </FormField>
+      <Animated.View entering={rise(3)} layout={reducedMotion ? undefined : LinearTransition.duration(260)}>
+        {isSignIn ? (
+          <Animated.View key="sign-in" entering={swap} exiting={leave}>
+            <AuthFieldGroup>
+              <AuthRow
+                first
+                theme={theme}
+                icon={({ color }) => <EnvelopeSimple size={20} color={color} />}
+                accessibilityLabel="Email"
+                error={signInErrors.email}
+                value={signInValues.email}
+                onChangeText={(email) => setSignInValues((current) => ({ ...current, email }))}
+                placeholder="Email"
+                autoCapitalize="none"
+                autoComplete="email"
+                textContentType="username"
+                keyboardType="email-address"
+                inputRef={emailInput}
+                returnKeyType="next"
+                submitBehavior="submit"
+                onSubmitEditing={() => passwordInput.current?.focus()}
+              />
+              <AuthRow
+                theme={theme}
+                icon={({ color }) => <LockSimple size={20} color={color} />}
+                trailing={passwordVisibility}
+                inputRef={passwordInput}
+                accessibilityLabel="Password"
+                error={signInErrors.password}
+                value={signInValues.password}
+                onChangeText={(password) => setSignInValues((current) => ({ ...current, password }))}
+                placeholder="Password"
+                secureTextEntry={!showPassword}
+                autoComplete="password"
+                textContentType="password"
+                returnKeyType="go"
+                onSubmitEditing={handleEmailSignIn}
+              />
+            </AuthFieldGroup>
+            <Pressable accessibilityRole="button" onPress={goToResetPassword} style={styles.forgotButton}>
+              <Text style={[styles.inlineLink, { color: theme.link }]}>Forgot password?</Text>
+            </Pressable>
+          </Animated.View>
+        ) : (
+          <Animated.View key="sign-up" entering={swap} exiting={leave}>
+            <AuthFieldGroup>
+              <AuthRow
+                first
+                theme={theme}
+                icon={({ color }) => <User size={20} color={color} />}
+                accessibilityLabel="Full name"
+                error={signUpErrors.name}
+                value={signUpValues.name}
+                onChangeText={(name) => setSignUpValues((current) => ({ ...current, name }))}
+                placeholder="Full name"
+                autoComplete="name"
+                textContentType="name"
+                autoCapitalize="words"
+                inputRef={nameInput}
+                returnKeyType="next"
+                submitBehavior="submit"
+                onSubmitEditing={() => emailInput.current?.focus()}
+              />
+              <AuthRow
+                theme={theme}
+                icon={({ color }) => <EnvelopeSimple size={20} color={color} />}
+                accessibilityLabel="Email"
+                error={signUpErrors.email}
+                value={signUpValues.email}
+                onChangeText={(email) => setSignUpValues((current) => ({ ...current, email }))}
+                placeholder="Email"
+                autoCapitalize="none"
+                autoComplete="email"
+                textContentType="emailAddress"
+                keyboardType="email-address"
+                inputRef={emailInput}
+                returnKeyType="next"
+                submitBehavior="submit"
+                onSubmitEditing={() => passwordInput.current?.focus()}
+              />
+              <AuthRow
+                theme={theme}
+                icon={({ color }) => <LockSimple size={20} color={color} />}
+                trailing={passwordVisibility}
+                inputRef={passwordInput}
+                accessibilityLabel="Password"
+                error={signUpErrors.password}
+                value={signUpValues.password}
+                onChangeText={(password) => setSignUpValues((current) => ({ ...current, password }))}
+                placeholder="Password, at least 8 characters"
+                secureTextEntry={!showPassword}
+                autoComplete="new-password"
+                textContentType="newPassword"
+                returnKeyType="go"
+                onSubmitEditing={handleSignUp}
+              />
+            </AuthFieldGroup>
+          </Animated.View>
+        )}
+      </Animated.View>
 
-          <FormField
-            label="Password"
-            error={signInErrors.password}
-            {...fieldProps}
-            >
-            <Input
-              {...inputProps}
-              accessibilityLabel="Password"
-              leadingIcon={<LockSimple size={18} color={theme.muted} />}
-              trailingAccessory={passwordVisibility}
-              value={signInValues.password}
-              onChangeText={(password) =>
-                setSignInValues((current) => ({ ...current, password }))
-              }
-              placeholder="Your password"
-              secureTextEntry={!showPassword}
-              autoComplete="password"
-              hasError={Boolean(signInErrors.password)}
-            />
-          </FormField>
-          <Pressable accessibilityRole="button" onPress={goToResetPassword} style={styles.forgotButton}>
-            <Text style={[styles.inlineLink, { color: theme.link }]}>Forgot password?</Text>
-          </Pressable>
-        </>
-      ) : (
-        <>
-          <FormField label="Full name" error={signUpErrors.name} {...fieldProps}>
-            <Input
-              {...inputProps}
-              accessibilityLabel="Full name"
-              leadingIcon={<User size={18} color={theme.muted} />}
-              value={signUpValues.name}
-              onChangeText={(name) => setSignUpValues((current) => ({ ...current, name }))}
-              placeholder="Your name"
-              autoComplete="name"
-              hasError={Boolean(signUpErrors.name)}
-            />
-          </FormField>
-
-          <FormField label="Email" error={signUpErrors.email} {...fieldProps}>
-            <Input
-              {...inputProps}
-              accessibilityLabel="Email"
-              leadingIcon={<EnvelopeSimple size={18} color={theme.muted} />}
-              value={signUpValues.email}
-              onChangeText={(email) =>
-                setSignUpValues((current) => ({ ...current, email }))
-              }
-              placeholder="Enter your email address"
-              autoCapitalize="none"
-              autoComplete="email"
-              keyboardType="email-address"
-              hasError={Boolean(signUpErrors.email)}
-            />
-          </FormField>
-
-          <FormField
-            label="Password"
-            error={signUpErrors.password}
-            {...fieldProps}
-            >
-            <Input
-              {...inputProps}
-              accessibilityLabel="Password"
-              leadingIcon={<LockSimple size={18} color={theme.muted} />}
-              trailingAccessory={passwordVisibility}
-              value={signUpValues.password}
-              onChangeText={(password) =>
-                setSignUpValues((current) => ({ ...current, password }))
-              }
-              placeholder="At least 8 characters"
-              secureTextEntry={!showPassword}
-              autoComplete="new-password"
-              hasError={Boolean(signUpErrors.password)}
-            />
-          </FormField>
-        </>
-      )}
-
-      <Button
-        label={isSignIn ? 'Sign in' : 'Create account'}
-        surface="auth"
-        authTheme={theme}
-        onPress={isSignIn ? handleEmailSignIn : handleSignUp}
-        loading={isLoading}
-      />
-
-      <Pressable
-        accessibilityRole="button"
-        disabled={isLoading}
-        style={styles.modeButton}
-        onPress={() => handleModeChange(isSignIn ? 'sign-up' : 'sign-in')}>
-        <Text style={[styles.modePrompt, { color: theme.muted }]}>
-          {isSignIn ? 'New to PlayTT? ' : 'Already have an account? '}
-          <Text style={[styles.modeLink, { color: theme.foreground }]}>
-            {isSignIn ? 'Create an account' : 'Sign in'}
-          </Text>
-        </Text>
-      </Pressable>
+      <Animated.View entering={rise(4)} layout={reducedMotion ? undefined : LinearTransition.duration(260)}>
+        <AuthPrimaryButton
+          label={isSignIn ? 'Sign in' : 'Create account'}
+          theme={theme}
+          onPress={isSignIn ? handleEmailSignIn : handleSignUp}
+          loading={isLoading}
+        />
+      </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   form: {
-    gap: 16,
+    gap: 12,
   },
   visibilityButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  forgotButton: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', marginTop: -12, marginBottom: -4 },
-  modeButton: { minHeight: 44, justifyContent: 'center', marginTop: 12 },
+  forgotButton: { alignSelf: 'flex-end', minHeight: 36, justifyContent: 'center', paddingHorizontal: 6 },
+  textButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   inlineLink: {
-    ...typeStyle('headline'),
+    ...typeStyle('subheadline', '600'),
   },
   socialStack: {
     gap: PlayTTSpacing.sm,
-  },
-  modePrompt: {
-    ...typeStyle('body'),
-    textAlign: 'center',
-    marginTop: PlayTTSpacing.xs,
-  },
-  modeLink: {
-    fontWeight: '600',
-    textDecorationLine: 'underline',
   },
 });

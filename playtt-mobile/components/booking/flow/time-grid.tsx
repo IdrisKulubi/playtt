@@ -1,5 +1,7 @@
 import { StyleSheet, View } from "react-native"
+import Animated from "react-native-reanimated"
 
+import { ScrollEdgeFades, useScrollEdgeFades } from "@/components/kit/edge-fade"
 import { EmptyState } from "@/components/kit/empty-state"
 import { PressableScale } from "@/components/kit/pressable-scale"
 import { AppText } from "@/components/ui/app-text"
@@ -17,6 +19,11 @@ type TimeGridProps = {
   isLoading: boolean
   onSelect: (slot: SlotAvailability) => void
   onTryTomorrow: () => void
+  /**
+   * Cap the grid's height so the times scroll in their own faded box and the
+   * page stays still. Leave a row half showing so it looks scrollable.
+   */
+  maxHeight?: number
 }
 
 function formatStart(iso: string) {
@@ -31,8 +38,17 @@ function isOpen(slot: SlotAvailability) {
  * Big time buttons in two columns. Taken times stay visible but greyed and
  * labelled "Taken", so people see the day is busy rather than wondering.
  */
-export function TimeGrid({ slots, selectedSlot, nowMs, isLoading, onSelect, onTryTomorrow }: TimeGridProps) {
-  const { colors } = useAppTheme()
+export function TimeGrid({
+  slots,
+  selectedSlot,
+  nowMs,
+  isLoading,
+  onSelect,
+  onTryTomorrow,
+  maxHeight,
+}: TimeGridProps) {
+  const { scheme, colors } = useAppTheme()
+  const fades = useScrollEdgeFades()
   const skeletonSurface = useSkeletonSurface()
   const upcoming = slots.filter((slot) => !isSlotStartInPast(slot.startsAt, nowMs))
 
@@ -49,7 +65,7 @@ export function TimeGrid({ slots, selectedSlot, nowMs, isLoading, onSelect, onTr
     )
   }
 
-  return (
+  const grid = (
     <View style={styles.grid}>
       {upcoming.map((slot) => {
         const open = isOpen(slot)
@@ -87,6 +103,24 @@ export function TimeGrid({ slots, selectedSlot, nowMs, isLoading, onSelect, onTr
           </PressableScale>
         )
       })}
+    </View>
+  )
+
+  if (!maxHeight) return grid
+
+  return (
+    <View>
+      <Animated.ScrollView
+        style={{ maxHeight }}
+        {...fades.scrollProps}
+        // Lets the box scroll on its own inside the page's scroll view (Android).
+        nestedScrollEnabled
+        showsVerticalScrollIndicator={false}
+        accessibilityLabel="Available times, scrolls"
+      >
+        {grid}
+      </Animated.ScrollView>
+      <ScrollEdgeFades fades={fades} color={colors.background} scheme={scheme} />
     </View>
   )
 }

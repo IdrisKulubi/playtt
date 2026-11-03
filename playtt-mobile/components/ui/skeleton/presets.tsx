@@ -39,7 +39,18 @@ function ButtonBone({ flex = false }: { flex?: boolean }) {
 }
 
 /** One inset grouped list (like ListSection), with an optional header. */
-function ListSectionBone({ rows = 3, header = true, icons = true }: { rows?: number; header?: boolean; icons?: boolean }) {
+function ListSectionBone({
+  rows = 3,
+  header = true,
+  icons = true,
+  detailLines = 1,
+}: {
+  rows?: number
+  header?: boolean
+  icons?: boolean
+  /** Lines of small text under each row's title; booking rows have two. */
+  detailLines?: number
+}) {
   const { colors } = useAppTheme()
 
   return (
@@ -59,8 +70,14 @@ function ListSectionBone({ rows = 3, header = true, icons = true }: { rows?: num
             <View style={styles.row}>
               {icons ? <Skeleton width={KitLayout.iconTile} height={KitLayout.iconTile} borderRadius={8} /> : null}
               <View style={styles.rowText}>
-                <Skeleton width={index % 2 ? "45%" : "60%"} height={16} />
-                <Skeleton width={index % 2 ? "65%" : "40%"} height={12} />
+                <Skeleton width={index % 2 ? "45%" : "60%"} height={17} />
+                {Array.from({ length: detailLines }).map((_, line) => (
+                  <Skeleton
+                    key={line}
+                    width={line === detailLines - 1 && detailLines > 1 ? "50%" : index % 2 ? "78%" : "68%"}
+                    height={13}
+                  />
+                ))}
               </View>
             </View>
           </Fragment>
@@ -106,8 +123,12 @@ export function UpcomingCardSkeleton(props: PresetProps) {
 export function BookingListSkeleton(_props: PresetProps) {
   return (
     <LoadingRegion gap="lg">
-      <ListSectionBone rows={2} />
-      <ListSectionBone rows={3} />
+      <View style={styles.dayGroups}>
+        <ListSectionBone rows={1} detailLines={2} />
+        <ListSectionBone rows={1} detailLines={2} />
+        <ButtonBone />
+      </View>
+      <ListSectionBone rows={3} detailLines={2} />
     </LoadingRegion>
   )
 }
@@ -222,6 +243,7 @@ export function ReplayClipGridSkeleton({ cardCount = 4 }: PresetProps & { cardCo
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  dayGroups: { gap: PlayTTSpacing.lg },
   stack: { gap: PlayTTSpacing.md },
   divider: { height: StyleSheet.hairlineWidth },
   buttonRow: { flexDirection: "row", gap: PlayTTSpacing.sm },

@@ -11,7 +11,8 @@ import {
 } from "@/components/community/community-profile-form"
 import { PlayerCard } from "@/components/community/player-card/player-card"
 import { cardDataFromMe } from "@/components/community/player-card/card-tiers"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/kit/button"
+import { Button as ProductButton } from "@/components/ui/button"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useAppTheme } from "@/hooks/use-app-theme"
 import { shareMyCard } from "@/lib/card-share"
@@ -19,9 +20,28 @@ import { fetchCommunityMe, updateCommunityProfile } from "@/lib/community-api"
 import type { CommunityMe } from "@/lib/community-types"
 import { toast } from "@/lib/toast"
 
+/** The footer floats up a little before the last action fully leaves the top. */
+const REVEAL_LEAD = 120
+
 function draftFrom(me: CommunityMe): CommunityProfileDraft {
-  const { communityVisible, bio, playStyle, handedness, usualTimes, requestPolicy, showAtVenue } = me.profile
-  return { communityVisible, bio, playStyle, handedness, usualTimes, requestPolicy, showAtVenue }
+  const {
+    communityVisible,
+    bio,
+    playStyle,
+    handedness,
+    usualTimes,
+    requestPolicy,
+    showAtVenue,
+  } = me.profile
+  return {
+    communityVisible,
+    bio,
+    playStyle,
+    handedness,
+    usualTimes,
+    requestPolicy,
+    showAtVenue,
+  }
 }
 
 export default function CommunityProfileScreen() {
@@ -33,6 +53,7 @@ export default function CommunityProfileScreen() {
   const [draft, setDraft] = useState<CommunityProfileDraft | null>(null)
   const [saving, setSaving] = useState(false)
   const [sharing, setSharing] = useState(false)
+  const [revealAt, setRevealAt] = useState<number | undefined>(undefined)
   const cardRef = useRef<ComponentRef<typeof View>>(null)
 
   async function share() {
@@ -64,7 +85,10 @@ export default function CommunityProfileScreen() {
     }
   }, [isSetup])
 
-  const patch = useMemo(() => (initial && draft ? profilePatch(initial, draft) : {}), [initial, draft])
+  const patch = useMemo(
+    () => (initial && draft ? profilePatch(initial, draft) : {}),
+    [initial, draft]
+  )
   const dirty = Object.keys(patch).length > 0
 
   async function save() {
@@ -75,7 +99,9 @@ export default function CommunityProfileScreen() {
     setSaving(true)
     try {
       await updateCommunityProfile(patch)
-      toast.success(draft?.communityVisible ? "Your card is live." : "Your card is hidden.")
+      toast.success(
+        draft?.communityVisible ? "Your card is live." : "Your card is hidden."
+      )
       router.back()
     } catch (error) {
       toast.apiError(error, "Could not save your card.")
@@ -88,25 +114,44 @@ export default function CommunityProfileScreen() {
     () =>
       StyleSheet.create({
         preview: { paddingHorizontal: PlayTTSpacing["2xl"] },
+        actions: { gap: PlayTTSpacing.lg },
       }),
-    [],
+    []
   )
 
   const preview =
     me && draft
       ? cardDataFromMe({
           ...me,
-          profile: { ...me.profile, ...draft, bio: draft.bio?.trim() ? draft.bio : null },
+          profile: {
+            ...me.profile,
+            ...draft,
+            bio: draft.bio?.trim() ? draft.bio : null,
+          },
         })
       : null
 
   return (
     <AccountStackScreen
       title={isSetup ? "Create my card" : "My player card"}
+      footerRevealOffset={revealAt ?? Number.POSITIVE_INFINITY}
+      footer={
+        draft && preview ? (
+          <Button
+            label={isSetup ? "Create my card" : "Save"}
+            loading={saving}
+            disabled={saving || (!dirty && !isSetup)}
+            onPress={save}
+          />
+        ) : null
+      }
       description="Your tier comes from your skill level. Stats fill in as you play."
     >
       {!draft || !preview ? (
-        <ActivityIndicator style={{ marginTop: PlayTTSpacing.xl }} color={colors.secondaryLabel} />
+        <ActivityIndicator
+          style={{ marginTop: PlayTTSpacing.xl }}
+          color={colors.secondaryLabel}
+        />
       ) : (
         <>
           <View style={styles.preview}>
@@ -115,28 +160,31 @@ export default function CommunityProfileScreen() {
               <PlayerCard player={preview} size="full" flippable />
             </View>
           </View>
-          <CardPhotoPicker
-            hasPhoto={Boolean(me?.image)}
-            onChange={(image) => setMe((current) => (current ? { ...current, image } : current))}
-          />
-          {me?.profile.communityVisible && !isSetup ? (
-            <Button
-              label="Share my card"
-              variant="outline"
-              surface="product"
-              loading={sharing}
-              disabled={sharing}
-              onPress={share}
+          <View
+            style={styles.actions}
+            onLayout={(event) => {
+              const { y, height } = event.nativeEvent.layout
+              setRevealAt(y + height - REVEAL_LEAD)
+            }}
+          >
+            <CardPhotoPicker
+              hasPhoto={Boolean(me?.image)}
+              onChange={(image) =>
+                setMe((current) => (current ? { ...current, image } : current))
+              }
             />
-          ) : null}
+            {me?.profile.communityVisible && !isSetup ? (
+              <ProductButton
+                label="Share my card"
+                variant="outline"
+                surface="product"
+                loading={sharing}
+                disabled={sharing}
+                onPress={share}
+              />
+            ) : null}
+          </View>
           <CommunityProfileForm draft={draft} onChange={setDraft} />
-          <Button
-            label={isSetup ? "Create my card" : "Save"}
-            surface="product"
-            loading={saving}
-            disabled={saving || (!dirty && !isSetup)}
-            onPress={save}
-          />
         </>
       )}
     </AccountStackScreen>
