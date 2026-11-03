@@ -36,6 +36,7 @@ jest.mock("phosphor-react-native/src/icons/UserPlus", () => ({ UserPlus: () => n
 jest.mock("phosphor-react-native/src/icons/CalendarStar", () => ({ CalendarStar: () => null }))
 jest.mock("@/components/community/rally-partners-row", () => ({ RallyPartnersRow: () => null }))
 jest.mock("@/components/community/at-venue-strip", () => ({ AtVenueStrip: () => null }))
+jest.mock("@/components/account/profile-button", () => ({ ProfileButton: () => null }))
 jest.mock("@/hooks/use-community-unread", () => ({
   useCommunityUnread: () => ({ unread: { inbox: 2, requests: 0 }, reload: jest.fn() }),
 }))

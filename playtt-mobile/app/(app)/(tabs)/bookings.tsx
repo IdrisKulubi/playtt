@@ -2,6 +2,7 @@ import { type Href, router, useFocusEffect } from "expo-router"
 import { useCallback, useState } from "react"
 import { RefreshControl, StyleSheet, View } from "react-native"
 
+import { ProfileButton } from "@/components/account/profile-button"
 import { BookingDetailSheet } from "@/components/booking/booking-detail-sheet"
 import { Button } from "@/components/kit/button"
 import { EmptyState } from "@/components/kit/empty-state"
@@ -21,6 +22,9 @@ import { joinedGames } from "@/lib/joined-games"
 import { toast } from "@/lib/toast"
 
 const BOOK_HREF = "/(app)/book" as Href
+
+/** Past games scroll in their own box, about three and a half rows tall. */
+const PAST_GAMES_MAX_HEIGHT = 340
 
 type ComingUpItem =
   | { kind: "booking"; startsAt: string; booking: UserBookingSummary }
@@ -145,6 +149,7 @@ export default function BookingsScreen() {
     <Screen
       title="Bookings"
       inTabs
+      cornerAccessory={<ProfileButton />}
       refreshControl={
         <RefreshControl
           refreshing={isRefreshing}
@@ -179,7 +184,7 @@ export default function BookingsScreen() {
           )}
 
           {pastGames.length > 0 ? (
-            <ListSection header="Past games">
+            <ListSection header="Past games" maxHeight={PAST_GAMES_MAX_HEIGHT}>
               {pastGames.map((booking) => (
                 <ListRow
                   key={booking.id}

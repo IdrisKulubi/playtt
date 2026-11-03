@@ -57,7 +57,12 @@ export function ReplayPlayer({ replay, autoPlay = false }: ReplayPlayerProps) {
           paddingVertical: PlayTTSpacing.sm,
         },
         loadingOverlay: {
-          ...StyleSheet.absoluteFillObject,
+          // Written out: absoluteFillObject no longer exists in this React Native version.
+          position: "absolute",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: "rgba(4, 16, 25, 0.55)",
@@ -112,7 +117,7 @@ export function ReplayPlayer({ replay, autoPlay = false }: ReplayPlayerProps) {
             player={player}
             nativeControls
             contentFit="contain"
-            allowsFullscreen
+            fullscreenOptions={{ enable: true }}
           />
           {loading ? (
             <View style={styles.loadingOverlay} pointerEvents="none">

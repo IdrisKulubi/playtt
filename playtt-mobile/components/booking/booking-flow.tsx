@@ -46,6 +46,7 @@ import {
   isSlotStartInPast,
   toDateKey,
 } from "@/lib/booking-utils"
+import { addGameToCalendar } from "@/lib/calendar"
 import { haptics } from "@/lib/haptics"
 import { toast } from "@/lib/toast"
 
@@ -528,8 +529,24 @@ export function BookingFlow() {
                 players={groupSize}
                 total={formatKes(confirmation.totalAmount, confirmation.currency)}
               />
+              <Button
+                label="Add to calendar"
+                variant="secondary"
+                accessibilityHint="Opens your calendar with this game filled in"
+                onPress={() =>
+                  void addGameToCalendar({
+                    venue: venueName,
+                    table:
+                      selectedLocation?.resources.find((resource) => resource.id === selectedResourceId)?.name ??
+                      "Your table",
+                    startIso: selectedSlot.startsAt,
+                    endIso: selectedSlot.endsAt,
+                    players: groupSize,
+                  })
+                }
+              />
               <Button label="See my bookings" onPress={() => router.replace(BOOKINGS_HREF)} />
-              <Button label="Book another table" variant="secondary" onPress={handleBookAnother} />
+              <Button label="Book another table" variant="plain" onPress={handleBookAnother} />
             </View>
           ) : null}
         </>

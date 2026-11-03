@@ -1,6 +1,8 @@
 import type { ComponentProps } from "react"
-import { StyleSheet, View } from "react-native"
+import { StyleSheet, View, type LayoutChangeEvent } from "react-native"
+import type { SharedValue } from "react-native-reanimated"
 
+import { LargeTitle } from "@/components/kit/collapsing-header"
 import { PressableScale } from "@/components/kit/pressable-scale"
 import { AppText } from "@/components/ui/app-text"
 import { IconSymbol } from "@/components/ui/icon-symbol"
@@ -8,6 +10,10 @@ import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useAppTheme } from "@/hooks/use-app-theme"
 
 type CommunityHeaderProps = {
+  /** From useCollapsingHeader(), so the title hands over to the top bar. */
+  scrollY: SharedValue<number>
+  titleHeight: SharedValue<number>
+  onTitleLayout: (event: LayoutChangeEvent) => void
   venueName?: string | null
   onEditCard?: () => void
   onOpenInbox?: () => void
@@ -54,6 +60,9 @@ function HeaderAction({ icon, label, accessibilityLabel, onPress, badge, dot }: 
 }
 
 export function CommunityHeader({
+  scrollY,
+  titleHeight,
+  onTitleLayout,
   venueName,
   onEditCard,
   onOpenInbox,
@@ -65,12 +74,14 @@ export function CommunityHeader({
 
   return (
     <View style={styles.root}>
-      <AppText variant="largeTitle" accessibilityRole="header">
-        Players
-      </AppText>
-      <AppText variant="subheadline" color="secondaryLabel">
-        {venueName ? `Find someone to play with at ${venueName}.` : "Find someone to play with at your venue."}
-      </AppText>
+      <LargeTitle
+        title="Players"
+        subtitle={venueName ? `Find someone to play with at ${venueName}.` : "Find someone to play with at your venue."}
+        scrollY={scrollY}
+        titleHeight={titleHeight}
+        onLayout={onTitleLayout}
+        reserveCorner
+      />
       {hasActions ? (
         <View style={styles.actions}>
           {onOpenInbox ? (

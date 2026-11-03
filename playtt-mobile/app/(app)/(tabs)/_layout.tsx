@@ -1,45 +1,38 @@
 import { useRouter, type Href } from 'expo-router';
 import { TabList, TabSlot, TabTrigger, Tabs } from 'expo-router/ui';
+import { TabBarMinimizeProvider, renderFadingTabScreen } from 'expo-glass-tabs';
+import { useCallback, useMemo } from 'react';
+
 import {
   GlassTabBar,
   GlassTabButton,
-  TabBarMinimizeProvider,
-  renderFadingTabScreen,
   type GlassTabBarTheme,
   type GlassTabItem,
-} from 'expo-glass-tabs';
-import { useCallback, useMemo } from 'react';
-
+} from '@/components/navigation/glass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import {
   liquidGlassLabelColor,
+  liquidGlassPillBorderColor,
   liquidGlassSelectionChipColor,
 } from '@/components/ui/liquid-glass-chrome';
-import { resolveColorScheme } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAppTheme } from '@/hooks/use-app-theme';
 
-type TabIconName =
-  | 'figure.table.tennis'
-  | 'calendar'
-  | 'chart.bar.fill'
-  | 'person.2.fill'
-  | 'person.crop.circle.fill';
+type TabIconName = 'figure.table.tennis' | 'calendar' | 'chart.bar.fill' | 'person.2.fill';
 
 type TabItem = GlassTabItem & { href: Href };
 
 // Labels name what's inside each tab (redesign plan). Route names stay the same
-// so deep links and notifications keep working.
+// so deep links and notifications keep working. Me isn't a tab any more: your
+// photo beside each large title opens it, like Apple's own apps.
 // Group-qualified hrefs: "/" alone resolves to the root app/index.tsx, not this layout.
 const TABS: { name: string; label: string; href: Href; icon: TabIconName }[] = [
   { name: 'index', label: 'Play', href: '/(app)/(tabs)', icon: 'figure.table.tennis' },
   { name: 'bookings', label: 'Bookings', href: '/(app)/(tabs)/bookings', icon: 'calendar' },
   { name: 'activity', label: 'Progress', href: '/(app)/(tabs)/activity', icon: 'chart.bar.fill' },
   { name: 'community', label: 'Players', href: '/(app)/(tabs)/community', icon: 'person.2.fill' },
-  { name: 'account', label: 'Me', href: '/(app)/(tabs)/account', icon: 'person.crop.circle.fill' },
 ];
 
-// IconSymbol renders SF Symbols on iOS and Material Icons on Android/web,
-// so we use renderIcon instead of the package's iOS-only `icon` prop.
+// IconSymbol renders SF Symbols on iOS and Material Icons on Android/web.
 const ITEMS: TabItem[] = TABS.map(({ icon, ...tab }) => ({
   ...tab,
   renderIcon: ({ tint, size }) => <IconSymbol name={icon} size={size} color={tint} />,
@@ -47,19 +40,21 @@ const ITEMS: TabItem[] = TABS.map(({ icon, ...tab }) => ({
 
 export default function TabLayout() {
   const router = useRouter();
-  const colorScheme = resolveColorScheme(useColorScheme());
+  const { scheme, colors } = useAppTheme();
 
-  const theme = useMemo<Partial<GlassTabBarTheme>>(
+  // Like Fitness: the current tab is in colour on a lighter chip.
+  const theme = useMemo<GlassTabBarTheme>(
     () => ({
-      activeTint: liquidGlassLabelColor(colorScheme, true),
-      inactiveTint: liquidGlassLabelColor(colorScheme, false),
-      highlight: liquidGlassSelectionChipColor(colorScheme),
-      glassTint:
-        colorScheme === 'dark' ? 'rgba(10, 10, 12, 0.55)' : 'rgba(255, 255, 255, 0.45)',
-      solidFallback:
-        colorScheme === 'dark' ? 'rgba(18, 18, 20, 0.94)' : 'rgba(250, 251, 253, 0.96)',
+      scheme,
+      activeTint: colors.accentText,
+      inactiveTint: liquidGlassLabelColor(scheme, false),
+      highlight: liquidGlassSelectionChipColor(scheme),
+      glassTint: scheme === 'dark' ? 'rgba(10, 10, 12, 0.35)' : 'rgba(255, 255, 255, 0.35)',
+      solidFallback: scheme === 'dark' ? 'rgba(28, 28, 32, 0.96)' : 'rgba(250, 251, 253, 0.97)',
+      border: liquidGlassPillBorderColor(scheme),
+      background: colors.background,
     }),
-    [colorScheme],
+    [scheme, colors.accentText, colors.background],
   );
 
   const handleIndexSelected = useCallback(

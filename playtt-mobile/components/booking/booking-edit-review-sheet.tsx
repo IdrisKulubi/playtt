@@ -4,22 +4,19 @@ import { Button } from "@/components/kit/button"
 import { ListRow } from "@/components/kit/list-row"
 import { ListSection } from "@/components/kit/list-section"
 import { AppText } from "@/components/ui/app-text"
-import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useSkeletonSurface } from "@/hooks/use-product-theme"
 import type { ModificationPreview, UserBookingSummary } from "@/lib/booking-types"
 import { formatKes, formatTimeRange } from "@/lib/booking-utils"
 
-type BookingEditReviewSheetProps = {
-  visible: boolean
+type BookingEditReviewStepProps = {
   booking: UserBookingSummary
   preview: ModificationPreview | null
   isQuoting: boolean
   isApplying: boolean
   isConfirming: boolean
   confirmLabel: string
-  onClose: () => void
   onConfirm: () => void
 }
 
@@ -28,17 +25,15 @@ function formatDay(iso: string) {
 }
 
 /** Before and after, side by side as two short lists, then what it costs. */
-export function BookingEditReviewSheet({
-  visible,
+export function BookingEditReviewStep({
   booking,
   preview,
   isQuoting,
   isApplying,
   isConfirming,
   confirmLabel,
-  onClose,
   onConfirm,
-}: BookingEditReviewSheetProps) {
+}: BookingEditReviewStepProps) {
   const skeletonSurface = useSkeletonSurface()
   const delta = preview ? Number(preview.deltaAmount) : 0
   const credit = preview ? Number(preview.creditAmount) : 0
@@ -51,62 +46,60 @@ export function BookingEditReviewSheet({
         : "Confirm changes"
 
   return (
-    <BottomSheet visible={visible} title="Check your changes" onClose={onClose}>
-      <View style={styles.stack}>
-        <AppText variant="callout" color="secondaryLabel">
-          {booking.locationName} · same venue
-        </AppText>
+    <View style={styles.stack}>
+      <AppText variant="callout" color="secondaryLabel">
+        {booking.locationName} · same venue
+      </AppText>
 
-        <ListSection header="Now" separatorInset={16}>
+      <ListSection header="Now" separatorInset={16}>
+        <ListRow
+          title={`${formatDay(booking.startTime)}, ${formatTimeRange(booking.startTime, booking.endTime)}`}
+          subtitle={`${booking.groupSize} players`}
+          accessory={{ kind: "value", value: formatKes(booking.totalAmount, booking.currency) }}
+        />
+      </ListSection>
+
+      {isQuoting || !preview ? (
+        <View style={styles.quoting} accessibilityLiveRegion="polite">
+          <Skeleton width="100%" height={56} borderRadius={12} surface={skeletonSurface} />
+          <AppText variant="callout" color="secondaryLabel">
+            Working out the new price…
+          </AppText>
+        </View>
+      ) : (
+        <ListSection header="After the change" separatorInset={16}>
           <ListRow
-            title={`${formatDay(booking.startTime)}, ${formatTimeRange(booking.startTime, booking.endTime)}`}
-            subtitle={`${booking.groupSize} players`}
-            accessory={{ kind: "value", value: formatKes(booking.totalAmount, booking.currency) }}
+            title={`${formatDay(preview.newStartTime)}, ${formatTimeRange(preview.newStartTime, preview.newEndTime)}`}
+            subtitle={`${preview.newGroupSize} players`}
+            accessory={{ kind: "value", value: formatKes(preview.newTotal, preview.currency) }}
           />
         </ListSection>
+      )}
 
-        {isQuoting || !preview ? (
-          <View style={styles.quoting} accessibilityLiveRegion="polite">
-            <Skeleton width="100%" height={56} borderRadius={12} surface={skeletonSurface} />
-            <AppText variant="callout" color="secondaryLabel">
-              Working out the new price…
+      {preview && !isQuoting ? (
+        delta > 0 ? (
+          <View style={styles.due}>
+            <AppText variant="headline">To pay now</AppText>
+            <AppText variant="title2" tabular>
+              {formatKes(preview.deltaAmount, preview.currency)}
             </AppText>
           </View>
         ) : (
-          <ListSection header="After the change" separatorInset={16}>
-            <ListRow
-              title={`${formatDay(preview.newStartTime)}, ${formatTimeRange(preview.newStartTime, preview.newEndTime)}`}
-              subtitle={`${preview.newGroupSize} players`}
-              accessory={{ kind: "value", value: formatKes(preview.newTotal, preview.currency) }}
-            />
-          </ListSection>
-        )}
+          <AppText variant="callout" color="secondaryLabel">
+            {credit > 0
+              ? `Nothing to pay. ${formatKes(preview.creditAmount, preview.currency)} stays on your PlayTT account as credit.`
+              : "Nothing extra to pay."}
+          </AppText>
+        )
+      ) : null}
 
-        {preview && !isQuoting ? (
-          delta > 0 ? (
-            <View style={styles.due}>
-              <AppText variant="headline">To pay now</AppText>
-              <AppText variant="title2" tabular>
-                {formatKes(preview.deltaAmount, preview.currency)}
-              </AppText>
-            </View>
-          ) : (
-            <AppText variant="callout" color="secondaryLabel">
-              {credit > 0
-                ? `Nothing to pay. ${formatKes(preview.creditAmount, preview.currency)} stays on your PlayTT account as credit.`
-                : "Nothing extra to pay."}
-            </AppText>
-          )
-        ) : null}
-
-        <Button
-          label={ctaLabel}
-          onPress={onConfirm}
-          loading={isApplying || isConfirming}
-          disabled={!preview || isQuoting}
-        />
-      </View>
-    </BottomSheet>
+      <Button
+        label={ctaLabel}
+        onPress={onConfirm}
+        loading={isApplying || isConfirming}
+        disabled={!preview || isQuoting}
+      />
+    </View>
   )
 }
 

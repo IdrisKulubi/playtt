@@ -1,4 +1,4 @@
-import { router } from "expo-router"
+import { type Href, router } from "expo-router"
 import { useState } from "react"
 import { StyleSheet, View } from "react-native"
 
@@ -31,7 +31,7 @@ export default function KitDemoScreen() {
   const [loading, setLoading] = useState(false)
   const [sheet, setSheet] = useState<"detents" | "scroll" | "locked" | null>(null)
 
-  const back = () => (router.canGoBack() ? router.back() : router.replace("/(app)/(tabs)/account"))
+  const back = () => (router.canGoBack() ? router.back() : router.replace("/(app)/account" as Href))
 
   return (
     <Screen

@@ -2,15 +2,17 @@ import { type Href, router, useFocusEffect } from "expo-router"
 import { useCallback, useMemo, useState } from "react"
 import { useMinimizeOnScroll } from "expo-glass-tabs"
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from "react-native"
-import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated"
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
+import Animated, { FadeInDown, useComposedEventHandler, useReducedMotion } from "react-native-reanimated"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { ChoiceChips } from "@/components/kit/choice-chips"
 import { AtVenueStrip } from "@/components/community/at-venue-strip"
 import { EventsSection } from "@/components/community/events-section"
 import { InviteCodeSheet } from "@/components/community/invite-code-sheet"
 import { CommunityFilterChips } from "@/components/community/community-filter-chips"
+import { ProfileButton } from "@/components/account/profile-button"
 import { CommunityHeader } from "@/components/community/community-header"
+import { HeaderBar, useCollapsingHeader } from "@/components/kit/collapsing-header"
 import { CommunityIntro } from "@/components/community/community-intro"
 import { ConfettiBurst } from "@/components/community/confetti-burst"
 import { OpenStatusBar } from "@/components/community/open-status-bar"
@@ -73,13 +75,19 @@ const EMPTY_COPY: Record<ListSegment, { title: string; detail: string }> = {
 
 const PROFILE_EDITOR = "/(app)/account/community-profile"
 
+function subtitleFor(venueName?: string | null) {
+  return venueName ? `Find someone to play with at ${venueName}.` : "Find someone to play with at your venue."
+}
+
 /** Players tab — job: find someone to play with. */
 export default function CommunityScreen() {
   const { colors } = useAppTheme()
   const insets = useSafeAreaInsets()
   const skeletonSurface = useSkeletonSurface()
   const reduceMotion = useReducedMotion()
-  const onScroll = useMinimizeOnScroll()
+  const collapsing = useCollapsingHeader()
+  const minimizeTabBar = useMinimizeOnScroll()
+  const onScroll = useComposedEventHandler([collapsing.trackScroll, minimizeTabBar])
   const [segment, setSegment] = useState<ListSegment>("everyone")
   const [skill, setSkill] = useState<CommunitySkillLevel | null>(null)
   const [doubles, setDoubles] = useState(false)
@@ -176,6 +184,9 @@ export default function CommunityScreen() {
   const header = (
     <View style={styles.header}>
       <CommunityHeader
+        scrollY={collapsing.scrollY}
+        titleHeight={collapsing.titleHeight}
+        onTitleLayout={collapsing.onTitleLayout}
         venueName={me?.homeVenue?.name ?? list.venue?.name}
         onEditCard={hasCard ? () => router.push(PROFILE_EDITOR) : undefined}
         onOpenInbox={hasCard ? () => router.push("/community/inbox" as Href) : undefined}
@@ -290,7 +301,7 @@ export default function CommunityScreen() {
   const showGrid = hasCard && me
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={["top", "left", "right"]}>
+    <View style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <Animated.FlatList
         onScroll={onScroll}
         scrollEventThrottle={16}
@@ -298,7 +309,10 @@ export default function CommunityScreen() {
         keyExtractor={(player) => player.id}
         numColumns={2}
         columnWrapperStyle={styles.row}
-        contentContainerStyle={[styles.content, { paddingBottom: getFloatingTabBarInset(insets.bottom) + PlayTTSpacing.lg }]}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top, paddingBottom: getFloatingTabBarInset(insets.bottom) + PlayTTSpacing.lg },
+        ]}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <>
@@ -336,6 +350,14 @@ export default function CommunityScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.secondaryLabel} />}
       />
 
+      <HeaderBar
+        title="Players"
+        subtitle={subtitleFor(me?.homeVenue?.name ?? list.venue?.name)}
+        scrollY={collapsing.scrollY}
+        titleHeight={collapsing.titleHeight}
+        cornerAccessory={<ProfileButton />}
+      />
+
       {me ? (
         <OpenToPlaySheet
           key={sheetKey}
@@ -356,7 +378,7 @@ export default function CommunityScreen() {
       {codeSheet !== null ? (
         <InviteCodeSheet key={codeSheet} visible onClose={() => setCodeSheet(null)} onSubmit={redeemInvite} />
       ) : null}
-    </SafeAreaView>
+    </View>
   )
 }
 
@@ -364,7 +386,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   content: {
     paddingHorizontal: KitLayout.screenGutter,
-    paddingTop: PlayTTSpacing.sm,
     gap: PlayTTSpacing.sm,
   },
   header: { gap: PlayTTSpacing.lg, marginBottom: PlayTTSpacing.sm },

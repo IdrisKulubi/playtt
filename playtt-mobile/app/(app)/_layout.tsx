@@ -71,6 +71,7 @@ export default function AppLayout() {
       <Stack.Screen name="kit-demo" />
       <Stack.Screen name="booking/[id]/index" />
       <Stack.Screen name="booking/[id]/edit" />
+      <Stack.Screen name="account/index" />
       <Stack.Screen name="account/edit-profile" />
       <Stack.Screen name="account/change-password" />
       <Stack.Screen name="account/verify-email" />

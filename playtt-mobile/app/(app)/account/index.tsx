@@ -10,12 +10,15 @@ import { Screen } from "@/components/kit/screen"
 import { AccountHubSkeleton } from "@/components/ui/skeleton"
 import { useAppTheme } from "@/hooks/use-app-theme"
 import { useSkeletonSurface } from "@/hooks/use-product-theme"
+import { setProfileSummary } from "@/hooks/use-profile-summary"
 import { canChangePassword, formatPersonalDetailsPreview } from "@/lib/account-utils"
 import { clearSession } from "@/lib/auth-helpers"
 import { goToSignIn, goToWelcome } from "@/lib/auth-navigation"
 import { fetchCurrentUser, type UserProfile } from "@/lib/user-api"
 
-/** Me tab — job: my details and app settings in one place. */
+const PLAY_HREF = "/(app)/(tabs)" as Href
+
+/** Me — opened from your photo on any tab. Job: my details and app settings in one place. */
 export default function MeScreen() {
   const { colors } = useAppTheme()
   const skeletonSurface = useSkeletonSurface()
@@ -30,7 +33,10 @@ export default function MeScreen() {
 
     try {
       const response = await fetchCurrentUser()
-      setProfile(response.data?.user ?? null)
+      const user = response.data?.user ?? null
+      setProfile(user)
+      // Keep the photo in every tab's header up to date.
+      if (user) setProfileSummary({ id: user.id, name: user.name, image: user.image ?? null })
     } catch {
       if (!silent) setProfile(null)
     } finally {
@@ -69,7 +75,10 @@ export default function MeScreen() {
   return (
     <Screen
       title="Me"
-      inTabs
+      back={{
+        label: "Back",
+        onPress: () => (router.canGoBack() ? router.back() : router.replace(PLAY_HREF)),
+      }}
       refreshControl={
         <RefreshControl
           refreshing={isRefreshing}

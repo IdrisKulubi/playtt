@@ -91,7 +91,9 @@ export default function BookingDetailScreen() {
       </View>
 
       {isLoading ? (
-        <BookingDetailSkeleton surface={skeletonSurface} />
+        <View style={styles.scroll}>
+          <BookingDetailSkeleton />
+        </View>
       ) : !booking ? (
         <View style={styles.loading}>
           <Text style={styles.missing}>Booking not found.</Text>

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { InteractionManager } from "react-native"
 
-import { BookingEditIntentSheet } from "@/components/booking/booking-edit-intent-sheet"
-import { BookingEditReviewSheet } from "@/components/booking/booking-edit-review-sheet"
-import { BookingEditTimeSheet } from "@/components/booking/booking-edit-time-sheet"
-import { GroupSizeSheet } from "@/components/booking/group-size-sheet"
+import { BookingEditIntentStep } from "@/components/booking/booking-edit-intent-sheet"
+import { BookingEditReviewStep } from "@/components/booking/booking-edit-review-sheet"
+import { BookingEditTimeStep } from "@/components/booking/booking-edit-time-sheet"
+import { GroupSizeStep } from "@/components/booking/group-size-sheet"
+import { Button } from "@/components/kit/button"
+import { Sheet } from "@/components/kit/sheet"
 import { useModificationCheckout } from "@/hooks/use-modification-checkout"
 import {
   applyBookingModification,
@@ -27,6 +28,13 @@ import {
 import { toast } from "@/lib/toast"
 
 type EditStep = "intent" | "time" | "players" | "review" | "closed"
+
+const STEP_TITLES: Record<Exclude<EditStep, "closed">, string> = {
+  intent: "Change booking",
+  time: "Change time",
+  players: "Change players",
+  review: "Check your changes",
+}
 
 type BookingEditFlowProps = {
   booking: UserBookingSummary
@@ -129,10 +137,10 @@ export function BookingEditFlow({
     onClose()
   }, [onClose])
 
+  // Close the parent once, after the sheet's own close animation has run.
+  // (InteractionManager no longer exists in this React Native version, and
+  // the old code also closed twice when it did.)
   const scheduleParentClose = useCallback(() => {
-    InteractionManager.runAfterInteractions(() => {
-      onClose()
-    })
     setTimeout(() => onClose(), 350)
   }, [onClose])
 
@@ -152,22 +160,17 @@ export function BookingEditFlow({
       },
     })
 
-  const wasVisibleRef = useRef(false)
-
-  useEffect(() => {
-    if (!visible) {
-      setStep("closed")
-      wasVisibleRef.current = false
-      return
-    }
-
-    if (!wasVisibleRef.current) {
+  // Every time the parent opens the flow, start fresh at the first step.
+  const [wasVisible, setWasVisible] = useState(false)
+  if (visible !== wasVisible) {
+    setWasVisible(visible)
+    if (visible) {
       resetState()
       setStep("intent")
+    } else {
+      setStep("closed")
     }
-
-    wasVisibleRef.current = true
-  }, [visible, resetState])
+  }
 
   useEffect(() => {
     const intervalId = setInterval(() => setNowMs(Date.now()), 1000)
@@ -327,6 +330,13 @@ export function BookingEditFlow({
     setStep("review")
   }
 
+  // One step back, skipping the steps the player didn't choose.
+  function handleBack() {
+    if (step === "review") setStep(addPlayers ? "players" : "time")
+    else if (step === "players") setStep(changeTime ? "time" : "intent")
+    else setStep("intent")
+  }
+
   function handleDateChange(dateKey: string) {
     setSelectedDateKey(dateKey)
     setSelectedStartIso("")
@@ -358,56 +368,67 @@ export function BookingEditFlow({
     }
   }
 
+  // One sheet for every step: the content swaps in place. Separate sheets
+  // can't hand over on iOS, because a new one can't open while the last one
+  // is still closing, so Continue used to just close everything.
   return (
-    <>
-      <BookingEditIntentSheet
-        visible={visible && step === "intent"}
-        changeTime={changeTime}
-        addPlayers={addPlayers}
-        onClose={handleClose}
-        onToggle={handleToggleIntent}
-        onContinue={handleIntentContinue}
-      />
+    <Sheet
+      visible={visible && step !== "closed"}
+      title={step === "closed" ? STEP_TITLES.intent : STEP_TITLES[step]}
+      detents={["content"]}
+      scrollable
+      onClose={handleClose}
+    >
+      {step === "intent" ? (
+        <BookingEditIntentStep
+          changeTime={changeTime}
+          addPlayers={addPlayers}
+          onToggle={handleToggleIntent}
+          onContinue={handleIntentContinue}
+        />
+      ) : step === "time" ? (
+        <BookingEditTimeStep
+          location={location}
+          dateStrip={dateStrip}
+          selectedDate={selectedDateKey}
+          durationMinutes={durationMinutes}
+          slots={slots}
+          selectedSlot={selectedSlot}
+          isLoadingSlots={isLoadingSlots}
+          nowMs={nowMs}
+          onDateChange={handleDateChange}
+          onSlotSelect={(slot) => setSelectedStartIso(slot.startsAt)}
+          onContinue={handleTimeContinue}
+        />
+      ) : step === "players" ? (
+        <GroupSizeStep
+          groupSize={groupSize}
+          currency={booking.currency}
+          continueLabel="Continue"
+          hint="You can reduce players until 2 hours before play. If the total drops, PlayTT keeps the difference as credit on your account."
+          onGroupSizeChange={setGroupSize}
+          onContinue={handlePlayersContinue}
+        />
+      ) : step === "review" ? (
+        <BookingEditReviewStep
+          booking={booking}
+          preview={preview}
+          isQuoting={isQuoting}
+          isApplying={isApplying}
+          isConfirming={isConfirming}
+          confirmLabel={confirmLabel}
+          onConfirm={() => void handleConfirm()}
+        />
+      ) : null}
 
-      <BookingEditTimeSheet
-        visible={visible && step === "time"}
-        location={location}
-        dateStrip={dateStrip}
-        selectedDate={selectedDateKey}
-        durationMinutes={durationMinutes}
-        slots={slots}
-        selectedSlot={selectedSlot}
-        isLoadingSlots={isLoadingSlots}
-        nowMs={nowMs}
-        onClose={handleClose}
-        onDateChange={handleDateChange}
-        onSlotSelect={(slot) => setSelectedStartIso(slot.startsAt)}
-        onContinue={handleTimeContinue}
-      />
-
-      <GroupSizeSheet
-        visible={visible && step === "players"}
-        groupSize={groupSize}
-        currency={booking.currency}
-        title="Change players"
-        continueLabel="Continue"
-        hint="You can reduce players until 2 hours before play. If the total drops, PlayTT keeps the difference as credit on your account."
-        onClose={handleClose}
-        onGroupSizeChange={setGroupSize}
-        onContinue={handlePlayersContinue}
-      />
-
-      <BookingEditReviewSheet
-        visible={visible && step === "review"}
-        booking={booking}
-        preview={preview}
-        isQuoting={isQuoting}
-        isApplying={isApplying}
-        isConfirming={isConfirming}
-        confirmLabel={confirmLabel}
-        onClose={handleClose}
-        onConfirm={() => void handleConfirm()}
-      />
-    </>
+      {step === "time" || step === "players" || step === "review" ? (
+        <Button
+          label="Back"
+          variant="plain"
+          disabled={isApplying || isConfirming}
+          onPress={handleBack}
+        />
+      ) : null}
+    </Sheet>
   )
 }

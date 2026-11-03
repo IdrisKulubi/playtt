@@ -1,386 +1,249 @@
+import { Fragment, type ReactNode } from "react"
 import { StyleSheet, View } from "react-native"
 
-import {
-  PlayTTColors,
-  PlayTTRadius,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
+import { Card } from "@/components/kit/card"
+import { KitLayout } from "@/constants/kit-layout"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { useAppTheme } from "@/hooks/use-app-theme"
 
-import {
-  Skeleton,
-  SkeletonGroup,
-  SkeletonText,
-  type SkeletonSurface,
-} from "./skeleton"
+import { Skeleton, SkeletonCircle, SkeletonGroup, type SkeletonSurface } from "./skeleton"
 
-/** Thumbnail size the booking skeletons reserve (matches the old session ticket). */
-const SESSION_TICKET_THUMB_SIZE = 72
+/**
+ * Loading placeholders shaped like the real screens: the same cards, grouped
+ * lists, buttons and gaps, so nothing jumps when the content arrives.
+ */
 
 type PresetProps = {
+  /** @deprecated Ignored; skeletons follow the phone's light/dark setting. */
   surface?: SkeletonSurface
 }
 
-export function AuthFormSkeleton({ surface = "product" }: PresetProps) {
+/** Screen readers hear "Loading" once, instead of a pile of empty shapes. */
+function LoadingRegion({ children, gap = "md" }: { children: ReactNode; gap?: keyof typeof PlayTTSpacing }) {
   return (
-    <SkeletonGroup gap="md" style={styles.authForm}>
-      <SkeletonText width="40%" surface={surface} />
-      <Skeleton height={52} borderRadius={PlayTTRadius.field} surface={surface} />
-      <Skeleton height={52} borderRadius={PlayTTRadius.field} surface={surface} />
-      <Skeleton height={52} borderRadius={PlayTTRadius.field} surface={surface} />
-      <Skeleton height={52} borderRadius={PlayTTRadius.pill} surface={surface} />
-    </SkeletonGroup>
-  )
-}
-
-export function VenueCardSkeleton({ surface = "product" }: PresetProps) {
-  return (
-    <SkeletonGroup gap="md" style={styles.venueCard}>
-      <View
-        style={[
-          styles.ticketRow,
-          styles.cardShell,
-          surface === "product" ? styles.cardShellProduct : styles.cardShellDark,
-        ]}
-      >
-        <Skeleton
-          width={SESSION_TICKET_THUMB_SIZE}
-          height={SESSION_TICKET_THUMB_SIZE}
-          borderRadius={PlayTTRadius.lg}
-          surface={surface}
-        />
-        <SkeletonGroup gap="xs" style={styles.flex}>
-          <Skeleton width="55%" height={16} surface={surface} />
-          <SkeletonText width="85%" surface={surface} />
-        </SkeletonGroup>
-      </View>
-      <Skeleton height={52} borderRadius={PlayTTRadius.pill} surface={surface} />
-    </SkeletonGroup>
-  )
-}
-
-export function SlotListSkeleton({ surface = "product" }: PresetProps) {
-  return (
-    <SkeletonGroup gap="md">
-      {Array.from({ length: 5 }).map((_, index) => (
-        <View
-          key={index}
-          style={[
-            styles.slotRow,
-            surface === "product" ? styles.cardShellProduct : styles.cardShellDark,
-          ]}
-        >
-          <SkeletonGroup gap="xs" style={styles.flex}>
-            <Skeleton width="50%" height={16} surface={surface} />
-            <Skeleton width="35%" height={12} surface={surface} />
-          </SkeletonGroup>
-          <Skeleton width={72} height={16} surface={surface} />
-        </View>
-      ))}
-    </SkeletonGroup>
-  )
-}
-
-export function TimingPanelSkeleton({ surface = "product" }: PresetProps) {
-  return (
-    <SkeletonGroup gap="md">
-      <Skeleton width="45%" height={20} surface={surface} />
-      <View style={styles.dateRow}>
-        {Array.from({ length: 5 }).map((_, index) => (
-          <Skeleton
-            key={index}
-            width={56}
-            height={56}
-            borderRadius={PlayTTRadius.md}
-            surface={surface}
-          />
-        ))}
-      </View>
-      <View style={styles.toggleRow}>
-        <Skeleton height={44} borderRadius={PlayTTRadius.md} surface={surface} style={styles.flex} />
-        <Skeleton height={44} borderRadius={PlayTTRadius.md} surface={surface} style={styles.flex} />
-      </View>
-      <Skeleton width="20%" height={13} surface={surface} />
-      <View style={styles.groupRow}>
-        {Array.from({ length: 7 }).map((_, index) => (
-          <Skeleton
-            key={index}
-            width={40}
-            height={32}
-            borderRadius={PlayTTRadius.pill}
-            surface={surface}
-          />
-        ))}
-      </View>
-      <SlotListSkeleton surface={surface} />
-    </SkeletonGroup>
-  )
-}
-
-export function BookingListSkeleton({ surface = "dark" }: PresetProps) {
-  return (
-    <SkeletonGroup gap="md">
-      {Array.from({ length: 3 }).map((_, index) => (
-        <View
-          key={index}
-          style={[
-            styles.ticketRow,
-            styles.bookingCard,
-            surface === "product" ? styles.cardShellProduct : styles.cardShellDark,
-          ]}
-        >
-          <Skeleton
-            width={SESSION_TICKET_THUMB_SIZE}
-            height={SESSION_TICKET_THUMB_SIZE}
-            borderRadius={PlayTTRadius.lg}
-            surface={surface}
-          />
-          <SkeletonGroup gap="xs" style={styles.flex}>
-            <Skeleton width="70%" height={15} surface={surface} />
-            <Skeleton width="50%" height={13} surface={surface} />
-            <Skeleton width="85%" height={13} surface={surface} />
-          </SkeletonGroup>
-        </View>
-      ))}
-    </SkeletonGroup>
-  )
-}
-
-export function BookingDetailSkeleton({ surface = "dark" }: PresetProps) {
-  return (
-    <SkeletonGroup gap="sm" style={styles.detail}>
-      <Skeleton width="70%" height={28} surface={surface} />
-      <Skeleton width="40%" height={15} surface={surface} />
-      <Skeleton width="55%" height={22} surface={surface} style={styles.detailTime} />
-      <Skeleton width="80%" height={14} surface={surface} />
-      <Skeleton width="30%" height={20} surface={surface} />
-    </SkeletonGroup>
-  )
-}
-
-export function AccountHubSkeleton({ surface = "product" }: PresetProps) {
-  return (
-    <SkeletonGroup gap="lg" style={styles.accountHubFlat}>
-      <Skeleton
-        width="100%"
-        height={168}
-        borderRadius={PlayTTRadius.lg}
-        surface={surface}
-      />
-      <Skeleton width="28%" height={12} surface={surface} />
-      <Skeleton
-        width="100%"
-        height={72}
-        borderRadius={PlayTTRadius.lg}
-        surface={surface}
-      />
-      <Skeleton width="32%" height={12} surface={surface} />
-      <Skeleton
-        width="100%"
-        height={72}
-        borderRadius={PlayTTRadius.lg}
-        surface={surface}
-      />
-      <Skeleton
-        width="100%"
-        height={52}
-        borderRadius={PlayTTRadius.pill}
-        surface={surface}
-      />
-    </SkeletonGroup>
-  )
-}
-
-export function UpcomingCardSkeleton({ surface = "dark" }: PresetProps) {
-  return <HomeTicketSkeleton surface={surface} />
-}
-
-const REPLAY_CLIP_THUMB_HEIGHT = 108
-
-function ReplayClipCardSkeleton({ surface }: PresetProps) {
-  return (
-    <View style={styles.replayClipCell}>
-      <Skeleton
-        width="100%"
-        height={REPLAY_CLIP_THUMB_HEIGHT}
-        borderRadius={16}
-        surface={surface}
-      />
-      <Skeleton width="72%" height={14} surface={surface} />
-      <Skeleton width="42%" height={12} surface={surface} />
+    <View accessible accessibilityRole="progressbar" accessibilityLabel="Loading" style={{ gap: PlayTTSpacing[gap] }}>
+      {children}
     </View>
   )
 }
 
-export function ReplayClipGridSkeleton({
-  surface = "product",
-  cardCount = 4,
-}: PresetProps & { cardCount?: number }) {
+/** A big button, same height and pill shape as the kit Button. */
+function ButtonBone({ flex = false }: { flex?: boolean }) {
   return (
-    <SkeletonGroup gap="sm" style={styles.replayClipGrid}>
-      <View style={styles.replayLocationRow}>
-        <Skeleton width={14} height={14} borderRadius={7} surface={surface} />
-        <Skeleton width={128} height={13} surface={surface} />
+    <Skeleton
+      height={KitLayout.buttonHeight}
+      borderRadius={KitLayout.buttonHeight / 2}
+      style={flex ? styles.flex : undefined}
+    />
+  )
+}
+
+/** One inset grouped list (like ListSection), with an optional header. */
+function ListSectionBone({ rows = 3, header = true, icons = true }: { rows?: number; header?: boolean; icons?: boolean }) {
+  const { colors } = useAppTheme()
+
+  return (
+    <View style={styles.section}>
+      {header ? <Skeleton width="30%" height={12} style={styles.sectionHeader} /> : null}
+      <View style={[styles.group, { backgroundColor: colors.surface }]}>
+        {Array.from({ length: rows }).map((_, index) => (
+          <Fragment key={index}>
+            {index > 0 ? (
+              <View
+                style={[
+                  styles.separator,
+                  { marginLeft: icons ? 58 : PlayTTSpacing.md, backgroundColor: colors.separator },
+                ]}
+              />
+            ) : null}
+            <View style={styles.row}>
+              {icons ? <Skeleton width={KitLayout.iconTile} height={KitLayout.iconTile} borderRadius={8} /> : null}
+              <View style={styles.rowText}>
+                <Skeleton width={index % 2 ? "45%" : "60%"} height={16} />
+                <Skeleton width={index % 2 ? "65%" : "40%"} height={12} />
+              </View>
+            </View>
+          </Fragment>
+        ))}
       </View>
-      <View style={styles.replaySectionHeader}>
-        <Skeleton width={96} height={17} surface={surface} />
-        <Skeleton width={52} height={14} surface={surface} />
+    </View>
+  )
+}
+
+/** Play tab: the next-game card. */
+export function HomeTicketSkeleton(_props: PresetProps & { embedded?: boolean }) {
+  const { colors } = useAppTheme()
+
+  return (
+    <LoadingRegion>
+      <Card>
+        <View style={styles.stack}>
+          <Skeleton width="28%" height={13} />
+          <SkeletonGroup gap="xs">
+            <Skeleton width="62%" height={30} borderRadius={8} />
+            <Skeleton width="42%" height={18} />
+          </SkeletonGroup>
+          <View style={[styles.divider, { backgroundColor: colors.separator }]} />
+          <SkeletonGroup gap="sm">
+            <Skeleton width="70%" height={16} />
+            <Skeleton width="50%" height={16} />
+          </SkeletonGroup>
+          <View style={styles.buttonRow}>
+            <ButtonBone flex />
+            <ButtonBone flex />
+          </View>
+        </View>
+      </Card>
+    </LoadingRegion>
+  )
+}
+
+export function UpcomingCardSkeleton(props: PresetProps) {
+  return <HomeTicketSkeleton {...props} />
+}
+
+/** Bookings tab: lists grouped by day. */
+export function BookingListSkeleton(_props: PresetProps) {
+  return (
+    <LoadingRegion gap="lg">
+      <ListSectionBone rows={2} />
+      <ListSectionBone rows={3} />
+    </LoadingRegion>
+  )
+}
+
+/** Booking details: time and day, status, then the details list. */
+export function BookingDetailSkeleton(_props: PresetProps) {
+  return (
+    <LoadingRegion gap="lg">
+      <SkeletonGroup gap="xs">
+        <Skeleton width="58%" height={30} borderRadius={8} />
+        <Skeleton width="48%" height={18} />
+        <Skeleton width="30%" height={16} style={styles.statusLine} />
+      </SkeletonGroup>
+      <ListSectionBone rows={3} header={false} />
+      <Skeleton height={140} borderRadius={KitLayout.cardRadius} />
+      <ButtonBone />
+    </LoadingRegion>
+  )
+}
+
+/** Me tab: profile card, then the settings lists. */
+export function AccountHubSkeleton(_props: PresetProps) {
+  return (
+    <LoadingRegion gap="lg">
+      <Card>
+        <View style={styles.profile}>
+          <SkeletonCircle size={64} />
+          <View style={styles.rowText}>
+            <Skeleton width="55%" height={22} borderRadius={8} />
+            <Skeleton width="75%" height={14} />
+          </View>
+        </View>
+      </Card>
+      <ListSectionBone rows={2} />
+      <ListSectionBone rows={3} />
+    </LoadingRegion>
+  )
+}
+
+/** Forms: a label above each field, then the main button. */
+export function AuthFormSkeleton(_props: PresetProps) {
+  return (
+    <LoadingRegion gap="lg">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <SkeletonGroup key={index} gap="xs">
+          <Skeleton width="30%" height={13} />
+          <Skeleton height={KitLayout.rowMinHeight} borderRadius={KitLayout.groupRadius} />
+        </SkeletonGroup>
+      ))}
+      <ButtonBone />
+    </LoadingRegion>
+  )
+}
+
+/** Booking, first step: venue rows. */
+export function VenueCardSkeleton(_props: PresetProps) {
+  return (
+    <LoadingRegion gap="lg">
+      <ListSectionBone rows={2} />
+      <ButtonBone />
+    </LoadingRegion>
+  )
+}
+
+/** Time buttons, two to a row like the real time grid. */
+export function SlotListSkeleton(_props: PresetProps) {
+  return (
+    <LoadingRegion>
+      <View style={styles.slotGrid}>
+        {Array.from({ length: 6 }).map((_, index) => (
+          <Skeleton key={index} height={72} borderRadius={16} style={styles.slotCell} />
+        ))}
+      </View>
+    </LoadingRegion>
+  )
+}
+
+/** Day strip plus time buttons. */
+export function TimingPanelSkeleton(_props: PresetProps) {
+  return (
+    <LoadingRegion gap="lg">
+      <View style={styles.dayRow}>
+        {Array.from({ length: 5 }).map((_, index) => (
+          <Skeleton key={index} width={72} height={68} borderRadius={16} />
+        ))}
+      </View>
+      <SlotListSkeleton />
+    </LoadingRegion>
+  )
+}
+
+/** Progress: a grid of replay thumbnails with titles. */
+export function ReplayClipGridSkeleton({ cardCount = 4 }: PresetProps & { cardCount?: number }) {
+  return (
+    <LoadingRegion>
+      <View style={styles.replayHeader}>
+        <Skeleton width={110} height={20} borderRadius={8} />
+        <Skeleton width={56} height={16} />
       </View>
       <View style={styles.replayGrid}>
         {Array.from({ length: cardCount }, (_, index) => (
-          <ReplayClipCardSkeleton key={index} surface={surface} />
+          <View key={index} style={styles.replayCell}>
+            <Skeleton height={108} borderRadius={16} />
+            <Skeleton width="72%" height={15} />
+            <Skeleton width="42%" height={12} />
+          </View>
         ))}
       </View>
-    </SkeletonGroup>
-  )
-}
-
-type HomeTicketSkeletonProps = PresetProps & {
-  embedded?: boolean
-}
-
-export function HomeTicketSkeleton({
-  surface = "dark",
-  embedded = false,
-}: HomeTicketSkeletonProps) {
-  const shellStyle =
-    surface === "product" ? styles.cardShellProduct : styles.cardShellDark
-
-  return (
-    <View
-      style={[
-        styles.homeTicket,
-        embedded ? shellStyle : styles.homeTicketStandalone,
-        !embedded && shellStyle,
-      ]}
-    >
-      <View style={styles.ticketRow}>
-        <Skeleton
-          width={SESSION_TICKET_THUMB_SIZE}
-          height={SESSION_TICKET_THUMB_SIZE}
-          borderRadius={PlayTTRadius.lg}
-          surface={surface}
-        />
-        <SkeletonGroup gap="xs" style={styles.flex}>
-          <Skeleton width="75%" height={15} surface={surface} />
-          <Skeleton width="50%" height={13} surface={surface} />
-          <Skeleton width="65%" height={13} surface={surface} />
-        </SkeletonGroup>
-      </View>
-    </View>
+    </LoadingRegion>
   )
 }
 
 const styles = StyleSheet.create({
-  authForm: {
-    width: "100%",
-    paddingHorizontal: PlayTTSpacing.xl,
-    paddingTop: PlayTTSpacing.lg,
-  },
-  venueCard: {
-    width: "100%",
-  },
-  cardShell: {
-    borderRadius: PlayTTRadius.lg,
-    borderWidth: 1,
-    padding: PlayTTSpacing.md,
-    gap: PlayTTSpacing.xs,
-  },
-  cardShellDark: {
-    backgroundColor: PlayTTColors.card,
-    borderColor: PlayTTColors.border,
-  },
-  cardShellProduct: {
-    backgroundColor: PlayTTColors.productCard,
-    borderColor: PlayTTColors.productBorder,
-  },
-  dateRow: {
-    flexDirection: "row",
-    gap: PlayTTSpacing.xs,
-  },
-  toggleRow: {
-    flexDirection: "row",
-    gap: PlayTTSpacing.sm,
-  },
-  groupRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: PlayTTSpacing.xs,
-  },
-  slotRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderRadius: PlayTTRadius.md,
-    borderWidth: 1,
-    padding: PlayTTSpacing.md,
-  },
-  bookingCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: PlayTTSpacing.sm,
-  },
-  ticketRow: {
+  flex: { flex: 1 },
+  stack: { gap: PlayTTSpacing.md },
+  divider: { height: StyleSheet.hairlineWidth },
+  buttonRow: { flexDirection: "row", gap: PlayTTSpacing.sm },
+  statusLine: { marginTop: PlayTTSpacing.xs },
+  section: { gap: PlayTTSpacing.xs },
+  sectionHeader: { marginLeft: PlayTTSpacing.md },
+  group: { borderRadius: KitLayout.groupRadius, borderCurve: "continuous", overflow: "hidden" },
+  separator: { height: StyleSheet.hairlineWidth },
+  row: {
+    minHeight: KitLayout.rowMinHeight + 8,
     flexDirection: "row",
     alignItems: "center",
     gap: PlayTTSpacing.sm,
+    paddingHorizontal: PlayTTSpacing.md,
+    paddingVertical: PlayTTSpacing.sm,
   },
-  detail: {
-    padding: PlayTTSpacing.xl,
-  },
-  detailTime: {
-    marginTop: PlayTTSpacing.sm,
-  },
-  upcomingCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: PlayTTSpacing.md,
-    gap: PlayTTSpacing.xs,
-  },
-  homeTicket: {
-    borderRadius: PlayTTRadius.lg,
-    padding: PlayTTSpacing.sm,
-  },
-  homeTicketStandalone: {
-    borderWidth: 1,
-  },
-  accountHub: {
-    paddingHorizontal: PlayTTSpacing.xl,
-    paddingTop: PlayTTSpacing.lg,
-  },
-  accountHubFlat: {
-    width: "100%",
-    gap: PlayTTSpacing.md,
-  },
-  accountHeaderFlat: {
-    alignItems: "flex-start",
-    paddingBottom: PlayTTSpacing.sm,
-  },
-  flex: {
-    flex: 1,
-  },
-  replayClipGrid: {
-    width: "100%",
-  },
-  replayLocationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  replaySectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: PlayTTSpacing.sm,
-  },
-  replayGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: PlayTTSpacing.sm,
-  },
-  replayClipCell: {
-    width: "48%",
-    flexGrow: 1,
-    maxWidth: "48%",
-    gap: PlayTTSpacing.xs,
-  },
+  rowText: { flex: 1, gap: 6 },
+  profile: { flexDirection: "row", alignItems: "center", gap: PlayTTSpacing.md },
+  slotGrid: { flexDirection: "row", flexWrap: "wrap", gap: PlayTTSpacing.xs },
+  slotCell: { flexGrow: 1, flexBasis: "45%" },
+  dayRow: { flexDirection: "row", gap: PlayTTSpacing.xs, overflow: "hidden" },
+  replayHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  replayGrid: { flexDirection: "row", flexWrap: "wrap", gap: PlayTTSpacing.sm },
+  replayCell: { width: "48%", flexGrow: 1, maxWidth: "48%", gap: PlayTTSpacing.xs },
 })

@@ -14,7 +14,6 @@ import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton/skeleton"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { typeStyle } from "@/constants/type"
 import { useAppTheme } from "@/hooks/use-app-theme"
-import { useSkeletonSurface } from "@/hooks/use-product-theme"
 import {
   fetchActivityStats,
   type ActivityStats,
@@ -95,8 +94,7 @@ function sessionHour(s: StatsSession) {
 }
 
 export function usePlayerStatsApi() {
-  const { colors } = useAppTheme(),
-    surface = useSkeletonSurface()
+  const { colors } = useAppTheme()
   const [period, setPeriod] = useState<StatsPeriod>("month"),
     [date, setDate] = useState(todayKey)
   const [metric, setMetric] = useState<Metric>("minutes")
@@ -484,9 +482,9 @@ export function usePlayerStatsApi() {
       <View style={styles.root}>
         {loading ? (
         <SkeletonGroup gap="lg">
-          <Skeleton width="100%" height={78} surface={surface} />
-          <Skeleton width="100%" height={230} surface={surface} />
-          <Skeleton width="100%" height={120} surface={surface} />
+          <Skeleton width="100%" height={78} borderRadius={20} />
+          <Skeleton width="100%" height={230} borderRadius={20} />
+          <Skeleton width="100%" height={120} borderRadius={20} />
         </SkeletonGroup>
       ) : error ? (
         <View style={styles.error} accessibilityLiveRegion="polite">

@@ -16,6 +16,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useAppTheme } from "@/hooks/use-app-theme"
 import type { UserBookingSummary } from "@/lib/booking-types"
+import { addGameToCalendar } from "@/lib/calendar"
 import {
   formatKes,
   formatTimeRange,
@@ -106,6 +107,23 @@ export function BookingDetailContent({
 
       {onBookingUpdated ? (
         <BookingDetailPaymentActions booking={booking} onBookingUpdated={onBookingUpdated} />
+      ) : null}
+
+      {booking.status !== "cancelled" && booking.status !== "expired" && !isPastBooking(booking) ? (
+        <Button
+          label="Add to calendar"
+          variant="secondary"
+          accessibilityHint="Opens your calendar with this game filled in"
+          onPress={() =>
+            void addGameToCalendar({
+              venue: booking.locationName,
+              table: booking.resourceName,
+              startIso: booking.startTime,
+              endIso: booking.endTime,
+              players: booking.groupSize,
+            })
+          }
+        />
       ) : null}
 
       {booking.editable ? (

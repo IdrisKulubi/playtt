@@ -13,6 +13,7 @@ import {
   clearCachedSessionRoute,
   getCachedSessionRoute,
 } from "@/lib/session-cache"
+import { setProfileSummary } from "@/hooks/use-profile-summary"
 
 const STORAGE_PREFIX = "playtt"
 
@@ -153,6 +154,8 @@ export async function clearSession() {
   // An in-flight Better Auth refresh may finish after storage is deleted.
   // Keep its restored cookie/cache unusable until a new sign-in succeeds.
   await markSessionSignedOut()
+  // The next person to sign in must not see this player's name or photo.
+  setProfileSummary(null)
 
   try {
     await authClient.signOut()

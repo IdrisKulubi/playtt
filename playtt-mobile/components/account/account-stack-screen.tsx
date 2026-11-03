@@ -5,7 +5,7 @@ import type { StyleProp, ViewStyle } from "react-native"
 import { Screen } from "@/components/kit/screen"
 import { AppText } from "@/components/ui/app-text"
 
-const ME_HREF = "/(app)/(tabs)/account" as Href
+const ME_HREF = "/(app)/account" as Href
 
 type AccountStackScreenProps = {
   title: string

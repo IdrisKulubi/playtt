@@ -4,7 +4,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -23,6 +22,7 @@ import Animated, {
 } from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { ScrollEdgeFades, useScrollEdgeFades } from "@/components/kit/edge-fade"
 import { PressableScale } from "@/components/kit/pressable-scale"
 import { AppText } from "@/components/ui/app-text"
 import { KitLayout } from "@/constants/kit-layout"
@@ -90,7 +90,8 @@ export function Sheet({
 }: SheetProps) {
   const { height: screenHeight } = useWindowDimensions()
   const insets = useSafeAreaInsets()
-  const { colors } = useAppTheme()
+  const { scheme, colors } = useAppTheme()
+  const fades = useScrollEdgeFades()
   const reducedMotion = useReducedMotion()
   const [mounted, setMounted] = useState(visible)
   const fitToContent = detents.includes("content")
@@ -223,6 +224,21 @@ export function Sheet({
       if (!success) settle(0)
     })
 
+  /** Like iOS: starting to scroll a part-height sheet first opens it fully. */
+  const expandOnScroll = () => {
+    const top = stops[stops.length - 1]
+    if (restingStop.get() <= top) return
+    commitHaptic()
+    restingStop.set(top)
+    translateY.set(withSpring(top, spring("default")))
+  }
+
+  // At a lower detent the bottom of the sheet sits below the screen. This
+  // spacer is as tall as that hidden part, so the last rows can still scroll up.
+  const offscreenSpacerStyle = useAnimatedStyle(() => ({
+    height: Math.max(restingStop.get(), 0),
+  }))
+
   const sheetStyle = useAnimatedStyle(() => ({
     opacity: fade.get(),
     transform: [{ translateY: translateY.get() }],
@@ -256,16 +272,23 @@ export function Sheet({
   )
 
   const body = scrollable ? (
-    <ScrollView
-      // Fit-to-content: grow with the content, shrink to scroll once it hits the cap.
-      style={fitToContent ? styles.scrollFit : styles.scroll}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="interactive"
-      contentContainerStyle={{ paddingBottom: insets.bottom + PlayTTSpacing.md }}
-    >
-      {children}
-    </ScrollView>
+    // The wrapper takes the size; the fades overlay the scroll view's edges.
+    <View style={fitToContent ? styles.scrollFit : styles.scroll}>
+      <Animated.ScrollView
+        {...fades.scrollProps}
+        // Fit-to-content: grow with the content, shrink to scroll once it hits the cap.
+        style={fitToContent ? styles.scrollFit : styles.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        contentContainerStyle={{ paddingBottom: insets.bottom + PlayTTSpacing.md }}
+        onScrollBeginDrag={fitToContent ? undefined : expandOnScroll}
+      >
+        {children}
+        {fitToContent ? null : <Animated.View style={offscreenSpacerStyle} />}
+      </Animated.ScrollView>
+      <ScrollEdgeFades fades={fades} color={colors.surfaceElevated} scheme={scheme} />
+    </View>
   ) : (
     <View style={{ paddingBottom: insets.bottom + PlayTTSpacing.md }}>{children}</View>
   )

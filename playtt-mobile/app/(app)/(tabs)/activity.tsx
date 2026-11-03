@@ -2,6 +2,7 @@ import { type Href, router, useFocusEffect } from "expo-router"
 import { useCallback, useState } from "react"
 import { RefreshControl, StyleSheet, View } from "react-native"
 
+import { ProfileButton } from "@/components/account/profile-button"
 import { LatestHighlights } from "@/components/activity/latest-highlights"
 import { ProgressStatsCard } from "@/components/activity/progress-stats-card"
 import { ClipPackPurchaseSheet } from "@/components/coach/clip-pack-purchase-sheet"
@@ -50,6 +51,7 @@ export default function ProgressScreen() {
     <Screen
       title="Progress"
       inTabs
+      cornerAccessory={<ProfileButton />}
       refreshControl={
         <RefreshControl
           refreshing={false}

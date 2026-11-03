@@ -33,6 +33,7 @@ module.exports = {
   useAnimatedStyle: () => ({}),
   useAnimatedProps: () => ({}),
   useAnimatedScrollHandler: () => undefined,
+  useComposedEventHandler: () => undefined,
   useDerivedValue: (fn) => ({ value: fn() }),
   useReducedMotion: () => false,
   cancelAnimation: () => undefined,
@@ -43,6 +44,7 @@ module.exports = {
   withRepeat: identity,
   withSequence: (...values) => values[values.length - 1],
   interpolate: (_value, _input, output) => output[0],
+  Extrapolation: { CLAMP: "clamp", EXTEND: "extend", IDENTITY: "identity" },
   Easing: {
     linear: identity,
     quad: identity,

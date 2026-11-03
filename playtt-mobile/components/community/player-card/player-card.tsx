@@ -21,6 +21,7 @@ import Animated, {
 } from "react-native-reanimated"
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg"
 
+import { DefaultAvatar } from "@/components/account/default-avatar"
 import { AppText } from "@/components/ui/app-text"
 import { resolveColorScheme, type AppColorScheme } from "@/constants/theme"
 import { PlayTTFontFamilies } from "@/constants/playtt-tokens"
@@ -37,7 +38,6 @@ import { AtVenueChip, CardStatusRibbon, PulseDot } from "./card-status-ribbon"
 import {
   COMPACT_STAT_KEYS,
   OPEN_NOW_GREEN,
-  cardInitials,
   cardTierTokensFor,
   cardVariant,
   IN_FORM_ORANGE,
@@ -117,9 +117,7 @@ function CardAvatar({
           accessible={false}
         />
       ) : (
-        <CardText style={{ fontFamily: PlayTTFontFamilies.bold, fontSize: size * 0.36, color: tokens.text }}>
-          {cardInitials(player.displayName)}
-        </CardText>
+        <DefaultAvatar />
       )}
     </View>
   )
@@ -136,7 +134,7 @@ function mixHex(a: string, b: string, t: number) {
  * Front-of-card portrait, FIFA-style: the photo sits to the right of the
  * rating column and dissolves into the card on its left and bottom edges, so
  * it reads as part of the card rather than a pasted rectangle. Without a
- * photo, an initials monogram sized to fit the same space.
+ * photo, their cartoon avatar in a ring sized to fit the same space.
  */
 function CardPortrait({
   player,
@@ -190,17 +188,7 @@ function CardPortrait({
               { borderColor: tokens.accent, backgroundColor: tokens.plate },
             ]}
           >
-            <CardText
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              style={[
-                styles.monogram,
-                compact ? styles.monogramCompact : styles.monogramFull,
-                { color: tokens.accent },
-              ]}
-            >
-              {cardInitials(player.displayName)}
-            </CardText>
+            <DefaultAvatar />
           </View>
         </View>
       )}
@@ -637,21 +625,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: "center",
     justifyContent: "center",
-    padding: "12%",
+    padding: 3,
   },
   monogramRingCompact: {
     borderWidth: 1.5,
-  },
-  monogram: {
-    fontFamily: PlayTTFontFamilies.bold,
-    letterSpacing: 1,
-    textAlign: "center",
-  },
-  monogramFull: {
-    fontSize: 56,
-  },
-  monogramCompact: {
-    fontSize: 26,
   },
   progress: {
     gap: 4,

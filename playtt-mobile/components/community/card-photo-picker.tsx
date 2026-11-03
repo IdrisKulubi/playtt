@@ -7,6 +7,7 @@ import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } 
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { typeStyle } from "@/constants/type"
 import { useAppTheme } from "@/hooks/use-app-theme"
+import { updateProfileSummary } from "@/hooks/use-profile-summary"
 import { toast } from "@/lib/toast"
 import { removeAvatar, uploadAvatar, type AvatarContentType } from "@/lib/user-api"
 
@@ -55,7 +56,9 @@ export function CardPhotoPicker({ hasPhoto, onChange }: CardPhotoPickerProps) {
 
     setBusy("upload")
     try {
-      onChange(await uploadAvatar(asset.uri, contentType))
+      const image = await uploadAvatar(asset.uri, contentType)
+      onChange(image)
+      updateProfileSummary({ image })
       toast.success("Card photo updated.")
     } catch (error) {
       toast.apiError(error, "Could not upload your photo.")
@@ -69,6 +72,7 @@ export function CardPhotoPicker({ hasPhoto, onChange }: CardPhotoPickerProps) {
     try {
       await removeAvatar()
       onChange(null)
+      updateProfileSummary({ image: null })
     } catch (error) {
       toast.apiError(error, "Could not remove your photo.")
     } finally {

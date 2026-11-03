@@ -1,7 +1,8 @@
 import { type Href, router, useFocusEffect } from "expo-router"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { Linking, RefreshControl } from "react-native"
 
+import { ProfileButton } from "@/components/account/profile-button"
 import { BookingDetailSheet } from "@/components/booking/booking-detail-sheet"
 import { BookTableCard } from "@/components/home/book-table-card"
 import { NextGameCard } from "@/components/home/next-game-card"
@@ -11,6 +12,7 @@ import { ListSection } from "@/components/kit/list-section"
 import { Screen } from "@/components/kit/screen"
 import { HomeTicketSkeleton } from "@/components/ui/skeleton"
 import { useAppTheme } from "@/hooks/use-app-theme"
+import { useProfileSummary } from "@/hooks/use-profile-summary"
 import { useSkeletonSurface } from "@/hooks/use-product-theme"
 import { fetchMyBookings, fetchStartingPriceHint } from "@/lib/booking-api"
 import type { UserBookingSummary } from "@/lib/booking-types"
@@ -19,7 +21,6 @@ import {
   formatSecondSessionLabel,
   formatTimeOfDayGreeting,
 } from "@/lib/booking-utils"
-import { fetchCurrentUser } from "@/lib/user-api"
 
 const UPCOMING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 const BOOK_HREF = "/(app)/book" as Href
@@ -79,21 +80,8 @@ export default function PlayScreen() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
-  const [firstName, setFirstName] = useState<string | null>(null)
-
-  // The name only personalises the greeting, so a failure just leaves it out.
-  useEffect(() => {
-    let mounted = true
-    fetchCurrentUser()
-      .then((response) => {
-        const name = response.data?.user?.name?.trim().split(/\s+/)[0]
-        if (mounted && name) setFirstName(name)
-      })
-      .catch(() => undefined)
-    return () => {
-      mounted = false
-    }
-  }, [])
+  // The name only personalises the greeting; until it loads, it's left out.
+  const firstName = useProfileSummary()?.name.trim().split(/\s+/)[0] || null
 
   const loadPlay = useCallback(async (silent = false) => {
     if (silent) {
@@ -140,6 +128,7 @@ export default function PlayScreen() {
       title="Play"
       subtitle={greetingFor(firstName)}
       inTabs
+      cornerAccessory={<ProfileButton />}
       refreshControl={
         <RefreshControl
           refreshing={isRefreshing}

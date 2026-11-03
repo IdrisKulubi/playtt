@@ -39,4 +39,11 @@ export function LiquidGlassFallback({
   )
 }
 
-export const liquidGlassFallbackFill = StyleSheet.absoluteFillObject
+// Written out: absoluteFillObject no longer exists in this React Native version.
+export const liquidGlassFallbackFill = {
+  position: "absolute",
+  top: 0,
+  right: 0,
+  bottom: 0,
+  left: 0,
+} as const
