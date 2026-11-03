@@ -4,10 +4,11 @@ import { Pressable, StyleSheet, Switch, Text, View } from "react-native"
 import { AccountGlassSection } from "@/components/account/account-glass-section"
 import { Input } from "@/components/ui/input"
 import { liquidGlassLabelColor, liquidGlassSelectionChipColor } from "@/components/ui/liquid-glass-chrome"
-import { PlayTTColors, PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
 import { resolveColorScheme } from "@/constants/theme"
 import { useColorScheme } from "@/hooks/use-color-scheme"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import {
   USUAL_TIME_KEYS,
   type CommunityHandedness,
@@ -64,7 +65,7 @@ type CommunityProfileFormProps = {
 }
 
 export function CommunityProfileForm({ draft, onChange }: CommunityProfileFormProps) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const colorScheme = resolveColorScheme(useColorScheme())
 
   const styles = useMemo(
@@ -77,10 +78,10 @@ export function CommunityProfileForm({ draft, onChange }: CommunityProfileFormPr
           gap: PlayTTSpacing.md,
           padding: PlayTTSpacing.md,
         },
-        divider: { height: StyleSheet.hairlineWidth, backgroundColor: theme.border, marginLeft: PlayTTSpacing.md },
+        divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.separator, marginLeft: PlayTTSpacing.md },
         copy: { flex: 1, gap: 2 },
-        title: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 16, color: theme.foreground },
-        detail: { fontFamily: PlayTTFontFamilies.regular, fontSize: 13, color: theme.muted, lineHeight: 18 },
+        title: { ...typeStyle("headline"), color: colors.label },
+        detail: { ...typeStyle("footnote"), color: colors.secondaryLabel },
         block: { padding: PlayTTSpacing.md, gap: PlayTTSpacing.xs },
         chips: { flexDirection: "row", flexWrap: "wrap", gap: PlayTTSpacing.xs },
         chip: {
@@ -88,16 +89,16 @@ export function CommunityProfileForm({ draft, onChange }: CommunityProfileFormPr
           paddingHorizontal: PlayTTSpacing.sm,
           paddingVertical: 7,
           borderWidth: StyleSheet.hairlineWidth,
-          borderColor: theme.border,
+          borderColor: colors.separator,
         },
         chipActive: { backgroundColor: liquidGlassSelectionChipColor(colorScheme), borderColor: "transparent" },
-        chipLabel: { fontFamily: PlayTTFontFamilies.medium, fontSize: 14 },
-        counter: { fontFamily: PlayTTFontFamilies.regular, fontSize: 12, color: theme.muted, textAlign: "right" },
+        chipLabel: { ...typeStyle("subheadline", "500") },
+        counter: { ...typeStyle("footnote"), color: colors.secondaryLabel, textAlign: "right" },
         radio: { flexDirection: "row", alignItems: "center", gap: PlayTTSpacing.sm, padding: PlayTTSpacing.md },
         radioDot: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, alignItems: "center", justifyContent: "center" },
-        radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: PlayTTColors.primary },
+        radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent },
       }),
-    [colorScheme, theme],
+    [colorScheme, colors],
   )
 
   function set<K extends keyof CommunityProfileDraft>(key: K, value: CommunityProfileDraft[K]) {
@@ -137,7 +138,7 @@ export function CommunityProfileForm({ draft, onChange }: CommunityProfileFormPr
             value={draft.communityVisible}
             onValueChange={(value) => set("communityVisible", value)}
             accessibilityLabel="Show my card in Community"
-            trackColor={{ true: PlayTTColors.primary }}
+            trackColor={{ true: colors.accentText }}
           />
         </View>
       </AccountGlassSection>
@@ -200,7 +201,7 @@ export function CommunityProfileForm({ draft, onChange }: CommunityProfileFormPr
                   onPress={() => set("requestPolicy", option.value)}
                   style={styles.radio}
                 >
-                  <View style={[styles.radioDot, { borderColor: active ? PlayTTColors.primary : theme.border }]}>
+                  <View style={[styles.radioDot, { borderColor: active ? colors.accentText : colors.separator }]}>
                     {active ? <View style={styles.radioInner} /> : null}
                   </View>
                   <View style={styles.copy}>
@@ -224,7 +225,7 @@ export function CommunityProfileForm({ draft, onChange }: CommunityProfileFormPr
             value={draft.showAtVenue}
             onValueChange={(value) => set("showAtVenue", value)}
             accessibilityLabel="Show me when I'm at the venue"
-            trackColor={{ true: PlayTTColors.primary }}
+            trackColor={{ true: colors.accentText }}
           />
         </View>
       </AccountGlassSection>

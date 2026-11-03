@@ -12,12 +12,8 @@ import {
   ViewStyle,
 } from 'react-native';
 
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTRadius,
-  PlayTTTypography,
-} from '@/constants/playtt-tokens';
+import { PlayTTColors, PlayTTRadius } from '@/constants/playtt-tokens';
+import { typeStyle } from '@/constants/type';
 
 type ButtonVariant = 'primary' | 'outline' | 'ghost';
 type ButtonSurface = 'marketing' | 'product' | 'auth';
@@ -156,12 +152,10 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   label: {
-    ...PlayTTTypography.label,
-    fontSize: 15,
-    fontFamily: PlayTTFontFamilies.semiBold,
+    ...typeStyle('headline'),
   },
   labelCompact: {
-    fontSize: 14,
+    ...typeStyle('subheadline', '600'),
   },
   primary: {
     backgroundColor: PlayTTColors.primary,

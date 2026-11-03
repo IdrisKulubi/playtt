@@ -4,8 +4,9 @@ import { Pressable, StyleSheet, Text, View } from "react-native"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { PlayTTColors, PlayTTFontFamilies, PlayTTRadius, PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PlayTTRadius, PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { reportPlayer } from "@/lib/community-api"
 import type { CommunityReportReason } from "@/lib/community-types"
 import { toast } from "@/lib/toast"
@@ -30,7 +31,7 @@ type ReportPlayerSheetProps = {
 }
 
 export function ReportPlayerSheet({ visible, targetUserId, displayName, messageId, onClose }: ReportPlayerSheetProps) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const [reason, setReason] = useState<CommunityReportReason | null>(null)
   const [note, setNote] = useState("")
   const [saving, setSaving] = useState(false)
@@ -53,18 +54,18 @@ export function ReportPlayerSheet({ visible, targetUserId, displayName, messageI
     () =>
       StyleSheet.create({
         body: { gap: PlayTTSpacing.sm },
-        hint: { fontFamily: PlayTTFontFamilies.regular, fontSize: 14, color: theme.muted, lineHeight: 20 },
+        hint: { ...typeStyle("subheadline"), color: colors.secondaryLabel },
         option: {
           borderRadius: PlayTTRadius.lg,
           borderWidth: 1.5,
-          borderColor: theme.border,
+          borderColor: colors.separator,
           paddingVertical: PlayTTSpacing.sm,
           paddingHorizontal: PlayTTSpacing.md,
         },
-        optionActive: { borderColor: PlayTTColors.primary, backgroundColor: "rgba(0, 183, 255, 0.10)" },
-        optionLabel: { fontFamily: PlayTTFontFamilies.medium, fontSize: 15, color: theme.foreground },
+        optionActive: { borderColor: colors.accentText, backgroundColor: "rgba(0, 183, 255, 0.10)" },
+        optionLabel: { ...typeStyle("body", "500"), color: colors.label },
       }),
-    [theme],
+    [colors],
   )
 
   return (
@@ -94,7 +95,6 @@ export function ReportPlayerSheet({ visible, targetUserId, displayName, messageI
         <Button
           label="Send report"
           surface="product"
-          productTheme={theme}
           disabled={!reason || saving}
           loading={saving}
           onPress={submit}

@@ -12,10 +12,8 @@ import {
   useNativeLiquidGlass,
 } from "@/components/ui/liquid-glass-surface"
 import { resolveColorScheme } from "@/constants/theme"
-import {
-  PlayTTFontFamilies,
-  PlayTTRadius,
-} from "@/constants/playtt-tokens"
+import { PlayTTRadius } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
 import { useColorScheme } from "@/hooks/use-color-scheme"
 
 type GlassSegmentControlProps<T extends string> = {
@@ -85,11 +83,10 @@ export function GlassSegmentControl<T extends string>({
           backgroundColor: liquidGlassSelectionChipColor(colorScheme),
         },
         label: {
-          fontSize: 13,
-          fontFamily: PlayTTFontFamilies.medium,
+          ...typeStyle("footnote", "500"),
         },
         labelActive: {
-          fontFamily: PlayTTFontFamilies.semiBold,
+          fontWeight: "600",
         },
       }),
     [colorScheme, nativeGlass],

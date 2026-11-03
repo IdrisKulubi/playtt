@@ -5,8 +5,9 @@ import { Pressable, StyleSheet, Switch, Text, View } from "react-native"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { PlayTTColors, PlayTTFontFamilies, PlayTTRadius, PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PlayTTRadius, PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { goOpenToPlay, stopOpenToPlay } from "@/lib/community-api"
 import type { CommunityMe, PlayAvailabilityWindow } from "@/lib/community-types"
 import { toast } from "@/lib/toast"
@@ -36,7 +37,7 @@ type OpenToPlaySheetProps = {
 }
 
 export function OpenToPlaySheet({ visible, me, onClose, onChanged }: OpenToPlaySheetProps) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   // The parent remounts this sheet (via `key`) each time it opens, so the
   // form starts from the current status.
   const current = me.availability
@@ -85,26 +86,26 @@ export function OpenToPlaySheet({ visible, me, onClose, onChanged }: OpenToPlayS
           width: "48.5%",
           borderRadius: PlayTTRadius.lg,
           borderWidth: 1.5,
-          borderColor: theme.border,
-          backgroundColor: theme.elevated,
+          borderColor: colors.separator,
+          backgroundColor: colors.surface,
           paddingVertical: PlayTTSpacing.sm,
           paddingHorizontal: PlayTTSpacing.sm,
           gap: 2,
         },
         chipActive: {
-          borderColor: PlayTTColors.primary,
+          borderColor: colors.accentText,
           backgroundColor: "rgba(0, 183, 255, 0.12)",
         },
         chipDisabled: { opacity: 0.4 },
-        chipTitle: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 16, color: theme.foreground },
-        chipDetail: { fontFamily: PlayTTFontFamilies.regular, fontSize: 13, color: theme.muted },
-        label: { fontFamily: PlayTTFontFamilies.semiBold, fontSize: 14, color: theme.foreground },
-        counter: { fontFamily: PlayTTFontFamilies.regular, fontSize: 12, color: theme.muted, textAlign: "right" },
+        chipTitle: { ...typeStyle("headline"), color: colors.label },
+        chipDetail: { ...typeStyle("footnote"), color: colors.secondaryLabel },
+        label: { ...typeStyle("subheadline", "600"), color: colors.label },
+        counter: { ...typeStyle("footnote"), color: colors.secondaryLabel, textAlign: "right" },
         row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: PlayTTSpacing.md },
         rowCopy: { flex: 1, gap: 2 },
-        hint: { fontFamily: PlayTTFontFamilies.regular, fontSize: 13, color: theme.muted, lineHeight: 18 },
+        hint: { ...typeStyle("footnote"), color: colors.secondaryLabel },
       }),
-    [theme],
+    [colors],
   )
 
   return (
@@ -166,14 +167,13 @@ export function OpenToPlaySheet({ visible, me, onClose, onChanged }: OpenToPlayS
             value={doubles}
             onValueChange={setDoubles}
             accessibilityLabel="Looking for doubles"
-            trackColor={{ true: PlayTTColors.primary }}
+            trackColor={{ true: colors.accent }}
           />
         </View>
 
         <Button
           label={current ? "Update" : "Go open"}
           surface="product"
-          productTheme={theme}
           loading={saving === "open"}
           disabled={saving !== null}
           onPress={goOpen}
@@ -183,7 +183,6 @@ export function OpenToPlaySheet({ visible, me, onClose, onChanged }: OpenToPlayS
             label="Stop being open"
             variant="outline"
             surface="product"
-            productTheme={theme}
             loading={saving === "stop"}
             disabled={saving !== null}
             onPress={stop}

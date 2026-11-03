@@ -4,8 +4,9 @@ import { Trash } from "phosphor-react-native/src/icons/Trash"
 import { useState } from "react"
 import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native"
 
-import { PlayTTColors, PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { toast } from "@/lib/toast"
 import { removeAvatar, uploadAvatar, type AvatarContentType } from "@/lib/user-api"
 
@@ -18,7 +19,7 @@ type CardPhotoPickerProps = {
 
 /** Pick a photo from the library and upload it as the card / profile picture (stored in R2). */
 export function CardPhotoPicker({ hasPhoto, onChange }: CardPhotoPickerProps) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const [busy, setBusy] = useState<"upload" | "remove" | null>(null)
 
   async function pick() {
@@ -87,17 +88,17 @@ export function CardPhotoPicker({ hasPhoto, onChange }: CardPhotoPickerProps) {
         onPress={pick}
         style={({ pressed }) => [
           styles.pill,
-          { borderColor: theme.border, backgroundColor: theme.card },
+          { borderColor: colors.separator, backgroundColor: colors.surface },
           pressed && styles.pressed,
           busy !== null && busy !== "upload" && styles.dimmed,
         ]}
       >
         {busy === "upload" ? (
-          <ActivityIndicator color={theme.foreground} />
+          <ActivityIndicator color={colors.label} />
         ) : (
           <>
-            <Camera size={20} color={PlayTTColors.primary} weight="fill" />
-            <Text style={[styles.pillLabel, { color: theme.foreground }]}>{label}</Text>
+            <Camera size={20} color={colors.accentText} weight="fill" />
+            <Text style={[styles.pillLabel, { color: colors.label }]}>{label}</Text>
           </>
         )}
       </Pressable>
@@ -116,9 +117,9 @@ export function CardPhotoPicker({ hasPhoto, onChange }: CardPhotoPickerProps) {
           ]}
         >
           {busy === "remove" ? (
-            <ActivityIndicator color={PlayTTColors.destructive} />
+            <ActivityIndicator color={colors.destructive} />
           ) : (
-            <Trash size={22} color={PlayTTColors.destructive} weight="bold" />
+            <Trash size={22} color={colors.destructive} weight="bold" />
           )}
         </Pressable>
       ) : null}
@@ -143,8 +144,7 @@ const styles = StyleSheet.create({
     gap: PlayTTSpacing.xs,
   },
   pillLabel: {
-    fontFamily: PlayTTFontFamilies.semiBold,
-    fontSize: 16,
+    ...typeStyle("headline"),
   },
   iconButton: {
     width: 52,

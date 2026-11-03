@@ -1,19 +1,16 @@
 import { useMemo } from "react"
 import { StyleSheet, Text, View } from "react-native"
 
-import {
-  PlayTTColors,
-  PlayTTFontFamilies,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
+import { useAppTheme } from "@/hooks/use-app-theme"
 
 type PreviewBadgeProps = {
   label?: string
 }
 
 export function PreviewBadge({ label = "Preview" }: PreviewBadgeProps) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const styles = useMemo(
     () =>
       StyleSheet.create({
@@ -22,19 +19,16 @@ export function PreviewBadge({ label = "Preview" }: PreviewBadgeProps) {
           paddingHorizontal: PlayTTSpacing.sm,
           paddingVertical: 2,
           borderRadius: 999,
-          backgroundColor: theme.elevated,
+          backgroundColor: colors.surface,
           borderWidth: 1,
-          borderColor: theme.border,
+          borderColor: colors.separator,
         },
         label: {
-          fontSize: 11,
-          fontFamily: PlayTTFontFamilies.semiBold,
-          color: PlayTTColors.primary,
-          textTransform: "uppercase",
-          letterSpacing: 0.4,
+          ...typeStyle("footnote", "600"),
+          color: colors.accentText,
         },
       }),
-    [theme.border, theme.elevated],
+    [colors],
   )
 
   return (

@@ -34,8 +34,9 @@ export const onboardingStep1Schema = z.object({
 
 export const onboardingStep2Schema = z.object({
   step: z.literal(2),
-  referralSource: z.enum(REFERRAL_SOURCES),
-  playIntent: z.enum(PLAY_INTENTS),
+  // Optional so players can skip the survey; skipped answers are stored as null.
+  referralSource: z.enum(REFERRAL_SOURCES).nullable().optional(),
+  playIntent: z.enum(PLAY_INTENTS).nullable().optional(),
   earlyAdopterOptIn: z.boolean().optional().default(false),
 })
 
@@ -130,8 +131,8 @@ export async function applyOnboardingPatch(
   const [updated] = await db
     .update(user)
     .set({
-      referralSource: input.referralSource,
-      playIntent: input.playIntent,
+      referralSource: input.referralSource ?? null,
+      playIntent: input.playIntent ?? null,
       earlyAdopterOptIn: input.earlyAdopterOptIn ?? false,
       onboardingCompletedAt: new Date(),
     })

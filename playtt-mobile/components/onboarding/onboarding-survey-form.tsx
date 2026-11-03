@@ -32,7 +32,7 @@ export const ONBOARDING_STEPS = 1 + QUESTIONS.length
 
 /**
  * Onboarding survey, one question per screen with big answers.
- * Both of the first two answers are required by the server.
+ * Every question can be skipped; unanswered ones are saved as empty.
  */
 export function OnboardingSurveyForm() {
   const [question, setQuestion] = useState(0)
@@ -45,8 +45,6 @@ export function OnboardingSurveyForm() {
   const isLast = question === QUESTIONS.length - 1
 
   async function handleFinish() {
-    if (!referralSource || !playIntent) return
-
     setIsLoading(true)
     try {
       await patchOnboarding({
@@ -89,6 +87,13 @@ export function OnboardingSurveyForm() {
       {question > 0 ? (
         <Button label="Back" variant="plain" onPress={() => setQuestion((value) => value - 1)} />
       ) : null}
+      <Button
+        label="Skip these questions"
+        variant="plain"
+        accessibilityHint="Finishes setup without answering the rest"
+        disabled={isLoading}
+        onPress={() => void handleFinish()}
+      />
     </View>
   )
 }

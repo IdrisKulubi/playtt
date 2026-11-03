@@ -10,6 +10,7 @@ import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { useAppTheme } from "@/hooks/use-app-theme"
 import { useSkeletonSurface } from "@/hooks/use-product-theme"
 import { type ActivityStats, fetchActivityStats } from "@/lib/activity-stats-api"
+import { fetchCommunityMe } from "@/lib/community-api"
 import { sampleActivityStats } from "@/lib/mock/mock-activity-stats"
 import { MOCK_SAMPLE_LABEL, USE_LIVE_PLAYER_STATS } from "@/lib/mock/mock-config"
 import { toDateKey } from "@/lib/booking-utils"
@@ -51,6 +52,21 @@ function Stat({ value, label, trend }: { value: string; label: string; trend?: T
 export function ProgressStatsCard() {
   const skeletonSurface = useSkeletonSurface()
   const [stats, setStats] = useState<ActivityStats | null>(null)
+  // From the player card: only scored matches count, so this can be empty.
+  const [winRate, setWinRate] = useState<number | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    fetchCommunityMe()
+      .then((me) => {
+        const { matches, winRate: rate } = me.stats
+        if (mounted && matches && matches > 0 && rate !== null) setWinRate(rate)
+      })
+      .catch(() => undefined)
+    return () => {
+      mounted = false
+    }
+  }, [])
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
@@ -108,6 +124,7 @@ export function ProgressStatsCard() {
           trend={{ delta: Math.round((hours - previousHours) * 10) / 10, unit: "hours" }}
         />
         <Stat value={`${Math.round(totals.averageMinutes)}`} label="minutes a game" />
+        {winRate !== null ? <Stat value={`${Math.round(winRate)}%`} label="of matches won" /> : null}
       </View>
     </Card>
   )

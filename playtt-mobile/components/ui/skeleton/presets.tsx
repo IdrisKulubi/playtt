@@ -13,7 +13,8 @@ import {
   type SkeletonSurface,
 } from "./skeleton"
 
-import { SESSION_TICKET_THUMB_SIZE } from "@/components/booking/session-ticket-shell"
+/** Thumbnail size the booking skeletons reserve (matches the old session ticket). */
+const SESSION_TICKET_THUMB_SIZE = 72
 
 type PresetProps = {
   surface?: SkeletonSurface

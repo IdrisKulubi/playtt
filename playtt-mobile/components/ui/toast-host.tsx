@@ -8,16 +8,11 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { IconSymbol } from "@/components/ui/icon-symbol"
-import { AppColors } from "@/constants/colors"
-import {
-  PlayTTColors,
-  PlayTTElevation,
-  PlayTTFontFamilies,
-  PlayTTRadius,
-  PlayTTSpacing,
-} from "@/constants/playtt-tokens"
+import { AppColors, type ColorRoles } from "@/constants/colors"
+import { PlayTTElevation, PlayTTRadius, PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
 import { useColorScheme } from "@/hooks/use-color-scheme"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import {
   setToastListener,
   type ToastPayload,
@@ -42,6 +37,7 @@ type VariantConfig = {
 function getVariantConfig(
   variant: ToastVariant,
   isDark: boolean,
+  colors: ColorRoles,
 ): VariantConfig {
   switch (variant) {
     case "success":
@@ -55,7 +51,7 @@ function getVariantConfig(
     case "error":
       return {
         icon: "xmark.circle.fill",
-        iconColor: isDark ? "#ff6961" : PlayTTColors.destructive,
+        iconColor: isDark ? "#ff6961" : colors.destructive,
         iconBackground: isDark
           ? "rgba(255, 105, 97, 0.12)"
           : "rgba(255, 59, 48, 0.08)",
@@ -63,7 +59,7 @@ function getVariantConfig(
     case "info":
       return {
         icon: "info.circle.fill",
-        iconColor: PlayTTColors.primary,
+        iconColor: colors.accentText,
         iconBackground: isDark
           ? "rgba(0, 183, 255, 0.14)"
           : "rgba(0, 183, 255, 0.1)",
@@ -73,7 +69,7 @@ function getVariantConfig(
 
 export function ToastHost() {
   const insets = useSafeAreaInsets()
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === "dark"
   const [toast, setToast] = useState<ToastPayload | null>(null)
@@ -95,8 +91,8 @@ export function ToastHost() {
           flexDirection: "row",
           alignItems: "center",
           gap: PlayTTSpacing.sm,
-          backgroundColor: theme.card,
-          borderColor: theme.border,
+          backgroundColor: colors.surface,
+          borderColor: colors.separator,
           ...(isDark ? PlayTTElevation.soft : PlayTTElevation.productCard),
         },
         iconWrap: {
@@ -107,11 +103,9 @@ export function ToastHost() {
           justifyContent: "center",
         },
         message: {
+          ...typeStyle("subheadline", "500"),
           flex: 1,
-          color: theme.foreground,
-          fontSize: 14,
-          lineHeight: 20,
-          fontFamily: PlayTTFontFamilies.medium,
+          color: colors.label,
         },
         dismiss: {
           width: 32,
@@ -131,7 +125,7 @@ export function ToastHost() {
           fontWeight: "600",
         },
       }),
-    [isDark, theme.border, theme.card, theme.foreground],
+    [isDark, colors.separator, colors.surface, colors.label],
   )
 
   useEffect(() => {
@@ -167,7 +161,7 @@ export function ToastHost() {
     return null
   }
 
-  const variant = getVariantConfig(toast.variant, isDark)
+  const variant = getVariantConfig(toast.variant, isDark, colors)
 
   return (
     <View pointerEvents="box-none" style={[styles.host, { top: insets.top + 10 }]}>
@@ -217,7 +211,7 @@ export function ToastHost() {
           onPress={() => setToast(null)}
           style={styles.dismiss}
         >
-          <IconSymbol name="xmark" size={16} color={theme.muted} />
+          <IconSymbol name="xmark" size={16} color={colors.secondaryLabel} />
         </Pressable>
       </Animated.View>
     </View>

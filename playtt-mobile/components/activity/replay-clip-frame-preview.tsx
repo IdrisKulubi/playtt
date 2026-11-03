@@ -5,7 +5,7 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native"
 import { USE_LIVE_ACTIVITY_CLIPS } from "@/lib/mock/mock-config"
 import type { ReplaySummary } from "@/lib/replay-types"
 import { resolveReplayPlaybackUrl } from "@/lib/replays-api"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { useAppTheme } from "@/hooks/use-app-theme"
 
 type ReplayClipFramePreviewProps = {
   replay: ReplaySummary
@@ -61,7 +61,7 @@ export function ReplayClipFramePreview({
   onFrameReady,
   onFrameFailed,
 }: ReplayClipFramePreviewProps) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const [hasSlot, setHasSlot] = useState(false)
   const [frameVisible, setFrameVisible] = useState(false)
 
@@ -78,10 +78,10 @@ export function ReplayClipFramePreview({
         },
         placeholder: {
           ...StyleSheet.absoluteFill,
-          backgroundColor: theme.elevated,
+          backgroundColor: colors.surface,
         },
       }),
-    [theme],
+    [colors],
   )
 
   useEffect(() => {

@@ -4,8 +4,9 @@ import { StyleSheet, Text, View } from "react-native"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { PlayTTFontFamilies, PlayTTSpacing } from "@/constants/playtt-tokens"
-import { useProductTheme } from "@/hooks/use-product-theme"
+import { PlayTTSpacing } from "@/constants/playtt-tokens"
+import { typeStyle } from "@/constants/type"
+import { useAppTheme } from "@/hooks/use-app-theme"
 import { normalizeInviteCode } from "@/lib/community-invite"
 
 type InviteCodeSheetProps = {
@@ -16,7 +17,7 @@ type InviteCodeSheetProps = {
 
 // The parent remounts this (via `key`) each time it opens.
 export function InviteCodeSheet({ visible, onClose, onSubmit }: InviteCodeSheetProps) {
-  const theme = useProductTheme()
+  const { colors } = useAppTheme()
   const [value, setValue] = useState("")
   const [saving, setSaving] = useState(false)
   const code = normalizeInviteCode(value)
@@ -25,9 +26,9 @@ export function InviteCodeSheet({ visible, onClose, onSubmit }: InviteCodeSheetP
     () =>
       StyleSheet.create({
         body: { gap: PlayTTSpacing.md },
-        hint: { fontFamily: PlayTTFontFamilies.regular, fontSize: 14, color: theme.muted, lineHeight: 20 },
+        hint: { ...typeStyle("subheadline"), color: colors.secondaryLabel },
       }),
-    [theme],
+    [colors],
   )
 
   return (
@@ -47,7 +48,6 @@ export function InviteCodeSheet({ visible, onClose, onSubmit }: InviteCodeSheetP
         <Button
           label="Use code"
           surface="product"
-          productTheme={theme}
           disabled={!code || saving}
           loading={saving}
           onPress={async () => {

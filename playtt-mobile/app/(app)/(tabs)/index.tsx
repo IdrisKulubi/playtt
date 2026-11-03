@@ -1,5 +1,5 @@
 import { type Href, router, useFocusEffect } from "expo-router"
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Linking, RefreshControl } from "react-native"
 
 import { BookingDetailSheet } from "@/components/booking/booking-detail-sheet"
@@ -19,6 +19,7 @@ import {
   formatSecondSessionLabel,
   formatTimeOfDayGreeting,
 } from "@/lib/booking-utils"
+import { fetchCurrentUser } from "@/lib/user-api"
 
 const UPCOMING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 const BOOK_HREF = "/(app)/book" as Href
@@ -55,6 +56,12 @@ function findLastPastBooking(bookings: UserBookingSummary[]) {
   )
 }
 
+/** "Good evening, Amina" when we know the name, else just the greeting. */
+function greetingFor(firstName: string | null) {
+  const greeting = formatTimeOfDayGreeting()
+  return firstName ? `${greeting}, ${firstName}` : greeting
+}
+
 function openDirections(locationName: string) {
   const query = encodeURIComponent(locationName)
   void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`)
@@ -72,6 +79,21 @@ export default function PlayScreen() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
+  const [firstName, setFirstName] = useState<string | null>(null)
+
+  // The name only personalises the greeting, so a failure just leaves it out.
+  useEffect(() => {
+    let mounted = true
+    fetchCurrentUser()
+      .then((response) => {
+        const name = response.data?.user?.name?.trim().split(/\s+/)[0]
+        if (mounted && name) setFirstName(name)
+      })
+      .catch(() => undefined)
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   const loadPlay = useCallback(async (silent = false) => {
     if (silent) {
@@ -116,7 +138,7 @@ export default function PlayScreen() {
   return (
     <Screen
       title="Play"
-      subtitle={formatTimeOfDayGreeting()}
+      subtitle={greetingFor(firstName)}
       inTabs
       refreshControl={
         <RefreshControl
