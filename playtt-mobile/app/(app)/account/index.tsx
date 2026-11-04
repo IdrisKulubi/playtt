@@ -13,7 +13,7 @@ import { useSkeletonSurface } from "@/hooks/use-product-theme"
 import { setProfileSummary } from "@/hooks/use-profile-summary"
 import { canChangePassword, formatPersonalDetailsPreview } from "@/lib/account-utils"
 import { clearSession } from "@/lib/auth-helpers"
-import { goToSignIn, goToWelcome } from "@/lib/auth-navigation"
+import { goToWelcome } from "@/lib/auth-navigation"
 import { fetchCurrentUser, type UserProfile } from "@/lib/user-api"
 
 const PLAY_HREF = "/(app)/(tabs)" as Href
@@ -68,11 +68,11 @@ export default function MeScreen() {
   async function handleSignOut() {
     setIsSigningOut(true)
     try {
+      // Ending the session is enough: the signed-in section sees it and replaces
+      // itself with the auth screens (see app/(app)/_layout.tsx). Navigating from
+      // here as well made two redirects fight, which looped.
       await clearSession()
     } finally {
-      // Leave the signed-in stack entirely, so Back can never return to it.
-      if (router.canDismiss()) router.dismissAll()
-      goToSignIn()
       setIsSigningOut(false)
     }
   }
@@ -161,15 +161,6 @@ export default function MeScreen() {
           subtitle="A quick tour of PlayTT"
           onPress={() => goToWelcome(true)}
         />
-        {__DEV__ ? (
-          <ListRow
-            icon="paintpalette.fill"
-            tone="warning"
-            title="Design kit"
-            subtitle="Redesign components (development only)"
-            onPress={() => router.push("/(app)/kit-demo" as Href)}
-          />
-        ) : null}
       </ListSection>
 
       <ListSection header="Legal">

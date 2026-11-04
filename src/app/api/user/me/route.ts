@@ -6,7 +6,7 @@ import {
   getUserAuthMethods,
   serializeUserProfile,
 } from "@/server/users/profile"
-import { deleteUserAccount } from "@/server/users/delete-account"
+import { deleteUserAccount, isDeletedAccountEmail } from "@/server/users/delete-account"
 import { mapUserRouteError, userError } from "@/server/users/http"
 
 export async function GET(req: NextRequest) {
@@ -32,6 +32,14 @@ export async function GET(req: NextRequest) {
           message: "User profile not found.",
         },
         { status: 404 },
+      )
+    }
+
+    // Safety net: a deleted account never gets back in, even with an old sign-in token.
+    if (isDeletedAccountEmail(profile.email)) {
+      return NextResponse.json(
+        { code: "USER_DELETED", message: "This account has been deleted." },
+        { status: 401 },
       )
     }
 

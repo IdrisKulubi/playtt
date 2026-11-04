@@ -20,6 +20,12 @@ import { resolveAppleClientSecret } from "@/lib/apple-client-secret"
 import { removeAvatar } from "./avatar"
 
 export const DELETED_PLAYER_NAME = "Deleted player"
+const DELETED_EMAIL_DOMAIN = "@deleted.theplaytt.com"
+
+/** An account that was deleted keeps its row for bookings but can never be used again. */
+export function isDeletedAccountEmail(email: string) {
+  return email.toLowerCase().endsWith(DELETED_EMAIL_DOMAIN)
+}
 
 export type DeleteAccountResult =
   | { ok: true }
@@ -97,7 +103,7 @@ export async function deleteUserAccount(userId: string): Promise<DeleteAccountRe
       .update(user)
       .set({
         name: DELETED_PLAYER_NAME,
-        email: `deleted-${randomUUID()}@deleted.theplaytt.com`,
+        email: `deleted-${randomUUID()}${DELETED_EMAIL_DOMAIN}`,
         emailVerified: false,
         image: null,
         phone: null,

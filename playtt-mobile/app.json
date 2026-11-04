@@ -9,13 +9,20 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "icon": "./assets/images/appstore.png",
+      "icon": {
+        "light": "./assets/images/icon-light.png",
+        "dark": "./assets/images/icon-dark.png",
+        "tinted": "./assets/images/icon-tinted.png"
+      },
       "bundleIdentifier": "com.theplaytt.app",
       "usesAppleSignIn": true,
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryAddUsageDescription": "PlayTT saves your session clips and activity cards to your photo library when you choose Save."
+        "NSPhotoLibraryAddUsageDescription": "PlayTT saves your session clips and activity cards to your photo library when you choose Save.",
+        "NSPhotoLibraryUsageDescription": "PlayTT uses your photos so you can add a picture to your player card and save session clips and activity cards.",
+        "NSCalendarsUsageDescription": "PlayTT adds your booked games to your calendar when you ask it to.",
+        "NSCalendarsWriteOnlyAccessUsageDescription": "PlayTT adds your booked games to your calendar when you ask it to. It never reads your existing events."
       }
     },
     "android": {
@@ -24,7 +31,20 @@
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/images/playstore-foreground.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.READ_CALENDAR",
+        "android.permission.ACCESS_MEDIA_LOCATION",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ]
     },
     "web": {
       "output": "static",
@@ -50,7 +70,7 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "PlayTT can access your photos to save session clips and activity cards.",
+          "photosPermission": "PlayTT uses your photos so you can add a picture to your player card and save session clips and activity cards.",
           "savePhotosPermission": "PlayTT saves your session clips and activity cards to your photo library when you choose Save.",
           "isAccessMediaLocationEnabled": false
         }
@@ -59,7 +79,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "PlayTT uses your photos so you can add a picture to your player card.",
+          "photosPermission": "PlayTT uses your photos so you can add a picture to your player card and save session clips and activity cards.",
           "cameraPermission": false,
           "microphonePermission": false
         }
@@ -67,7 +87,10 @@
       [
         "expo-calendar",
         {
-          "calendarPermission": "PlayTT adds your booked games to your calendar when you ask it to."
+          "calendarPermission": "PlayTT adds your booked games to your calendar when you ask it to.",
+          "writeOnlyCalendarPermission": "PlayTT adds your booked games to your calendar when you ask it to. It never reads your existing events.",
+          "writeOnlyAccess": true,
+          "remindersPermission": false
         }
       ]
     ],

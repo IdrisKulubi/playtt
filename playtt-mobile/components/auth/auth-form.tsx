@@ -51,6 +51,13 @@ type AuthFormProps = {
   onModeChange?: (mode: AuthMode) => void;
 };
 
+/** Shown when someone backs out of a social sign-in: say what happened and what to try next. */
+function cancelHint(provider: 'google' | 'apple') {
+  return provider === 'apple'
+    ? 'Sign in with Apple didn’t finish. You can try Google, or use your email and password.'
+    : 'Sign in with Google didn’t finish. You can try Apple, or use your email and password.';
+}
+
 export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProps) {
   const theme = useAuthTheme();
   const reducedMotion = useReducedMotion();
@@ -245,6 +252,7 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
       const result = await refreshSession();
       // Canceling the browser also resolves the social request successfully.
       if (!result.data?.session) {
+        toast.info(cancelHint(provider));
         return;
       }
       await completeSignIn();
@@ -287,6 +295,7 @@ export function AuthForm({ initialMode = 'sign-in', onModeChange }: AuthFormProp
     } catch (error) {
       if (error instanceof AppleSignInCanceledError) {
         authDebug('apple-flow:canceled');
+        toast.info(cancelHint('apple'));
         setIsLoading(false);
         return;
       }

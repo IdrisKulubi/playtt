@@ -1,4 +1,3 @@
-import { router } from "expo-router"
 import { useEffect } from "react"
 
 import { setSessionExpiredHandler } from "@/lib/api-client"
@@ -12,8 +11,6 @@ export function SessionBootstrap() {
       authDebug("session-expired-handler:triggered")
       await clearSession()
       toast.info("Your session expired. Please sign in again.")
-      authDebug("session-expired-handler:redirect-sign-in")
-      router.replace("/?mode=sign-in")
     })
   }, [])
 

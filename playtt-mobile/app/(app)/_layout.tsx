@@ -5,6 +5,7 @@ import { useSplashHold } from "@/hooks/use-splash-hold"
 import { getStoredAuth } from "@/lib/auth-helpers"
 import { isTransientApiError } from "@/lib/api-errors"
 import { ONBOARDING_ROUTE } from "@/lib/auth-navigation"
+import { onSessionSignedOut } from "@/lib/auth-session-state"
 import { fetchCurrentUser } from "@/lib/user-api"
 
 export default function AppLayout() {
@@ -43,6 +44,10 @@ export default function AppLayout() {
     void resolveGate()
   }, [resolveGate])
 
+  // Nobody stays in the app without a session: the moment it ends (sign out, delete,
+  // expiry), whatever screen is open gives way to the auth screens.
+  useEffect(() => onSessionSignedOut(() => setGate("auth")), [])
+
   useFocusEffect(
     useCallback(() => {
       void resolveGate()
@@ -54,7 +59,8 @@ export default function AppLayout() {
 
   if (gate === "loading" || gate === "auth" || gate === "onboarding") {
     if (gate === "auth") {
-      return <Redirect href="/?mode=sign-in" />
+      // No mode here: a first-time visitor sees the intro, a returning one lands on sign in.
+      return <Redirect href="/" />
     }
 
     if (gate === "onboarding") {

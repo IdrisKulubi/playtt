@@ -1,4 +1,3 @@
-import { router } from "expo-router"
 import { useState } from "react"
 import { Alert, StyleSheet, View } from "react-native"
 
@@ -10,7 +9,7 @@ import { AppText } from "@/components/ui/app-text"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import { ApiError } from "@/lib/api-error"
 import { clearSession } from "@/lib/auth-helpers"
-import { goToSignIn } from "@/lib/auth-navigation"
+import { clearHasSeenWelcome } from "@/lib/welcome-storage"
 import { openWebPage } from "@/lib/open-web-page"
 import { PRIVACY_URL, SUPPORT_EMAIL } from "@/lib/release-flags"
 import { toast } from "@/lib/toast"
@@ -36,6 +35,13 @@ export default function DeleteAccountScreen() {
     try {
       await deleteAccount()
     } catch (error) {
+      // Already gone on the server (deleted from another phone): just sign out here.
+      const alreadyGone =
+        error instanceof ApiError && ["USER_NOT_FOUND", "USER_DELETED", "UNAUTHENTICATED"].includes(error.code ?? "")
+      if (alreadyGone) {
+        await finish()
+        return
+      }
       setIsDeleting(false)
       if (error instanceof ApiError && error.code === "ACTIVE_BOOKINGS") {
         toast.error("Cancel your upcoming bookings first, then delete your account.")
@@ -45,10 +51,19 @@ export default function DeleteAccountScreen() {
       return
     }
 
-    await clearSession()
-    if (router.canDismiss()) router.dismissAll()
-    goToSignIn()
-    toast.success("Your account has been deleted.")
+    await finish()
+  }
+
+  /** Nobody uses PlayTT without an account: clear everything and go back to sign in. */
+  async function finish() {
+    try {
+      // Starting over: the next person to open the app sees the intro again.
+      await clearHasSeenWelcome().catch(() => undefined)
+      // Ending the session sends the signed-in section to the auth screens by itself.
+      await clearSession()
+    } finally {
+      toast.success("Your account has been deleted.")
+    }
   }
 
   return (

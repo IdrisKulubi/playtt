@@ -6,6 +6,7 @@ import { authClient } from "@/lib/auth-client"
 import {
   acceptAuthenticatedSession,
   getSessionRevision,
+  announceSessionSignedOut,
   isSessionSignedOut,
   markSessionSignedOut,
 } from "@/lib/auth-session-state"
@@ -176,6 +177,7 @@ export async function clearSession() {
   )
   await clearCachedSessionRoute()
 
+  announceSessionSignedOut()
   authDebug("clear-session:done")
 }
 
