@@ -44,7 +44,8 @@
         "android.permission.READ_CALENDAR",
         "android.permission.ACCESS_MEDIA_LOCATION",
         "android.permission.SYSTEM_ALERT_WINDOW"
-      ]
+      ],
+      "package": "com.theplaytt.app"
     },
     "web": {
       "output": "static",

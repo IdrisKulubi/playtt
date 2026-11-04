@@ -1,0 +1,42 @@
+# Files EAS Build does not need. Keeps the upload small (the app is ~13 MB without these).
+# Bare names match at any depth, including on Windows.
+
+node_modules
+.git
+.expo
+.expo-bundle-test
+dist
+web-build
+ios
+android
+.kotlin
+.vscode
+.claude
+coverage
+
+# secrets and local env (build env comes from eas.json and EAS secrets)
+.env
+.env*.local
+*.pem
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# generated or local-only
+*.tsbuildinfo
+expo-env.d.ts
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.DS_Store
+*.log
+
+# not part of the app bundle
+docs
+test
+scripts
+*.test.ts
+*.test.tsx

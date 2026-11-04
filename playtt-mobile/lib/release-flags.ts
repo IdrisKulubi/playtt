@@ -13,4 +13,5 @@ export const REPLAY_PURCHASES_ENABLED = __DEV__ || process.env.EXPO_PUBLIC_REPLA
 /** Public pages for the privacy policy and terms (also linked in App Store Connect). */
 export const PRIVACY_URL = "https://www.theplaytt.com/privacy"
 export const TERMS_URL = "https://www.theplaytt.com/terms"
+export const SUPPORT_URL = "https://www.theplaytt.com/support"
 export const SUPPORT_EMAIL = "hello@theplaytt.com"

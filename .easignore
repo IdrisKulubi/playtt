@@ -17,6 +17,12 @@ web-build
 .kotlin
 ios
 android
+.expo-bundle-test
+
+# This is a monorepo. The mobile app builds from playtt-mobile; these sibling
+# projects contain large video/replay artifacts and are not mobile build inputs.
+/marketing
+/services
 .venue-edge-data
 .venue-edge-data-local
 managed_components

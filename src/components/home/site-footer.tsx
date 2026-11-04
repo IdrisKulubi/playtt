@@ -24,6 +24,7 @@ const footerLinks: Record<FooterSection, readonly { label: string; href: string 
     Legal: [
       { label: "Terms", href: "/terms" },
       { label: "Privacy", href: "/privacy" },
+      { label: "Support", href: "/support" },
     ],
     Product: [
       { label: "Book", href: "/book" },
