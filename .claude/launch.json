@@ -4,9 +4,27 @@
     {
       "name": "mobile-web",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["expo", "start", "--web", "--port", "8090"],
+      "runtimeArgs": [
+        "expo",
+        "start",
+        "--web",
+        "--port",
+        "8090"
+      ],
       "cwd": "playtt-mobile",
       "port": 8090
+    },
+    {
+      "name": "screenshots-editor",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--port",
+        "3100"
+      ],
+      "cwd": "playtt-mobile/store-screenshots/editor",
+      "port": 3100
     }
   ]
 }

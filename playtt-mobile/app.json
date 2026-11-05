@@ -16,7 +16,7 @@
       },
       "bundleIdentifier": "com.theplaytt.app",
       "usesAppleSignIn": true,
-      "supportsTablet": true,
+      "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSPhotoLibraryAddUsageDescription": "PlayTT saves your session clips and activity cards to your photo library when you choose Save.",

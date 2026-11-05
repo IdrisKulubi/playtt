@@ -49,3 +49,12 @@ firmware/simulator/.state/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# app-store-screenshots skill (local tooling, not part of the app)
+.agents/skills/app-store-screenshots/
+.claude/skills/app-store-screenshots/
+skills-lock.json
+
+# store screenshot tooling output (generated)
+playtt-mobile/store-screenshots/editor/
+playtt-mobile/store-screenshots/editor-out/
