@@ -25,6 +25,11 @@ export default function IndexScreen() {
   const [isResolvingRoute, setIsResolvingRoute] = useState(false)
   const [welcomeChecked, setWelcomeChecked] = useState(false)
   const [hasSeenWelcome, setHasSeenWelcomeState] = useState(true)
+  // SecureStore is the source of truth for a local sign-out. Better Auth can
+  // still be refreshing its session hook while the server request finishes.
+  // Keep this state separate so that pending hook cannot strand a signed-out
+  // player on the blank bootstrap screen.
+  const [hasStoredAuth, setHasStoredAuth] = useState<boolean | null>(null)
   const [isRedirecting, setIsRedirecting] = useState(false)
   const didNavigateRef = useRef(false)
 
@@ -33,6 +38,10 @@ export default function IndexScreen() {
 
     async function checkWelcome() {
       const stored = await getStoredAuth()
+      if (mounted) {
+        setHasStoredAuth(Boolean(stored?.token))
+      }
+
       if (stored?.token) {
         if (mounted) {
           setWelcomeChecked(true)
@@ -55,7 +64,9 @@ export default function IndexScreen() {
   }, [])
 
   useEffect(() => {
-    if (isPending) {
+    // A locally cleared session is final. Do not wait for a stale/pending
+    // Better Auth refresh before showing the sign-in form.
+    if (isPending && hasStoredAuth !== false) {
       return
     }
 
@@ -121,10 +132,11 @@ export default function IndexScreen() {
     return () => {
       mounted = false
     }
-  }, [session, isPending])
+  }, [session, isPending, hasStoredAuth])
 
   const isBootstrapping =
-    isPending ||
+    hasStoredAuth === null ||
+    (isPending && hasStoredAuth) ||
     isResolvingRoute ||
     isRedirecting ||
     !welcomeChecked

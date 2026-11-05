@@ -15,6 +15,7 @@ import { canChangePassword, formatPersonalDetailsPreview } from "@/lib/account-u
 import { clearSession } from "@/lib/auth-helpers"
 import { goToWelcome } from "@/lib/auth-navigation"
 import { fetchCurrentUser, type UserProfile } from "@/lib/user-api"
+import { getCachedUserProfile } from "@/lib/profile-cache"
 
 const PLAY_HREF = "/(app)/(tabs)" as Href
 
@@ -31,6 +32,16 @@ export default function MeScreen() {
   const loadProfile = useCallback(async (silent = false) => {
     if (silent) setIsRefreshing(true)
 
+    // Give the player their last verified details right away, then refresh in
+    // the background. This cache is encrypted and is removed on sign-out.
+    if (!silent) {
+      const cached = await getCachedUserProfile().catch(() => null)
+      if (cached) {
+        setProfile(cached)
+        setProfileSummary({ id: cached.id, name: cached.name, image: cached.image ?? null })
+      }
+    }
+
     try {
       const response = await fetchCurrentUser()
       const user = response.data?.user ?? null
@@ -38,7 +49,11 @@ export default function MeScreen() {
       // Keep the photo in every tab's header up to date.
       if (user) setProfileSummary({ id: user.id, name: user.name, image: user.image ?? null })
     } catch {
-      if (!silent) setProfile(null)
+      // Retain the last verified profile when offline or on a slow network.
+      // Only show the error state if this phone has never fetched the account.
+      if (!silent && !(await getCachedUserProfile().catch(() => null))) {
+        setProfile(null)
+      }
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)
@@ -68,9 +83,8 @@ export default function MeScreen() {
   async function handleSignOut() {
     setIsSigningOut(true)
     try {
-      // Ending the session is enough: the signed-in section sees it and replaces
-      // itself with the auth screens (see app/(app)/_layout.tsx). Navigating from
-      // here as well made two redirects fight, which looped.
+      // clearSession clears local credentials and performs the single route
+      // replacement to sign-in for every sign-out path.
       await clearSession()
     } finally {
       setIsSigningOut(false)

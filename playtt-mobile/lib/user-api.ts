@@ -8,6 +8,7 @@ import { isTransientApiError } from "@/lib/api-errors"
 import { ApiError } from "@/lib/api-error"
 import { getStoredAuth } from "@/lib/auth-helpers"
 import { getSessionRevision } from "@/lib/auth-session-state"
+import { setCachedUserProfile, updateCachedUserProfile } from "@/lib/profile-cache"
 
 async function assertCurrentSession(revision: number) {
   if (revision !== getSessionRevision() || !(await getStoredAuth())?.token) {
@@ -60,7 +61,16 @@ export type OnboardingPatchResponse = {
 }
 
 export async function fetchCurrentUser() {
-  return apiFetch<CurrentUserResponse>("/api/user/me")
+  const response = await apiFetch<CurrentUserResponse>("/api/user/me")
+  const user = response.data?.user
+
+  // Cache only a server-verified response. The cache is display-only and lets
+  // the account page render useful information while the next request waits.
+  if (user) {
+    await setCachedUserProfile(user).catch(() => undefined)
+  }
+
+  return response
 }
 
 export async function resolvePostAuthRoute() {
@@ -127,17 +137,25 @@ export async function routeAfterAuth() {
 }
 
 export async function patchOnboarding(body: Record<string, unknown>) {
-  return apiFetch<OnboardingPatchResponse>("/api/user/onboarding", {
+  const response = await apiFetch<OnboardingPatchResponse>("/api/user/onboarding", {
     method: "PATCH",
     body: JSON.stringify(body),
   })
+  if (response.data?.user) {
+    await setCachedUserProfile(response.data.user).catch(() => undefined)
+  }
+  return response
 }
 
 export async function patchProfile(body: ProfilePatchInput) {
-  return apiFetch<OnboardingPatchResponse>("/api/user/profile", {
+  const response = await apiFetch<OnboardingPatchResponse>("/api/user/profile", {
     method: "PATCH",
     body: JSON.stringify(body),
   })
+  if (response.data?.user) {
+    await setCachedUserProfile(response.data.user).catch(() => undefined)
+  }
+  return response
 }
 
 export type AvatarContentType = "image/jpeg" | "image/png" | "image/webp"
@@ -177,9 +195,11 @@ export async function uploadAvatar(localUri: string, contentType: AvatarContentT
     method: "PUT",
     body: JSON.stringify({ objectKey: data.upload.objectKey }),
   })
+  await updateCachedUserProfile({ image: confirmed.data.image }).catch(() => undefined)
   return confirmed.data.image
 }
 
 export async function removeAvatar() {
   await apiFetch<{ data: { image: null } }>("/api/user/avatar", { method: "DELETE" })
+  await updateCachedUserProfile({ image: null }).catch(() => undefined)
 }

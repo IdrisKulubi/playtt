@@ -5,7 +5,7 @@ import db from "../../../../../db/drizzle"
 import { account, session, user } from "../../../../../db/schema"
 import { verifyAppleToken } from "@/lib/verify-apple-token"
 
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 90
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 180
 
 type AppleAuthBody = {
   identityToken?: string

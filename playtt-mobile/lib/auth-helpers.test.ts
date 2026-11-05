@@ -1,9 +1,11 @@
 import * as SecureStore from "expo-secure-store"
+import { router } from "expo-router"
 import { authClient } from "@/lib/auth-client"
 import { clearSession, getStoredAuth } from "@/lib/auth-helpers"
 import { acceptAuthenticatedSession } from "@/lib/auth-session-state"
 
 jest.mock("expo-secure-store", () => ({ getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn() }))
+jest.mock("expo-router", () => ({ router: { replace: jest.fn() } }))
 jest.mock("@/lib/auth-client", () => ({ authClient: { getCookie: jest.fn(), signOut: jest.fn() } }))
 jest.mock("@/lib/auth-debug", () => ({ authDebug: jest.fn(), authDebugError: jest.fn() }))
 
@@ -30,6 +32,17 @@ describe("stored authentication", () => {
     expect(await getStoredAuth()).toMatchObject({ token: "old-apple-token", source: "session" })
   })
 
+  it("does not use an expired locally stored Apple session", async () => {
+    jest.mocked(authClient.getCookie).mockResolvedValue("")
+    jest.mocked(SecureStore.getItemAsync).mockImplementation(async (key) =>
+      key === "playtt_session"
+        ? JSON.stringify({ session: { token: "old-apple-token", expiresAt: "2020-01-01T00:00:00.000Z" } })
+        : null,
+    )
+
+    expect(await getStoredAuth()).toBeNull()
+  })
+
   it("ignores malformed cookie encoding without blocking the auth screen", async () => {
     jest.mocked(authClient.getCookie).mockResolvedValue("better-auth.session_token=%invalid")
     expect(await getStoredAuth()).toMatchObject({ token: "old-apple-token" })
@@ -43,6 +56,8 @@ describe("stored authentication", () => {
     expect(await getStoredAuth()).toBeNull()
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith("playtt_signed_out", "1")
     expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("playtt_session_route_cache_v1")
+    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("playtt_profile_cache_v1")
+    expect(router.replace).toHaveBeenCalledWith("/sign-in")
 
     jest.mocked(authClient.getCookie).mockResolvedValue("better-auth.session_token=new-token.signature")
     await acceptAuthenticatedSession()

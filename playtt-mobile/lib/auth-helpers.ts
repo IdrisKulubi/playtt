@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store"
+import { router } from "expo-router"
 
 import type { AppleAuthUser } from "@/lib/auth-api"
 import { authDebug, authDebugError } from "@/lib/auth-debug"
@@ -17,6 +18,7 @@ import {
 import { setProfileSummary } from "@/hooks/use-profile-summary"
 import { resetAiConsent } from "@/lib/ai-consent"
 import { resetWeeklyGoal } from "@/lib/weekly-goal"
+import { clearCachedUserProfile } from "@/lib/profile-cache"
 
 const STORAGE_PREFIX = "playtt"
 
@@ -69,6 +71,9 @@ async function readStoredAuth(): Promise<StoredAuth | null> {
   }
 
   const customSession = await readJson(AUTH_KEYS.session)
+  if (hasExpiredSession(customSession)) {
+    return null
+  }
   const customSessionToken = extractToken(customSession)
 
   if (customSessionToken) {
@@ -114,7 +119,7 @@ export async function storeAppleSession(user: AppleAuthUser, token: string) {
 
   await clearBetterAuthStorage()
 
-  const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
+  const expiresAt = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString()
 
   await SecureStore.setItemAsync(
     AUTH_KEYS.session,
@@ -176,8 +181,12 @@ export async function clearSession() {
     Object.values(AUTH_KEYS).map((key) => SecureStore.deleteItemAsync(key))
   )
   await clearCachedSessionRoute()
+  await clearCachedUserProfile()
 
   announceSessionSignedOut()
+  // Keep every sign-out path (manual, expired, deleted account) on one
+  // deterministic exit: clear local data, then replace the protected route.
+  router.replace("/sign-in")
   authDebug("clear-session:done")
 }
 
@@ -285,6 +294,25 @@ function extractUserId(value: unknown): string | null {
   }
 
   return extractUserId(record.session)
+}
+
+function hasExpiredSession(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false
+  }
+
+  const session = (value as Record<string, unknown>).session
+  if (!session || typeof session !== "object" || Array.isArray(session)) {
+    return false
+  }
+
+  const expiresAt = getString((session as Record<string, unknown>).expiresAt)
+  if (!expiresAt) {
+    return false
+  }
+
+  const expiresAtMs = Date.parse(expiresAt)
+  return Number.isFinite(expiresAtMs) && expiresAtMs <= Date.now()
 }
 
 function extractTokenFromCookie(cookie: string | null) {

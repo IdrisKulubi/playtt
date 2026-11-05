@@ -40,12 +40,7 @@ export default function AppLayout() {
     }
   }, [])
 
-  useEffect(() => {
-    void resolveGate()
-  }, [resolveGate])
-
-  // Nobody stays in the app without a session: the moment it ends (sign out, delete,
-  // expiry), whatever screen is open gives way to the auth screens.
+  // The moment a session ends (sign out, delete, expiry), leave for sign-in.
   useEffect(() => onSessionSignedOut(() => setGate("auth")), [])
 
   useFocusEffect(
@@ -59,8 +54,9 @@ export default function AppLayout() {
 
   if (gate === "loading" || gate === "auth" || gate === "onboarding") {
     if (gate === "auth") {
-      // No mode here: a first-time visitor sees the intro, a returning one lands on sign in.
-      return <Redirect href="/" />
+      // /sign-in is a plain form screen that never redirects back, so this
+      // can't loop even when clearSession has already navigated there.
+      return <Redirect href="/sign-in" />
     }
 
     if (gate === "onboarding") {
