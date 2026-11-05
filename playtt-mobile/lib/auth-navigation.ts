@@ -15,11 +15,11 @@ export function goToOnboarding() {
 }
 
 export function goToSignIn() {
-  router.replace("/?mode=sign-in")
+  router.replace("/sign-in")
 }
 
 export function goToSignUp() {
-  router.replace("/?mode=sign-up")
+  router.replace("/sign-up")
 }
 
 export function goToWelcome(replay = false) {

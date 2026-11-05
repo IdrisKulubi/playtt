@@ -2,7 +2,7 @@ import { Redirect, useLocalSearchParams } from "expo-router"
 
 function buildAuthHref(mode: string | string[] | undefined) {
   const value = Array.isArray(mode) ? mode[0] : mode
-  return value === "sign-up" ? "/?mode=sign-up" : "/?mode=sign-in"
+  return value === "sign-up" ? "/sign-up" : "/sign-in"
 }
 
 export default function AuthRedirectScreen() {

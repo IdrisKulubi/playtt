@@ -85,7 +85,7 @@ export default function OnboardingScreen() {
   }
 
   if (!isAuthed) {
-    return <Redirect href="/?mode=sign-in" />
+    return <Redirect href="/sign-in" />
   }
 
   if (!profile && hasStoredAuth) {

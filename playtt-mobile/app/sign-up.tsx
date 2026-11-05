@@ -1,5 +1,5 @@
-import { Redirect } from 'expo-router';
+import { AuthScreen } from "@/components/auth/auth-screen"
 
 export default function SignUpScreen() {
-  return <Redirect href="/?mode=sign-up" />;
+  return <AuthScreen initialMode="sign-up" />
 }

@@ -146,7 +146,7 @@ export function ResetPasswordConfirmForm() {
         <Text style={[styles.link, { color: theme.link }]}>Resend code</Text>
       </Pressable>
 
-      <Pressable onPress={() => router.replace('/?mode=sign-in')}>
+      <Pressable onPress={() => router.replace('/sign-in')}>
         <Text style={[styles.modePrompt, { color: theme.muted }]}>
           <Text style={[styles.modeLink, { color: theme.foreground }]}>Back to sign in</Text>
         </Text>
