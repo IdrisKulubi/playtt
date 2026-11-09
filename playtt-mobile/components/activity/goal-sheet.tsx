@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native"
 import { ActivityRing } from "@/components/activity/activity-ring"
 import { Button } from "@/components/kit/button"
 import { PressableScale } from "@/components/kit/pressable-scale"
-import { Sheet } from "@/components/kit/sheet"
+import { Sheet, type SheetDetent } from "@/components/kit/sheet"
 import { AppText } from "@/components/ui/app-text"
 import { IconSymbol } from "@/components/ui/icon-symbol"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
@@ -16,6 +16,9 @@ import {
   useWeeklyGoal,
   WEEKLY_GOAL_STEP_MINUTES,
 } from "@/lib/weekly-goal"
+
+// A stable array: a new one each render made the Sheet rebuild its gesture on every tap.
+const DETENTS: SheetDetent[] = ["content"]
 
 type GoalSheetProps = {
   visible: boolean
@@ -32,7 +35,7 @@ export function GoalSheet({ visible, onClose, weekMinutes }: GoalSheetProps) {
   const canRaise = goal < MAX_WEEKLY_GOAL_MINUTES
 
   return (
-    <Sheet visible={visible} title="Weekly goal" detents={["content"]} onClose={onClose}>
+    <Sheet visible={visible} title="Weekly goal" detents={DETENTS} onClose={onClose}>
       <View style={styles.stack}>
         <AppText variant="body" color="secondaryLabel">
           How much time do you want at the table each week? Your ring fills as you play.

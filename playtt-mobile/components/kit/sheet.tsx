@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import {
   KeyboardAvoidingView,
   Modal,
@@ -128,13 +128,24 @@ export function Sheet({
   const dragStart = useSharedValue(0)
   const restingStop = useSharedValue(openStop)
 
-  const finishUnmount = useCallback(() => setMounted(false), [])
+  // True while the parent has asked the sheet to close. Gestures must not pull a
+  // closing sheet back open, or it ends up visible-but-"closed" and its invisible
+  // Modal keeps swallowing every tap.
+  const closing = useSharedValue(!visible)
+  const visibleRef = useRef(visible)
+
+  // Only unmount if the parent still wants it closed (it may have reopened meanwhile).
+  const finishUnmount = useCallback(() => {
+    if (!visibleRef.current) setMounted(false)
+  }, [])
 
   // Mount as soon as we're asked to show; unmounting waits for the close animation.
   if (visible && !mounted) setMounted(true)
 
   // Open and parent-driven close.
   useEffect(() => {
+    visibleRef.current = visible
+    closing.set(!visible)
     if (visible) {
       if (!readyToOpen) return
       restingStop.set(openStop)
@@ -148,9 +159,10 @@ export function Sheet({
       return
     }
 
-    const done = (finished?: boolean) => {
+    // Unmount whether or not the animation was interrupted: the parent has closed it.
+    const done = () => {
       "worklet"
-      if (finished) runOnJS(finishUnmount)()
+      runOnJS(finishUnmount)()
     }
     // Already closed by the user's gesture? The spring completes at once.
     if (reducedMotion) {
@@ -176,6 +188,7 @@ export function Sheet({
 
   const settle = (velocity: number) => {
     "worklet"
+    if (closing.get()) return
     const config = spring(Math.abs(velocity) > FLICK_VELOCITY ? "sheet" : "default", velocity)
     const projected = translateY.get() + projectMomentum(velocity)
     const candidates = dismissible ? [...stops, closed] : stops
@@ -200,7 +213,7 @@ export function Sheet({
     .activeOffsetY([-DRAG_THRESHOLD, DRAG_THRESHOLD])
     // Touch-down freezes the sheet where it is, so it can be caught mid-flight.
     .onBegin(() => {
-      cancelAnimation(translateY)
+      if (!closing.get()) cancelAnimation(translateY)
     })
     .onStart(() => {
       dragStart.set(translateY.get())
