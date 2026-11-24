@@ -3,6 +3,7 @@
 
 #include "driver/gpio.h"
 #include "esp_log.h"
+#include "esp_system.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -129,6 +130,18 @@ static void handle_serial_input(void) {
 
   if (ch == 'g' || ch == 'G') {
     log_gpio_levels("manual");
+    return;
+  }
+
+  if (ch == 'w' || ch == 'W') {
+    playtt_console_set_blocking();
+    if (s_state.setup_complete && playtt_nvs_prompt_wifi(&s_state)) {
+      ESP_ERROR_CHECK(playtt_nvs_save(&s_state));
+      ESP_LOGI(TAG, "Wi-Fi saved. Restarting...");
+      vTaskDelay(pdMS_TO_TICKS(500));
+      esp_restart();
+    }
+    playtt_console_set_nonblocking();
     return;
   }
 
@@ -272,7 +285,7 @@ static esp_err_t bootstrap_device(void) {
   ESP_ERROR_CHECK(playtt_api_heartbeat(
       &s_state, (esp_timer_get_time() - s_boot_time_us) / 1000));
 
-  printf("\nReady. Serial: a=point A, b=point B, u=undo A, g=gpio test\n");
+  printf("\nReady. Serial: a=point A, b=point B, u=undo A, g=gpio test, w=change Wi-Fi\n");
   printf("GPIO: %d=A, %d=B, BOOT=%d\n\n", PLAYTT_GPIO_SIDE_A, PLAYTT_GPIO_SIDE_B, PLAYTT_GPIO_BOOT);
   s_scoring_ready = true;
   s_side_a_down = gpio_level_a() == 0;
@@ -295,12 +308,16 @@ void app_main(void) {
   xTaskCreate(gpio_diag_task, "gpio_diag", 4096, NULL, 5, NULL);
 
   while (bootstrap_device() != ESP_OK) {
-    ESP_LOGE(TAG, "Setup incomplete. Retrying in 10 seconds...");
+    ESP_LOGE(TAG, "Setup incomplete. Retrying in 10 seconds... (type w to change Wi-Fi)");
+    // Non-blocking so the retry loop keeps running with no serial monitor attached.
+    playtt_console_set_nonblocking();
     for (int i = 0; i < 500; i += 1) {
       handle_buttons();
       handle_serial_input();
       vTaskDelay(pdMS_TO_TICKS(20));
     }
+    // The setup wizard inside bootstrap_device() needs blocking reads.
+    playtt_console_set_blocking();
   }
 
   playtt_console_set_nonblocking();

@@ -42,3 +42,9 @@ void playtt_console_set_nonblocking(void) {
   fcntl(fileno(stdin), F_SETFL, O_NONBLOCK);
 #endif
 }
+
+void playtt_console_set_blocking(void) {
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+  fcntl(fileno(stdin), F_SETFL, 0);
+#endif
+}

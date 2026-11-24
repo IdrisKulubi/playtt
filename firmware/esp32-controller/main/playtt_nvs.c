@@ -158,6 +158,30 @@ esp_err_t playtt_nvs_erase_all(void) {
   return nvs_flash_erase();
 }
 
+// Replace only the Wi-Fi credentials; enrollment and device credentials are kept.
+bool playtt_nvs_prompt_wifi(playtt_nvs_state_t *state) {
+  char ssid[sizeof(state->wifi_ssid)] = {0};
+  char password[sizeof(state->wifi_password)] = {0};
+
+  printf("\n=== Change Wi-Fi (device enrollment is kept) ===\n");
+  // Skip blank lines left over from the keypress that opened this prompt.
+  for (int attempt = 0; attempt < 3 && ssid[0] == '\0'; attempt += 1) {
+    read_line("New Wi-Fi SSID (2.4 GHz): ", ssid, sizeof(ssid));
+  }
+  if (ssid[0] == '\0') {
+    ESP_LOGW(TAG, "No SSID entered. Wi-Fi unchanged.");
+    return false;
+  }
+  read_line("New Wi-Fi password: ", password, sizeof(password));
+
+  strncpy(state->wifi_ssid, ssid, sizeof(state->wifi_ssid) - 1);
+  state->wifi_ssid[sizeof(state->wifi_ssid) - 1] = '\0';
+  strncpy(state->wifi_password, password, sizeof(state->wifi_password) - 1);
+  state->wifi_password[sizeof(state->wifi_password) - 1] = '\0';
+  ESP_LOGI(TAG, "Wi-Fi set to SSID '%s'", state->wifi_ssid);
+  return true;
+}
+
 bool playtt_nvs_run_setup_wizard(playtt_nvs_state_t *state) {
   memset(state, 0, sizeof(*state));
   strncpy(state->base_url, PLAYTT_DEFAULT_BASE_URL, sizeof(state->base_url) - 1);

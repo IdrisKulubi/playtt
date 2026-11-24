@@ -80,6 +80,7 @@ In the serial monitor:
 - `a` — point for side A
 - `b` — point for side B
 - `u` — correction undo on side A
+- `w` — change Wi-Fi SSID/password (keeps enrollment; the board restarts after saving)
 
 Pressing the red (A) or blue (B) table buttons, or BOOT, should update the hosted TV/kiosk.
 
