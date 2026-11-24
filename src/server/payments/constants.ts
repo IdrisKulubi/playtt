@@ -30,8 +30,14 @@ export function getPaymentCallbackUrl(
   return `${getPaymentReturnUrl()}?${params.toString()}`
 }
 
-export function getProductPaymentCallbackUrl(productType: string) {
+export function getProductPaymentCallbackUrl(
+  productType: string,
+  options?: { client?: "web" | "mobile" }
+) {
   const params = new URLSearchParams({ productType })
+  if (options?.client) {
+    params.set("client", options.client)
+  }
   return `${getPaymentReturnUrl()}?${params.toString()}`
 }
 

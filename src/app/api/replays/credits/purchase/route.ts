@@ -27,7 +27,11 @@ export async function POST(req: NextRequest) {
       session.user.id,
       req.headers.get("x-tenant-id"),
     )
-    const result = await initiateReplayPackPurchase(context, session.user.id)
+    const client = req.nextUrl.searchParams.get("client") === "web" ? "web" : undefined
+    // Body is optional: older mobile builds post nothing and get the default pack.
+    const body = (await req.json().catch(() => null)) as { quantity?: unknown } | null
+    const quantity = body?.quantity === undefined ? undefined : Number(body.quantity)
+    const result = await initiateReplayPackPurchase(context, session.user.id, { client, quantity })
     return replayJson(result)
   } catch (error) {
     if (error instanceof PaymentServiceError) {

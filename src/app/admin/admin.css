@@ -29,7 +29,7 @@
 }
 
 .admin-console__sidebar-footer {
-  @apply mt-auto space-y-3 border-t border-border pt-4;
+  @apply mt-auto border-t border-border/60 pt-1.5;
 }
 
 .admin-console__user {

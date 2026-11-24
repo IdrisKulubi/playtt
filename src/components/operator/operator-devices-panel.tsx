@@ -3,7 +3,13 @@
 import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 
-import { Badge } from "@/components/ui/badge"
+import {
+  GroupedList,
+  LargeTitle,
+  SectionHeader,
+  SegmentedControl,
+  textActionClass,
+} from "@/components/admin/admin-grouped"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -416,39 +422,29 @@ export function OperatorDevicesPanel({
   return (
     <div className="space-y-6">
       {/* Summary + primary action */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-          <span>
-            <span className="font-semibold">{activeDevices.length}</span>{" "}
-            <span className="text-muted-foreground">active</span>
-          </span>
-          <span>
-            <span className="font-semibold text-emerald-500">{onlineCount}</span>{" "}
-            <span className="text-muted-foreground">online</span>
-          </span>
-          {unassignedDevices.length > 0 ? (
-            <span>
-              <span className="font-semibold text-amber-500">
-                {unassignedDevices.length}
-              </span>{" "}
-              <span className="text-muted-foreground">need a table</span>
-            </span>
-          ) : null}
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" disabled={isPending} onClick={refresh}>
-            Refresh
-          </Button>
-          {canManage ? (
-            <Button onClick={() => setShowAdd((value) => !value)}>
-              {showAdd ? "Close" : "Add device"}
-            </Button>
-          ) : null}
-        </div>
-      </div>
+      <LargeTitle
+        title={`${onlineCount} of ${activeDevices.length} online`}
+        subtitle={
+          unassignedDevices.length > 0
+            ? `${unassignedDevices.length} device${unassignedDevices.length === 1 ? "" : "s"} still need a table`
+            : "Every active device has a table"
+        }
+        accessory={
+          <div className="flex items-center gap-5">
+            <button type="button" className={textActionClass} disabled={isPending} onClick={refresh}>
+              Refresh
+            </button>
+            {canManage ? (
+              <Button size="sm" onClick={() => setShowAdd((value) => !value)}>
+                {showAdd ? "Done" : "Add device"}
+              </Button>
+            ) : null}
+          </div>
+        }
+      />
 
       {canManage && showAdd ? (
-        <div className="space-y-4 rounded-2xl border border-border p-4">
+        <div className="space-y-4 rounded-2xl bg-card p-4 ring-1 ring-border/60">
           <div className="flex flex-col gap-3 md:flex-row md:items-end">
             <div className="space-y-2 md:w-72">
               <Label htmlFor="device-type">What are you adding?</Label>
@@ -470,7 +466,7 @@ export function OperatorDevicesPanel({
             </div>
             <Button disabled={isPending} onClick={() => void handleCreateEnrollment()}>
               {deviceType === "venue_edge" || deviceType === "camera"
-                ? "Issue credentials"
+                ? "Issue device credentials"
                 : "Get enrollment code"}
             </Button>
           </div>
@@ -482,20 +478,22 @@ export function OperatorDevicesPanel({
                 : "Use the code during device setup. It works once."}
           </p>
           {enrollmentCode ? (
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm">
-              <span>Enrollment code (shown once):</span>
-              <span className="font-mono text-base font-semibold">{enrollmentCode}</span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => void navigator.clipboard?.writeText(enrollmentCode)}
-              >
-                Copy
-              </Button>
+            <div className="rounded-xl bg-muted/60 px-4 py-3">
+              <p className="text-[13px] text-muted-foreground">Enrollment code · shown once</p>
+              <div className="mt-1 flex items-baseline gap-4">
+                <span className="font-mono text-xl font-semibold tracking-wide">{enrollmentCode}</span>
+                <button
+                  type="button"
+                  className={textActionClass}
+                  onClick={() => void navigator.clipboard?.writeText(enrollmentCode)}
+                >
+                  Copy
+                </button>
+              </div>
             </div>
           ) : null}
           {issuedCredentials ? (
-            <div className="space-y-2 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm">
+            <div className="space-y-2 rounded-xl bg-muted/60 px-4 py-3 text-sm">
               <p className="font-medium">Device credentials (shown once)</p>
               <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-xs">
                 {JSON.stringify(
@@ -519,24 +517,13 @@ export function OperatorDevicesPanel({
       ) : null}
 
       {/* Filters */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-wrap gap-1 rounded-full border border-border p-1">
-          {filterTabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setFilter(tab.id)}
-              className={`rounded-full px-3 py-1.5 text-sm transition-colors ${
-                filter === tab.id
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {tab.label}
-              <span className="ml-1.5 opacity-70">{tab.count}</span>
-            </button>
-          ))}
-        </div>
+      <div className="flex flex-col gap-3 px-4 md:flex-row md:items-center md:justify-between">
+        <SegmentedControl<DeviceFilter>
+          label="Device filters"
+          value={filter}
+          onChange={setFilter}
+          options={filterTabs.map((tab) => ({ value: tab.id, label: tab.label, count: tab.count }))}
+        />
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -547,36 +534,36 @@ export function OperatorDevicesPanel({
       </div>
 
       {notice ? (
-        <p className="rounded-xl bg-emerald-500/10 px-4 py-2 text-sm text-emerald-600 dark:text-emerald-400">
+        <p className="px-4 text-[15px]" role="status">
           {notice}
         </p>
       ) : null}
       {message ? (
-        <p className="rounded-xl bg-destructive/10 px-4 py-2 text-sm text-destructive" role="alert">
+        <p className="px-4 text-[15px] text-destructive" role="alert">
           {message}
         </p>
       ) : null}
 
-      {filter === "revoked" && canManage && revokedDevices.length > 0 ? (
-        <div className="flex items-center justify-between rounded-2xl border border-dashed border-border px-4 py-3 text-sm">
-          <span className="text-muted-foreground">
-            Revoked devices can&apos;t reconnect. You can clear them out.
-          </span>
-          <Button
-            variant="destructive"
-            size="sm"
-            disabled={isPending}
-            onClick={() => void handleDeleteAllRevoked()}
-          >
-            Delete all revoked
-          </Button>
-        </div>
-      ) : null}
-
       {/* Device list */}
-      <div className="space-y-2">
+      <section>
+        <SectionHeader
+          accessory={
+            filter === "revoked" && canManage && revokedDevices.length > 0 ? (
+              <button
+                type="button"
+                className="text-[13px] font-medium text-destructive transition-opacity active:opacity-50"
+                disabled={isPending}
+                onClick={() => void handleDeleteAllRevoked()}
+              >
+                Delete all
+              </button>
+            ) : undefined
+          }
+        >
+          {filter === "active" ? "Active devices" : filter === "unassigned" ? "Needs a table" : "Revoked"}
+        </SectionHeader>
         {visibleDevices.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+          <p className="px-4 py-10 text-center text-[15px] text-muted-foreground">
             {query
               ? "No devices match your search."
               : filter === "unassigned"
@@ -586,112 +573,77 @@ export function OperatorDevicesPanel({
                   : "No devices at this venue yet. Use Add device to enroll one."}
           </p>
         ) : (
-          visibleDevices.map((device) => {
+          <GroupedList>
+          {visibleDevices.map((device) => {
             const assignment = device.currentAssignment
             const tableName = assignment?.resourceId
               ? resourceNameById.get(assignment.resourceId) ?? "Unknown table"
               : null
             const isRevoked = device.status === "revoked"
             const isAssigning = assigningId === device.id
+            const healthText =
+              device.health === "online"
+                ? `Online · seen ${formatRelative(device.lastHeartbeatAt)}`
+                : device.health === "offline"
+                  ? `Offline · last seen ${formatRelative(device.lastHeartbeatAt)}`
+                  : "Not connected yet"
 
             return (
-              <div
-                key={device.id}
-                className={`rounded-2xl border px-4 py-3 ${
-                  !isRevoked && !assignment
-                    ? "border-amber-400/40"
-                    : "border-border"
-                } ${isRevoked ? "opacity-70" : ""}`}
-              >
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div className="min-w-0 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span
-                        aria-hidden
-                        className={`size-2.5 shrink-0 rounded-full ${
-                          device.health === "online"
-                            ? "bg-emerald-500"
-                            : device.health === "offline"
-                              ? "bg-rose-500"
-                              : "bg-muted-foreground/40"
-                        }`}
-                      />
-                      <p className="font-medium">{deviceTypeLabel(device.type)}</p>
-                      {isRevoked ? (
-                        <Badge variant="destructive">revoked</Badge>
-                      ) : device.status === "pending" ? (
-                        <Badge variant="outline">pending</Badge>
-                      ) : null}
-                    </div>
-                    <p className="truncate font-mono text-xs text-muted-foreground">
-                      {device.hardwareUid}
+              <li key={device.id} className="px-4 py-3">
+                <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between md:gap-6">
+                  <div className="min-w-0">
+                    <p className={`text-[15px] font-medium ${isRevoked ? "text-muted-foreground" : ""}`}>
+                      {deviceTypeLabel(device.type)}
+                      {device.status === "pending" ? <span className="font-normal text-muted-foreground"> · pending</span> : null}
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      <span
-                        className={
-                          device.health === "online"
-                            ? "text-emerald-500"
-                            : device.health === "offline"
-                              ? "text-rose-500"
-                              : ""
-                        }
-                      >
-                        {device.health}
-                      </span>
-                      {" · last seen "}
-                      <span title={device.lastHeartbeatAt ?? undefined}>
-                        {formatRelative(device.lastHeartbeatAt)}
-                      </span>
+                    <p className="truncate font-mono text-[12px] text-muted-foreground">{device.hardwareUid}</p>
+                    <p className="mt-0.5 text-[13px] text-muted-foreground">
+                      <span title={device.lastHeartbeatAt ?? undefined}>{isRevoked ? "Revoked" : healthText}</span>
                       {" · "}
                       {assignment ? (
                         <span className="text-foreground">
-                          {tableName ?? "Venue-wide"} · {ROLE_LABELS[assignment.role as OperatorAssignmentRole] ?? assignment.role}
+                          {tableName ?? "Venue-wide"}, {ROLE_LABELS[assignment.role as OperatorAssignmentRole] ?? assignment.role}
                         </span>
                       ) : isRevoked ? (
-                        "not assigned"
+                        "Not assigned"
                       ) : (
-                        <span className="text-amber-500">needs a table</span>
+                        <span className="font-semibold text-foreground">Needs a table</span>
                       )}
                     </p>
                   </div>
 
-                  {canManage ? (
-                    <div className="flex shrink-0 items-center gap-2">
-                      {!isRevoked && !isAssigning ? (
-                        <Button
-                          size="sm"
-                          variant={assignment ? "outline" : "default"}
-                          disabled={isPending}
-                          onClick={() => startAssign(device)}
-                        >
-                          {assignment ? "Change table" : "Assign to table"}
-                        </Button>
-                      ) : null}
+                  {canManage && !isAssigning ? (
+                    <div className="flex shrink-0 items-center gap-5 pt-0.5">
                       {!isRevoked ? (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={isPending}
-                          onClick={() => void handleRevokeDevice(device)}
-                        >
-                          Revoke
-                        </Button>
+                        <>
+                          <button type="button" className={textActionClass} disabled={isPending} onClick={() => startAssign(device)}>
+                            {assignment ? "Change table" : "Assign to table"}
+                          </button>
+                          <button
+                            type="button"
+                            className="text-[13px] font-medium text-destructive transition-opacity active:opacity-50 disabled:opacity-40"
+                            disabled={isPending}
+                            onClick={() => void handleRevokeDevice(device)}
+                          >
+                            Revoke
+                          </button>
+                        </>
                       ) : (
-                        <Button
-                          size="sm"
-                          variant="destructive"
+                        <button
+                          type="button"
+                          className="text-[13px] font-medium text-destructive transition-opacity active:opacity-50 disabled:opacity-40"
                           disabled={isPending}
                           onClick={() => void handleDeleteDevice(device)}
                         >
                           Delete
-                        </Button>
+                        </button>
                       )}
                     </div>
                   ) : null}
                 </div>
 
                 {isAssigning ? (
-                  <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3 md:flex-row md:items-end">
+                  <div className="mt-3 flex flex-col gap-3 border-t border-border/60 pt-3 md:flex-row md:items-end">
                     <div className="space-y-1.5 md:w-56">
                       <Label htmlFor={`table-${device.id}`}>Table</Label>
                       <Select value={assignResourceId} onValueChange={setAssignResourceId}>
@@ -777,11 +729,12 @@ export function OperatorDevicesPanel({
                     </div>
                   </div>
                 ) : null}
-              </div>
+              </li>
             )
-          })
+          })}
+          </GroupedList>
         )}
-      </div>
+      </section>
     </div>
   )
 }

@@ -12,14 +12,17 @@ type PaymentCompleteClientProps = {
   bookingId?: string | null
   client?: "web" | "mobile"
   confirmed: boolean
+  productType?: string
 }
 
 export function PaymentCompleteClient({
   bookingId,
   client = "mobile",
   confirmed,
+  productType,
 }: PaymentCompleteClientProps) {
   const isWeb = client === "web"
+  const isClipPack = productType === "replay_pack"
 
   const openApp = useCallback(() => {
     window.location.href = getPaymentCompleteDeepLink(bookingId)
@@ -57,7 +60,11 @@ export function PaymentCompleteClient({
               {confirmed ? "Payment confirmed" : "Payment received"}
             </h1>
             <p className="text-sm leading-6 text-muted-foreground">
-              {isWeb
+              {isWeb && isClipPack
+                ? confirmed
+                  ? "Your replay clips have been added to your account."
+                  : "We received your payment. Your clips will appear in a moment."
+                : isWeb
                 ? confirmed
                   ? "Your reservation is confirmed. You can return to your bookings."
                   : "We received the callback, but your booking still needs a status check."
@@ -69,7 +76,11 @@ export function PaymentCompleteClient({
         </div>
 
         <div className="flex w-full flex-col items-center gap-3">
-          {isWeb ? (
+          {isWeb && isClipPack ? (
+            <Button asChild size="lg" className="w-full max-w-xs">
+              <Link href="/dashboard">Back to home</Link>
+            </Button>
+          ) : isWeb ? (
             <>
               <Button asChild size="lg" className="w-full max-w-xs">
                 <Link href="/bookings">View bookings</Link>

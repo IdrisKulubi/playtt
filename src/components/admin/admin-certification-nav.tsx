@@ -26,6 +26,4 @@ export function AdminCertificationNav() {
   )
 }
 
-export function runbookHref(runbookPath: string) {
-  return `https://github.com/IdrisKulubi/playtt/blob/main/${runbookPath}`
-}
+export { runbookHref } from "@/components/admin/runbook-href"

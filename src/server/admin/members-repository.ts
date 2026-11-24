@@ -1,4 +1,4 @@
-import { and, count, eq, ilike, or, sql } from "drizzle-orm"
+import { and, count, eq, ilike, notIlike, or, sql } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import { session, tenantMemberships, user } from "@/db/schema"
@@ -58,7 +58,11 @@ export async function listMembers(
   context: TenantContext,
   query?: string,
 ): Promise<AdminMember[]> {
-  const conditions = [eq(tenantMemberships.tenantId, context.tenantId)]
+  const conditions = [
+    eq(tenantMemberships.tenantId, context.tenantId),
+    // Deleted (anonymised) accounts keep their row for bookings; hide them here.
+    notIlike(user.email, "%@deleted.theplaytt.com"),
+  ]
 
   if (query?.trim()) {
     const pattern = `%${query.trim()}%`
@@ -155,28 +159,18 @@ export async function updateMemberMembership(
     throw new TenancyError("FORBIDDEN_ACTION", "Member not found.")
   }
 
-  if (input.role === "owner") {
-    const [ownerCount] = await db
-      .select({ value: count() })
-      .from(tenantMemberships)
-      .where(
-        and(
-          eq(tenantMemberships.tenantId, context.tenantId),
-          eq(tenantMemberships.role, "owner"),
-          eq(tenantMemberships.status, "active"),
-        ),
-      )
-
-    if (
-      member.role === "owner" &&
-      input.status === "disabled" &&
-      Number(ownerCount?.value ?? 0) <= 1
-    ) {
-      throw new TenancyError(
-        "FORBIDDEN_ACTION",
-        "Cannot disable the last active owner.",
-      )
-    }
+  // Never leave the tenant without an active owner (admin), whether by
+  // disabling or by demoting the last one.
+  const losesOwner =
+    member.role === "owner" &&
+    member.status === "active" &&
+    (input.status === "disabled" ||
+      (input.role !== undefined && input.role !== "owner"))
+  if (losesOwner && (await countActiveOwners(context)) <= 1) {
+    throw new TenancyError(
+      "FORBIDDEN_ACTION",
+      "Cannot disable or demote the last active admin.",
+    )
   }
 
   const patch: Partial<typeof tenantMemberships.$inferInsert> = {}

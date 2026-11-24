@@ -51,7 +51,7 @@ export default async function AdminDevicesPage({ searchParams }: PageProps) {
             basePath="/admin/devices"
           />
         </div>
-        <div className="admin-dashboard-card p-5">
+        <div>
           <OperatorDevicesPanel
             venues={venues}
             resources={resources}

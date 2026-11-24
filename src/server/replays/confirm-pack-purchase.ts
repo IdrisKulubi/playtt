@@ -1,6 +1,5 @@
 import { kesToPaystackAmount } from "@/server/payments/constants"
 import type { PaystackTransactionData } from "@/server/payments/types"
-import { REPLAY_PACK_PRICE_KES } from "@/server/replays/constants"
 import {
   confirmAndCreditPackPurchase,
   findProductPaymentByReference,
@@ -42,7 +41,8 @@ export async function confirmReplayPackPurchase(input: {
     return { confirmed: true, reason: "already_confirmed" as const }
   }
 
-  const expectedAmount = kesToPaystackAmount(REPLAY_PACK_PRICE_KES)
+  // Check against what this specific payment was created for, not today's price.
+  const expectedAmount = kesToPaystackAmount(existingPayment.amount)
 
   if (
     input.transaction.amount !== expectedAmount ||

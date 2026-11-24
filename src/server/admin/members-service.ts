@@ -8,6 +8,7 @@ import {
   type AdminMemberRole,
   type AdminSkillLevel,
 } from "@/server/admin/members-repository"
+import { deleteUserAccount } from "@/server/users/delete-account"
 import { authorize } from "@/server/tenancy/authorize-context.mjs"
 import { writeAuditLog } from "@/server/tenancy/audit-log.mjs"
 import { TenancyError } from "@/server/tenancy/errors"
@@ -94,6 +95,101 @@ export async function updateMemberMembershipForAdmin(
   })
 
   return updated
+}
+
+export const MAX_BULK_MEMBERS = 200
+
+export type BulkMemberResult = {
+  succeeded: string[]
+  skipped: { membershipId: string; name: string; reason: string }[]
+}
+
+/**
+ * Deletes member accounts the same way a player deletes their own account:
+ * identifying data is wiped and sign-in is blocked, while bookings and payments
+ * remain for accounting. Admins and the acting user are never deleted here.
+ */
+export async function deleteMembersForAdmin(
+  context: TenantContext,
+  actorUserId: string,
+  membershipIds: string[],
+): Promise<BulkMemberResult> {
+  authorize(context, "membership.manage")
+
+  const result: BulkMemberResult = { succeeded: [], skipped: [] }
+
+  for (const membershipId of membershipIds) {
+    const member = await getMemberById(context, membershipId)
+    if (!member) {
+      result.skipped.push({ membershipId, name: "Unknown", reason: "Member not found." })
+      continue
+    }
+    if (member.userId === actorUserId) {
+      result.skipped.push({ membershipId, name: member.name, reason: "You cannot delete your own account here." })
+      continue
+    }
+    if (member.role === "owner") {
+      result.skipped.push({ membershipId, name: member.name, reason: "Admins must be demoted before they can be deleted." })
+      continue
+    }
+
+    const deleted = await deleteUserAccount(member.userId)
+    if (!deleted.ok) {
+      result.skipped.push({
+        membershipId,
+        name: member.name,
+        reason:
+          deleted.code === "ACTIVE_BOOKINGS"
+            ? "Has upcoming bookings. Cancel them first."
+            : deleted.message,
+      })
+      continue
+    }
+
+    await updateMemberMembership(context, { membershipId, status: "disabled" })
+    await writeAuditLog(context, {
+      action: "membership.delete",
+      targetType: "tenant_membership",
+      targetId: membershipId,
+      metadata: { userId: member.userId, previousRole: member.role },
+    })
+    result.succeeded.push(membershipId)
+  }
+
+  return result
+}
+
+/** Applies the same role/status change to many members, reporting any that were refused. */
+export async function bulkUpdateMembersForAdmin(
+  context: TenantContext,
+  actorUserId: string,
+  membershipIds: string[],
+  patch: { role?: AdminMemberRole; status?: "active" | "disabled" },
+): Promise<BulkMemberResult> {
+  authorize(context, "membership.manage")
+
+  const result: BulkMemberResult = { succeeded: [], skipped: [] }
+  for (const membershipId of membershipIds) {
+    try {
+      if (patch.status === "disabled") {
+        const member = await getMemberById(context, membershipId)
+        if (member?.userId === actorUserId) {
+          result.skipped.push({ membershipId, name: member.name, reason: "You cannot disable yourself." })
+          continue
+        }
+      }
+      await updateMemberMembershipForAdmin(context, actorUserId, { membershipId, ...patch })
+      result.succeeded.push(membershipId)
+    } catch (error) {
+      const member = await getMemberById(context, membershipId).catch(() => null)
+      result.skipped.push({
+        membershipId,
+        name: member?.name ?? "Unknown",
+        reason: error instanceof Error ? error.message : "Could not update member.",
+      })
+    }
+  }
+  return result
 }
 
 export async function addMemberForAdmin(

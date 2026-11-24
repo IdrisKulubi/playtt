@@ -172,6 +172,26 @@ export async function creditPackPurchase(
   })
 }
 
+/**
+ * Clips bought by a pack payment. Prefers our own snapshot, then the Paystack
+ * metadata echo; payments created before per-clip pricing fall back to the
+ * fixed pack size.
+ */
+export function purchasedCredits(
+  stored: Record<string, unknown> | null | undefined,
+  provider: Record<string, unknown> | null | undefined,
+) {
+  const providerMetadata =
+    provider && typeof provider.metadata === "object" && provider.metadata !== null
+      ? (provider.metadata as Record<string, unknown>)
+      : null
+  for (const candidate of [stored?.credits, providerMetadata?.credits]) {
+    const value = Number(candidate)
+    if (Number.isInteger(value) && value > 0) return value
+  }
+  return REPLAY_PACK_CREDITS
+}
+
 export async function confirmAndCreditPackPurchase(
   context: TenantContext,
   input: {
@@ -198,6 +218,9 @@ export async function confirmAndCreditPackPurchase(
       return "payment_not_found" as const
     }
 
+    // How many clips this payment bought, snapshotted when checkout started.
+    const credits = purchasedCredits(payment.rawPayload, input.rawPayload)
+
     if (payment.status !== "paid") {
       const [claimed] = await tx
         .update(productPayments)
@@ -205,7 +228,8 @@ export async function confirmAndCreditPackPurchase(
           status: "paid",
           paidAt: input.paidAt,
           providerEventId: input.providerEventId ?? payment.providerEventId,
-          rawPayload: input.rawPayload,
+          // Keep the snapshot alongside the provider payload.
+          rawPayload: { ...input.rawPayload, credits },
         })
         .where(
           and(
@@ -256,7 +280,7 @@ export async function confirmAndCreditPackPurchase(
       .for("update")
       .limit(1)
 
-    const nextBalance = (balanceRow?.balance ?? 0) + REPLAY_PACK_CREDITS
+    const nextBalance = (balanceRow?.balance ?? 0) + credits
 
     await tx
       .update(replayCreditBalances)
@@ -271,7 +295,7 @@ export async function confirmAndCreditPackPurchase(
     await tx.insert(replayCreditLedger).values({
       tenantId: context.tenantId,
       userId: payment.userId,
-      delta: REPLAY_PACK_CREDITS,
+      delta: credits,
       reason: "pack_purchase",
       productPaymentId: payment.id,
     })

@@ -1,10 +1,16 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { useState } from "react"
+import { toast } from "sonner"
 import type { Icon } from "@phosphor-icons/react"
 import {
+  ArrowSquareOutIcon,
   BellIcon,
+  DotsThreeIcon,
+  FilmSlateIcon,
+  SignOutIcon,
   BuildingsIcon,
   CalendarBlankIcon,
   CpuIcon,
@@ -23,6 +29,14 @@ import {
 } from "@phosphor-icons/react"
 
 import { BrandMark } from "@/components/layout/brand-mark"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { authClient } from "@/lib/auth-client"
 
 type NavItem = {
   href: string
@@ -47,6 +61,7 @@ const navigationGroups: NavGroup[] = [
       { href: "/admin/certification", label: "Certification", icon: MedalIcon },
       { href: "/admin/bookings", label: "Bookings", icon: CalendarBlankIcon },
       { href: "/admin/revenue", label: "Revenue", icon: WalletIcon },
+      { href: "/admin/clips", label: "Replay clips", icon: FilmSlateIcon },
     ],
   },
   {
@@ -122,13 +137,6 @@ export function AdminSidebar({
   userName: string
   userEmail: string
 }) {
-  const initials = userName
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase()
-
   return (
     <aside className="admin-console__sidebar">
       <div className="admin-console__sidebar-brand">
@@ -143,18 +151,71 @@ export function AdminSidebar({
       </nav>
 
       <div className="admin-console__sidebar-footer">
-        <div className="admin-console__user">
-          <div className="admin-console__user-avatar">{initials || "AD"}</div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{userName}</p>
-            <p className="truncate text-xs text-muted-foreground">{userEmail}</p>
-          </div>
-        </div>
-        <Link href="/dashboard" className="admin-console__player-link">
-          Back to player app
-        </Link>
+        <AdminUserMenu userName={userName} userEmail={userEmail} />
       </div>
     </aside>
+  )
+}
+
+/** Name and email with a ⋯ menu for the less frequent account actions. */
+function AdminUserMenu({
+  userName,
+  userEmail,
+}: {
+  userName: string
+  userEmail: string
+}) {
+  const router = useRouter()
+  const [signingOut, setSigningOut] = useState(false)
+
+  async function handleSignOut() {
+    setSigningOut(true)
+    const result = await authClient.signOut()
+    if (result.error) {
+      setSigningOut(false)
+      toast.error(result.error.message || "Couldn't sign out. Try again.")
+      return
+    }
+    router.push("/sign-in")
+    router.refresh()
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left transition-colors duration-100 hover:bg-muted/50 active:bg-muted data-[state=open]:bg-muted/60"
+          aria-label={`Account menu for ${userName}`}
+        >
+          <span className="min-w-0 flex-1 leading-tight">
+            <span className="block truncate text-[13px] font-medium">{userName}</span>
+            <span className="block truncate text-[11px] text-muted-foreground">{userEmail}</span>
+          </span>
+          <DotsThreeIcon size={18} weight="bold" className="shrink-0 text-muted-foreground" aria-hidden />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="top" align="end" sideOffset={8} className="w-56">
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard">
+            <ArrowSquareOutIcon />
+            Back to player app
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          variant="destructive"
+          disabled={signingOut}
+          onSelect={(event) => {
+            event.preventDefault()
+            void handleSignOut()
+          }}
+        >
+          <SignOutIcon />
+          {signingOut ? "Signing out…" : "Sign out"}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 

@@ -10,12 +10,9 @@ import {
   PaystackApiError,
 } from "@/server/payments/paystack-client"
 import { PaymentServiceError } from "@/server/payments/errors"
-import {
-  REPLAY_CLIP_DURATION_SECONDS,
-  REPLAY_PACK_CREDITS,
-  REPLAY_PACK_PRICE_KES,
-} from "@/server/replays/constants"
+import { REPLAY_CLIP_DURATION_SECONDS } from "@/server/replays/constants"
 import { ReplayServiceError } from "@/server/replays/errors"
+import { loadReplayClipPricing } from "@/server/replays/pricing"
 import { isReplayEdgeEnabledForTenant } from "@/server/replays/feature-policy"
 import { createReplayRequest } from "@/server/replays/replay-requests-service"
 import {
@@ -54,15 +51,20 @@ export async function getReplayCreditsStatus(
   userId: string,
 ) {
   authorize(context, "account.read")
-  const [balance, lastPurchasedAt] = await Promise.all([
+  const [balance, lastPurchasedAt, pricing] = await Promise.all([
     getOrCreateCreditBalance(context, userId),
     getLastPackPurchaseAt(context, userId),
+    loadReplayClipPricing(context.tenantId),
   ])
 
   return {
     balance: balance.balance,
-    packCredits: REPLAY_PACK_CREDITS,
-    packPriceKes: REPLAY_PACK_PRICE_KES,
+    // Default bundle (kept for mobile clients that buy a fixed pack).
+    packCredits: pricing.packCredits,
+    packPriceKes: pricing.unitPriceKes * pricing.packCredits,
+    unitPriceKes: pricing.unitPriceKes,
+    minClips: pricing.minClips,
+    maxClips: pricing.maxClips,
     lastPurchasedAt: lastPurchasedAt?.toISOString() ?? null,
   }
 }
@@ -70,8 +72,24 @@ export async function getReplayCreditsStatus(
 export async function initiateReplayPackPurchase(
   context: TenantContext,
   userId: string,
+  options?: { client?: "web" | "mobile"; quantity?: number },
 ) {
   authorize(context, "account.update")
+  // Web buyers come back to the website; the default return deep-links into the app.
+  const callbackUrl = getProductPaymentCallbackUrl("replay_pack", { client: options?.client })
+  const pricing = await loadReplayClipPricing(context.tenantId)
+  // No quantity means an older client buying the default pack.
+  const quantity = options?.quantity ?? pricing.packCredits
+
+  if (!Number.isInteger(quantity) || quantity < pricing.minClips || quantity > pricing.maxClips) {
+    throw new ReplayServiceError(
+      "INVALID_QUANTITY",
+      `Choose between ${pricing.minClips} and ${pricing.maxClips} clips.`,
+      400,
+    )
+  }
+
+  const totalKes = pricing.unitPriceKes * quantity
   const email = await getUserEmail(userId)
 
   if (!email) {
@@ -87,12 +105,13 @@ export async function initiateReplayPackPurchase(
   try {
     initialized = await initializeHostedTransaction({
       email,
-      amount: kesToPaystackAmount(REPLAY_PACK_PRICE_KES),
+      amount: kesToPaystackAmount(totalKes),
       currency: PAYSTACK_CURRENCY,
-      callbackUrl: getProductPaymentCallbackUrl("replay_pack"),
+      callbackUrl,
       metadata: {
         paymentType: "replay_pack",
         userId,
+        credits: String(quantity),
       },
     })
   } catch (error) {
@@ -108,18 +127,25 @@ export async function initiateReplayPackPurchase(
     userId,
     productType: "replay_pack",
     providerReference: initialized.reference,
-    amount: String(REPLAY_PACK_PRICE_KES),
+    amount: String(totalKes),
     currency: PAYSTACK_CURRENCY,
-    rawPayload: initialized as unknown as Record<string, unknown>,
+    // Snapshot what was bought so later price changes can't affect this payment.
+    rawPayload: {
+      ...(initialized as unknown as Record<string, unknown>),
+      credits: quantity,
+      unitPriceKes: pricing.unitPriceKes,
+    },
   })
 
   return {
     method: "hosted" as const,
     reference: initialized.reference,
+    credits: quantity,
+    totalKes,
     status: "pending",
     displayText: "You will be redirected to a secure checkout page.",
     authorizationUrl: initialized.authorization_url,
-    returnUrl: getProductPaymentCallbackUrl("replay_pack"),
+    returnUrl: callbackUrl,
   }
 }
 

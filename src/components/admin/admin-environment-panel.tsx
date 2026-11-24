@@ -1,169 +1,168 @@
-import { Badge } from "@/components/ui/badge"
+"use client"
+
+import Link from "next/link"
+import { useState } from "react"
+
+import {
+  GroupedSection,
+  LargeTitle,
+  ValueRow,
+  textActionClass,
+} from "@/components/admin/admin-grouped"
+import { runbookHref } from "@/components/admin/runbook-href"
 import type {
-  CredentialFingerprint,
+  DeploymentEnvironment,
   EnvironmentOperationsReport,
-  IsolationCheck,
   IsolationCheckStatus,
-  RecoveryObjective,
 } from "@/server/operations/environment-types"
 
-function statusLabel(status: IsolationCheckStatus | EnvironmentOperationsReport["status"]) {
-  switch (status) {
-    case "pass":
-    case "ok":
-      return "Pass"
-    case "warn":
-      return "Warning"
-    case "fail":
-      return "Fail"
-    case "info":
-      return "Info"
+const ENV_LABEL: Record<DeploymentEnvironment, string> = {
+  production: "Production",
+  staging: "Staging",
+  preview: "Preview",
+  development: "Development",
+  unknown: "Unknown environment",
+}
+
+const CHECK_LABEL: Record<IsolationCheckStatus, string> = {
+  fail: "Failed",
+  warn: "Review",
+  info: "Info",
+  pass: "Passed",
+}
+const CHECK_ORDER: Record<IsolationCheckStatus, number> = { fail: 0, warn: 1, info: 2, pass: 3 }
+
+// Fixed locale and zone so the server render and the browser agree.
+const updatedFormat = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Africa/Nairobi",
+  day: "numeric",
+  month: "short",
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+})
+
+function useCopy() {
+  const [copied, setCopied] = useState<string | null>(null)
+  function copy(value: string) {
+    void navigator.clipboard?.writeText(value).then(() => {
+      setCopied(value)
+      window.setTimeout(() => setCopied(null), 1500)
+    })
   }
+  return { copied, copy }
 }
 
-function statusVariant(status: IsolationCheckStatus | EnvironmentOperationsReport["status"]) {
-  switch (status) {
-    case "pass":
-    case "ok":
-      return "default" as const
-    case "warn":
-      return "outline" as const
-    case "fail":
-      return "destructive" as const
-    case "info":
-      return "secondary" as const
-  }
-}
+export function AdminEnvironmentPanel({ report }: { report: EnvironmentOperationsReport }) {
+  const { copied, copy } = useCopy()
+  const failed = report.checks.filter((check) => check.status === "fail").length
+  const warned = report.checks.filter((check) => check.status === "warn").length
+  const passed = report.checks.filter((check) => check.status === "pass").length
+  const checks = [...report.checks].sort((a, b) => CHECK_ORDER[a.status] - CHECK_ORDER[b.status])
+  const fingerprints = [...report.fingerprints].sort((a, b) => Number(a.configured) - Number(b.configured))
+  const commit = report.profile.commit
 
-function StatusBadge({
-  status,
-}: {
-  status: IsolationCheckStatus | EnvironmentOperationsReport["status"]
-}) {
-  return <Badge variant={statusVariant(status)}>{statusLabel(status)}</Badge>
-}
+  const health =
+    failed > 0
+      ? `${failed} isolation check${failed === 1 ? "" : "s"} failed`
+      : warned > 0
+        ? `${warned} check${warned === 1 ? "" : "s"} to review`
+        : "Isolated from other environments"
 
-function IsolationCheckRow({ check }: { check: IsolationCheck }) {
   return (
-    <div className="rounded-xl border border-border/70 px-3 py-2.5">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-sm font-medium">{check.label}</p>
-        <StatusBadge status={check.status} />
+    <div className="space-y-8">
+      <LargeTitle
+        title={ENV_LABEL[report.profile.environment] ?? ENV_LABEL.unknown}
+        subtitle={`${health} · checked ${updatedFormat.format(new Date(report.generatedAt))}`}
+      />
+
+      <div className="grid gap-8 lg:grid-cols-2">
+        <div className="space-y-8">
+          <GroupedSection header="Deployment" footer="Reload the page to re-run every check.">
+            <ValueRow label="Vercel environment" value={report.profile.vercelEnv ?? "Not on Vercel"} />
+            <ValueRow label="Node environment" value={report.profile.nodeEnv} />
+            <ValueRow label="Media storage" value={report.profile.mediaStoreDriver} />
+            <li className="flex items-baseline justify-between gap-4 px-4 py-3 text-[15px]">
+              <span>Commit</span>
+              <span className="flex items-baseline gap-3">
+                <span className="font-mono text-[13px] text-muted-foreground">{commit ? commit.slice(0, 7) : "—"}</span>
+                {commit ? (
+                  <button type="button" className={textActionClass} onClick={() => copy(commit)}>
+                    {copied === commit ? "Copied" : "Copy"}
+                  </button>
+                ) : null}
+              </span>
+            </li>
+          </GroupedSection>
+
+          <GroupedSection
+            header="Isolation checks"
+            headerAccessory={`${passed} of ${report.checks.length} passed`}
+            footer="Confirms this copy isn't sharing production's database, storage or payment keys."
+          >
+            {checks.map((check) => (
+              <li key={check.key} className="px-4 py-3">
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="text-[15px]">{check.label}</span>
+                  <span
+                    className={`shrink-0 text-[13px] ${
+                      check.status === "fail" || check.status === "warn" ? "font-semibold text-foreground" : "text-muted-foreground"
+                    }`}
+                  >
+                    {CHECK_LABEL[check.status]}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">{check.summary}</p>
+                {check.runbookPath ? (
+                  <Link href={runbookHref(check.runbookPath)} target="_blank" rel="noreferrer" className={`mt-1 inline-block ${textActionClass}`}>
+                    Runbook
+                  </Link>
+                ) : null}
+              </li>
+            ))}
+          </GroupedSection>
+        </div>
+
+        <div className="space-y-8">
+          <GroupedSection header="Credentials" footer="Hashed fingerprints for comparing environments. Secrets are never shown.">
+            {fingerprints.map((entry) => (
+              <li key={entry.key} className="flex items-baseline justify-between gap-4 px-4 py-3">
+                <span className="min-w-0 truncate text-[15px]">{entry.label}</span>
+                {entry.configured && entry.fingerprint ? (
+                  <button
+                    type="button"
+                    onClick={() => copy(entry.fingerprint as string)}
+                    className="min-w-0 truncate font-mono text-[13px] text-muted-foreground transition-opacity active:opacity-50"
+                    title="Copy fingerprint"
+                  >
+                    {copied === entry.fingerprint ? "Copied" : entry.fingerprint}
+                  </button>
+                ) : (
+                  <span className="shrink-0 text-[13px] font-semibold">Not set</span>
+                )}
+              </li>
+            ))}
+          </GroupedSection>
+
+          <GroupedSection
+            header="Recovery targets"
+            footer="RPO is how much data we can afford to lose; RTO is how fast we must be back up."
+          >
+            {report.recoveryObjectives.map((objective) => (
+              <li key={objective.key} className="px-4 py-3">
+                <div className="flex items-baseline justify-between gap-4 text-[15px]">
+                  <span>{objective.label}</span>
+                  <span className="text-muted-foreground">{objective.target}</span>
+                </div>
+                <p className="mt-0.5 text-[13px] text-muted-foreground">{objective.measurement}</p>
+                <Link href={runbookHref(objective.runbookPath)} target="_blank" rel="noreferrer" className={`mt-1 inline-block ${textActionClass}`}>
+                  Runbook
+                </Link>
+              </li>
+            ))}
+          </GroupedSection>
+        </div>
       </div>
-      <p className="mt-1 text-sm text-muted-foreground">{check.summary}</p>
-      {check.runbookPath ? (
-        <code className="mt-2 block rounded bg-muted px-2 py-1 text-xs">
-          {check.runbookPath}
-        </code>
-      ) : null}
-    </div>
-  )
-}
-
-function FingerprintRow({ entry }: { entry: CredentialFingerprint }) {
-  return (
-    <div className="rounded-xl border border-border/70 px-3 py-2.5">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-sm font-medium">{entry.label}</p>
-        <Badge variant={entry.configured ? "outline" : "secondary"}>
-          {entry.configured ? "Configured" : "Missing"}
-        </Badge>
-      </div>
-      <p className="mt-1 font-mono text-sm text-muted-foreground">
-        {entry.fingerprint ?? "—"}
-      </p>
-    </div>
-  )
-}
-
-function RecoveryObjectiveRow({ objective }: { objective: RecoveryObjective }) {
-  return (
-    <div className="rounded-xl border border-border/70 px-3 py-2.5">
-      <p className="text-sm font-medium">{objective.label}</p>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Target: {objective.target}
-      </p>
-      <p className="text-sm text-muted-foreground">
-        Measurement: {objective.measurement}
-      </p>
-      <code className="mt-2 block rounded bg-muted px-2 py-1 text-xs">
-        {objective.runbookPath}
-      </code>
-    </div>
-  )
-}
-
-export function AdminEnvironmentPanel({
-  report,
-}: {
-  report: EnvironmentOperationsReport
-}) {
-  return (
-    <div className="space-y-6">
-      <div className="admin-dashboard-card flex flex-wrap items-center justify-between gap-3">
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">Environment isolation</p>
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-2xl font-semibold tracking-[-0.03em] capitalize">
-              {report.profile.environment}
-            </h2>
-            <StatusBadge status={report.status} />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            NODE_ENV={report.profile.nodeEnv}
-            {report.profile.vercelEnv ? ` · VERCEL_ENV=${report.profile.vercelEnv}` : ""}
-            {report.profile.commit ? ` · ${report.profile.commit.slice(0, 7)}` : ""}
-            {` · media=${report.profile.mediaStoreDriver}`}
-          </p>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Updated {new Date(report.generatedAt).toLocaleString()}
-        </p>
-      </div>
-
-      <section className="space-y-3">
-        <div>
-          <h3 className="text-base font-semibold">Isolation checks</h3>
-          <p className="text-sm text-muted-foreground">
-            Verify this runtime is not sharing production database, storage, or
-            payment credentials.
-          </p>
-        </div>
-        <div className="grid gap-3">
-          {report.checks.map((check) => (
-            <IsolationCheckRow key={check.key} check={check} />
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div>
-          <h3 className="text-base font-semibold">Credential fingerprints</h3>
-          <p className="text-sm text-muted-foreground">
-            Hashed identifiers for cross-environment comparison. Secrets are
-            never shown.
-          </p>
-        </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          {report.fingerprints.map((entry) => (
-            <FingerprintRow key={entry.key} entry={entry} />
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div>
-          <h3 className="text-base font-semibold">Recovery objectives</h3>
-          <p className="text-sm text-muted-foreground">
-            Approved RTO/RPO targets and the runbooks used to rehearse recovery.
-          </p>
-        </div>
-        <div className="grid gap-3">
-          {report.recoveryObjectives.map((objective) => (
-            <RecoveryObjectiveRow key={objective.key} objective={objective} />
-          ))}
-        </div>
-      </section>
     </div>
   )
 }

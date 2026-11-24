@@ -1,10 +1,10 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useTransition } from "react"
+import { useState, useTransition } from "react"
+import { toast } from "sonner"
 
-import { Button } from "@/components/ui/button"
-
+/** A quiet text action, iOS style. Flips immediately on press, reverts if saving fails. */
 export function AlertAcknowledgeButton({
   alertId,
   acknowledged,
@@ -14,34 +14,35 @@ export function AlertAcknowledgeButton({
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const [done, setDone] = useState(acknowledged)
 
-  if (acknowledged) {
-    return (
-      <Button size="sm" variant="secondary" disabled>
-        Acknowledged
-      </Button>
-    )
+  if (done) {
+    return <span className="text-muted-foreground">Acknowledged</span>
   }
 
   return (
-    <Button
-      size="sm"
-      variant="outline"
+    <button
+      type="button"
       disabled={pending}
       onClick={() => {
+        setDone(true)
         startTransition(async () => {
-          await fetch("/api/admin/alerts/acknowledge", {
+          const response = await fetch("/api/admin/alerts/acknowledge", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ alertId }),
-          })
+          }).catch(() => null)
+          if (!response?.ok) {
+            setDone(false)
+            toast.error("Couldn't acknowledge the alert. Try again.")
+            return
+          }
           router.refresh()
         })
       }}
+      className="font-medium text-primary transition-opacity active:opacity-50 disabled:opacity-50"
     >
       Acknowledge
-    </Button>
+    </button>
   )
 }

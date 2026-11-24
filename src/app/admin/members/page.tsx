@@ -17,7 +17,11 @@ export default async function AdminMembersPage() {
       backHref="/admin"
       user={adminShellUser(access)}
     >
-      <AdminMembersDashboard members={members} canManage={access.canManageMembers} />
+      <AdminMembersDashboard
+        members={members}
+        canManage={access.canManageMembers}
+        currentUserId={access.userId}
+      />
     </AdminShell>
   )
 }

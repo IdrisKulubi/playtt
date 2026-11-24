@@ -16,14 +16,13 @@ export default async function AdminHealthPage() {
   return (
     <AdminShell
       title="Health"
-      subtitle="Tenant and venue health for devices, edge, sessions, workers, and replay."
+      subtitle="How every venue, device and service is doing right now."
       backHref="/admin"
       user={adminShellUser(access)}
     >
-      <div className="space-y-6">
+      <AdminTenantHealthOverview overview={overview}>
         <AdminActiveAlertsStrip alertsOverview={alertsOverview} />
-        <AdminTenantHealthOverview overview={overview} />
-      </div>
+      </AdminTenantHealthOverview>
     </AdminShell>
   )
 }

@@ -20,7 +20,7 @@ export default async function AdminAlertsPage() {
   return (
     <AdminShell
       title="Alerts"
-      subtitle="Active operational alerts derived from tenant health with recovery runbooks."
+      subtitle="What's broken right now, who owns it, and how to fix it."
       backHref="/admin/health"
       user={adminShellUser(access)}
     >

@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation"
 
 import { auth } from "../../../../auth"
 import { PlayerShell } from "@/components/layout/player-shell"
+import { ReplayShareButton } from "@/components/replay/replay-share-button"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getReplayDetailForUser } from "@/server/replays/playback"
@@ -76,9 +77,16 @@ export default async function ReplayDetailPage({ params }: ReplayDetailPageProps
             Playback link expires{" "}
             {replayDateFormatter.format(new Date(replay.playbackExpiresAt))}
           </p>
-          <Button asChild variant="outline">
-            <Link href="/activity">Back to activity</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <ReplayShareButton
+              videoUrl={replay.playbackUrl}
+              title={replay.title}
+              className="inline-flex h-9 items-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity active:opacity-70 disabled:opacity-60"
+            />
+            <Button asChild variant="outline">
+              <Link href="/dashboard">Back to home</Link>
+            </Button>
+          </div>
         </div>
       </div>
     </PlayerShell>

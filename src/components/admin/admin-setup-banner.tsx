@@ -1,32 +1,25 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { GroupedSection } from "@/components/admin/admin-grouped"
 import type { TenantMembershipRole } from "@/server/tenancy/types"
 
 export function AdminSetupBanner({ role }: { role?: TenantMembershipRole }) {
   return (
-    <Card className="border-amber-500/30 bg-amber-500/5">
-      <CardHeader>
-        <CardTitle className="text-base">Super Admin setup required</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2 text-sm text-muted-foreground">
+    <GroupedSection
+      header="Finish admin setup"
+      footer="Then sign out and sign back in."
+    >
+      <li className="px-4 py-3 text-[15px]">
         <p>
-          Your account role is <strong className="text-foreground">{role ?? "unknown"}</strong>.
-          To add venues, manage vendors, and control the platform, promote your account to{" "}
-          <strong className="text-foreground">owner</strong>.
+          Your role is <span className="font-semibold">{role ?? "unknown"}</span>. To add venues, manage vendors and
+          control the platform, your account needs the <span className="font-semibold">owner</span> role.
         </p>
-        <ol className="list-decimal space-y-1 pl-5">
-          <li>
-            Add <code className="rounded bg-muted px-1">PLAYTT_ADMIN_EMAIL=your@email.com</code>{" "}
-            to <code className="rounded bg-muted px-1">.env.local</code>
-          </li>
-          <li>
-            Run{" "}
-            <code className="rounded bg-muted px-1">
-              node --env-file=.env.local scripts/promote-admin-owner.mjs
-            </code>
-          </li>
-          <li>Sign out and sign back in</li>
-        </ol>
-      </CardContent>
-    </Card>
+      </li>
+      <li className="px-4 py-3 text-[13px] text-muted-foreground">
+        1. Add <code className="font-mono text-foreground">PLAYTT_ADMIN_EMAIL=your@email.com</code> to{" "}
+        <code className="font-mono text-foreground">.env.local</code>
+      </li>
+      <li className="px-4 py-3 text-[13px] text-muted-foreground">
+        2. Run <code className="font-mono text-foreground">node --env-file=.env.local scripts/promote-admin-owner.mjs</code>
+      </li>
+    </GroupedSection>
   )
 }

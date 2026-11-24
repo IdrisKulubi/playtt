@@ -13,7 +13,7 @@ export default async function AdminEnvironmentPage() {
   return (
     <AdminShell
       title="Environment"
-      subtitle="Deployment classification, credential isolation, and recovery objectives."
+      subtitle="Which environment this is, whether it's safely isolated, and how we recover."
       backHref="/admin"
       user={adminShellUser(access)}
     >

@@ -2,7 +2,6 @@
 
 import {
   ArrowDownIcon,
-  CheckCircleIcon,
   CopyIcon,
   DesktopTowerIcon,
   DownloadSimpleIcon,
@@ -241,9 +240,56 @@ export function NvrOnboardingPanel({
     Boolean(installer.downloadUrl) &&
     (installer.signed || pilotAcknowledged)
   const hasInstallation = Boolean(installationHref)
+  // Once a PC is connected, setup is rarely needed again; keep it out of the way.
+  // (Also shows the success summary as soon as a first-time pairing lands.)
+  const [expanded, setExpanded] = useState(false)
+
+  if (hasInstallation && !expanded) {
+    return (
+      <section
+        aria-labelledby="venue-edge-setup-title"
+        className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div>
+          <h2
+            id="venue-edge-setup-title"
+            className="text-[15px] font-semibold"
+          >
+            {setup.complete ? "Setup complete" : "Venue PC connected"}
+          </h2>
+          <p className="text-[13px] text-muted-foreground">
+            {setup.complete
+              ? "Adding another PC or reinstalling? Open the setup steps."
+              : setup.detail}
+          </p>
+        </div>
+        <div className="flex items-center gap-5">
+          {!setup.complete && installationHref ? (
+            <Link href={installationHref} className="text-[13px] font-medium text-primary">
+              {setup.action}
+            </Link>
+          ) : null}
+          <button
+            type="button"
+            className="text-[13px] font-medium text-primary transition-opacity active:opacity-50"
+            onClick={() => setExpanded(true)}
+          >
+            Set up another PC
+          </button>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section aria-labelledby="venue-edge-setup-title" className="space-y-6">
+      {hasInstallation ? (
+        <div className="flex justify-end">
+          <Button variant="ghost" size="sm" onClick={() => setExpanded(false)}>
+            Hide setup
+          </Button>
+        </div>
+      ) : null}
       <header className="max-w-3xl space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <h2
@@ -253,7 +299,7 @@ export function NvrOnboardingPanel({
             Set up a venue PC
           </h2>
           {hasInstallation ? (
-            <Badge variant="secondary">{setup.complete ? "Setup complete" : "VenueEdge detected"}</Badge>
+            <Badge variant="secondary">Adding another PC</Badge>
           ) : null}
         </div>
         <p className="text-sm leading-6 text-muted-foreground">
@@ -273,11 +319,7 @@ export function NvrOnboardingPanel({
             className={`flex gap-3 p-4 ${index > 0 ? "border-t border-border sm:border-t-0 sm:border-l" : ""}`}
           >
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-background text-sm font-semibold ring-1 ring-border">
-              {hasInstallation ? (
-                <CheckCircleIcon className="text-emerald-700" weight="fill" />
-              ) : (
-                number
-              )}
+              {number}
             </span>
             <div className="min-w-0">
               <div className="flex items-center gap-2 font-medium">
@@ -393,25 +435,7 @@ export function NvrOnboardingPanel({
           <h3 className="font-heading text-lg font-semibold">
             Connect this venue
           </h3>
-          {hasInstallation ? (
-            <div className="mt-4 flex gap-3 rounded-xl bg-emerald-50 p-4 text-emerald-950 ring-1 ring-emerald-200">
-              <CheckCircleIcon
-                className="mt-0.5 size-5 shrink-0 text-emerald-700"
-                weight="fill"
-              />
-              <div>
-                <p className="font-medium">{setup.title}</p>
-                <p className="mt-1 text-sm leading-5">
-                  {setup.detail}
-                </p>
-                {installationHref ? (
-                  <Button asChild size="sm" className="mt-3">
-                    <Link href={installationHref}>{setup.action}</Link>
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-          ) : freshPairingCode ? (
+          {freshPairingCode ? (
             <div className="mt-4">
               <p className="text-sm text-muted-foreground">
                 Enter this code when the installer opens VenueEdge setup.
@@ -440,6 +464,9 @@ export function NvrOnboardingPanel({
           ) : (
             <div className="mt-4 space-y-4">
               <p className="text-sm leading-6 text-muted-foreground">
+                {hasInstallation
+                  ? "A PC is already connected here. Create a new code only to add another PC or reinstall. "
+                  : ""}
                 Create the code when you are beside the venue PC. It expires
                 after 15 minutes and contains no camera credentials.
               </p>

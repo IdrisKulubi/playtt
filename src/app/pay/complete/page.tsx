@@ -11,6 +11,7 @@ type PaymentCompletePageProps = {
   searchParams: Promise<{
     bookingId?: string
     client?: string
+    productType?: string
     reference?: string
     trxref?: string
   }>
@@ -31,6 +32,7 @@ export default async function PaymentCompletePage({
       bookingId={bookingId}
       client={client}
       confirmed={confirmed}
+      productType={params.productType}
     />
   )
 }

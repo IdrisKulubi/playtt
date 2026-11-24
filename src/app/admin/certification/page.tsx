@@ -1,10 +1,6 @@
-import Link from "next/link"
-
-import { AdminCertificationNav } from "@/components/admin/admin-certification-nav"
-import { AdminCertificationPanel } from "@/components/admin/admin-certification-panel"
+import { AdminCertificationDashboard } from "@/components/admin/admin-certification-panel"
 import { AdminShell } from "@/components/admin/admin-shell"
 import { adminShellUser } from "@/components/admin/admin-utils"
-import { Button } from "@/components/ui/button"
 import { requireAdminPageAccess } from "@/server/admin/gate"
 import {
   getPhase5CertificationReport,
@@ -16,7 +12,7 @@ export const dynamic = "force-dynamic"
 
 export default async function AdminCertificationPage() {
   const access = await requireAdminPageAccess()
-  const [phase5Report, phase7Report, phase8Report] = await Promise.all([
+  const reports = await Promise.all([
     getPhase5CertificationReport(access.context),
     getPhase7CertificationReport(access.context),
     getPhase8CertificationReport(access.context),
@@ -25,21 +21,11 @@ export default async function AdminCertificationPage() {
   return (
     <AdminShell
       title="Certification"
-      subtitle="Phase 5 access rollout, Phase 7 operations readiness, and Phase 8 VenueEdge certification."
+      subtitle="What's done and what's left before each rollout phase is signed off."
       backHref="/admin"
       user={adminShellUser(access)}
-      actions={
-        <Button asChild size="sm">
-          <Link href="#phase-p8">Phase 8</Link>
-        </Button>
-      }
     >
-      <AdminCertificationNav />
-      <div className="space-y-10">
-        <AdminCertificationPanel report={phase5Report} anchorId="phase-p5" />
-        <AdminCertificationPanel report={phase7Report} anchorId="phase-p7" />
-        <AdminCertificationPanel report={phase8Report} anchorId="phase-p8" />
-      </div>
+      <AdminCertificationDashboard reports={reports} />
     </AdminShell>
   )
 }

@@ -1,104 +1,92 @@
 import { headers } from "next/headers"
 
-import { DashboardAccountStrip } from "@/components/dashboard/dashboard-account-strip"
-import { DashboardEmptyState } from "@/components/dashboard/dashboard-empty-state"
 import { DashboardErrorState } from "@/components/dashboard/dashboard-error-state"
-import { DashboardHero } from "@/components/dashboard/dashboard-hero"
-import { DashboardLastSessionCard } from "@/components/dashboard/dashboard-last-session-card"
-import { DashboardQuickLinks } from "@/components/dashboard/dashboard-quick-links"
+import {
+  DashboardMoreLinks,
+  DashboardPrimaryActions,
+  DashboardRecentReplays,
+  DashboardSignedOut,
+  type DashboardCredits,
+  type DashboardReplay,
+} from "@/components/dashboard/dashboard-home"
 import { DashboardSessionPanel } from "@/components/dashboard/dashboard-session-panel"
 import {
-  isPastBooking,
   isSessionStartingSoon,
   needsBookingPayment,
 } from "@/components/bookings/booking-utils"
 import { PlayerShell } from "@/components/layout/player-shell"
 import { auth } from "../../../auth"
 import { listBookingsForUserEnriched } from "@/server/bookings/service"
+import { getReplayCreditsStatus, listUserReplays } from "@/server/replays/service"
 import { resolveTenantContextForUserId } from "@/server/tenancy/session-context"
 import type { UserBookingSummary } from "@/server/bookings/types"
 
 export const dynamic = "force-dynamic"
 
-function getDashboardBookings(bookings: UserBookingSummary[]) {
+/** The booking that matters most right now: one waiting for payment, else the next one. */
+function getActiveBooking(bookings: UserBookingSummary[]) {
   const now = Date.now()
   const paymentNeeded = bookings.find((booking) => needsBookingPayment(booking))
-  const upcoming = bookings.find(
-    (booking) =>
-      new Date(booking.endTime).getTime() >= now && !needsBookingPayment(booking),
-  )
-  const lastCompleted = bookings
-    .filter((booking) => isPastBooking(booking, now))
-    .sort(
-      (left, right) =>
-        new Date(right.endTime).getTime() - new Date(left.endTime).getTime(),
-    )[0]
-
-  const activeBooking = paymentNeeded ?? upcoming
-  const startingSoon = activeBooking
-    ? isSessionStartingSoon(activeBooking.startTime)
-    : false
-
-  return { paymentNeeded, upcoming, lastCompleted, activeBooking, startingSoon }
+  const upcoming = bookings
+    .filter((booking) => new Date(booking.endTime).getTime() >= now && !needsBookingPayment(booking))
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0]
+  return paymentNeeded ?? upcoming ?? null
 }
 
 export default async function DashboardPage() {
   const session = await auth.api.getSession({ headers: await headers() })
+  const user = session?.user
 
   let bookings: UserBookingSummary[] = []
+  let replays: DashboardReplay[] = []
+  let credits: DashboardCredits | null = null
   let loadError = false
 
-  if (session?.user) {
+  if (user) {
     try {
-      const context = await resolveTenantContextForUserId(session.user.id)
-      bookings = await listBookingsForUserEnriched({
-        context,
-        userId: session.user.id,
-      })
+      const context = await resolveTenantContextForUserId(user.id)
+      // Replays and credits are secondary: if they fail, the page still works for booking.
+      const [bookingResult, replayResult, creditResult] = await Promise.allSettled([
+        listBookingsForUserEnriched({ context, userId: user.id }),
+        listUserReplays(context, user.id),
+        getReplayCreditsStatus(context, user.id),
+      ])
+      if (bookingResult.status === "fulfilled") bookings = bookingResult.value
+      else loadError = true
+      if (replayResult.status === "fulfilled") replays = replayResult.value
+      if (creditResult.status === "fulfilled") credits = creditResult.value
     } catch {
       loadError = true
     }
   }
 
-  const { paymentNeeded, upcoming, lastCompleted, activeBooking, startingSoon } =
-    getDashboardBookings(bookings)
-
-  const hasActiveSession = Boolean(activeBooking)
-  const showEmptyState = !loadError && session?.user && !hasActiveSession && !lastCompleted
+  const activeBooking = getActiveBooking(bookings)
+  const firstName = user?.name?.trim().split(/\s+/)[0]
+  const readyReplayCount = replays.filter((replay) => replay.status === "ready").length
 
   return (
-    <PlayerShell eyebrow="Your player space" title="Home" backHref="/">
-      <div className="space-y-5">
-        {loadError ? (
-          <DashboardErrorState />
+    <PlayerShell eyebrow="PlayTT" title={firstName ? `Hi ${firstName}` : "Home"}>
+      <div className="space-y-8">
+        {!user ? (
+          <DashboardSignedOut />
         ) : (
           <>
-            {hasActiveSession ? (
-              <>
-                <DashboardSessionPanel
-                  booking={activeBooking!}
-                  startingSoon={startingSoon}
-                />
-                <DashboardHero
-                  paymentNeeded={paymentNeeded}
-                  upcoming={upcoming}
-                  startingSoon={startingSoon}
-                />
-              </>
-            ) : showEmptyState ? (
-              <DashboardEmptyState />
-            ) : lastCompleted ? (
-              <DashboardLastSessionCard booking={lastCompleted} />
+            {loadError ? <DashboardErrorState /> : null}
+
+            {activeBooking ? (
+              <DashboardSessionPanel
+                booking={activeBooking}
+                startingSoon={isSessionStartingSoon(activeBooking.startTime)}
+              />
             ) : null}
 
-            <DashboardQuickLinks />
+            <DashboardPrimaryActions credits={credits} readyReplayCount={readyReplayCount} />
+
+            <DashboardRecentReplays replays={replays} />
+
+            <DashboardMoreLinks name={user.name} email={user.email} />
           </>
         )}
-
-        <DashboardAccountStrip
-          name={session?.user?.name}
-          email={session?.user?.email}
-        />
       </div>
     </PlayerShell>
   )

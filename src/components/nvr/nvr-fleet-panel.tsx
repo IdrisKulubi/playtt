@@ -2,14 +2,23 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useMemo, useState } from "react"
-import { ArrowRightIcon, CheckCircleIcon, DotsThreeIcon, WarningCircleIcon } from "@phosphor-icons/react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { CaretRightIcon } from "@phosphor-icons/react"
 
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  GroupedList,
+  SectionFooter,
+  SectionHeader,
+  SegmentedControl,
+  textActionClass,
+} from "@/components/admin/admin-grouped"
 import type { VenueEdgeInstallationFleetView } from "@/server/replays/venue-edge-fleet"
+
+const AUTO_REFRESH_MS = 30_000
+// Filters only help once there are enough PCs to scan through.
+const FILTER_THRESHOLD = 4
+
+type HealthCheck = { label: string; value: string; problem: boolean }
 
 function formatBytes(value: number) {
   if (value <= 0) return "—"
@@ -23,44 +32,107 @@ function formatBytes(value: number) {
   return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
 }
 
-function formatHeartbeatSummary(installation: VenueEdgeInstallationFleetView) {
+function formatAgo(iso: string | null, now: number) {
+  if (!iso) return "never"
+  const seconds = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000))
+  if (seconds < 60) return `${seconds}s ago`
+  const minutes = Math.round(seconds / 60)
+  if (minutes < 60) return `${minutes} min ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 48) return `${hours} h ago`
+  return new Date(iso).toLocaleDateString("en-GB")
+}
+
+function buildHealthChecks(installation: VenueEdgeInstallationFleetView, now: number): HealthCheck[] {
   const metrics = installation.heartbeatMetrics
-  if (!metrics) return "No heartbeat metrics yet"
+  const online = installation.connectivity === "online"
+  const { enabledCameraCount, cameraCount } = installation.reportedTopology.topology
+  const issues = installation.sourceHealthRows.filter((row) => row.status !== "healthy" && row.status !== "online").length
 
-  const cpu = metrics.cpuPercent === null ? "CPU —" : `CPU ${metrics.cpuPercent.toFixed(0)}%`
-  const memory = `mem ${formatBytes(metrics.freeMemoryBytes)} free`
-  const disk = `disk ${formatBytes(metrics.diskUsageBytes)}`
-  const buffer =
-    metrics.bufferAgeSeconds === null
-      ? "buffer —"
-      : `buffer ${Math.round(metrics.bufferAgeSeconds)}s`
-  const upload = `upload ${metrics.uploadHealth}`
-  const ffmpeg = metrics.ffmpegRunning ? "ffmpeg running" : "ffmpeg stopped"
+  const checks: HealthCheck[] = [
+    {
+      label: "Connection",
+      value: online
+        ? `Online, seen ${formatAgo(installation.lastHeartbeatAt, now)}`
+        : installation.connectivity === "offline"
+          ? `Offline, last seen ${formatAgo(installation.lastHeartbeatAt, now)}`
+          : installation.connectivity.replace(/_/g, " "),
+      problem: !online,
+    },
+    {
+      label: "Cameras",
+      value:
+        cameraCount === 0
+          ? "None found yet"
+          : `${enabledCameraCount} of ${cameraCount} in use${issues > 0 ? `, ${issues} stream warning${issues === 1 ? "" : "s"}` : ""}`,
+      problem: enabledCameraCount === 0 || issues > 0,
+    },
+    {
+      label: "Storage",
+      value: metrics ? `${formatBytes(metrics.diskUsageBytes)} used${installation.diskPressure ? ", running low" : ""}` : "No data yet",
+      problem: installation.diskPressure,
+    },
+    {
+      label: "Replay uploads",
+      value: metrics
+        ? `${metrics.uploadHealth === "healthy" ? "Healthy" : metrics.uploadHealth}${installation.replayQueueDepth > 0 ? `, ${installation.replayQueueDepth} queued` : ""}`
+        : "No data yet",
+      problem: Boolean(metrics && metrics.uploadHealth !== "healthy"),
+    },
+  ]
+  if (installation.hostSleepRisk) {
+    checks.push({ label: "Power", value: installation.hostSleepRiskReason ?? "PC may go to sleep", problem: true })
+  }
+  if (installation.reauthRequiredCount > 0) {
+    checks.push({ label: "Camera logins", value: `${installation.reauthRequiredCount} need a new password`, problem: true })
+  }
+  if (installation.topologyDrift.hasDrift) {
+    checks.push({ label: "Configuration", value: installation.topologyDrift.summary, problem: true })
+  }
+  return checks
+}
 
-  return `${cpu} · ${memory} · ${disk} · ${buffer} · ${upload} · ${ffmpeg}`
+function statusLine(installation: VenueEdgeInstallationFleetView, checks: HealthCheck[]) {
+  if (installation.connectivity === "offline") return "Offline"
+  if (installation.readiness !== "ready") return "Needs attention"
+  const problems = checks.filter((check) => check.problem).length
+  return problems > 0 ? `Ready, ${problems} thing${problems === 1 ? "" : "s"} to check` : "Ready"
 }
 
 export function NvrFleetPanel({ selectedVenueId, initialInstallations }: { selectedVenueId: string; initialInstallations: VenueEdgeInstallationFleetView[] }) {
   const router = useRouter()
   const [installations, setInstallations] = useState(initialInstallations)
   const [healthFilter, setHealthFilter] = useState("all")
-  const [commissioningFilter, setCommissioningFilter] = useState("all")
   const [message, setMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const filtered = useMemo(() => installations.filter((item) => (healthFilter === "all" || item.connectivity === healthFilter) && (commissioningFilter === "all" || item.commissioningState === commissioningFilter)), [installations, healthFilter, commissioningFilter])
+  const [lastUpdated, setLastUpdated] = useState(() => Date.now())
+  const [now, setNow] = useState(() => Date.now())
+  const showFilters = installations.length >= FILTER_THRESHOLD
+  const filtered = useMemo(
+    () => installations.filter((item) => healthFilter === "all" || item.connectivity === healthFilter),
+    [installations, healthFilter],
+  )
 
-  async function refreshFleet() {
-    setLoading(true); setMessage(null)
+  const refreshFleet = useCallback(async (options?: { quiet?: boolean }) => {
+    if (!options?.quiet) { setLoading(true); setMessage(null) }
     try {
       const params = new URLSearchParams({ locationId: selectedVenueId })
-      if (healthFilter !== "all") params.set("health", healthFilter)
-      if (commissioningFilter !== "all") params.set("commissioning", commissioningFilter)
       const response = await fetch(`/api/operator/venue-edge/installations?${params}`)
-      if (!response.ok) return setMessage("Could not refresh VenueEdge fleet.")
+      if (!response.ok) { if (!options?.quiet) setMessage("Could not refresh."); return }
       const payload = (await response.json()) as { data?: { installations?: VenueEdgeInstallationFleetView[] } }
       setInstallations(payload.data?.installations ?? [])
-    } catch { setMessage("Could not refresh VenueEdge fleet.") } finally { setLoading(false) }
-  }
+      setLastUpdated(Date.now())
+    } catch { if (!options?.quiet) setMessage("Could not refresh.") } finally { if (!options?.quiet) setLoading(false) }
+  }, [selectedVenueId])
+
+  // Keep status live without the operator pressing Refresh.
+  useEffect(() => {
+    const refreshTimer = setInterval(() => {
+      if (document.visibilityState === "visible") void refreshFleet({ quiet: true })
+    }, AUTO_REFRESH_MS)
+    const clockTimer = setInterval(() => setNow(Date.now()), 5_000)
+    return () => { clearInterval(refreshTimer); clearInterval(clockTimer) }
+  }, [refreshFleet])
 
   async function handleRemoveInstallation(installation: VenueEdgeInstallationFleetView) {
     if (!window.confirm(`Remove ${installation.displayName} from the active fleet? Historical replay and audit records will be preserved.`)) return
@@ -68,38 +140,122 @@ export function NvrFleetPanel({ selectedVenueId, initialInstallations }: { selec
     try {
       const response = await fetch(`/api/operator/venue-edge/installations/${installation.id}/actions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "revoke", reason: "Removed from active VenueEdge fleet" }) })
       if (!response.ok) { const error = (await response.json()) as { message?: string }; return setMessage(error.message ?? "Could not remove installation.") }
-      await refreshFleet()
+      await refreshFleet({ quiet: true })
       router.refresh()
       setMessage(`${installation.displayName} was removed. Historical records were preserved.`)
     } catch { setMessage("Could not remove installation.") } finally { setLoading(false) }
   }
 
   return (
-    <Card className="overflow-visible rounded-2xl shadow-none">
-      <CardHeader className="flex flex-row items-start justify-between gap-4 border-b pb-5">
-        <div className="space-y-1"><CardTitle className="text-lg">VenueEdge fleet</CardTitle><p className="max-w-2xl text-sm text-muted-foreground">One clear next step for every installation at this venue.</p></div>
-        <Button variant="outline" onClick={() => void refreshFleet()} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</Button>
-      </CardHeader>
-      <CardContent className="space-y-5 pt-5">
-        <div className="flex flex-wrap gap-3" aria-label="Fleet filters">
-          <Select value={healthFilter} onValueChange={setHealthFilter}><SelectTrigger className="w-full sm:w-48"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All connectivity</SelectItem><SelectItem value="online">Online</SelectItem><SelectItem value="offline">Offline</SelectItem><SelectItem value="pending_setup">Pending setup</SelectItem></SelectContent></Select>
-          <Select value={commissioningFilter} onValueChange={setCommissioningFilter}><SelectTrigger className="w-full sm:w-52"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All commissioning</SelectItem><SelectItem value="commissioned">Commissioned</SelectItem><SelectItem value="not_commissioned">Not commissioned</SelectItem></SelectContent></Select>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-3 px-4">
+        <p className="text-[13px] text-muted-foreground" suppressHydrationWarning>
+          Updated {formatAgo(new Date(lastUpdated).toISOString(), now)} · refreshes automatically
+        </p>
+        <button type="button" className={textActionClass} onClick={() => void refreshFleet()} disabled={loading}>
+          {loading ? "Refreshing…" : "Refresh"}
+        </button>
+      </div>
+
+      {showFilters ? (
+        <div className="px-4">
+          <SegmentedControl<string>
+            label="Connectivity"
+            value={healthFilter}
+            onChange={setHealthFilter}
+            options={[
+              { value: "all", label: "All" },
+              { value: "online", label: "Online" },
+              { value: "offline", label: "Offline" },
+              { value: "pending_setup", label: "Setting up" },
+            ]}
+          />
         </div>
-        {message ? <p role="status" className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{message}</p> : null}
-        {filtered.length === 0 ? <div className="py-12 text-center"><p className="font-medium">No installations match these filters</p><p className="mt-1 text-sm text-muted-foreground">Change a filter or pair a venue PC below.</p></div> : (
-          <ul className="divide-y" aria-label="VenueEdge installations">
-            {filtered.map((installation) => {
-              const ready = installation.readiness === "ready"
-              return <li key={installation.id} className="grid gap-5 py-5 first:pt-0 last:pb-0 lg:grid-cols-[minmax(12rem,1.1fr)_minmax(14rem,1.4fr)_minmax(12rem,1fr)_auto] lg:items-center">
-                <div className="flex min-w-0 items-center gap-2"><span className={`grid size-8 shrink-0 place-items-center rounded-full ${ready ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"}`}>{ready ? <CheckCircleIcon size={19} weight="fill" /> : <WarningCircleIcon size={19} weight="fill" />}</span><div className="min-w-0"><p className="truncate font-semibold">{installation.displayName}</p><p className="text-xs text-muted-foreground">{installation.platform} · {installation.architecture} · agent {installation.currentAgentVersion}{installation.desiredAgentVersion ? ` → ${installation.desiredAgentVersion}` : ""}</p><p className="text-xs text-muted-foreground">update {installation.updateStatus}{installation.lastUpdateOutcome ? ` · last ${installation.lastUpdateOutcome}` : ""} · {installation.updateChannel}{installation.pinnedVersion ? ` · pinned ${installation.pinnedVersion}` : ""}{installation.lastSuccessfulVersion ? ` · last ok ${installation.lastSuccessfulVersion}` : ""}</p></div></div>
-                <div><div className="flex flex-wrap items-center gap-2"><Badge variant={ready ? "default" : "outline"}>{ready ? "Ready" : "Action required"}</Badge><span className="text-xs text-muted-foreground">{installation.connectivity}</span>{installation.diskPressure ? <Badge variant="outline">Disk pressure</Badge> : null}</div><p className="mt-2 text-sm font-medium">{installation.nextAction.detail}</p><p className="mt-1 text-xs text-muted-foreground">{formatHeartbeatSummary(installation)}</p>{installation.sourceHealthRows.length > 0 ? <p className="mt-1 text-xs text-muted-foreground">{installation.sourceHealthRows.filter((row) => row.status !== "healthy" && row.status !== "online").length} source issue{installation.sourceHealthRows.filter((row) => row.status !== "healthy" && row.status !== "online").length === 1 ? "" : "s"} reported</p> : null}</div>
-                <dl className="grid grid-cols-2 gap-3 text-sm lg:block"><div><dt className="text-xs text-muted-foreground">Reported</dt><dd>{installation.reportedTopology.topology.nvrCount} NVR · {installation.reportedTopology.topology.enabledCameraCount}/{installation.reportedTopology.topology.cameraCount} cameras</dd></div><div className="lg:mt-2"><dt className="text-xs text-muted-foreground">Configuration</dt><dd>desired v{installation.desiredTopology.revisionVersion ?? "—"} · applied v{installation.appliedTopology.revisionVersion ?? "—"}</dd></div></dl>
-                <div className="flex items-center gap-2 lg:justify-end"><Button asChild className="min-w-36"><Link href={installation.nextAction.href}>{installation.nextAction.label}<ArrowRightIcon /></Link></Button><details className="relative"><summary className="grid size-10 cursor-pointer list-none place-items-center rounded-full text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`More actions for ${installation.displayName}`}><DotsThreeIcon size={22} weight="bold" /></summary><div className="absolute right-0 z-20 mt-2 min-w-44 rounded-xl bg-popover p-1 shadow-md ring-1 ring-border"><button className="w-full rounded-lg px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10 disabled:opacity-50" disabled={loading} onClick={() => void handleRemoveInstallation(installation)}>Remove from fleet</button></div></details></div>
-              </li>
-            })}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+      ) : null}
+
+      {message ? <p role="status" className="px-4 text-[15px]">{message}</p> : null}
+
+      {installations.length === 0 ? (
+        <div className="px-4 py-10 text-center">
+          <p className="text-[17px] font-semibold">No venue PC connected yet</p>
+          <p className="mt-1 text-[15px] text-muted-foreground">Follow the setup steps below to install VenueEdge on the venue PC.</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <p className="px-4 py-10 text-center text-[15px] text-muted-foreground">No venue PCs match this filter.</p>
+      ) : (
+        filtered.map((installation) => {
+          const checks = buildHealthChecks(installation, now)
+          const metrics = installation.heartbeatMetrics
+          return (
+            <section key={installation.id} className="space-y-1">
+              <SectionHeader
+                accessory={
+                  <button
+                    type="button"
+                    className="text-[13px] text-muted-foreground transition-opacity hover:text-destructive active:opacity-50"
+                    disabled={loading}
+                    onClick={() => void handleRemoveInstallation(installation)}
+                  >
+                    Remove from fleet
+                  </button>
+                }
+              >
+                {installation.displayName}
+              </SectionHeader>
+              <GroupedList>
+                <li>
+                  <Link
+                    href={installation.nextAction.href}
+                    className="flex items-center gap-3 px-4 py-3 transition-colors duration-100 hover:bg-muted/30 active:bg-muted/60"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[15px] font-semibold">{statusLine(installation, checks)}</p>
+                      <p className="text-[13px] text-muted-foreground">{installation.nextAction.detail}</p>
+                    </div>
+                    <span className="shrink-0 text-[15px] text-primary">{installation.nextAction.label}</span>
+                    <CaretRightIcon size={14} className="shrink-0 text-muted-foreground/50" aria-hidden />
+                  </Link>
+                </li>
+                {checks.map((check) => (
+                  <li key={check.label} className="flex items-baseline justify-between gap-4 px-4 py-3 text-[15px]">
+                    <span>{check.label}</span>
+                    <span
+                      className={`min-w-0 text-right ${check.problem ? "font-semibold text-foreground" : "text-muted-foreground"}`}
+                      suppressHydrationWarning
+                    >
+                      {check.value}
+                    </span>
+                  </li>
+                ))}
+              </GroupedList>
+              <details className="group">
+                <summary className="cursor-pointer list-none px-4 pt-1.5 text-[13px] text-primary">
+                  <span className="group-open:hidden">Show technical details</span>
+                  <span className="hidden group-open:inline">Hide technical details</span>
+                </summary>
+                <dl className="mt-2 grid gap-x-6 gap-y-1.5 px-4 text-[13px] sm:grid-cols-2">
+                  {[
+                    ["System", `${installation.platform} · ${installation.architecture}`],
+                    ["Agent", `${installation.currentAgentVersion}${installation.desiredAgentVersion ? ` → ${installation.desiredAgentVersion}` : ""} · ${installation.updateChannel}${installation.pinnedVersion ? ` · pinned ${installation.pinnedVersion}` : ""}`],
+                    ["Updates", `${installation.updateStatus}${installation.lastUpdateOutcome ? ` · last ${installation.lastUpdateOutcome}` : ""}${installation.lastSuccessfulVersion ? ` · last ok ${installation.lastSuccessfulVersion}` : ""}`],
+                    ["Configuration", `desired v${installation.desiredTopology.revisionVersion ?? "—"} · applied v${installation.appliedTopology.revisionVersion ?? "—"}`],
+                    ["Recorders", `${installation.reportedTopology.topology.nvrCount} NVR · ffmpeg ${metrics?.ffmpegRunning ? "running" : "idle"}`],
+                    ["Resources", metrics ? `CPU ${metrics.cpuPercent === null ? "—" : `${metrics.cpuPercent.toFixed(0)}%`} · ${formatBytes(metrics.freeMemoryBytes)} RAM free · buffer ${metrics.bufferAgeSeconds === null ? "—" : `${Math.round(metrics.bufferAgeSeconds)}s`}` : "No heartbeat metrics yet"],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex gap-2">
+                      <dt className="w-24 shrink-0 text-muted-foreground">{label}</dt>
+                      <dd className="min-w-0">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </details>
+            </section>
+          )
+        })
+      )}
+      {installations.length > 0 ? (
+        <SectionFooter>Tap the status row to open the installation and its next step.</SectionFooter>
+      ) : null}
+    </div>
   )
 }
