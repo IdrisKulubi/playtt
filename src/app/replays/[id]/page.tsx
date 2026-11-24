@@ -79,6 +79,7 @@ export default async function ReplayDetailPage({ params }: ReplayDetailPageProps
           </p>
           <div className="flex items-center gap-2">
             <ReplayShareButton
+              replayId={replay.id}
               videoUrl={replay.playbackUrl}
               title={replay.title}
               className="inline-flex h-9 items-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity active:opacity-70 disabled:opacity-60"

@@ -2,21 +2,19 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { toast } from "sonner"
 import {
   ArrowRightIcon,
   ClockIcon,
   CreditCardIcon,
   MapPinIcon,
   PencilSimpleIcon,
-  ShareNetworkIcon,
   UsersThreeIcon,
 } from "@phosphor-icons/react"
 
 import { BookingPaymentButton } from "@/components/bookings/booking-payment-button"
+import { InviteCrewButton } from "@/components/bookings/invite-crew-sheet"
 import {
   buildDirectionsUrl,
-  buildSessionShareText,
   canShowAccessPolicy,
   formatBookingTimeRange,
   formatEditWindowLabel,
@@ -69,31 +67,6 @@ function StartsInLabel({ startTime }: { startTime: string }) {
     <Badge variant="outline" className="border-primary/40 text-primary">
       {label}
     </Badge>
-  )
-}
-
-function InviteCrewButton({ booking }: { booking: UserBookingSummary }) {
-  async function handleShare() {
-    const text = buildSessionShareText(booking)
-
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: "PlayTT session", text })
-        return
-      }
-
-      await navigator.clipboard.writeText(text)
-      toast.success("Session details copied.")
-    } catch {
-      toast.error("Could not share session details.")
-    }
-  }
-
-  return (
-    <Button variant="outline" size="sm" onClick={() => void handleShare()}>
-      <ShareNetworkIcon className="size-4" />
-      Invite crew
-    </Button>
   )
 }
 

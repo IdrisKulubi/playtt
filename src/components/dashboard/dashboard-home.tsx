@@ -134,6 +134,7 @@ export function DashboardRecentReplays({ replays }: { replays: DashboardReplay[]
                 </p>
               </div>
               <ReplayShareButton
+                replayId={replay.id}
                 videoUrl={replay.videoUrl}
                 title={replay.title}
                 className="shrink-0 text-[13px] font-medium text-primary transition-opacity active:opacity-50 disabled:opacity-50"

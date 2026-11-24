@@ -10,18 +10,17 @@ import {
   CreditCardIcon,
   MapPinIcon,
   PencilSimpleIcon,
-  ShareNetworkIcon,
   UsersThreeIcon,
 } from "@phosphor-icons/react"
 
 import { BookingPaymentButton } from "@/components/bookings/booking-payment-button"
+import { InviteCrewButton } from "@/components/bookings/invite-crew-sheet"
 import { BookingAccessCard } from "@/components/bookings/booking-access-card"
 import { BookingCancelHoldButton } from "@/components/bookings/booking-cancel-hold-button"
 import { BookingEditReviewSheet } from "@/components/bookings/booking-edit-review-sheet"
 import {
   type GroupSize,
   buildDirectionsUrl,
-  buildSessionShareText,
   canShowAccessPolicy,
   formatBookingStatus,
   formatBookingTimeRange,
@@ -184,22 +183,6 @@ export function BookingDetailView({
     }
   }
 
-  async function handleShare() {
-    const text = buildSessionShareText(booking)
-
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: "PlayTT session", text })
-        return
-      }
-
-      await navigator.clipboard.writeText(text)
-      toast.success("Session details copied.")
-    } catch {
-      toast.error("Could not share session details.")
-    }
-  }
-
   return (
     <>
       <div className="space-y-5">
@@ -285,10 +268,7 @@ export function BookingDetailView({
             ) : null}
 
             {!showPayment ? (
-              <Button variant="outline" size="sm" onClick={() => void handleShare()}>
-                <ShareNetworkIcon className="size-4" />
-                Invite crew
-              </Button>
+              <InviteCrewButton booking={booking} />
             ) : null}
 
             {directionsUrl ? (
