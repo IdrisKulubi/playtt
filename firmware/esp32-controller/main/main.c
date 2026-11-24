@@ -13,8 +13,26 @@
 #include "playtt_console.h"
 #include "playtt_net.h"
 #include "playtt_nvs.h"
+#include "playtt_portal.h"
+#include "playtt_serial.h"
+#include "playtt_status.h"
 
 static const char *TAG = "playtt_main";
+
+playtt_status_t g_playtt_status = {.stage = PLAYTT_STAGE_NOT_SET_UP};
+
+const char *playtt_stage_name(playtt_stage_t stage) {
+  switch (stage) {
+    case PLAYTT_STAGE_NOT_SET_UP: return "not_set_up";
+    case PLAYTT_STAGE_CONNECTING_WIFI: return "connecting_wifi";
+    case PLAYTT_STAGE_SYNCING_TIME: return "syncing_time";
+    case PLAYTT_STAGE_REGISTERING: return "registering";
+    case PLAYTT_STAGE_WAITING_ASSIGNMENT: return "waiting_assignment";
+    case PLAYTT_STAGE_READY: return "ready";
+    case PLAYTT_STAGE_ERROR: return "error";
+  }
+  return "unknown";
+}
 
 static playtt_nvs_state_t s_state;
 static playtt_event_buffer_t s_buffer;
@@ -122,40 +140,35 @@ static void gpio_diag_task(void *arg) {
   }
 }
 
+/* Scoring shortcuts arrive from the serial task (which owns the USB console). */
 static void handle_serial_input(void) {
-  int ch = getchar();
-  if (ch == EOF) {
-    return;
-  }
-
-  if (ch == 'g' || ch == 'G') {
-    log_gpio_levels("manual");
-    return;
-  }
-
-  if (ch == 'w' || ch == 'W') {
-    playtt_console_set_blocking();
-    if (s_state.setup_complete && playtt_nvs_prompt_wifi(&s_state)) {
-      ESP_ERROR_CHECK(playtt_nvs_save(&s_state));
-      ESP_LOGI(TAG, "Wi-Fi saved. Restarting...");
-      vTaskDelay(pdMS_TO_TICKS(500));
-      esp_restart();
+  char key = 0;
+  while (playtt_serial_take_hotkey(&key)) {
+    if (key == 'g') {
+      log_gpio_levels("manual");
+      continue;
     }
-    playtt_console_set_nonblocking();
-    return;
+    if (!s_scoring_ready) {
+      continue;
+    }
+    if (key == 'a') {
+      queue_press("point", "a", 1);
+    } else if (key == 'b') {
+      queue_press("point", "b", 1);
+    } else if (key == 'u') {
+      queue_press("correction", "a", -1);
+    }
   }
+}
 
-  if (!s_scoring_ready) {
-    return;
-  }
+static void set_stage(playtt_stage_t stage) {
+  g_playtt_status.stage = stage;
+}
 
-  if (ch == 'a') {
-    queue_press("point", "a", 1);
-  } else if (ch == 'b') {
-    queue_press("point", "b", 1);
-  } else if (ch == 'u') {
-    queue_press("correction", "a", -1);
-  }
+static void record_server_error(void) {
+  const char *code = playtt_api_last_error_code();
+  strncpy(g_playtt_status.last_error, code ? code : "", sizeof(g_playtt_status.last_error) - 1);
+  g_playtt_status.last_error[sizeof(g_playtt_status.last_error) - 1] = '\0';
 }
 
 static void probe_candidate_pins(void) {
@@ -241,26 +254,24 @@ static void handle_buttons(void) {
 }
 
 static esp_err_t bootstrap_device(void) {
+  if (!s_state.setup_complete) {
+    set_stage(PLAYTT_STAGE_NOT_SET_UP);
+    ESP_LOGW(TAG,
+             "Not set up yet. Plug into a computer and open theplaytt.com > Devices > Set up controller, "
+             "or type 'setup' + Enter here.");
+    return ESP_FAIL;
+  }
+
   if (!s_network_ready) {
-    ESP_ERROR_CHECK(playtt_net_init());
-
-    if (playtt_nvs_load(&s_state) != ESP_OK || !s_state.setup_complete) {
-      if (!playtt_nvs_run_setup_wizard(&s_state)) {
-        return ESP_FAIL;
-      }
-      ESP_ERROR_CHECK(playtt_nvs_save(&s_state));
-    }
-
-    ESP_ERROR_CHECK(playtt_nvs_begin_boot(&s_state));
-
+    set_stage(PLAYTT_STAGE_CONNECTING_WIFI);
     if (playtt_net_connect(&s_state) != ESP_OK) {
       return ESP_FAIL;
     }
-
     s_network_ready = true;
   }
 
   if (!s_time_synced) {
+    set_stage(PLAYTT_STAGE_SYNCING_TIME);
     if (playtt_net_sync_time() != ESP_OK) {
       return ESP_FAIL;
     }
@@ -268,22 +279,31 @@ static esp_err_t bootstrap_device(void) {
   }
 
   if (!s_state.provisioned) {
+    set_stage(PLAYTT_STAGE_REGISTERING);
     if (playtt_api_provision(&s_state) != ESP_OK) {
+      record_server_error();
+      set_stage(PLAYTT_STAGE_ERROR);
       return ESP_FAIL;
     }
+    g_playtt_status.last_error[0] = '\0';
   }
 
   if (playtt_api_get_config(&s_state) != ESP_OK) {
+    record_server_error();
+    set_stage(PLAYTT_STAGE_WAITING_ASSIGNMENT);
     ESP_LOGW(TAG, "Waiting for operator assignment in theplaytt.com dashboard...");
     return ESP_FAIL;
   }
+  g_playtt_status.last_error[0] = '\0';
   playtt_buffer_init(&s_buffer, &s_state);
 
   s_boot_time_us = esp_timer_get_time();
   s_last_heartbeat_us = s_boot_time_us;
 
-  ESP_ERROR_CHECK(playtt_api_heartbeat(
-      &s_state, (esp_timer_get_time() - s_boot_time_us) / 1000));
+  if (playtt_api_heartbeat(&s_state, (esp_timer_get_time() - s_boot_time_us) / 1000) == ESP_OK) {
+    g_playtt_status.last_heartbeat_ok_ms = esp_timer_get_time() / 1000;
+  }
+  set_stage(PLAYTT_STAGE_READY);
 
   printf("\nReady. Serial: a=point A, b=point B, u=undo A, g=gpio test, w=change Wi-Fi\n");
   printf("GPIO: %d=A, %d=B, BOOT=%d\n\n", PLAYTT_GPIO_SIDE_A, PLAYTT_GPIO_SIDE_B, PLAYTT_GPIO_BOOT);
@@ -307,20 +327,33 @@ void app_main(void) {
   gpio_init();
   xTaskCreate(gpio_diag_task, "gpio_diag", 4096, NULL, 5, NULL);
 
+  playtt_nvs_load(&s_state);
+  ESP_ERROR_CHECK(playtt_net_init());
+  if (s_state.setup_complete) {
+    ESP_ERROR_CHECK(playtt_nvs_begin_boot(&s_state));
+  }
+  /* The serial task owns the USB console from here on (setup page + shortcuts). */
+  playtt_serial_start(&s_state);
+
+  int64_t offline_since_us = esp_timer_get_time();
   while (bootstrap_device() != ESP_OK) {
-    ESP_LOGE(TAG, "Setup incomplete. Retrying in 10 seconds... (type w to change Wi-Fi)");
-    // Non-blocking so the retry loop keeps running with no serial monitor attached.
-    playtt_console_set_nonblocking();
-    for (int i = 0; i < 500; i += 1) {
+    if (s_network_ready) {
+      offline_since_us = esp_timer_get_time();
+    } else if (s_state.setup_complete && !g_playtt_status.hotspot_active &&
+               esp_timer_get_time() - offline_since_us >= (int64_t)PLAYTT_HOTSPOT_AFTER_MS * 1000) {
+      // No saved Wi-Fi works: offer the setup hotspot so a phone can fix it on site.
+      playtt_portal_start();
+    }
+
+    // While the hotspot is up, retry Wi-Fi rarely: each attempt moves the radio and drops phones off it.
+    int wait_ms = g_playtt_status.hotspot_active ? PLAYTT_HOTSPOT_RETRY_MS : 10000;
+    ESP_LOGW(TAG, "Setup incomplete. Retrying in %d seconds...", wait_ms / 1000);
+    for (int elapsed = 0; elapsed < wait_ms; elapsed += 20) {
       handle_buttons();
       handle_serial_input();
       vTaskDelay(pdMS_TO_TICKS(20));
     }
-    // The setup wizard inside bootstrap_device() needs blocking reads.
-    playtt_console_set_blocking();
   }
-
-  playtt_console_set_nonblocking();
 
   while (true) {
     handle_buttons();
@@ -328,7 +361,9 @@ void app_main(void) {
 
     int64_t now = esp_timer_get_time();
     if ((now - s_last_heartbeat_us) >= (PLAYTT_HEARTBEAT_MS * 1000)) {
-      playtt_api_heartbeat(&s_state, (now - s_boot_time_us) / 1000);
+      if (playtt_api_heartbeat(&s_state, (now - s_boot_time_us) / 1000) == ESP_OK) {
+        g_playtt_status.last_heartbeat_ok_ms = now / 1000;
+      }
       s_last_heartbeat_us = now;
     }
 

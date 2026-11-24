@@ -6,6 +6,8 @@ idf_component_register(
         "playtt_api.c"
         "playtt_buffer.c"
         "playtt_console.c"
+        "playtt_serial.c"
+        "playtt_portal.c"
     INCLUDE_DIRS
         "."
     REQUIRES
@@ -13,6 +15,7 @@ idf_component_register(
         esp_driver_usb_serial_jtag
         esp_wifi
         esp_http_client
+        esp_http_server
         esp_netif
         esp_event
         esp_driver_gpio

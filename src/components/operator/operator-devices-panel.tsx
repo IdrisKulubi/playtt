@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 
@@ -434,6 +435,11 @@ export function OperatorDevicesPanel({
             <button type="button" className={textActionClass} disabled={isPending} onClick={refresh}>
               Refresh
             </button>
+            {canManage ? (
+              <Link href="/admin/devices/setup" className={textActionClass}>
+                Set up controller
+              </Link>
+            ) : null}
             {canManage ? (
               <Button size="sm" onClick={() => setShowAdd((value) => !value)}>
                 {showAdd ? "Done" : "Add device"}

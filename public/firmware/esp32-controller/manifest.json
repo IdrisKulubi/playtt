@@ -1,0 +1,29 @@
+{
+  "name": "PlayTT score controller",
+  "chip": "esp32s3",
+  "version": "esp32s3-v1.1.0",
+  "builtAt": "2026-11-24T19:04:38.338Z",
+  "flashMode": "dio",
+  "flashFreq": "80m",
+  "flashSize": "16MB",
+  "files": [
+    {
+      "path": "/firmware/esp32-controller/bootloader.bin",
+      "address": 0,
+      "size": 21088,
+      "sha256": "85e88c472dbe78c59294cc0fd74ec664c8a941188f93a1a8dbdce89bfdf91338"
+    },
+    {
+      "path": "/firmware/esp32-controller/partition-table.bin",
+      "address": 32768,
+      "size": 3072,
+      "sha256": "5295e8c42d6fb5f95e4e8a185932c6191d27cfc5078322475347e40e71af815a"
+    },
+    {
+      "path": "/firmware/esp32-controller/playtt-esp32-controller.bin",
+      "address": 65536,
+      "size": 1039328,
+      "sha256": "82ed627e0b04c309d978422c7acfd685cf2131ab428aec09e7277b6529491509"
+    }
+  ]
+}

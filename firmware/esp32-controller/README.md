@@ -45,18 +45,45 @@ If `set-target` refuses to clean a stale `build/` folder, delete it manually the
 
 After flash, if the monitor shows `waiting for download`, press **RESET** once (without holding BOOT).
 
-## First boot wizard
+## Easiest setup: from the admin dashboard (no IDE)
 
-The serial monitor prompts for:
+In **Chrome or Edge on a computer**, open **Admin → Devices → Set up controller** (`/admin/devices/setup`), plug the ESP32 into the **USB** port (not COM/UART) with a data cable and press **Connect**. From there you can:
 
-0. Press **Enter** once when connected (setup waits for input)
-1. Wi-Fi SSID
-2. Wi-Fi password
-3. Enrollment code
-4. Base URL override (press Enter for `https://www.theplaytt.com`)
-5. Hardware UID (Enter for auto)
+- **Install or update firmware** in the browser (brand-new boards included). Updates write the bootloader, partition table and app at their own offsets, so saved Wi-Fi and registration are kept.
+- **See status**: Wi-Fi network and signal, saved networks, registration, last server error.
+- **Change Wi-Fi**: up to 3 networks, tried in order (e.g. venue router, backup router, phone hotspot). Passwords are never read back.
+- **Register and assign**: creates the enrollment code, sends it, waits for the device to appear and assigns it to the chosen table as score input.
 
-Expected log sequence:
+If a brand-new board isn't detected, hold **BOOT**, tap **RESET**, release BOOT and try again.
+
+### Publishing a firmware build for the dashboard
+
+```bash
+cd firmware/esp32-controller && idf.py build && cd ../..
+node scripts/publish-esp32-firmware.mjs   # -> public/firmware/esp32-controller/
+```
+
+Bump `PLAYTT_FIRMWARE_VERSION` in `main/playtt_config.h` for every release so the page can offer the update.
+
+## Setup hotspot (no computer needed)
+
+If none of the saved networks connect for 2 minutes, the controller opens an open Wi-Fi network **`PlayTT-Setup-xxxxxx`**. Join it with a phone; a sign-in page appears (or open `http://192.168.4.1`). Pick the new Wi-Fi and save; the controller restarts and joins it, keeping its registration. While the hotspot is up it retries the saved networks every 3 minutes.
+
+## USB serial protocol
+
+Send one JSON object per line; replies are one line prefixed with `@@PLAYTT `:
+
+| Command | Effect |
+|---------|--------|
+| `{"cmd":"info"}` | Firmware, stage, Wi-Fi status, saved network names, registration, last error |
+| `{"cmd":"scan"}` | Nearby 2.4 GHz networks |
+| `{"cmd":"set_wifi","networks":[{"ssid":"…","password":"…"}]}` | Replace saved networks, restart |
+| `{"cmd":"register","enrollmentCode":"…","server":"https://…","networks":[…]}` | New registration (fresh hardware UID), restart |
+| `{"cmd":"reboot"}` / `{"cmd":"forget"}` | Restart / erase all settings |
+
+## Setup from a serial monitor
+
+Type `setup` + Enter and answer the prompts (Wi-Fi name, password, enrollment code). Expected log sequence:
 
 ```text
 wifi ok
@@ -80,7 +107,8 @@ In the serial monitor:
 - `a` — point for side A
 - `b` — point for side B
 - `u` — correction undo on side A
-- `w` — change Wi-Fi SSID/password (keeps enrollment; the board restarts after saving)
+- `w` — change Wi-Fi SSID/password (keeps enrollment; the new network goes first, the others stay as backups; the board restarts after saving)
+- `g` — print button pin levels
 
 Pressing the red (A) or blue (B) table buttons, or BOOT, should update the hosted TV/kiosk.
 
