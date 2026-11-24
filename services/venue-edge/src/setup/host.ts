@@ -14,6 +14,7 @@ import { safeLog } from "../health/metrics"
 import type { SourceHealthEngine } from "../health/engine"
 import { renderSetupPage } from "./html"
 import { LocalNvrError, type LocalNvrManager } from "./local-nvr-manager"
+import { discoverRecorders } from "./nvr-discovery"
 import {
   LocalCameraError,
   type LocalCameraManager,
@@ -76,6 +77,11 @@ export interface SetupHostOptions {
   refreshConfiguration?: () => Promise<void>
   cloudDashboardUrl?: string | null
   resetConfigCache?: () => Promise<void> | void
+  /**
+   * Forgets this PC's PlayTT pairing (credentials + cached cloud config) so it
+   * can be paired again with a new code. NVRs, cameras and mappings are kept.
+   */
+  resetPairing?: () => Promise<void>
   enroll?: (pairingCode: string) => Promise<unknown>
   host?: string
 }
@@ -131,6 +137,21 @@ async function handleLocalNvrRoutes(
       verifyCredentials: true,
     })
     return jsonResponse(201, { nvr })
+  }
+
+  // Lists recorders on this network so the installer can pick one instead of typing an IP.
+  if (method === "POST" && pathname === "/api/setup/nvrs/find-on-network") {
+    const [recorders, existing] = await Promise.all([
+      discoverRecorders(),
+      localNvrManager.listPublicNvrs(),
+    ])
+    const added = new Set(existing.map((nvr) => `${nvr.host}:${nvr.rtspPort}`))
+    return jsonResponse(200, {
+      recorders: recorders.map((recorder) => ({
+        ...recorder,
+        alreadyAdded: added.has(`${recorder.host}:${recorder.rtspPort}`),
+      })),
+    })
   }
 
   if (method === "POST" && pathname === "/api/setup/nvrs/discover") {
@@ -661,6 +682,25 @@ export async function startSetupHost(
         method === "PATCH"
       ) {
         jsonBody = await readJsonBody(req)
+      }
+
+      if (method === "POST" && url.pathname === "/api/setup/reset-pairing") {
+        if (!options.resetPairing) {
+          await sendNodeResponse(res, jsonResponse(409, { error: "Resetting the pairing is unavailable." }))
+          return
+        }
+        const confirmation =
+          jsonBody && typeof jsonBody === "object"
+            ? (jsonBody as Record<string, unknown>).confirmation
+            : null
+        if (confirmation !== "RESET PAIRING") {
+          await sendNodeResponse(res, jsonResponse(400, { error: "Confirm the reset to continue." }))
+          return
+        }
+        await options.resetPairing()
+        safeLog("warn", "Pairing reset from the setup page; waiting for a new pairing code")
+        await sendNodeResponse(res, jsonResponse(200, { reset: true }))
+        return
       }
 
       if (method === "POST" && url.pathname === "/api/setup/config/reset-cache") {

@@ -14,7 +14,8 @@ test("camera probe reports the concrete failure and redacts RTSP credentials", (
   })
 
   assert.equal(diagnostic.code, "ffmpeg_failed")
-  assert.match(diagnostic.summary, /exit code 1/)
+  // Plain-language summary still carries the code for support.
+  assert.match(diagnostic.summary, /\(code 1\)/)
   assert.match(diagnostic.output ?? "", /Invalid data found/)
   assert.doesNotMatch(diagnostic.output ?? "", /private-password/)
 })

@@ -170,15 +170,15 @@ const RTSP_STATUS_DIAGNOSTICS = new Map<
 export function diagnoseCodecProbe(probe: CodecProbeResult): NvrProbeDiagnostic {
   const base = { exitCode: probe.exitCode, timedOut: probe.timedOut, detectedCodec: probe.codec, output: safeProbeOutput(probe.raw) }
   if (authFailed(probe.raw)) return { ...base, code: "source_auth_failed", summary: "The NVR rejected the RTSP username or password.", action: "Re-enter the dedicated NVR credentials, then test again." }
-  if (probe.timedOut) return { ...base, code: "probe_timed_out", summary: "The stream produced no video within 15 seconds.", action: "Stop other live viewers, confirm the camera is online, then test again." }
+  if (probe.timedOut) return { ...base, code: "probe_timed_out", summary: "The camera didn't send a picture within 15 seconds.", action: "Close the NVR's app or monitor if it's showing this camera live (recorders limit how many can watch at once), check the camera is online, then test again." }
   if (probe.cancelled) return { ...base, code: "probe_cancelled", summary: "The camera check was cancelled before video arrived.", action: "Run the camera check again." }
   if (probe.exitCode !== 0) {
     const rtspStatus = probe.exitCode === null ? undefined : RTSP_STATUS_DIAGNOSTICS.get(probe.exitCode)
     if (rtspStatus) return { ...base, ...rtspStatus }
-    return { ...base, code: "ffmpeg_failed", summary: `FFmpeg could not open the camera stream (exit code ${probe.exitCode ?? "unknown"}).`, action: "Open Technical details and use the final FFmpeg lines to correct the stream or channel settings." }
+    return { ...base, code: "ffmpeg_failed", summary: `The recorder didn't send video for this camera (code ${probe.exitCode ?? "unknown"}).`, action: "Check this camera shows a picture in the NVR's own app. If it does, wait a minute and test again; if it keeps failing, save a support bundle and send it to PlayTT." }
   }
-  if (!probe.codec) return { ...base, code: "video_stream_missing", summary: "The RTSP connection returned no detectable video track.", action: "Confirm the channel and main stream are enabled on the NVR, then test again." }
-  if (!probe.compatible) return { ...base, code: "codec_incompatible", summary: `The stream uses ${probe.codec.toUpperCase()}, but replay capture currently requires H.264.`, action: "Change this camera's main stream encoding to H.264 on the NVR, then test again." }
+  if (!probe.codec) return { ...base, code: "video_stream_missing", summary: "The recorder connected but sent no picture for this camera.", action: "Check the camera is switched on and showing a picture in the NVR's own app, then test again." }
+  if (!probe.compatible) return { ...base, code: "codec_incompatible", summary: `This camera sends ${probe.codec.toUpperCase()} video, which replays can't use yet.`, action: "Choose Find cameras again: PlayTT will try the camera's H.264 sub-stream. For full quality, set the camera's main stream to H.264 in the NVR." }
   return { ...base, code: "ok", summary: `Live ${probe.codec.toUpperCase()} video was detected.`, action: "No action is needed." }
 }
 

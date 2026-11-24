@@ -84,7 +84,7 @@ function buildHealthChecks(installation: VenueEdgeInstallationFleetView, now: nu
     checks.push({ label: "Power", value: installation.hostSleepRiskReason ?? "PC may go to sleep", problem: true })
   }
   if (installation.reauthRequiredCount > 0) {
-    checks.push({ label: "Camera logins", value: `${installation.reauthRequiredCount} need a new password`, problem: true })
+    checks.push({ label: "Camera logins", value: `${installation.reauthRequiredCount} need signing in again on the venue PC`, problem: true })
   }
   if (installation.topologyDrift.hasDrift) {
     checks.push({ label: "Configuration", value: installation.topologyDrift.summary, problem: true })

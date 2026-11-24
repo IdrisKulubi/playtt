@@ -17,6 +17,20 @@ import {
   type CameraChannelProbeRunner,
 } from "./camera-channel-probe"
 
+/** Channels scanned when the caller doesn't say (VIGI NVRs come with 4, 8 or 16). */
+const MAX_SCAN_CHANNELS = 16
+/** Channels checked together; NVRs limit simultaneous RTSP sessions. */
+const SCAN_CONCURRENCY = 2
+/** The scan stops after a whole block of empty channels (beyond the first block). */
+const SCAN_BLOCK_SIZE = 4
+/** Failures that are usually momentary and worth one more try. */
+const RETRYABLE_PROBE_CODES = new Set([
+  "source_busy",
+  "probe_timed_out",
+  "ffmpeg_failed",
+  "video_stream_missing",
+])
+
 export class LocalCameraError extends Error {
   constructor(
     readonly code: string,
@@ -267,6 +281,7 @@ export class LocalCameraManager {
     }>
     skipped: number
     probed: number
+    notes: Array<{ channelKey: string; message: string }>
   }> {
     const nvr = this.repositories.getLocalNvrById(nvrId)
     if (!nvr) {
@@ -281,7 +296,7 @@ export class LocalCameraManager {
       )
     }
 
-    const maxChannels = options?.maxChannels ?? 8
+    const maxChannels = options?.maxChannels ?? MAX_SCAN_CHANNELS
     const created: LocalCameraPublicView[] = []
     const updated: LocalCameraPublicView[] = []
     const unavailable: LocalCameraPublicView[] = []
@@ -292,8 +307,12 @@ export class LocalCameraManager {
       action: string
     }> = []
     let skipped = 0
+    let probed = 0
+    /** Things the installer should know that aren't failures (e.g. H.265 handled via sub-stream). */
+    const notes: Array<{ channelKey: string; message: string }> = []
 
-    for (let channel = 1; channel <= maxChannels; channel += 1) {
+    // Returns whether the channel had live video, so the scan can stop early on empty ranges.
+    const scanChannel = async (channel: number): Promise<"live" | "empty" | "failed"> => {
       const channelKey = String(channel)
       const streamProfile: LocalCameraStreamProfile = "main"
 
@@ -311,13 +330,19 @@ export class LocalCameraManager {
         streamProfile,
       })
 
-      const probe = await this.channelProbeRunner.probe({ liveRtspUrl })
+      const probe = await this.probeWithRetry(liveRtspUrl)
+      probed += 1
       if (!probe.live) {
         if (probe.code === "source_auth_failed") {
           throw new LocalCameraError(
             "source_auth_failed",
             "The NVR rejected the saved username or password. Return to Add NVR, change the credentials, and scan again.",
           )
+        }
+        // No camera on this channel: not a problem, so don't report it as a failure.
+        if (probe.diagnostic?.code === "channel_not_found" && !existing) {
+          skipped += 1
+          return "empty"
         }
         failures.push({
           channelKey,
@@ -366,8 +391,42 @@ export class LocalCameraManager {
         } else {
           skipped += 1
         }
-        continue
+        return "failed"
       }
+
+      // Replays need H.264. If the main stream is H.265, try the camera's
+      // sub-stream, which on most NVRs is H.264, before giving up on the channel.
+      let chosenProfile: LocalCameraStreamProfile = streamProfile
+      let chosenCodec = probe.codec
+      if (probe.codec !== "h264") {
+        const subProbe = await this.probeWithRetry(
+          buildVigiLiveRtspUrl({
+            host: nvr.host,
+            rtspPort: nvr.rtspPort,
+            username: nvr.username,
+            password,
+            channelKey,
+            streamProfile: "sub",
+          }),
+        )
+        if (subProbe.live && subProbe.codec === "h264") {
+          chosenProfile = "sub"
+          chosenCodec = "h264"
+          notes.push({
+            channelKey,
+            message: `Channel ${channelKey}: the main stream is ${probe.codec.toUpperCase()}, so PlayTT will use the H.264 sub-stream (lower resolution). For full quality, set this camera's main stream to H.264 in the NVR and scan again.`,
+          })
+        } else {
+          notes.push({
+            channelKey,
+            message: `Channel ${channelKey} sends ${probe.codec.toUpperCase()} video, which replays can't use yet. Set this camera's main stream to H.264 in the NVR and scan again.`,
+          })
+        }
+      }
+      const target =
+        chosenProfile === streamProfile
+          ? existing
+          : this.repositories.findLocalCameraByNvrChannel(nvrId, channelKey, chosenProfile)
 
       const lastTest: LocalCameraTestSummary = {
         passed: true,
@@ -381,22 +440,22 @@ export class LocalCameraManager {
         ],
       }
 
-      const row = existing
-        ? this.repositories.updateLocalCamera(existing.id, {
-            codec: probe.codec,
+      const row = target
+        ? this.repositories.updateLocalCamera(target.id, {
+            codec: chosenCodec,
             lastTest,
           })!
         : this.repositories.insertLocalCamera({
             id: randomUUID(),
             nvrId,
-            label: defaultCameraLabel(nvr.label, channelKey, streamProfile),
+            label: defaultCameraLabel(nvr.label, channelKey, chosenProfile),
             channelKey,
-            streamProfile,
-            codec: probe.codec,
+            streamProfile: chosenProfile,
+            codec: chosenCodec,
             enabled: false,
           })
 
-      if (!existing) {
+      if (!target) {
         this.repositories.updateLocalCamera(row.id, { lastTest })
       }
 
@@ -407,28 +466,67 @@ export class LocalCameraManager {
         label: row.label,
         channelKey: row.channelKey,
         streamProfile: row.streamProfile,
-        codec: probe.codec,
+        codec: chosenCodec,
         enabled: row.enabled,
         lastTest,
         healthStatus: null,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
       }
-      if (existing) {
+      if (target) {
         updated.push(view)
       } else {
         created.push(view)
       }
+      return "live"
     }
+
+    // Scan in blocks: a few channels in parallel (NVRs cap simultaneous RTSP
+    // sessions), and stop once a whole block beyond the first is empty.
+    for (let start = 1; start <= maxChannels; start += SCAN_BLOCK_SIZE) {
+      const block: number[] = []
+      for (let channel = start; channel < start + SCAN_BLOCK_SIZE && channel <= maxChannels; channel += 1) {
+        block.push(channel)
+      }
+      const outcomes: Array<"live" | "empty" | "failed"> = []
+      for (let index = 0; index < block.length; index += SCAN_CONCURRENCY) {
+        const batch = block.slice(index, index + SCAN_CONCURRENCY)
+        outcomes.push(...(await Promise.all(batch.map((channel) => scanChannel(channel)))))
+      }
+      if (start > SCAN_BLOCK_SIZE && outcomes.every((outcome) => outcome === "empty")) {
+        break
+      }
+    }
+
+    const byChannel = (a: LocalCameraPublicView, b: LocalCameraPublicView) =>
+      Number(a.channelKey) - Number(b.channelKey)
+    created.sort(byChannel)
+    updated.sort(byChannel)
+    unavailable.sort(byChannel)
+    failures.sort((a, b) => Number(a.channelKey) - Number(b.channelKey))
+    notes.sort((a, b) => Number(a.channelKey) - Number(b.channelKey))
 
     return {
       created,
       updated,
       unavailable,
       failures,
+      notes,
       skipped,
-      probed: maxChannels,
+      probed,
     }
+  }
+
+  /**
+   * One automatic retry for problems that are usually momentary: the NVR's
+   * stream limit, a slow first frame, or a dropped connection.
+   */
+  private async probeWithRetry(liveRtspUrl: string) {
+    const first = await this.channelProbeRunner.probe({ liveRtspUrl })
+    const code = first.diagnostic?.code
+    if (first.live || !code || !RETRYABLE_PROBE_CODES.has(code)) return first
+    await new Promise((resolve) => setTimeout(resolve, code === "source_busy" ? 3000 : 1500))
+    return this.channelProbeRunner.probe({ liveRtspUrl })
   }
 
   async resolveCameraRtspUrl(cameraId: string): Promise<string | null> {

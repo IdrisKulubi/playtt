@@ -596,3 +596,34 @@ test("runtime config replaces cloud camera policy with commissioned local choice
     ["7", "8"],
   )
 })
+
+test("enumeration uses the H.264 sub-stream when the main stream is H.265", async () => {
+  // VIGI URLs end in /live/<channel>/<stream>/avm where stream 1 = main, 2 = sub.
+  const { nvrManager, cameraManager } = await createTestStack({
+    channelProbe: {
+      async probe({ liveRtspUrl }) {
+        const match = liveRtspUrl.match(/\/live\/([^/]+)\/(\d)\//)
+        if (match?.[1] !== "1") {
+          return { live: false, codec: "unknown", diagnostic: { code: "channel_not_found" } }
+        }
+        return { live: true, codec: match[2] === "1" ? "h265" : "h264" }
+      },
+    },
+  })
+  const nvr = await nvrManager.createNvr({
+    label: "H265 NVR",
+    vendor: "vigi",
+    host: "192.168.10.60",
+    rtspPort: 554,
+    username: "playtt_edge",
+    password: "enum-secret",
+    testChannelKey: "1",
+  })
+
+  const result = await cameraManager.enumerateCameras(nvr.id, { maxChannels: 4 })
+  assert.equal(result.created.length, 1)
+  assert.equal(result.created[0].streamProfile, "sub")
+  assert.equal(result.created[0].codec, "h264")
+  assert.equal(result.failures.length, 0, "empty channels are not reported as failures")
+  assert.match(result.notes[0].message, /sub-stream/)
+})

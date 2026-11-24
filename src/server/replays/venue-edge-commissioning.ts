@@ -98,6 +98,10 @@ export interface PublishedVenueEdgeCommissioning {
   publishedAt: string
   commissioned: boolean
   installationId: string
+  /** Internal row id; used server-side only (e.g. auto-publish), not sent to the device. */
+  installationRecordId: string
+  reportVersion: number
+  reportChecksumSha256: string
 }
 
 export async function publishVenueEdgeCommissioning(input: {
@@ -233,6 +237,9 @@ export async function publishVenueEdgeCommissioning(input: {
       publishedAt,
       commissioned,
       installationId: installation.installationUid,
+      installationRecordId: installation.id,
+      reportVersion,
+      reportChecksumSha256,
     }
   })
 }

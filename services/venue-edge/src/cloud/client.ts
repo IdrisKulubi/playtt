@@ -14,6 +14,12 @@ export class EdgeProtocolError extends Error {
   }
 }
 
+/** Whether PlayTT published the setup snapshot as the venue configuration right away. */
+export type CommissioningAutoPublish =
+  | { status: "published"; revisionVersion: number }
+  | { status: "needs_approval" }
+  | { status: "failed"; code: string; message: string }
+
 export interface UploadGrant {
   url: string
   expiresAt: string
@@ -256,11 +262,11 @@ export class EdgeV1Client {
 
   async publishCommissioning(
     payload: Record<string, unknown>,
-  ): Promise<{ publishedAt: string }> {
+  ): Promise<{ publishedAt: string; autoPublish?: CommissioningAutoPublish }> {
     const body = (await this.request("/api/edge/v1/commissioning", {
       method: "POST",
       body: payload,
-    })) as { data: { publishedAt: string } }
+    })) as { data: { publishedAt: string; autoPublish?: CommissioningAutoPublish } }
 
     return body.data
   }

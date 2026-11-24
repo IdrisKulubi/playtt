@@ -757,7 +757,10 @@ test("setup wizard shows progress and polls until cloud config applies", () => {
   assert.match(html, /complete-spinner/)
   assert.match(html, /setCompleteStatus/)
   assert.match(html, /Publishing final snapshot to PlayTT/)
-  assert.match(html, /Waiting for PlayTT admin to publish this snapshot/)
+  // Publishing is automatic; the admin-approval wording only shows when a venue requires it.
+  assert.match(html, /Applying the configuration from PlayTT/)
+  assert.match(html, /Waiting for PlayTT admin to publish this setup/)
+  assert.match(html, /autoPublishStatus/)
   assert.match(html, /Latest cloud revision received/)
   assert.match(html, /does not match this PC/)
   assert.match(html, /workflow\.published && workflow\.configApplied/)

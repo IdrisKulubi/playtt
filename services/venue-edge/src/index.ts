@@ -506,6 +506,7 @@ export async function startVenueEdge(
       resetConfigCache: async () => {
         configManager.resetLocalConfigCache()
       },
+      resetPairing: handleDeviceRevoked,
       onConfigurationChanged: async () => {
         await activateRuntimeConfig(configManager.getState().edgeConfigV2)
         await refreshRuntimeSourceRtspUrls()
@@ -619,6 +620,12 @@ async function runSetupOnly(): Promise<void> {
       credentialManager,
     }),
     resetConfigCache: () => repositories.clearConfigSnapshots(),
+    resetPairing: async () => {
+      await credentialManager.wipeAfterRevoke()
+      repositories.invalidateCommissioning()
+      repositories.clearConfigSnapshots()
+      client.clearCredentials()
+    },
     enroll: async (pairingCode) => {
       const enrolled = await enrollVenueEdge({
         pairingCode,

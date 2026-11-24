@@ -3,7 +3,11 @@ import { existsSync, mkdirSync } from "node:fs"
 import { dirname } from "node:path"
 
 import type { EdgeConfigV2 } from "../cloud/config-v2"
-import { EdgeProtocolError, type EdgeV1Client } from "../cloud/client"
+import {
+  EdgeProtocolError,
+  type CommissioningAutoPublish,
+  type EdgeV1Client,
+} from "../cloud/client"
 import type { NvrPasswordStore } from "../auth/nvr-secret-store"
 import type { CredentialManager } from "../auth/credential-manager"
 import type { EdgeRepositories } from "../local-storage/repositories"
@@ -671,7 +675,9 @@ export class CommissioningManager {
     return payload
   }
 
-  async publish(enrolled: boolean): Promise<{ publishedAt: string }> {
+  async publish(
+    enrolled: boolean,
+  ): Promise<{ publishedAt: string; autoPublish?: CommissioningAutoPublish }> {
     if (!enrolled) {
       throw new CommissioningError(
         "not_enrolled",
@@ -692,15 +698,17 @@ export class CommissioningManager {
     // cloud installation. Local topology mutations explicitly invalidate this
     // state, so the durable local flag is the source of truth for the report.
     const payload = this.buildRedactedPublishPayload(state.completed, reportVersion)
+    let autoPublish: CommissioningAutoPublish | undefined
     try {
-      await this.client.publishCommissioning(payload)
+      const result = await this.client.publishCommissioning(payload)
+      autoPublish = result.autoPublish
     } catch (error) {
       rethrowAsCommissioningError(error, "publish_failed")
     }
 
     const publishedAt = new Date().toISOString()
     this.repositories.updateCommissioningState({ publishedAt, reportVersion })
-    return { publishedAt }
+    return { publishedAt, ...(autoPublish ? { autoPublish } : {}) }
   }
 
   async complete(enrolled: boolean): Promise<CommissioningStateRow> {

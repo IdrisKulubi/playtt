@@ -183,13 +183,18 @@ export function renderSetupPage(input: {
           <section class="stage" data-stage="1">
             <div class="stage-intro"><h2>Pair this venue PC</h2><p class="muted">Connect VenueEdge to the correct PlayTT venue before adding equipment.</p></div>
             <div class="panel">
-              ${input.enrollmentStatus === "enrolled" ? `<h3>Paired with PlayTT</h3><p class="muted">This PC has protected device credentials and is ready for equipment setup.</p>` : `<h3>${input.enrollmentStatus === "revoked" ? "Cloud connection removed" : "Connect this venue PC"}</h3><p class="muted">${input.enrollmentStatus === "revoked" ? "This installation no longer exists in PlayTT. Create a new pairing code in the admin dashboard and enter it below." : "Create a one-time pairing code in the PlayTT admin dashboard and enter it below."}</p><form id="enrollment-form"><label>One-time pairing code<input name="pairingCode" autocomplete="one-time-code" required maxlength="32" ${disabledAttr} /></label><div class="actions"><button type="submit" ${disabledAttr}>Pair this VenueEdge</button></div></form>`}
+              ${input.enrollmentStatus === "enrolled" ? `<h3>Paired with PlayTT</h3><p class="muted">This PC has protected device credentials and is ready for equipment setup.</p><details><summary>Pair with a different code</summary><p class="muted">Use this if PlayTT admin asks you to replace this PC, or it was paired to the wrong venue. Your NVRs, cameras and table mappings stay on this PC; you only enter a new pairing code.</p><div class="actions"><button type="button" id="reset-pairing-btn" class="secondary" ${disabledAttr}>Reset pairing</button></div><p id="reset-pairing-message" class="muted" aria-live="polite"></p></details>` :`<h3>${input.enrollmentStatus === "revoked" ? "Cloud connection removed" : "Connect this venue PC"}</h3><p class="muted">${input.enrollmentStatus === "revoked" ? "This installation no longer exists in PlayTT. Create a new pairing code in the admin dashboard and enter it below." : "Create a one-time pairing code in the PlayTT admin dashboard and enter it below."}</p><form id="enrollment-form"><label>One-time pairing code<input name="pairingCode" autocomplete="one-time-code" required maxlength="32" ${disabledAttr} /></label><div class="actions"><button type="submit" ${disabledAttr}>Pair this VenueEdge</button></div></form>`}
               <p id="enrollment-message" class="muted" aria-live="polite"></p>
             </div>
           </section>
 
           <section class="stage" data-stage="2" hidden>
-            <div class="stage-intro"><h2>Add the venue NVR</h2><p class="muted">Enter the recorder on this venue network. We prevent the same host and RTSP port from being added twice.</p></div>
+            <div class="stage-intro"><h2>Add the venue NVR</h2><p class="muted">Pick the recorder this PC found on the network, then enter its login. You can also type the address yourself.</p></div>
+            <div class="panel" id="nvr-finder">
+              <div class="actions"><button type="button" id="find-nvrs-btn" class="secondary" ${disabledAttr}>Find recorders on this network</button></div>
+              <p id="find-nvrs-message" class="muted" aria-live="polite"></p>
+              <div id="find-nvrs-results"></div>
+            </div>
             <form id="nvr-form" class="panel">
               <label>Recorder name<input name="label" placeholder="Main NVR" required ${disabledAttr} /></label>
               <div class="row"><label>Host or IP address<input name="host" placeholder="192.168.0.240" required ${disabledAttr} /></label><label>RTSP port<input name="rtspPort" type="number" value="554" required ${disabledAttr} /></label></div>
@@ -220,8 +225,8 @@ export function renderSetupPage(input: {
           </section>
 
           <section class="stage" data-stage="5" hidden>
-            <div class="stage-intro"><h2>Publish and apply configuration</h2><p class="muted">Send the credential-free topology to PlayTT, approve it in the admin dashboard, and wait for this PC to apply the resulting revision.</p></div>
-            <div class="panel"><pre id="commissioning-checklist" class="muted"></pre><div class="actions"><button type="button" id="commissioning-test-all" class="secondary" ${disabledAttr}>Test enabled cameras</button><button type="button" id="commissioning-publish" ${disabledAttr}>Send snapshot to PlayTT</button>${input.cloudDashboardUrl ? `<button type="button" id="open-cloud-dashboard" class="secondary">Open PlayTT admin</button>` : ""}</div><video id="commissioning-preview" controls></video><p id="commissioning-message" class="muted" aria-live="polite"></p></div>
+            <div class="stage-intro"><h2>Publish and apply configuration</h2><p class="muted">Publish the cameras and table mappings to PlayTT. Passwords stay on this PC. PlayTT applies the setup and this PC picks it up within seconds.</p></div>
+            <div class="panel"><pre id="commissioning-checklist" class="muted"></pre><div class="actions"><button type="button" id="commissioning-test-all" class="secondary" ${disabledAttr}>Test enabled cameras</button><button type="button" id="commissioning-publish" ${disabledAttr}>Publish to PlayTT</button>${input.cloudDashboardUrl ? `<button type="button" id="open-cloud-dashboard" class="secondary">Open PlayTT admin</button>` : ""}</div><video id="commissioning-preview" controls></video><p id="commissioning-message" class="muted" aria-live="polite"></p></div>
           </section>
 
           <section class="stage" data-stage="6" hidden>
@@ -250,6 +255,8 @@ export function renderSetupPage(input: {
         failoverReady: false,
         published: false,
         configApplied: false,
+        // "published" | "needs_approval" | "failed" | null (from the last Publish click)
+        autoPublishStatus: null,
         completed: false,
         enabledCameraCount: 0,
         camerasTested: false,
@@ -411,8 +418,14 @@ export function renderSetupPage(input: {
         }
         if (stage === 4 && !workflow.failoverReady) requirements.push("Assign cameras to every table and complete any required failover checks.");
         if (stage === 5) {
-          if (!workflow.published) requirements.push("Send the setup snapshot to PlayTT.");
-          else if (!workflow.configApplied) requirements.push("In PlayTT admin, approve and publish this installation's configuration, then keep this PC online while it applies.");
+          if (!workflow.published) requirements.push("Choose Publish to PlayTT.");
+          else if (!workflow.configApplied) {
+            requirements.push(
+              workflow.autoPublishStatus === "needs_approval" || workflow.autoPublishStatus === "failed"
+                ? "In PlayTT admin, publish this installation's configuration, then keep this PC online while it applies."
+                : "Keep this PC online while it applies the configuration. This takes a few seconds.",
+            );
+          }
         }
         if (stage === 6 && !workflow.completed) requirements.push("Complete the final commissioning check.");
         return requirements;
@@ -449,6 +462,10 @@ export function renderSetupPage(input: {
         document.querySelectorAll("[data-stage]").forEach((section) => {
           section.hidden = Number(section.dataset.stage) !== currentStage;
         });
+        // First visit to "Add NVR" with nothing added yet: look for recorders straight away.
+        if (currentStage === 2 && workflow.nvrCount === 0 && !nvrSearchDone && workflow.enrolled) {
+          void findRecordersOnNetwork();
+        }
         document.querySelectorAll(".camera-live img").forEach((image, index) => {
           if (currentStage === 3 && index < 4 && !image.getAttribute("src") && image.dataset.liveUrl) image.src = image.dataset.liveUrl;
           if (currentStage !== 3 && image.getAttribute("src")) image.removeAttribute("src");
@@ -637,6 +654,25 @@ export function renderSetupPage(input: {
         }
       });
 
+      document.getElementById("reset-pairing-btn")?.addEventListener("click", async () => {
+        const message = document.getElementById("reset-pairing-message");
+        const ok = window.confirm(
+          "Reset this PC's pairing?\\n\\nIt stops sending replays to PlayTT until you enter a new pairing code. NVRs, cameras and table mappings are kept.",
+        );
+        if (!ok) return;
+        message.textContent = "Resetting pairing…";
+        try {
+          await api("/api/setup/reset-pairing", {
+            method: "POST",
+            body: JSON.stringify({ confirmation: "RESET PAIRING" }),
+          });
+          message.textContent = "Pairing reset. Reloading so you can enter the new code…";
+          window.location.reload();
+        } catch (error) {
+          message.textContent = error.message;
+        }
+      });
+
       async function loadNvrs() {
         const data = await api("/api/setup/nvrs");
         workflow.nvrCount = data.nvrs.length;
@@ -791,10 +827,16 @@ export function renderSetupPage(input: {
                 ? "No cameras found. Channel " + firstFailure.channelKey + ": " + firstFailure.summary + " " + firstFailure.action
                 : "No cameras found. Check that camera channels are enabled on the NVR.";
             } else {
-              message.dataset.state = "success";
+              const problems = (result.failures || []).length;
+              const notes = (result.notes || []).map((note) => note.message);
+              message.dataset.state = problems > 0 || notes.length > 0 ? "checking" : "success";
               message.textContent =
-                "Scan finished. Found " + found + " camera(s); " +
-                result.skipped + " channel(s) did not return video.";
+                "Scan finished. Found " + found + " camera" + (found === 1 ? "" : "s") + "." +
+                (problems > 0
+                  ? " " + problems + " channel" + (problems === 1 ? "" : "s") + " had a problem: " +
+                    result.failures.map((failure) => "channel " + failure.channelKey + " (" + failure.summary + ")").join("; ") + "."
+                  : "") +
+                (notes.length > 0 ? " " + notes.join(" ") : "");
             }
           } catch (error) {
             message.dataset.state = "error";
@@ -1087,9 +1129,10 @@ export function renderSetupPage(input: {
           if (checklist.latestCloudConfigReceived) {
             setCompleteStatus("PlayTT sent a configuration, but it does not match this PC. Publish the latest reviewed snapshot again in PlayTT admin.", false);
             document.getElementById("commissioning-message").textContent = "Configuration received. The camera and recorder list differs from this PC, so commissioning cannot continue yet.";
+          } else if (workflow.autoPublishStatus === "needs_approval" || workflow.autoPublishStatus === "failed") {
+            setCompleteStatus("Waiting for PlayTT admin to publish this setup.", false);
           } else {
-            setCompleteStatus("Waiting for PlayTT admin to publish this snapshot.", false);
-            document.getElementById("commissioning-message").textContent = "Snapshot sent. Publish it in PlayTT admin; this screen will continue automatically.";
+            setCompleteStatus("Applying the configuration from PlayTT…", true);
           }
         }
         if (commissioningPollTimer) clearTimeout(commissioningPollTimer);
@@ -1124,17 +1167,26 @@ export function renderSetupPage(input: {
         const publishButton = document.getElementById("commissioning-publish");
         publishButton.disabled = true;
         publishButton.dataset.busy = "true";
-        publishButton.textContent = "Sending snapshot…";
-        document.getElementById("commissioning-message").textContent = "Publishing snapshot…";
+        publishButton.textContent = "Publishing…";
+        document.getElementById("commissioning-message").textContent = "Sending this setup to PlayTT…";
         try {
-          await api("/api/setup/commissioning/publish", { method: "POST", body: "{}" });
+          const result = await api("/api/setup/commissioning/publish", { method: "POST", body: "{}" });
+          const autoPublish = result && result.autoPublish;
+          workflow.autoPublishStatus = autoPublish ? autoPublish.status : "needs_approval";
+          const message = document.getElementById("commissioning-message");
+          if (autoPublish && autoPublish.status === "published") {
+            message.textContent = "Published to PlayTT (version " + autoPublish.revisionVersion + "). Applying it on this PC now; this screen continues by itself.";
+          } else if (autoPublish && autoPublish.status === "failed") {
+            message.textContent = "PlayTT saved this setup but couldn't publish it: " + autoPublish.message + " Publish it from PlayTT admin; this screen continues by itself.";
+          } else {
+            message.textContent = "PlayTT saved this setup. This venue requires an admin to approve changes: publish it in PlayTT admin and this screen continues by itself.";
+          }
           await loadCommissioning();
-          document.getElementById("commissioning-message").textContent = "Snapshot received by PlayTT. Open the admin dashboard to review and publish the configuration.";
         } catch (error) {
           document.getElementById("commissioning-message").textContent = error.message;
         } finally {
           publishButton.dataset.busy = "false";
-          publishButton.textContent = "Send snapshot to PlayTT";
+          publishButton.textContent = "Publish to PlayTT";
           await loadCommissioning().catch(() => {});
         }
       });
@@ -1508,6 +1560,66 @@ export function renderSetupPage(input: {
           submitButton.textContent = "Verify & add NVR";
         }
       });
+
+      // Finds recorders on the LAN and fills the form when one is picked.
+      // var, not let: renderStages() may read this before this line runs.
+      var nvrSearchDone = false;
+      async function findRecordersOnNetwork() {
+        const button = document.getElementById("find-nvrs-btn");
+        const message = document.getElementById("find-nvrs-message");
+        const results = document.getElementById("find-nvrs-results");
+        if (!button || !message || !results) return;
+        nvrSearchDone = true;
+        button.disabled = true;
+        message.dataset.state = "checking";
+        message.textContent = "Looking for recorders on this network… (about 5 seconds)";
+        results.innerHTML = "";
+        try {
+          const data = await api("/api/setup/nvrs/find-on-network", { method: "POST", body: "{}", timeoutMs: 45000 });
+          const found = (data.recorders || []).filter((item) => item.rtspOpen || item.likelyRecorder);
+          if (found.length === 0) {
+            message.dataset.state = "error";
+            message.textContent = "No recorders found. Check the NVR is powered on and plugged into the same router as this PC, or type its address below.";
+            return;
+          }
+          message.dataset.state = "success";
+          message.textContent = found.length === 1 ? "Found 1 device. Tap it to fill in the form." : "Found " + found.length + " devices. Tap the recorder to fill in the form.";
+          for (const item of found) {
+            const pick = document.createElement("button");
+            pick.type = "button";
+            pick.className = "secondary";
+            pick.style.display = "block";
+            pick.style.width = "100%";
+            pick.style.textAlign = "left";
+            pick.style.marginTop = "8px";
+            const title = item.name || item.model || (item.likelyRecorder ? "Recorder" : "Video device");
+            const detail = [item.host, item.model && item.model !== title ? item.model : null, item.likelyRecorder ? "recorder" : null, item.alreadyAdded ? "already added" : null]
+              .filter(Boolean)
+              .join(" · ");
+            pick.textContent = title + " — " + detail;
+            pick.disabled = item.alreadyAdded;
+            pick.addEventListener("click", () => {
+              const form = document.getElementById("nvr-form");
+              form.host.value = item.host;
+              form.rtspPort.value = String(item.rtspPort || 554);
+              if (!form.label.value) form.label.value = item.name || "Main NVR";
+              form.username.focus();
+              const nvrMessage = document.getElementById("nvr-message");
+              if (nvrMessage) {
+                nvrMessage.dataset.state = "";
+                nvrMessage.textContent = "Address filled in. Enter the NVR's username and password, then choose Verify & add NVR.";
+              }
+            });
+            results.appendChild(pick);
+          }
+        } catch (error) {
+          message.dataset.state = "error";
+          message.textContent = error.message;
+        } finally {
+          button.disabled = false;
+        }
+      }
+      document.getElementById("find-nvrs-btn")?.addEventListener("click", () => void findRecordersOnNetwork());
 
       document.getElementById("discover-btn")?.addEventListener("click", async () => {
         const form = document.getElementById("nvr-form");

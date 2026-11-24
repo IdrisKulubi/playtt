@@ -7,6 +7,7 @@ import {
   assertCommissioningReportChecksum,
   publishVenueEdgeCommissioning,
 } from "@/server/replays/venue-edge-commissioning"
+import { autoPublishVenueEdgeSnapshot } from "@/server/replays/venue-edge-auto-publish"
 
 const boundedText = (max: number) => z.string().trim().min(1).max(max)
 const nullableBoundedText = (max: number) =>
@@ -170,7 +171,24 @@ export async function POST(req: NextRequest) {
       auditContext: auth.context,
     })
 
-    return deviceJson(result)
+    // Publish the setup right away so the installer doesn't need the dashboard.
+    const autoPublish = await autoPublishVenueEdgeSnapshot({
+      tenantId: auth.device.tenantId,
+      locationId: auth.device.locationId,
+      deviceId: auth.device.id,
+      installationRecordId: result.installationRecordId,
+      reportVersion: result.reportVersion,
+      reportChecksumSha256: result.reportChecksumSha256,
+      payload: body as Record<string, unknown>,
+      auditContext: auth.context,
+    })
+
+    return deviceJson({
+      publishedAt: result.publishedAt,
+      commissioned: result.commissioned,
+      installationId: result.installationId,
+      autoPublish,
+    })
   } catch (error) {
     return mapDeviceError(error)
   }
