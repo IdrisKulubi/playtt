@@ -159,6 +159,8 @@ export class CommissioningManager {
   }
 
   buildChecklist(enrolled: boolean): CommissioningChecklist {
+    // Recompute first so the checklist never reports a stale failover flag.
+    this.updateFailoverReadyFlag()
     const state = this.repositories.getCommissioningState()
     const enabledCameras = this.repositories
       .listLocalCameras()
@@ -178,8 +180,6 @@ export class CommissioningManager {
         return existsSync(previewPath)
       })
 
-    this.updateFailoverReadyFlag()
-
     const blockingReasons: string[] = []
 
     if (enabledCameras.length === 0) {
@@ -195,7 +195,7 @@ export class CommissioningManager {
       )
     }
     if (!state.failoverReady) {
-      blockingReasons.push("Complete failover drills for mapped resources.")
+      blockingReasons.push("Check that each table's backup camera takes over (Map tables does this when you choose a backup).")
     }
 
     const baseConfig = this.getEdgeConfigV2()
@@ -230,7 +230,7 @@ export class CommissioningManager {
     if (!enrolled) {
       blockingReasons.push("Pair VenueEdge with PlayTT before commissioning.")
     } else if (!state.publishedAt) {
-      blockingReasons.push("Publish commissioning snapshot to PlayTT.")
+      blockingReasons.push("Choose Publish to PlayTT.")
     } else if (!configApplied) {
       blockingReasons.push(
         latestCloudConfigReceived
@@ -548,12 +548,23 @@ export class CommissioningManager {
   }
 
   private updateFailoverReadyFlag(): void {
+    // Tables that PlayTT has turned off (or no longer lists) cannot capture
+    // replays and cannot run a drill, so they must not block commissioning.
+    const config = this.getEdgeConfigV2()
+    const activeResourceIds = config
+      ? new Set(
+          config.resources
+            .filter((resource) => resource.enabled)
+            .map((resource) => resource.resourceId),
+        )
+      : null
     const mappedResourceIds = [
       ...new Set(
         this.repositories
           .listAllLocalResourceRoutes()
           .filter((route) => route.enabled)
-          .map((route) => route.resourceId),
+          .map((route) => route.resourceId)
+          .filter((resourceId) => !activeResourceIds || activeResourceIds.has(resourceId)),
       ),
     ]
 

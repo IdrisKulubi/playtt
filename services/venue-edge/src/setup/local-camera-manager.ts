@@ -60,12 +60,18 @@ function parseCodec(value: unknown): LocalCameraCodec {
   throw new LocalCameraError("invalid_codec", "Codec must be h264, h265, or unknown.")
 }
 
-function defaultCameraLabel(
-  nvrLabel: string,
-  channelKey: string,
-  streamProfile: LocalCameraStreamProfile,
-): string {
-  return `${nvrLabel} ch${channelKey} (${streamProfile})`
+/** Plain name for a newly found camera; the recorder and stream are shown separately. */
+function defaultCameraLabel(channelKey: string): string {
+  return `Camera ${channelKey}`
+}
+
+/** True when the operator never renamed the camera (current or older naming). */
+function isDefaultCameraLabel(label: string, nvrLabel: string, channelKey: string): boolean {
+  return (
+    label === defaultCameraLabel(channelKey) ||
+    label === `${nvrLabel} ch${channelKey} (main)` ||
+    label === `${nvrLabel} ch${channelKey} (sub)`
+  )
 }
 
 export class LocalCameraManager {
@@ -82,7 +88,16 @@ export class LocalCameraManager {
   }
 
   async listPublicCameras(): Promise<LocalCameraPublicView[]> {
-    const cameras = this.repositories.listLocalCameras()
+    const nvrs = this.repositories.listLocalNvrs()
+    const nvrOrder = new Map(nvrs.map((nvr, index) => [nvr.id, index]))
+    // Group by recorder, then by channel number, so the list reads like the NVR.
+    const cameras = [...this.repositories.listLocalCameras()].sort(
+      (left, right) =>
+        (nvrOrder.get(left.nvrId) ?? 0) - (nvrOrder.get(right.nvrId) ?? 0) ||
+        Number(left.channelKey) - Number(right.channelKey) ||
+        left.channelKey.localeCompare(right.channelKey) ||
+        left.streamProfile.localeCompare(right.streamProfile),
+    )
     const views: LocalCameraPublicView[] = []
 
     for (const camera of cameras) {
@@ -93,6 +108,8 @@ export class LocalCameraManager {
         id: camera.id,
         nvrId: camera.nvrId,
         nvrLabel: nvr?.label ?? "Unknown NVR",
+        nvrHost: nvr?.host ?? null,
+        nvrEnabled: nvr?.enabled ?? false,
         label: camera.label,
         channelKey: camera.channelKey,
         streamProfile: camera.streamProfile,
@@ -100,6 +117,7 @@ export class LocalCameraManager {
         enabled: camera.enabled,
         lastTest: camera.lastTest,
         healthStatus: health?.status ?? null,
+        healthReasonCode: health?.reasonCode ?? null,
         createdAt: camera.createdAt,
         updatedAt: camera.updatedAt,
       })
@@ -155,7 +173,7 @@ export class LocalCameraManager {
     const label =
       typeof input.label === "string" && input.label.trim().length > 0
         ? input.label.trim()
-        : defaultCameraLabel(nvr.label, channelKey, streamProfile)
+        : defaultCameraLabel(channelKey)
 
     const row = this.repositories.insertLocalCamera({
       id: randomUUID(),
@@ -226,7 +244,9 @@ export class LocalCameraManager {
     }
 
     const configurationChanged = Object.keys(patch).length > 0
-    if (configurationChanged) {
+    // Renaming does not change the video, so the last camera check still holds.
+    const streamChanged = Object.keys(patch).some((key) => key !== "label")
+    if (streamChanged) {
       patch.lastTest = null
     }
 
@@ -316,11 +336,11 @@ export class LocalCameraManager {
       const channelKey = String(channel)
       const streamProfile: LocalCameraStreamProfile = "main"
 
-      const existing = this.repositories.findLocalCameraByNvrChannel(
-        nvrId,
-        channelKey,
-        streamProfile,
-      )
+      // A channel is one physical camera. Earlier scans may have saved it as the
+      // main or the sub stream, so look at both before deciding to create one.
+      const existing =
+        this.repositories.findLocalCameraByNvrChannel(nvrId, channelKey, "main") ??
+        this.repositories.findLocalCameraByNvrChannel(nvrId, channelKey, "sub")
       const liveRtspUrl = buildVigiLiveRtspUrl({
         host: nvr.host,
         rtspPort: nvr.rtspPort,
@@ -414,19 +434,41 @@ export class LocalCameraManager {
           chosenCodec = "h264"
           notes.push({
             channelKey,
-            message: `Channel ${channelKey}: the main stream is ${probe.codec.toUpperCase()}, so PlayTT will use the H.264 sub-stream (lower resolution). For full quality, set this camera's main stream to H.264 in the NVR and scan again.`,
+            message: `Channel ${channelKey}: the main stream is ${probe.codec === "h265" ? "H.265" : "not H.264"}, so PlayTT will use the H.264 sub-stream (lower resolution). For full quality, set this camera's main stream to H.264 in the NVR and scan again.`,
           })
         } else {
           notes.push({
             channelKey,
-            message: `Channel ${channelKey} sends ${probe.codec.toUpperCase()} video, which replays can't use yet. Set this camera's main stream to H.264 in the NVR and scan again.`,
+            message: `Channel ${channelKey} sends ${probe.codec === "h265" ? "H.265" : "video in a format"} replays can't use yet, on both its main and sub stream. In the NVR, set this camera's Video Encoding to H.264, then scan again.`,
           })
         }
       }
-      const target =
-        chosenProfile === streamProfile
-          ? existing
-          : this.repositories.findLocalCameraByNvrChannel(nvrId, channelKey, chosenProfile)
+      // Keep exactly one record per channel: reuse the record already on the
+      // chosen stream, otherwise move the existing record to that stream.
+      const onChosenProfile = this.repositories.findLocalCameraByNvrChannel(
+        nvrId,
+        channelKey,
+        chosenProfile,
+      )
+      const target = onChosenProfile ?? existing
+      const otherProfile: LocalCameraStreamProfile =
+        chosenProfile === "main" ? "sub" : "main"
+      const leftover = this.repositories.findLocalCameraByNvrChannel(
+        nvrId,
+        channelKey,
+        otherProfile,
+      )
+      if (target && leftover && leftover.id !== target.id) {
+        // Two records for one channel (one per stream). Drop the one that is
+        // not in use; if both are in use, keep both and let review flag it.
+        const leftoverInUse =
+          leftover.enabled ||
+          this.repositories.listLocalResourceRoutesForCamera(leftover.id).length > 0
+        if (!leftoverInUse) {
+          this.repositories.deleteLocalCamera(leftover.id)
+          this.repositories.invalidateCommissioning()
+        }
+      }
 
       const lastTest: LocalCameraTestSummary = {
         passed: true,
@@ -444,11 +486,19 @@ export class LocalCameraManager {
         ? this.repositories.updateLocalCamera(target.id, {
             codec: chosenCodec,
             lastTest,
+            ...(target.streamProfile !== chosenProfile
+              ? {
+                  streamProfile: chosenProfile,
+                  ...(isDefaultCameraLabel(target.label, nvr.label, channelKey)
+                    ? { label: defaultCameraLabel(channelKey) }
+                    : {}),
+                }
+              : {}),
           })!
         : this.repositories.insertLocalCamera({
             id: randomUUID(),
             nvrId,
-            label: defaultCameraLabel(nvr.label, channelKey, chosenProfile),
+            label: defaultCameraLabel(channelKey),
             channelKey,
             streamProfile: chosenProfile,
             codec: chosenCodec,
@@ -457,6 +507,8 @@ export class LocalCameraManager {
 
       if (!target) {
         this.repositories.updateLocalCamera(row.id, { lastTest })
+      } else if (target.streamProfile !== chosenProfile) {
+        this.repositories.invalidateCommissioning()
       }
 
       const view = {

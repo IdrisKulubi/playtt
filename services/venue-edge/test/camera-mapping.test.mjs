@@ -627,3 +627,92 @@ test("enumeration uses the H.264 sub-stream when the main stream is H.265", asyn
   assert.equal(result.failures.length, 0, "empty channels are not reported as failures")
   assert.match(result.notes[0].message, /sub-stream/)
 })
+
+test("a 4-channel NVR scanned repeatedly lists each channel exactly once", async () => {
+  // Channel 2 switches its main stream between H.264 and H.265 across scans,
+  // which used to leave both a main and a sub record for the same camera.
+  let channelTwoMainCodec = "h264"
+  const { nvrManager, cameraManager, repositories } = await createTestStack({
+    channelProbe: {
+      async probe({ liveRtspUrl }) {
+        const match = liveRtspUrl.match(/\/live\/([^/]+)\/(\d)\//)
+        const channel = Number(match?.[1])
+        if (!(channel >= 1 && channel <= 4)) {
+          return { live: false, codec: "unknown", diagnostic: { code: "channel_not_found" } }
+        }
+        if (channel === 2 && match[2] === "1") return { live: true, codec: channelTwoMainCodec }
+        return { live: true, codec: "h264" }
+      },
+    },
+  })
+  const nvr = await nvrManager.createNvr({
+    label: "Main NVR",
+    vendor: "vigi",
+    host: "192.168.10.70",
+    rtspPort: 554,
+    username: "playtt_edge",
+    password: "enum-secret",
+    testChannelKey: "1",
+  })
+
+  await cameraManager.enumerateCameras(nvr.id)
+  channelTwoMainCodec = "h265"
+  await cameraManager.enumerateCameras(nvr.id)
+  channelTwoMainCodec = "h264"
+  await cameraManager.enumerateCameras(nvr.id)
+
+  const cameras = await cameraManager.listPublicCameras()
+  assert.equal(cameras.length, 4)
+  assert.deepEqual(cameras.map((camera) => camera.channelKey), ["1", "2", "3", "4"])
+  assert.ok(cameras.every((camera) => camera.nvrHost === "192.168.10.70"))
+  assert.equal(repositories.listLocalCamerasByNvrId(nvr.id).length, 4)
+})
+
+test("renaming a camera keeps its last camera check", async () => {
+  const { nvrManager, cameraManager } = await createTestStack({
+    channelProbe: createChannelProbe(new Set(["1"])),
+  })
+  const nvr = await nvrManager.createNvr({
+    label: "Rename NVR",
+    vendor: "vigi",
+    host: "192.168.10.71",
+    rtspPort: 554,
+    username: "playtt_edge",
+    password: "enum-secret",
+    testChannelKey: "1",
+  })
+  const { created } = await cameraManager.enumerateCameras(nvr.id, { maxChannels: 1 })
+  const renamed = await cameraManager.updateCamera(created[0].id, { label: "Table 1" })
+  assert.equal(renamed.label, "Table 1")
+  assert.equal(renamed.lastTest?.passed, true)
+  const enabled = await cameraManager.updateCamera(created[0].id, { enabled: true })
+  assert.equal(enabled.lastTest, null, "changing what is captured still needs a new check")
+})
+
+test("a camera whose replay buffer hasn't started is not reported as dropping out", async () => {
+  const { nvrManager, cameraManager, mappingManager, repositories, edgeConfigV2 } =
+    await createTestStack({ fixture: "edge-v2-one-nvr.json" })
+  const nvr = await nvrManager.createNvr({
+    label: "Main NVR", vendor: "vigi", host: "192.168.10.80", rtspPort: 554,
+    username: "playtt_edge", password: "stale-secret", testChannelKey: "1",
+  })
+  const camera = await cameraManager.createCamera({ nvrId: nvr.id, channelKey: "1", streamProfile: "main", enabled: true })
+  const resourceId = edgeConfigV2.resources[0].resourceId
+  mappingManager.putResourcePolicy(resourceId, {
+    candidates: [{ cameraId: camera.id, priority: 1, captureModes: ["edge_buffer"], enabled: true }],
+  })
+  const health = (reasonCode) => repositories.upsertSourceHealth({
+    scope: "source", recorderId: nvr.id, sourceId: camera.id, status: "degraded", reasonCode,
+    consecutiveFailures: 0, consecutiveSuccesses: 0, cooldownUntil: null,
+    observedAt: new Date().toISOString(), lastSuccessAt: null, failbackEligible: false, details: {},
+  })
+
+  health("buffer_stale")
+  let codes = mappingManager.getResourcePolicy(resourceId).warnings.map((warning) => warning.code)
+  assert.equal(codes.includes("camera_unhealthy"), false)
+  assert.equal((await cameraManager.listPublicCameras())[0].healthReasonCode, "buffer_stale")
+
+  health("probe_failed")
+  codes = mappingManager.getResourcePolicy(resourceId).warnings.map((warning) => warning.code)
+  assert.equal(codes.includes("camera_unhealthy"), true)
+})

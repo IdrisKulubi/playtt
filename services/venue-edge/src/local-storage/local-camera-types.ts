@@ -41,6 +41,10 @@ export interface LocalCameraPublicView {
   id: string
   nvrId: string
   nvrLabel: string
+  /** Recorder address, shown so operators can spot the same NVR saved twice. */
+  nvrHost?: string | null
+  /** False when the recorder is disabled; its cameras are not used. */
+  nvrEnabled?: boolean
   label: string
   channelKey: string
   streamProfile: LocalCameraStreamProfile
@@ -48,6 +52,8 @@ export interface LocalCameraPublicView {
   enabled: boolean
   lastTest: LocalCameraTestSummary | null
   healthStatus: SourceHealthStatus | null
+  /** Why the health is what it is (e.g. "buffer_stale" before recording starts). */
+  healthReasonCode?: string | null
   createdAt: string
   updatedAt: string
 }

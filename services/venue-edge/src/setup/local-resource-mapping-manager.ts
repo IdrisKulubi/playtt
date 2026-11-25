@@ -279,7 +279,9 @@ export class LocalResourceMappingManager {
       }
 
       const health = this.repositories.getSourceHealthBySourceId(camera.id)
-      if (isUnhealthy(health?.status)) {
+      // "buffer_stale" means replay recording hasn't produced video yet, which is
+      // normal until the setup is published; it says nothing about the camera.
+      if (isUnhealthy(health?.status) && health?.reasonCode !== "buffer_stale") {
         warnings.push({
           code: "camera_unhealthy",
           message: `${camera.label} health is ${health?.status ?? "unknown"}.`,

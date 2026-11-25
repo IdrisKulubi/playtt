@@ -57,5 +57,6 @@ test("camera probe distinguishes timeout from an unsupported codec", () => {
 
   assert.equal(timeout.code, "probe_timed_out")
   assert.equal(codec.code, "codec_incompatible")
-  assert.match(codec.summary, /HEVC/)
+  assert.match(codec.summary, /H.265/)
+  assert.match(codec.action, /H.264/)
 })

@@ -47,12 +47,25 @@ export function renderSetupPage(input: {
       * { box-sizing: border-box; }
       body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink); }
       button, input, select { font: inherit; }
-      button, input, select, summary { min-height: 2.75rem; }
-      button { border: 0; border-radius: 999px; padding: .7rem 1rem; font-weight: 650; cursor: pointer; }
-      button:not(.secondary):not(.quiet) { background: var(--primary); color: var(--primary-ink); }
-      button.secondary { border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+      input, select { min-height: 2.5rem; }
+      summary { min-height: 2.25rem; }
+      button {
+        min-height: 2.25rem; border: 1px solid transparent; border-radius: 999px;
+        padding: .4rem .95rem; font-size: .9rem; font-weight: 600; line-height: 1.2;
+        cursor: pointer; transition: background-color 120ms ease, transform 100ms ease-out;
+      }
+      button:active:not(:disabled) { transform: scale(.97); }
+      /* One filled primary action per area; everything else is quieter. */
+      button:not(.secondary):not(.quiet):not(.inline):not(.link) { background: var(--primary); color: var(--primary-ink); }
+      button.secondary, button.inline { border-color: var(--border); background: var(--surface); color: var(--ink); }
+      button.secondary:hover:not(:disabled), button.inline:hover:not(:disabled) { background: var(--surface-soft); }
       button.quiet { background: transparent; color: var(--muted); }
-      button:disabled { cursor: not-allowed; opacity: .5; }
+      button.quiet:hover:not(:disabled) { color: var(--ink); }
+      button.link { min-height: auto; padding: 0; border: 0; border-radius: 0; background: transparent; color: #006d99; font-weight: 600; }
+      button.link:hover:not(:disabled) { text-decoration: underline; }
+      button.link.danger { color: var(--danger); }
+      button:disabled { cursor: not-allowed; opacity: .45; }
+      select:disabled, input:disabled { cursor: not-allowed; opacity: .55; }
       @keyframes ve-spin { to { transform: rotate(360deg); } }
       .busy-row { display: flex; align-items: flex-start; gap: var(--space-sm); }
       .spinner {
@@ -108,27 +121,24 @@ export function renderSetupPage(input: {
         pointer-events: none;
       }
       .toast {
-        pointer-events: auto; display: grid; grid-template-columns: 2.25rem 1fr auto; gap: .7rem;
-        padding: .9rem 1rem; border: 1px solid var(--border); border-radius: 1rem;
-        background: var(--surface); box-shadow: 0 18px 40px rgba(15, 23, 42, .14);
+        pointer-events: auto; display: grid; grid-template-columns: 1fr auto; align-items: start; gap: .6rem;
+        padding: .75rem .85rem .75rem 1rem; border: 1px solid var(--border); border-radius: .875rem;
+        background: color-mix(in srgb, var(--surface) 94%, transparent);
+        -webkit-backdrop-filter: blur(16px) saturate(160%); backdrop-filter: blur(16px) saturate(160%);
+        box-shadow: 0 10px 30px rgba(15, 23, 42, .12);
         animation: toast-in var(--motion);
       }
-      .toast[data-kind="success"] { border-color: #bfe4cf; background: #f4fbf6; }
-      .toast[data-kind="warning"] { border-color: #f0d39a; background: #fff8ea; }
-      .toast[data-kind="error"] { border-color: #f0b6b6; background: #fff5f5; }
-      .toast-mark {
-        width: 2.25rem; height: 2.25rem; display: grid; place-items: center;
-        border-radius: 999px; font-weight: 750; background: #e8f7ff; color: #006d99;
-      }
-      .toast[data-kind="success"] .toast-mark { background: #d9f3e4; color: #075c31; }
-      .toast[data-kind="warning"] .toast-mark { background: #ffe8b8; color: #7a4a00; }
-      .toast[data-kind="error"] .toast-mark { background: #ffd6d6; color: var(--danger); }
-      .toast strong { display: block; font-size: .92rem; letter-spacing: -.01em; }
-      .toast p, .toast li { margin: .2rem 0 0; color: var(--muted); font-size: .88rem; }
+      .toast[data-kind="info"] { grid-template-columns: auto 1fr auto; }
+      .toast .spinner { margin-top: .15rem; }
+      .toast strong { display: block; font-size: .9rem; letter-spacing: -.005em; }
+      .toast[data-kind="error"] strong { color: var(--danger); }
+      .toast p, .toast li { margin: .15rem 0 0; color: var(--muted); font-size: .86rem; }
+      .toast .toast-plain { margin: 0; color: var(--ink); font-size: .9rem; }
       .toast ul { margin: .35rem 0 0; padding-left: 1.1rem; }
-      .toast button { min-width: 2rem; min-height: 2rem; padding: 0; background: transparent; color: var(--muted); font-size: 1rem; }
+      .toast button { min-width: 1.75rem; min-height: 1.75rem; padding: 0; border: 0; background: transparent; color: var(--muted); font-size: .9rem; }
+      @media (prefers-reduced-transparency: reduce) { .toast { background: var(--surface); backdrop-filter: none; } }
       @keyframes toast-in { from { opacity: 0; transform: translateY(-.4rem) scale(.98); } to { opacity: 1; transform: none; } }
-      button.inline { margin: 0; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+      button.inline { margin: 0; }
       .nvr-item, .resource-item { padding: var(--space-md) 0; border-top: 1px solid var(--border); }
       .camera-item { display: grid; grid-template-columns: minmax(15rem, 22rem) minmax(0, 1fr); gap: var(--space-lg); padding: var(--space-lg) 0; border-top: 1px solid var(--border); }
       .camera-live { position: relative; min-height: 11rem; overflow: hidden; border-radius: var(--radius-md); background: var(--ink); color: white; }
@@ -137,15 +147,40 @@ export function renderSetupPage(input: {
       .camera-heading { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
       .camera-meta { margin: var(--space-xs) 0; }
       .technical-output { margin-top: var(--space-sm); padding: var(--space-sm); border-radius: var(--radius-md); background: #101827; color: #dce9f8; font: .8rem/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
-      button.camera-choice[data-selected="true"] { border-color: var(--success); background: #f1fbf5; color: #075c31; }
+      .check { display: flex; align-items: center; gap: .5rem; margin: 0; font-size: .92rem; font-weight: 600; cursor: pointer; }
+      .check input { width: 1.05rem; height: 1.05rem; min-height: 0; margin: 0; accent-color: #007fb3; }
+      .camera-group + .camera-group { margin-top: var(--space-xl); }
+      .camera-group > h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem; margin: 0 0 var(--space-xs); }
+      .camera-group > h3 span { color: var(--muted); font-weight: 500; font-size: .9rem; }
+      .camera-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); margin-top: var(--space-sm); }
+      .quiet-actions { display: flex; flex-wrap: wrap; gap: var(--space-md); margin-top: var(--space-sm); font-size: .88rem; }
+      .camera-status { margin: var(--space-xs) 0 0; font-size: .9rem; }
+      .camera-status[data-state="error"] { color: var(--danger); }
+      .camera-status[data-state="ready"] { color: var(--success); }
+      .table-card { padding: var(--space-lg) 0; border-top: 1px solid var(--border); }
+      .table-card:first-child { border-top: 0; padding-top: 0; }
+      .table-card:last-child { padding-bottom: 0; }
+      .table-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-md); }
+      .table-card-head h3 { margin: 0; font-size: 1.05rem; }
+      .table-card-state { color: var(--muted); font-size: .88rem; white-space: nowrap; }
+      .table-card-state[data-state="ready"] { color: var(--success); }
+      .table-card-state[data-state="attention"] { color: var(--warning); }
+      .table-notes { margin: var(--space-sm) 0 0; padding: 0; list-style: none; color: var(--warning); font-size: .88rem; }
+      .table-notes li + li { margin-top: .2rem; }
+      .table-card details { margin-top: var(--space-sm); padding-top: 0; border-top: 0; }
+      .table-card details summary { width: fit-content; color: var(--muted); font-size: .88rem; font-weight: 600; min-height: 2rem; }
+      .advanced { display: grid; gap: var(--space-sm); padding-top: var(--space-xs); }
+      .advanced p { margin: 0; font-size: .85rem; }
       .credential-recovery { display: grid; grid-template-columns: minmax(12rem, 1fr) auto; align-items: end; gap: var(--space-sm); margin: var(--space-sm) 0; padding: var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-soft); }
       .credential-recovery p { grid-column: 1 / -1; margin: 0; }
       .badge { display: inline-flex; border-radius: 999px; padding: .15rem .5rem; background: var(--surface-soft); color: var(--muted); font-size: .8rem; }
       pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
       details { margin-top: var(--space-lg); border-top: 1px solid var(--border); padding-top: var(--space-md); }
       summary { cursor: pointer; display: flex; align-items: center; font-weight: 650; }
-      .review { margin: var(--space-lg) 0; padding: var(--space-lg); border: 1px solid #e3b35d; border-radius: var(--radius-lg); background: #fff9ed; }
-      .review[data-empty="true"] { border-color: #bfe4cf; background: #f1fbf5; }
+      .review { margin: var(--space-lg) 0; padding: var(--space-md) var(--space-lg); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
+      .review p { margin: .25rem 0 0; }
+      .review .actions { margin-top: var(--space-sm); }
+      .review[data-empty="true"] { margin: var(--space-sm) 0; padding: 0; border: 0; background: transparent; }
       .review-list { margin: var(--space-md) 0 0; padding-left: 1.25rem; }
       .footer-actions { position: fixed; right: 0; bottom: 0; left: 17rem; z-index: 40; display: flex; justify-content: space-between; gap: var(--space-md); padding: var(--space-md) var(--space-xl) max(var(--space-md), env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 96%, transparent); }
       video { display: none; width: min(100%, 42rem); margin-top: var(--space-lg); border-radius: var(--radius-md); background: var(--ink); }
@@ -207,9 +242,9 @@ export function renderSetupPage(input: {
           </section>
 
           <section class="stage" data-stage="3" hidden>
-            <div class="stage-intro"><h2>Review cameras</h2><p class="muted">Watch every detected channel live, select the cameras that may create replay clips, and assign them to tables in the next step.</p></div>
-            <div id="topology-review" class="review" aria-live="polite"><strong>Checking topology…</strong></div>
-            <div class="actions"><button id="scan-cameras" type="button" class="secondary">Find cameras</button><button id="prepare-cameras" type="button">Verify selected cameras</button></div>
+            <div class="stage-intro"><h2>Review cameras</h2><p class="muted">Each camera on the recorder is listed once. Tick the ones that film a table, then check them. You'll choose which table each one films in the next step.</p></div>
+            <div class="actions"><button id="prepare-cameras" type="button">Check selected cameras</button><button id="scan-cameras" type="button" class="secondary">Scan recorder again</button></div>
+            <div id="topology-review" class="review" aria-live="polite"><p class="muted">Checking cameras…</p></div>
             <p id="camera-message" class="muted" aria-live="polite"></p><div id="camera-list"></div>
             <details><summary>Technician: add a channel manually</summary><form id="camera-form" class="panel">
               <h3>Add a channel manually</h3>
@@ -220,13 +255,13 @@ export function renderSetupPage(input: {
           </section>
 
           <section class="stage" data-stage="4" hidden>
-            <div class="stage-intro"><h2>Map cameras to tables</h2><p class="muted">Choose the primary and fallback camera for each PlayTT table, then verify failover.</p></div>
+            <div class="stage-intro"><h2>Choose a camera for each table</h2><p class="muted">Pick the camera that films each table. A backup camera is optional; if the main one stops, replays switch to the backup by themselves.</p></div>
             <div class="panel"><p id="mapping-config-hint" class="muted"></p><div id="resource-list"></div><p id="mapping-message" class="muted" aria-live="polite"></p></div>
           </section>
 
           <section class="stage" data-stage="5" hidden>
             <div class="stage-intro"><h2>Publish and apply configuration</h2><p class="muted">Publish the cameras and table mappings to PlayTT. Passwords stay on this PC. PlayTT applies the setup and this PC picks it up within seconds.</p></div>
-            <div class="panel"><pre id="commissioning-checklist" class="muted"></pre><div class="actions"><button type="button" id="commissioning-test-all" class="secondary" ${disabledAttr}>Test enabled cameras</button><button type="button" id="commissioning-publish" ${disabledAttr}>Publish to PlayTT</button>${input.cloudDashboardUrl ? `<button type="button" id="open-cloud-dashboard" class="secondary">Open PlayTT admin</button>` : ""}</div><video id="commissioning-preview" controls></video><p id="commissioning-message" class="muted" aria-live="polite"></p></div>
+            <div class="panel"><pre id="commissioning-checklist" class="muted"></pre><div class="actions"><button type="button" id="commissioning-test-all" class="secondary" ${disabledAttr}>Check cameras again</button><button type="button" id="commissioning-publish" ${disabledAttr}>Publish to PlayTT</button>${input.cloudDashboardUrl ? `<button type="button" id="open-cloud-dashboard" class="secondary">Open PlayTT admin</button>` : ""}</div><video id="commissioning-preview" controls></video><p id="commissioning-message" class="muted" aria-live="polite"></p></div>
           </section>
 
           <section class="stage" data-stage="6" hidden>
@@ -253,6 +288,7 @@ export function renderSetupPage(input: {
         cameraCount: 0,
         topologyClean: false,
         failoverReady: false,
+        tablesMapped: false,
         published: false,
         configApplied: false,
         // "published" | "needs_approval" | "failed" | null (from the last Publish click)
@@ -279,25 +315,17 @@ export function renderSetupPage(input: {
       function inferToastKind(text, state) {
         if (state === "error") return "error";
         if (state === "success") return "success";
-        if (state === "checking") return "info";
         const value = String(text || "").toLowerCase();
-        if (/fail|error|could not|invalid|required|reject|unavailable/.test(value)) return "error";
-        if (/complete|ready|saved|restored|finished|passed|verified|received|looks good|captured/.test(value)) return "success";
+        if (/fail|error|could not|couldn't|invalid|required|reject|unavailable|timed out|not found/.test(value)) return "error";
+        if (state === "checking" || /…$/.test(String(text || "").trim())) return "info";
+        if (/complete|ready|saved|restored|finished|passed|verified|received|looks good|captured|removed/.test(value)) return "success";
         return "info";
       }
 
       function toastTitle(kind) {
-        if (kind === "success") return "Done";
         if (kind === "warning") return "Before you continue";
         if (kind === "error") return "Needs attention";
-        return "Working";
-      }
-
-      function toastMark(kind) {
-        if (kind === "success") return "✓";
-        if (kind === "warning") return "!";
-        if (kind === "error") return "!";
-        return "i";
+        return "";
       }
 
       function dismissToast(key) {
@@ -327,15 +355,15 @@ export function renderSetupPage(input: {
         toast.className = "toast";
         toast.dataset.kind = kind;
         toast.setAttribute("role", kind === "error" || kind === "warning" ? "alert" : "status");
-        const mark = document.createElement("div");
-        mark.className = "toast-mark";
-        mark.textContent = toastMark(kind);
         const body = document.createElement("div");
-        const heading = document.createElement("strong");
-        heading.textContent = title;
-        body.appendChild(heading);
+        if (title) {
+          const heading = document.createElement("strong");
+          heading.textContent = title;
+          body.appendChild(heading);
+        }
         if (message) {
           const copy = document.createElement("p");
+          if (!title) copy.className = "toast-plain";
           copy.textContent = message;
           body.appendChild(copy);
         }
@@ -354,15 +382,24 @@ export function renderSetupPage(input: {
         close.setAttribute("aria-label", "Dismiss notification");
         close.textContent = "✕";
         close.addEventListener("click", () => dismissToast(key));
-        toast.appendChild(mark);
+        if (kind === "info") {
+          const spinner = document.createElement("span");
+          spinner.className = "spinner";
+          spinner.setAttribute("aria-hidden", "true");
+          toast.appendChild(spinner);
+        }
         toast.appendChild(body);
         toast.appendChild(close);
         stack.appendChild(toast);
         toastNodes.set(key, toast);
         toastLastText.set(key, message || items.join("\\n"));
-        if (!persist) {
-          toastTimers.set(key, setTimeout(() => dismissToast(key), kind === "success" ? 4200 : 5200));
-        }
+        // Progress toasts are replaced when the work finishes; the long timer
+        // is only a safety net so a lost update can never leave one stuck.
+        const readingTime = Math.min(12000, 2400 + String(message || "").length * 45);
+        const lifetime = !persist ? Math.max(kind === "success" ? 3200 : 5200, readingTime) : kind === "info" ? 120000 : 0;
+        if (lifetime) toastTimers.set(key, setTimeout(() => dismissToast(key), lifetime));
+        const keys = [...toastNodes.keys()].filter((existing) => existing !== "stage-guidance");
+        while (keys.length > 2) dismissToast(keys.shift());
       }
 
       function bindNoticeToasts() {
@@ -375,13 +412,17 @@ export function renderSetupPage(input: {
             const toastKey = id === "commissioning-message" || id === "complete-status"
               ? "commissioning-progress"
               : id;
-            if (!text || toastLastText.get(toastKey) === text) return;
+            if (!text) { dismissToast(toastKey); return; }
+            if (toastLastText.get(toastKey) === text) return;
             const kind = inferToastKind(text, el.dataset.state);
+            // A state applies to one message only, so an old "checking" state
+            // can't make a later error look like progress.
+            delete el.dataset.state;
             showToast({
               message: text,
               key: toastKey,
               kind: kind,
-              persist: kind === "error" || kind === "warning" || el.dataset.state === "checking" || /…$/.test(text),
+              persist: kind === "error" || kind === "warning" || kind === "info",
             });
           };
           new MutationObserver(sync).observe(el, { childList: true, characterData: true, subtree: true });
@@ -400,7 +441,7 @@ export function renderSetupPage(input: {
         if (stage === 1) return workflow.enrolled;
         if (stage === 2) return workflow.nvrCount > 0;
         if (stage === 3) return workflow.cameraCount > 0 && workflow.topologyClean && camerasReady;
-        if (stage === 4) return workflow.failoverReady;
+        if (stage === 4) return workflow.failoverReady && workflow.tablesMapped;
         if (stage === 5) return workflow.published && workflow.configApplied;
         return workflow.completed;
       }
@@ -410,13 +451,13 @@ export function renderSetupPage(input: {
         if (stage === 1 && !workflow.enrolled) requirements.push("Pair this PC using a code from PlayTT admin.");
         if (stage === 2 && workflow.nvrCount === 0) requirements.push("Add the venue NVR and confirm its address and credentials.");
         if (stage === 3) {
-          if (workflow.cameraCount === 0) requirements.push("Choose Find cameras to load the channels connected to the NVR.");
-          if (workflow.cameraCount > 0 && workflow.enabledCameraCount === 0) requirements.push("Select at least one camera to use for replay clips.");
-          if (!workflow.topologyClean) requirements.push("Resolve the camera issue shown in the review panel.");
-          if (workflow.enabledCameraCount > 0 && !workflow.camerasTested) requirements.push("Choose Verify selected cameras and let every camera check finish.");
-          if (workflow.enabledCameraCount > 0 && !workflow.camerasPreviewed) requirements.push("Capture a 15-second preview for every selected camera. Verify selected cameras does this automatically.");
+          if (workflow.cameraCount === 0) requirements.push("Choose Scan recorder again to load the cameras connected to the NVR.");
+          if (workflow.cameraCount > 0 && workflow.enabledCameraCount === 0) requirements.push("Tick at least one camera that films a table.");
+          if (!workflow.topologyClean) requirements.push("Sort out the camera list issue shown above the cameras.");
+          if (workflow.enabledCameraCount > 0 && (!workflow.camerasTested || !workflow.camerasPreviewed)) requirements.push("Choose Check selected cameras and wait for every check to finish.");
         }
-        if (stage === 4 && !workflow.failoverReady) requirements.push("Assign cameras to every table and complete any required failover checks.");
+        if (stage === 4 && !workflow.tablesMapped) requirements.push("Choose a camera for at least one table.");
+        else if (stage === 4 && !workflow.failoverReady) requirements.push("Choose a camera for every table. If a table has a backup camera, wait for its switch-over check to finish.");
         if (stage === 5) {
           if (!workflow.published) requirements.push("Choose Publish to PlayTT.");
           else if (!workflow.configApplied) {
@@ -487,6 +528,11 @@ export function renderSetupPage(input: {
         if (stageComplete(currentStage)) dismissToast("stage-guidance");
         sessionStorage.setItem("venue-edge-stage", String(currentStage));
         if (renderedStage !== currentStage) {
+          // A step's notices belong to that step; don't carry them to the next one.
+          const toastStage = { "enrollment-message": 1, "nvr-message": 2, "camera-message": 3, "mapping-message": 4, "commissioning-progress": 5 };
+          for (const [key, stage] of Object.entries(toastStage)) {
+            if (stage !== currentStage && !(key === "commissioning-progress" && currentStage === 6)) dismissToast(key);
+          }
           renderedStage = currentStage;
           window.scrollTo({ top: 0, behavior: "instant" });
         }
@@ -531,34 +577,48 @@ export function renderSetupPage(input: {
         const data = await api("/api/setup/topology/review");
         topologyProposal = data.proposal;
         const review = document.getElementById("topology-review");
-        workflow.topologyClean = topologyProposal.issues.length === 0;
-        review.dataset.empty = String(workflow.topologyClean);
-        if (workflow.topologyClean) {
-          review.innerHTML = "<strong>Topology looks good</strong><p>No duplicate recorders or suspicious camera channels need review.</p>";
+        const notices = topologyProposal.issues.filter((issue) => issue.severity === "notice");
+        const problems = topologyProposal.issues.filter((issue) => issue.severity !== "notice");
+        workflow.topologyClean = problems.length === 0;
+        const summary = "<p class='muted'>" + escapeHtml(cameraSummaryText) + "</p>";
+        review.dataset.empty = String(topologyProposal.issues.length === 0);
+        if (topologyProposal.issues.length === 0) {
+          review.innerHTML = summary;
           renderStages();
           return;
         }
 
         const selectedCount = topologyProposal.deleteNvrIds.length + topologyProposal.deleteCameraIds.length + topologyProposal.renames.length;
         review.innerHTML =
-          "<strong>We found setup issues</strong>" +
-          "<p>Review the proposed changes. Nothing is removed until you confirm.</p>" +
+          "<strong>" + (problems.length > 0 ? "Some cameras need attention" : "Check your recorders") + "</strong>" +
+          summary +
           "<ul class='review-list'>" +
-          topologyProposal.issues.map((issue) => "<li>" + issue.message + "</li>").join("") +
+          topologyProposal.issues.map((issue) => "<li>" + escapeHtml(issue.message) + "</li>").join("") +
           "</ul>" +
-          (selectedCount > 0
-            ? "<div class='actions'><button type='button' id='apply-topology-review'>Review " + selectedCount + " changes</button></div>"
-            : "<p><strong>Manual review required.</strong> Resolve enabled or mapped conflicts before cleanup.</p>");
+          (problems.some((issue) => issue.code === "duplicate_channel" && issue.severity === "blocking")
+            ? "<p>Untick one of the two copies, then this list updates.</p>"
+            : "") +
+          "<div class='actions'>" +
+          (problems.length > 0 && selectedCount > 0
+            ? "<button type='button' id='apply-topology-review'>Remove " + selectedCount + " unused " + (selectedCount === 1 ? "entry" : "entries") + "</button>"
+            : "") +
+          (notices.length > 0 ? "<button type='button' class='secondary' id='open-recorders'>Manage recorders</button>" : "") +
+          "</div>";
+        document.getElementById("open-recorders")?.addEventListener("click", () => {
+          resumeFromSavedProgress = false;
+          currentStage = 2;
+          renderStages();
+        });
 
         document.getElementById("apply-topology-review")?.addEventListener("click", async (event) => {
           const button = event.currentTarget;
           if (button.dataset.confirmed !== "true") {
             button.dataset.confirmed = "true";
-            button.textContent = "Confirm reviewed cleanup";
+            button.textContent = "Confirm removal";
             return;
           }
           button.disabled = true;
-          button.textContent = "Applying cleanup…";
+          button.textContent = "Removing…";
           try {
             const result = await api("/api/setup/topology/review/apply", {
               method: "POST",
@@ -571,11 +631,11 @@ export function renderSetupPage(input: {
             });
             topologyProposal = result.proposal;
             await loadNvrs();
-            document.getElementById("camera-message").textContent = "Reviewed cleanup applied. Publish a new snapshot when the remaining cameras are ready.";
+            document.getElementById("camera-message").textContent = "Removed the unused entries.";
           } catch (error) {
             button.disabled = false;
             button.dataset.confirmed = "false";
-            button.textContent = "Review changes again";
+            button.textContent = "Try again";
             document.getElementById("camera-message").textContent = error.message;
           }
         });
@@ -676,6 +736,14 @@ export function renderSetupPage(input: {
       async function loadNvrs() {
         const data = await api("/api/setup/nvrs");
         workflow.nvrCount = data.nvrs.length;
+        const cameraCountsByNvr = {};
+        try {
+          for (const camera of (await api("/api/setup/cameras")).cameras) {
+            cameraCountsByNvr[camera.nvrId] = (cameraCountsByNvr[camera.nvrId] || 0) + 1;
+          }
+        } catch {
+          // Counts are informational only.
+        }
         const list = document.getElementById("nvr-list");
         list.innerHTML = "";
         const nvrSelect = document.getElementById("camera-nvr-select");
@@ -691,13 +759,20 @@ export function renderSetupPage(input: {
           }
           const item = document.createElement("div");
           item.className = "nvr-item";
+          const nvrCameraCount = cameraCountsByNvr[nvr.id] || 0;
+          const nvrStatus = !nvr.enabled
+            ? "Turned off — its cameras aren't used."
+            : !nvr.hasPassword
+              ? "Password needed on this PC."
+              : nvr.lastTest
+                ? (nvr.lastTest.passed ? "Connected." : "Last connection check failed.")
+                : "";
           item.innerHTML =
-            "<strong>" + nvr.label + "</strong> " +
-            "<span class='badge'>" + (nvr.enabled ? "enabled" : "disabled") + "</span><br>" +
-            nvr.host + ":" + nvr.rtspPort + " · " + nvr.username +
-            " · key " + nvr.localConnectionKey +
-            (nvr.hasPassword ? "" : " · <em>no password</em>") +
-            "<pre class='muted'>" + formatTestSummary(nvr.lastTest) + "</pre>";
+            "<strong>" + escapeHtml(nvr.label) + "</strong>" +
+            "<p class='muted' style='margin:.15rem 0 0'>" + escapeHtml(nvr.host) + (nvr.rtspPort === 554 ? "" : ":" + nvr.rtspPort) +
+            " · " + nvrCameraCount + (nvrCameraCount === 1 ? " camera" : " cameras") +
+            " · signs in as " + escapeHtml(nvr.username) + "</p>" +
+            (nvrStatus ? "<p style='margin:.15rem 0 0'>" + nvrStatus + "</p>" : "");
           if (!setupLocked) {
             {
               const credentialForm = document.createElement("form");
@@ -763,23 +838,37 @@ export function renderSetupPage(input: {
               credentialDetails.append(credentialSummary, credentialForm);
               item.appendChild(credentialDetails);
             }
+            const nvrActions = document.createElement("div");
+            nvrActions.className = "quiet-actions";
             const testBtn = document.createElement("button");
-            testBtn.textContent = "Run test";
-            testBtn.className = "inline";
+            testBtn.type = "button";
+            testBtn.textContent = "Check connection";
+            testBtn.className = "link";
             testBtn.onclick = () => testNvr(nvr.id);
             const enumerateBtn = document.createElement("button");
-            enumerateBtn.textContent = "Enumerate cameras";
-            enumerateBtn.className = "inline";
+            enumerateBtn.type = "button";
+            enumerateBtn.textContent = "Scan for cameras";
+            enumerateBtn.className = "link";
             enumerateBtn.onclick = () => enumerateCameras(nvr.id);
             const disableBtn = document.createElement("button");
-            disableBtn.textContent = nvr.enabled ? "Disable" : "Enable";
-            disableBtn.className = "inline";
+            disableBtn.type = "button";
+            disableBtn.textContent = nvr.enabled ? "Turn off" : "Turn on";
+            disableBtn.className = "link";
             disableBtn.onclick = () => toggleNvr(nvr);
             const deleteBtn = document.createElement("button");
+            deleteBtn.type = "button";
             deleteBtn.textContent = "Remove";
-            deleteBtn.className = "inline";
-            deleteBtn.onclick = () => removeNvr(nvr.id);
-            item.append(testBtn, enumerateBtn, disableBtn, deleteBtn);
+            deleteBtn.className = "link danger";
+            deleteBtn.onclick = () => {
+              const ok = window.confirm(
+                "Remove " + nvr.label + " (" + nvr.host + ")?\\n\\n" +
+                (nvrCameraCount ? "Its " + nvrCameraCount + " cameras and any tables using them are removed from this PC too. " : "") +
+                "You can add the recorder again later.",
+              );
+              if (ok) removeNvr(nvr.id);
+            };
+            nvrActions.append(testBtn, enumerateBtn, disableBtn, deleteBtn);
+            item.append(nvrActions);
           }
           list.appendChild(item);
         }
@@ -788,29 +877,52 @@ export function renderSetupPage(input: {
       }
 
       async function testNvr(id) {
-        document.getElementById("nvr-message").textContent = "Running NVR tests…";
-        await api("/api/setup/nvrs/" + id + "/test", { method: "POST", body: "{}" });
-        await loadNvrs();
-        document.getElementById("nvr-message").textContent = "Test finished.";
+        const message = document.getElementById("nvr-message");
+        message.dataset.state = "checking";
+        message.textContent = "Checking the connection to the recorder…";
+        try {
+          const outcome = await api("/api/setup/nvrs/" + id + "/test", { method: "POST", body: "{}", timeoutMs: 60000 });
+          await loadNvrs();
+          const passed = outcome && (outcome.passed ?? (outcome.result && outcome.result.passed));
+          message.dataset.state = passed === false ? "error" : "success";
+          message.textContent = passed === false ? describeFailedTest("The recorder", outcome) : "Recorder connection checked.";
+        } catch (error) {
+          message.dataset.state = "error";
+          message.textContent = error.message;
+        }
       }
 
       async function toggleNvr(nvr) {
-        await api("/api/setup/nvrs/" + nvr.id, {
-          method: "PATCH",
-          body: JSON.stringify({ enabled: !nvr.enabled }),
-        });
-        await loadNvrs();
+        try {
+          await api("/api/setup/nvrs/" + nvr.id, {
+            method: "PATCH",
+            body: JSON.stringify({ enabled: !nvr.enabled }),
+          });
+          await loadNvrs();
+          await loadResources();
+        } catch (error) {
+          document.getElementById("nvr-message").textContent = error.message;
+        }
       }
 
       async function removeNvr(id) {
-        await api("/api/setup/nvrs/" + id, { method: "DELETE", body: "{}" });
-        await loadNvrs();
+        try {
+          await api("/api/setup/nvrs/" + id, { method: "DELETE", body: "{}" });
+          await loadNvrs();
+          await loadResources();
+          await loadCommissioning();
+          const message = document.getElementById("nvr-message");
+          message.dataset.state = "success";
+          message.textContent = "Recorder removed.";
+        } catch (error) {
+          document.getElementById("nvr-message").textContent = error.message;
+        }
       }
 
       async function enumerateCameras(nvrId) {
         const message = document.getElementById("camera-message");
         message.dataset.state = "checking";
-        message.textContent = "Closing live views, then checking NVR channels for live video…";
+        message.textContent = "Scanning the recorder for cameras…";
         return withLiveViewsPaused(async () => {
           try {
             const result = await api("/api/setup/nvrs/" + nvrId + "/cameras/enumerate", {
@@ -829,9 +941,9 @@ export function renderSetupPage(input: {
             } else {
               const problems = (result.failures || []).length;
               const notes = (result.notes || []).map((note) => note.message);
-              message.dataset.state = problems > 0 || notes.length > 0 ? "checking" : "success";
+              message.dataset.state = problems > 0 ? "error" : "success";
               message.textContent =
-                "Scan finished. Found " + found + " camera" + (found === 1 ? "" : "s") + "." +
+                "Found " + found + " camera" + (found === 1 ? "" : "s") + "." +
                 (problems > 0
                   ? " " + problems + " channel" + (problems === 1 ? "" : "s") + " had a problem: " +
                     result.failures.map((failure) => "channel " + failure.channelKey + " (" + failure.summary + ")").join("; ") + "."
@@ -861,40 +973,100 @@ export function renderSetupPage(input: {
       }
       document.getElementById("scan-cameras")?.addEventListener("click", discoverAllCameras);
 
+      function describeFailedTest(label, outcome) {
+        const diagnostic = outcome && (outcome.diagnostic || (outcome.result && outcome.result.diagnostic));
+        if (diagnostic && diagnostic.summary) {
+          return label + ": " + diagnostic.summary + (diagnostic.action ? " " + diagnostic.action : "");
+        }
+        const failed = outcome && outcome.result && outcome.result.checks
+          ? outcome.result.checks.find((check) => !check.passed)
+          : null;
+        return label + ": " + (failed ? failed.message : "no video came through.") +
+          " Check the camera is powered and shows a picture on the recorder, then check again.";
+      }
+
       async function prepareSelectedCameras() {
         if (preparingCameras) return;
         preparingCameras = true;
         const button = document.getElementById("prepare-cameras");
         const message = document.getElementById("camera-message");
         button.disabled = true;
+        button.textContent = "Checking…";
+        const problems = [];
         try {
           await pauseLiveViews();
           await new Promise((resolve) => setTimeout(resolve, 350));
           const data = await api("/api/setup/cameras");
-          const selected = data.cameras.filter((camera) => camera.enabled);
-          if (!selected.length) throw new Error("Select at least one camera for replay clips.");
+          const selected = data.cameras.filter((camera) => camera.enabled && camera.nvrEnabled !== false);
+          if (!selected.length) throw new Error("Tick at least one camera that films a table.");
           for (const [index, camera] of selected.entries()) {
+            message.dataset.state = "checking";
             message.textContent = "Checking " + camera.label + " (" + (index + 1) + " of " + selected.length + ")…";
-            const result = await api("/api/setup/cameras/" + camera.id + "/test", { method: "POST", body: "{}", timeoutMs: 180000 });
-            if (result.passed === false) throw new Error(camera.label + " failed its camera check. Review the connection and retry.");
-            message.textContent = "Recording a 15-second check from " + camera.label + "…";
-            await api("/api/setup/cameras/" + camera.id + "/preview", { method: "POST", body: "{}", timeoutMs: 90000 });
+            try {
+              const result = await api("/api/setup/cameras/" + camera.id + "/test", { method: "POST", body: "{}", timeoutMs: 180000 });
+              if (result.passed === false) { problems.push(describeFailedTest(camera.label, result)); continue; }
+              message.dataset.state = "checking";
+              message.textContent = "Recording a 15-second sample from " + camera.label + "…";
+              await api("/api/setup/cameras/" + camera.id + "/preview", { method: "POST", body: "{}", timeoutMs: 90000 });
+            } catch (error) {
+              problems.push(camera.label + ": " + error.message);
+            }
           }
           await loadCameras();
           await loadCommissioning();
-          message.textContent = camerasReady ? "Selected cameras are ready. Continue to map them to tables." : "A camera check failed. Review the camera details and retry.";
-        } catch (error) { message.textContent = error.message; }
-        finally { preparingCameras = false; button.disabled = setupLocked; resumeLiveViews(); }
+          if (problems.length) {
+            message.dataset.state = "error";
+            message.textContent = (problems.length === 1 ? "" : problems.length + " cameras need attention. ") + problems.join(" ");
+          } else {
+            message.dataset.state = "success";
+            message.textContent = selected.length === 1 ? "The camera is ready." : "All " + selected.length + " cameras are ready.";
+          }
+        } catch (error) {
+          message.dataset.state = "error";
+          message.textContent = error.message;
+        }
+        finally { preparingCameras = false; button.disabled = setupLocked; button.textContent = "Check selected cameras"; resumeLiveViews(); }
       }
       document.getElementById("prepare-cameras")?.addEventListener("click", prepareSelectedCameras);
 
+      function escapeHtml(value) {
+        return String(value == null ? "" : value).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+      }
+
+      let cameraSummaryText = "";
+
       async function loadCameras() {
         const data = await api("/api/setup/cameras");
-        workflow.cameraCount = data.cameras.length;
+        // Cameras on a turned-off recorder are never used, so don't list them.
+        const cameras = data.cameras.filter((camera) => camera.nvrEnabled !== false);
+        const hiddenCount = data.cameras.length - cameras.length;
+        workflow.cameraCount = cameras.length;
         const list = document.getElementById("camera-list");
         await pauseLiveViews();
         list.innerHTML = "";
-        for (const camera of data.cameras) {
+        const recorderIds = [...new Set(cameras.map((camera) => camera.nvrId))];
+        const selectedCount = cameras.filter((camera) => camera.enabled).length;
+        cameraSummaryText = cameras.length === 0
+          ? "No cameras yet. Choose Scan recorder again."
+          : cameras.length + (cameras.length === 1 ? " camera" : " cameras") +
+            (recorderIds.length === 1 ? " on " + cameras[0].nvrLabel : " on " + recorderIds.length + " recorders") +
+            " · " + selectedCount + " ticked for replays" +
+            (hiddenCount > 0 ? " · " + hiddenCount + " on a turned-off recorder not shown" : "") + ".";
+        let group = null;
+        for (const camera of cameras) {
+          if (!group || group.dataset.nvrId !== camera.nvrId) {
+            group = document.createElement("section");
+            group.className = "camera-group";
+            group.dataset.nvrId = camera.nvrId;
+            const groupCameras = cameras.filter((entry) => entry.nvrId === camera.nvrId);
+            const groupHeading = document.createElement("h3");
+            groupHeading.textContent = camera.nvrLabel + " ";
+            const groupMeta = document.createElement("span");
+            groupMeta.textContent = (camera.nvrHost ? camera.nvrHost + " · " : "") + groupCameras.length + (groupCameras.length === 1 ? " camera" : " cameras");
+            groupHeading.appendChild(groupMeta);
+            group.appendChild(groupHeading);
+            list.appendChild(group);
+          }
           const item = document.createElement("div");
           item.className = "camera-item";
 
@@ -922,8 +1094,6 @@ export function renderSetupPage(input: {
           const info = document.createElement("div");
           const heading = document.createElement("div");
           heading.className = "camera-heading";
-          const title = document.createElement("strong");
-          title.textContent = camera.label;
           const nameInput = document.createElement("input");
           nameInput.value = camera.label;
           nameInput.setAttribute("aria-label", "Camera name for channel " + camera.channelKey);
@@ -935,24 +1105,36 @@ export function renderSetupPage(input: {
               document.getElementById("camera-message").textContent = "Camera name saved.";
             } catch (error) { document.getElementById("camera-message").textContent = error.message; }
           };
-          const badge = document.createElement("span");
-          badge.className = "badge";
-          badge.textContent = camera.enabled ? "Used for replay clips" : "Not selected";
-          heading.append(nameInput, badge);
+          heading.append(nameInput);
           const meta = document.createElement("p");
           meta.className = "muted camera-meta";
-          meta.textContent = camera.nvrLabel + " · channel " + camera.channelKey + " · " + camera.streamProfile + " · " + camera.codec + (camera.healthStatus ? " · " + camera.healthStatus : "");
-          const testSummary = document.createElement("pre");
-          testSummary.className = "muted";
-          testSummary.textContent = formatTestSummary(camera.lastTest);
-          info.append(heading, meta, testSummary);
+          meta.textContent = "Channel " + camera.channelKey +
+            (camera.streamProfile === "sub" ? " · lower-resolution stream (main stream isn't H.264)" : "") +
+            (camera.codec === "h265" ? " · sends H.265, which replays can't use yet" : "");
+          const status = document.createElement("p");
+          status.className = "camera-status";
+          if (!camera.lastTest) {
+            status.textContent = camera.enabled ? "Not checked yet." : "";
+          } else if (camera.lastTest.passed) {
+            status.dataset.state = "ready";
+            status.textContent = camera.enabled ? "Working." : "Picture found.";
+          } else {
+            status.dataset.state = "error";
+            status.textContent = describeFailedTest("Last check failed", { diagnostic: camera.lastTest.diagnostic, result: { checks: camera.lastTest.checks } });
+          }
+          // "buffer_stale" only means replay recording hasn't started yet (it starts
+          // after Publish), so it isn't a camera problem during setup.
+          if ((camera.healthStatus === "unhealthy" || camera.healthStatus === "degraded") && camera.healthReasonCode !== "buffer_stale") {
+            status.textContent += (status.textContent ? " " : "") + "The video dropped out recently.";
+          }
+          info.append(heading, meta, status);
           if (camera.lastTest && !camera.lastTest.passed) {
             const technical = document.createElement("details");
             const technicalSummary = document.createElement("summary");
             technicalSummary.textContent = "Technical details";
             const technicalOutput = document.createElement("pre");
             technicalOutput.className = "technical-output";
-            technicalOutput.textContent = formatTechnicalDetails(camera.lastTest);
+            technicalOutput.textContent = formatTestSummary(camera.lastTest) + "\\n\\n" + formatTechnicalDetails(camera.lastTest);
             const copyButton = document.createElement("button");
             copyButton.type = "button";
             copyButton.className = "inline";
@@ -970,34 +1152,41 @@ export function renderSetupPage(input: {
           }
           if (!setupLocked) {
             const actions = document.createElement("div");
-            actions.className = "actions";
+            actions.className = "camera-actions";
+            const useLabel = document.createElement("label");
+            useLabel.className = "check";
+            const useBox = document.createElement("input");
+            useBox.type = "checkbox";
+            useBox.checked = camera.enabled;
+            useBox.onchange = () => toggleCamera(camera, useBox);
+            useLabel.append(useBox, document.createTextNode("Use for replay clips"));
+            actions.append(useLabel);
+            info.appendChild(actions);
+
+            const more = document.createElement("div");
+            more.className = "quiet-actions";
             const testBtn = document.createElement("button");
-            testBtn.textContent = "Test camera";
-            testBtn.className = "inline";
+            testBtn.type = "button";
+            testBtn.textContent = "Check this camera";
+            testBtn.className = "link";
             testBtn.onclick = () => testCamera(camera.id);
-            const previewBtn = document.createElement("button");
-            previewBtn.textContent = "Capture 15s preview";
-            previewBtn.className = "inline";
-            previewBtn.onclick = () => capturePreview(camera.id);
-            const enableBtn = document.createElement("button");
-            enableBtn.textContent = camera.enabled ? "✓ Used for replay clips" : "Use for replay clips";
-            enableBtn.className = "inline camera-choice";
-            enableBtn.dataset.selected = String(camera.enabled);
-            enableBtn.setAttribute("aria-pressed", String(camera.enabled));
-            enableBtn.onclick = () => toggleCamera(camera);
             const refreshBtn = document.createElement("button");
-            refreshBtn.textContent = "Restart live view";
-            refreshBtn.className = "inline";
+            refreshBtn.type = "button";
+            refreshBtn.textContent = "Reload picture";
+            refreshBtn.className = "link";
             refreshBtn.onclick = refreshLiveView;
             const deleteBtn = document.createElement("button");
+            deleteBtn.type = "button";
             deleteBtn.textContent = "Remove";
-            deleteBtn.className = "inline";
-            deleteBtn.onclick = () => removeCamera(camera.id);
-            actions.append(enableBtn, testBtn, previewBtn, refreshBtn, deleteBtn);
-            info.appendChild(actions);
+            deleteBtn.className = "link danger";
+            deleteBtn.onclick = () => {
+              if (window.confirm("Remove " + camera.label + " from this list? Scanning the recorder again brings it back.")) removeCamera(camera.id);
+            };
+            more.append(testBtn, refreshBtn, deleteBtn);
+            info.appendChild(more);
           }
           item.append(live, info);
-          list.appendChild(item);
+          group.appendChild(item);
         }
         await loadTopologyReview();
         renderStages();
@@ -1005,14 +1194,17 @@ export function renderSetupPage(input: {
 
       async function testCamera(id) {
         const message = document.getElementById("camera-message");
-        message.textContent = "Closing the live view, then checking the camera…";
+        message.dataset.state = "checking";
+        message.textContent = "Checking the camera…";
         await pauseLiveViews();
         await new Promise((resolve) => setTimeout(resolve, 350));
         try {
           const result = await api("/api/setup/cameras/" + id + "/test", { method: "POST", body: "{}", timeoutMs: 180000 });
           await loadCameras();
           await loadCommissioning();
-          message.textContent = result.passed ? "Camera check passed." : "Camera check failed. See the problem and Technical details below.";
+          const label = (await api("/api/setup/cameras")).cameras.find((camera) => camera.id === id)?.label || "This camera";
+          message.dataset.state = result.passed ? "success" : "error";
+          message.textContent = result.passed ? label + " is working." : describeFailedTest(label, result);
         } catch (error) {
           message.textContent = error.message;
           resumeLiveViews();
@@ -1066,20 +1258,20 @@ export function renderSetupPage(input: {
         const data = await api("/api/setup/commissioning");
         const checklist = data.checklist;
         const lines = [
-          (checklist.allEnabledCamerasTested ? "✓" : "○") + " All enabled cameras tested",
-          (checklist.allEnabledCamerasPreviewed ? "✓" : "○") + " 15-second previews captured",
-          (checklist.failoverReady ? "✓" : "○") + " Failover drills complete",
+          (checklist.allEnabledCamerasTested ? "✓" : "○") + " Selected cameras checked",
+          (checklist.allEnabledCamerasPreviewed ? "✓" : "○") + " 15-second sample recorded from each camera",
+          (checklist.failoverReady ? "✓" : "○") + " Backup cameras switch over correctly",
           (checklist.enrolled ? "✓" : "○") + " Paired with PlayTT",
-          (checklist.published ? "✓" : "○") + " Snapshot sent to PlayTT",
-          (checklist.latestCloudConfigReceived ? "✓" : "○") + " Latest cloud revision received",
-          (checklist.configApplied ? "✓" : "○") + " Cloud configuration matches this PC",
-          (checklist.completed ? "✓" : "○") + " Commissioning complete",
+          (checklist.published ? "✓" : "○") + " Setup sent to PlayTT",
+          (checklist.latestCloudConfigReceived ? "✓" : "○") + " PlayTT's latest setup received",
+          (checklist.configApplied ? "✓" : "○") + " PlayTT and this PC agree on the setup",
+          (checklist.completed ? "✓" : "○") + " Setup finished",
         ];
         if (checklist.blockingReasons.length > 0) {
-          lines.push("Required:\\n" + checklist.blockingReasons.join("\\n"));
+          lines.push("\\nStill to do:\\n" + checklist.blockingReasons.join("\\n"));
         }
         if (checklist.recommendedReasons && checklist.recommendedReasons.length > 0) {
-          lines.push("Recommended:\\n" + checklist.recommendedReasons.join("\\n"));
+          lines.push("\\nRecommended:\\n" + checklist.recommendedReasons.join("\\n"));
         }
         workflow.enrolled = checklist.enrolled;
         workflow.failoverReady = checklist.failoverReady;
@@ -1144,15 +1336,20 @@ export function renderSetupPage(input: {
         renderStages();
       }
 
-      async function runFailoverDrill(resourceId) {
-        document.getElementById("mapping-message").textContent = "Running failover drill…";
-        await api("/api/setup/resources/" + resourceId + "/failover-drill", {
-          method: "POST",
-          body: "{}",
-        });
-        await loadResources();
-        await loadCommissioning();
-        document.getElementById("mapping-message").textContent = "Failover drill finished.";
+      // Checks locally that the backup camera takes over when the main one fails.
+      // It only simulates a failure; no camera is touched.
+      async function runFailoverDrill(resourceId, label) {
+        const message = document.getElementById("mapping-message");
+        message.dataset.state = "checking";
+        message.textContent = "Checking that " + label + " switches to its backup…";
+        try {
+          const response = await api("/api/setup/resources/" + resourceId + "/failover-drill", { method: "POST", body: "{}" });
+          message.dataset.state = "success";
+          message.textContent = response.result && response.result.skipped ? label + " is set." : label + " switches to its backup correctly.";
+        } catch (error) {
+          message.dataset.state = "error";
+          message.textContent = label + ": the backup camera didn't take over in the test. Check both cameras work in Review cameras, then choose Check switch-over again.";
+        }
       }
 
       document.getElementById("commissioning-test-all")?.addEventListener("click", async () => {
@@ -1221,13 +1418,20 @@ export function renderSetupPage(input: {
         }
       });
 
-      async function toggleCamera(camera) {
-        await api("/api/setup/cameras/" + camera.id, {
-          method: "PATCH",
-          body: JSON.stringify({ enabled: !camera.enabled }),
-        });
-        await loadCameras();
-        await loadResources();
+      async function toggleCamera(camera, checkbox) {
+        if (checkbox) checkbox.disabled = true;
+        try {
+          await api("/api/setup/cameras/" + camera.id, {
+            method: "PATCH",
+            body: JSON.stringify({ enabled: !camera.enabled }),
+          });
+          await loadCameras();
+          await loadResources();
+          await loadCommissioning();
+        } catch (error) {
+          if (checkbox) { checkbox.checked = camera.enabled; checkbox.disabled = false; }
+          document.getElementById("camera-message").textContent = error.message;
+        }
       }
 
       async function removeCamera(id) {
@@ -1236,265 +1440,228 @@ export function renderSetupPage(input: {
         await loadResources();
       }
 
+      function humanMappingWarning(warning) {
+        const text = String(warning.message || "");
+        const name = text.replace(/ (is disabled for PlayTT capture|health is .*|is also mapped to .*)\\.?$/, "");
+        if (warning.code === "camera_disabled") return name + " is no longer ticked for replays. Choose another camera, or tick it again in Review cameras.";
+        if (warning.code === "camera_unhealthy") return name + " has had video drop-outs recently. Check its cable and power.";
+        if (warning.code === "duplicate_mapping") return name + " also films another table. That's fine if one camera covers both.";
+        if (warning.code === "missing_camera") return "A camera chosen earlier no longer exists. Choose another camera.";
+        if (warning.code === "unknown_resource") return "PlayTT no longer lists this table.";
+        return text;
+      }
+
+      function cameraOptionLabel(camera, multipleRecorders) {
+        const mentionsChannel = new RegExp("(^|\\\\D)" + camera.channelKey + "(\\\\D|$)").test(camera.label);
+        return camera.label + (multipleRecorders ? " — " + camera.nvrLabel : "") + (mentionsChannel ? "" : " · channel " + camera.channelKey);
+      }
+
+      const autoCleanedResources = new Set();
+      const openAdvancedResources = new Set();
+      let resourcesGeneration = 0;
+
       async function loadResources() {
+        const generation = ++resourcesGeneration;
         const resourcesData = await api("/api/setup/resources");
         const hint = document.getElementById("mapping-config-hint");
-        if (resourcesData.needsConfig) {
-          hint.textContent =
-            "Mapping needs pairing and a published venue Config v2 with authorized resources.";
-        } else {
-          hint.textContent = "";
-        }
+        hint.textContent = resourcesData.needsConfig
+          ? "Tables appear here once this PC is paired and PlayTT has sent the venue's table list."
+          : resourcesData.resources.length === 0 ? "PlayTT hasn't listed any tables for this venue yet." : "";
 
         const camerasData = await api("/api/setup/cameras");
-        const enabledCameras = camerasData.cameras.filter((c) => c.enabled);
+        const usable = camerasData.cameras.filter((camera) => camera.enabled && camera.nvrEnabled !== false);
+        const multipleRecorders = new Set(usable.map((camera) => camera.nvrId)).size > 1;
         const list = document.getElementById("resource-list");
-        list.innerHTML = "";
+        // Build off-screen so overlapping refreshes can't duplicate tables.
+        const fragment = document.createDocumentFragment();
+        let unmappedTables = 0;
 
         for (const resource of resourcesData.resources) {
-          const item = document.createElement("div");
-          item.className = "resource-item";
-          item.innerHTML =
-            "<strong>" + resource.label + "</strong> " +
-            "<span class='badge'>" + (resource.enabled ? "enabled" : "disabled") + "</span>";
+          const policy = (await api("/api/setup/resources/" + resource.id + "/policy")).policy;
+          const ordered = [...policy.candidates].sort((a, b) => a.priority - b.priority);
+          const usableIds = new Set(usable.map((camera) => camera.id));
+          // Skip cameras that are no longer ticked, so the first working one becomes the main camera.
+          const working = ordered.filter((candidate) => usableIds.has(candidate.cameraId));
+          const primary = working[0] ? working[0].cameraId : "";
+          const backup = working[1] ? working[1].cameraId : "";
 
-          const policyData = await api("/api/setup/resources/" + resource.id + "/policy");
-          const policy = policyData.policy;
-          let liveCandidates = policy.candidates.map((c) => ({
-            cameraId: c.cameraId,
-            priority: c.priority,
-            captureModes: c.captureModes,
-            enabled: c.enabled,
-            cameraLabel: c.cameraLabel,
-          }));
+          const card = document.createElement("article");
+          card.className = "table-card";
+          const head = document.createElement("div");
+          head.className = "table-card-head";
+          const title = document.createElement("h3");
+          title.textContent = resource.label;
+          const state = document.createElement("span");
+          state.className = "table-card-state";
+          // PlayTT marks a table "enabled" only once a published setup routes a
+          // camera to it, so on a first setup every table arrives disabled.
+          // That must not stop the operator from choosing its camera.
+          if (!primary) {
+            unmappedTables += 1;
+            state.dataset.state = "attention";
+            state.textContent = "Needs a camera";
+          } else {
+            state.dataset.state = "ready";
+            state.textContent = backup ? "Camera and backup set" : "Camera set";
+          }
+          head.append(title, state);
+          card.appendChild(head);
 
-          const warnings = policy.warnings
-            .map((w) => w.code + ": " + w.message)
-            .join("\\n");
+          const fields = document.createElement("div");
+          fields.className = "row";
+          const primaryLabel = document.createElement("label");
+          primaryLabel.textContent = "Camera";
+          const primarySelect = document.createElement("select");
+          const backupLabel = document.createElement("label");
+          backupLabel.textContent = "Backup camera (optional)";
+          const backupSelect = document.createElement("select");
+          primarySelect.appendChild(new Option(usable.length ? "Choose a camera" : "No cameras ticked yet", ""));
+          backupSelect.appendChild(new Option("No backup", ""));
+          for (const camera of usable) {
+            primarySelect.appendChild(new Option(cameraOptionLabel(camera, multipleRecorders), camera.id));
+            backupSelect.appendChild(new Option(cameraOptionLabel(camera, multipleRecorders), camera.id));
+          }
+          primarySelect.value = primary;
+          backupSelect.value = backup;
+          const syncBackupOptions = () => {
+            for (const option of backupSelect.options) option.disabled = option.value !== "" && option.value === primarySelect.value;
+            backupSelect.disabled = setupLocked || !primarySelect.value;
+          };
+          primarySelect.disabled = setupLocked || usable.length === 0;
+          syncBackupOptions();
+          primaryLabel.appendChild(primarySelect);
+          backupLabel.appendChild(backupSelect);
+          fields.append(primaryLabel, backupLabel);
+          card.appendChild(fields);
 
-          function renderCandidatesText() {
-            return liveCandidates
-              .map(
-                (c, index) =>
-                  (index + 1) + ". " + (c.cameraLabel || c.cameraId) +
-                  " (prio " + c.priority + ", " + c.captureModes.join(", ") + ")",
-              )
-              .join("\\n");
+          if (usable.length === 0) {
+            const empty = document.createElement("p");
+            empty.className = "muted";
+            empty.textContent = "Go back to Review cameras and tick the cameras that film tables.";
+            card.appendChild(empty);
           }
 
-          const detail = document.createElement("pre");
-          detail.className = "muted";
-          detail.textContent =
-            "Mode: " + policy.selectionMode +
-            " · failback " + (policy.failover.autoFailback ? "on" : "off") +
-            "\\nCandidates:\\n" + (renderCandidatesText() || "none") +
-            (warnings ? "\\nWarnings:\\n" + warnings : "");
-
-          item.appendChild(detail);
-
-          const candidateControls = document.createElement("div");
-
-          function renumberCandidates(candidates) {
-            return candidates.map((candidate, index) => ({
-              ...candidate,
-              priority: index + 1,
-            }));
+          const notes = policy.warnings.map(humanMappingWarning);
+          const removedCount = ordered.filter((candidate) => !usableIds.has(candidate.cameraId)).length;
+          const primaryCamera = usable.find((camera) => camera.id === primary);
+          const backupCamera = usable.find((camera) => camera.id === backup);
+          if (primaryCamera && backupCamera && primaryCamera.nvrId === backupCamera.nvrId && primaryCamera.channelKey === backupCamera.channelKey) {
+            notes.push("The backup is the same camera as the main one (channel " + primaryCamera.channelKey + "), so it won't help if that camera stops. Pick a different camera as the backup, or choose No backup.");
+          }
+          if (notes.length > 0) {
+            const noteList = document.createElement("ul");
+            noteList.className = "table-notes";
+            for (const note of [...new Set(notes)]) {
+              const li = document.createElement("li");
+              li.textContent = note;
+              noteList.appendChild(li);
+            }
+            card.appendChild(noteList);
           }
 
-          function renderCandidateControls() {
-            candidateControls.innerHTML = "";
-            liveCandidates.forEach((candidate, index) => {
-              const row = document.createElement("div");
-              row.className = "camera-item";
-              row.textContent =
-                (index + 1) + ". " + (candidate.cameraLabel || candidate.cameraId);
-              if (!setupLocked) {
-                const upBtn = document.createElement("button");
-                upBtn.textContent = "Move up";
-                upBtn.className = "inline";
-                upBtn.disabled = index === 0;
-                upBtn.onclick = async () => {
-                  const next = [...liveCandidates];
-                  const [entry] = next.splice(index, 1);
-                  next.splice(index - 1, 0, entry);
-                  liveCandidates = renumberCandidates(next);
-                  renderCandidateControls();
-                  detail.textContent =
-                    "Mode: " + modeSelect.value +
-                    " · failback " + (failbackCheck.checked ? "on" : "off") +
-                    "\\nCandidates:\\n" + (renderCandidatesText() || "none") +
-                    (warnings ? "\\nWarnings:\\n" + warnings : "");
-                  await savePolicy(resource.id, {
-                    selectionMode: modeSelect.value,
-                    autoFailback: failbackCheck.checked,
-                    candidates: liveCandidates.map((c) => ({
-                      cameraId: c.cameraId,
-                      priority: c.priority,
-                      captureModes: c.captureModes,
-                      enabled: c.enabled,
-                    })),
-                  });
-                };
-                const downBtn = document.createElement("button");
-                downBtn.textContent = "Move down";
-                downBtn.className = "inline";
-                downBtn.disabled = index === liveCandidates.length - 1;
-                downBtn.onclick = async () => {
-                  const next = [...liveCandidates];
-                  const [entry] = next.splice(index, 1);
-                  next.splice(index + 1, 0, entry);
-                  liveCandidates = renumberCandidates(next);
-                  renderCandidateControls();
-                  detail.textContent =
-                    "Mode: " + modeSelect.value +
-                    " · failback " + (failbackCheck.checked ? "on" : "off") +
-                    "\\nCandidates:\\n" + (renderCandidatesText() || "none") +
-                    (warnings ? "\\nWarnings:\\n" + warnings : "");
-                  await savePolicy(resource.id, {
-                    selectionMode: modeSelect.value,
-                    autoFailback: failbackCheck.checked,
-                    candidates: liveCandidates.map((c) => ({
-                      cameraId: c.cameraId,
-                      priority: c.priority,
-                      captureModes: c.captureModes,
-                      enabled: c.enabled,
-                    })),
-                  });
-                };
-                row.append(upBtn, downBtn);
-              }
-              candidateControls.appendChild(row);
+          const advanced = document.createElement("details");
+          advanced.open = openAdvancedResources.has(resource.id);
+          advanced.addEventListener("toggle", () => {
+            if (advanced.open) openAdvancedResources.add(resource.id);
+            else openAdvancedResources.delete(resource.id);
+          });
+          const advancedSummary = document.createElement("summary");
+          advancedSummary.textContent = "Advanced";
+          const advancedBody = document.createElement("div");
+          advancedBody.className = "advanced";
+          const autoLabel = document.createElement("label");
+          autoLabel.className = "check";
+          const autoBox = document.createElement("input");
+          autoBox.type = "checkbox";
+          autoBox.checked = policy.selectionMode !== "manual";
+          autoLabel.append(autoBox, document.createTextNode("Switch to the backup automatically when the main camera fails"));
+          const failbackLabel = document.createElement("label");
+          failbackLabel.className = "check";
+          const failbackBox = document.createElement("input");
+          failbackBox.type = "checkbox";
+          failbackBox.checked = policy.failover.autoFailback;
+          failbackLabel.append(failbackBox, document.createTextNode("Switch back to the main camera once it recovers"));
+          const drillBtn = document.createElement("button");
+          drillBtn.type = "button";
+          drillBtn.className = "inline";
+          drillBtn.textContent = "Check switch-over again";
+          drillBtn.style.justifySelf = "start";
+          drillBtn.disabled = setupLocked || !resource.enabled || !backup;
+          drillBtn.onclick = async () => {
+            drillBtn.disabled = true;
+            await runFailoverDrill(resource.id, resource.label);
+            await loadCommissioning();
+            drillBtn.disabled = false;
+          };
+          const advancedNote = document.createElement("p");
+          advancedNote.className = "muted";
+          advancedNote.textContent = "A camera counts as failed after " + policy.failover.failureThreshold + " missed checks; it's trusted again after " + policy.failover.healthyThreshold + " good ones.";
+          autoBox.disabled = failbackBox.disabled = setupLocked || !primary;
+          advancedBody.append(autoLabel, failbackLabel, advancedNote, drillBtn);
+          advanced.append(advancedSummary, advancedBody);
+          card.appendChild(advanced);
+
+          const save = async () => {
+            if (setupLocked) return;
+            if (backupSelect.value === primarySelect.value) backupSelect.value = "";
+            syncBackupOptions();
+            const chosen = [primarySelect.value, backupSelect.value].filter(Boolean);
+            primarySelect.disabled = backupSelect.disabled = true;
+            const saved = await savePolicy(resource.id, resource.label, {
+              selectionMode: autoBox.checked ? "automatic" : "manual",
+              autoFailback: failbackBox.checked,
+              candidates: chosen.map((cameraId, index) => ({
+                cameraId,
+                priority: index + 1,
+                captureModes: ["edge_buffer"],
+                enabled: true,
+              })),
             });
-          }
-
-          if (!setupLocked) {
-            const modeSelect = document.createElement("select");
-            modeSelect.innerHTML =
-              "<option value='automatic'>automatic</option><option value='manual'>manual</option>";
-            modeSelect.value = policy.selectionMode;
-            const failbackCheck = document.createElement("input");
-            failbackCheck.type = "checkbox";
-            failbackCheck.checked = policy.failover.autoFailback;
-            const cameraSelect = document.createElement("select");
-            const mappableCameras = camerasData.cameras.filter((c) => c.enabled);
-            const cameraPool =
-              mappableCameras.length > 0 ? mappableCameras : camerasData.cameras;
-            if (cameraPool.length === 0) {
-              const empty = document.createElement("option");
-              empty.value = "";
-              empty.textContent = "No cameras yet — enable capture on a camera above";
-              cameraSelect.appendChild(empty);
-              cameraSelect.disabled = true;
-            } else {
-              for (const camera of cameraPool) {
-                const opt = document.createElement("option");
-                opt.value = camera.id;
-                opt.textContent =
-                  camera.label +
-                  " (" +
-                  camera.nvrLabel +
-                  ")" +
-                  (camera.enabled ? "" : " — capture disabled");
-                opt.disabled = !camera.enabled;
-                cameraSelect.appendChild(opt);
-              }
+            if (saved && resource.enabled && chosen.length > 0) {
+              await runFailoverDrill(resource.id, resource.label);
             }
-            if (mappableCameras.length === 0) {
-              const help = document.createElement("p");
-              help.className = "muted";
-              help.textContent =
-                "Enable capture on ch1 (or another H.264 camera) in the Cameras section, then reload this page.";
-              item.appendChild(help);
-            }
-            const addBtn = document.createElement("button");
-            addBtn.textContent = "Add candidate";
-            addBtn.className = "inline";
-            addBtn.disabled = mappableCameras.length === 0;
-            addBtn.onclick = async () => {
-              if (!cameraSelect.value) {
-                return;
-              }
-              const nextPriority =
-                liveCandidates.length === 0
-                  ? 1
-                  : Math.max(...liveCandidates.map((c) => c.priority)) + 1;
-              liveCandidates = renumberCandidates([
-                ...liveCandidates,
-                {
-                  cameraId: cameraSelect.value,
-                  priority: nextPriority,
-                  captureModes: ["edge_buffer"],
-                  enabled: true,
-                  cameraLabel:
-                    camerasData.cameras.find((c) => c.id === cameraSelect.value)
-                      ?.label ?? cameraSelect.value,
-                },
-              ]);
-              renderCandidateControls();
-              detail.textContent =
-                "Mode: " + modeSelect.value +
-                " · failback " + (failbackCheck.checked ? "on" : "off") +
-                "\\nCandidates:\\n" + (renderCandidatesText() || "none") +
-                (warnings ? "\\nWarnings:\\n" + warnings : "");
-              await savePolicy(resource.id, {
-                selectionMode: modeSelect.value,
-                autoFailback: failbackCheck.checked,
-                candidates: liveCandidates.map((c) => ({
-                  cameraId: c.cameraId,
-                  priority: c.priority,
-                  captureModes: c.captureModes,
-                  enabled: c.enabled,
-                })),
-              });
-            };
-            const saveBtn = document.createElement("button");
-            saveBtn.textContent = "Save policy";
-            saveBtn.className = "inline";
-            saveBtn.onclick = async () => {
-              await savePolicy(resource.id, {
-                selectionMode: modeSelect.value,
-                autoFailback: failbackCheck.checked,
-                candidates: liveCandidates.map((c) => ({
-                  cameraId: c.cameraId,
-                  priority: c.priority,
-                  captureModes: c.captureModes,
-                  enabled: c.enabled,
-                })),
-              });
-            };
-            const drillBtn = document.createElement("button");
-            drillBtn.textContent = "Run failover drill";
-            drillBtn.className = "inline";
-            drillBtn.onclick = () => runFailoverDrill(resource.id);
-            renderCandidateControls();
-            item.append(
-              candidateControls,
-              modeSelect,
-              failbackCheck,
-              cameraSelect,
-              addBtn,
-              saveBtn,
-              drillBtn,
-            );
-          }
+            await loadResources();
+            await loadCommissioning();
+          };
+          primarySelect.onchange = save;
+          backupSelect.onchange = save;
+          autoBox.onchange = save;
+          failbackBox.onchange = save;
 
-          list.appendChild(item);
+          if (removedCount > 0 && !setupLocked && primary && !autoCleanedResources.has(resource.id)) {
+            autoCleanedResources.add(resource.id);
+            // An unticked camera is still on this table's list; saving drops it
+            // so later changes aren't rejected.
+            void save();
+          }
+          fragment.appendChild(card);
+        }
+        if (generation === resourcesGeneration) {
+          list.replaceChildren(fragment);
+          // At least one table needs a camera; tables left empty simply won't record replays.
+          workflow.tablesMapped = !resourcesData.needsConfig &&
+            resourcesData.resources.length > unmappedTables;
+          renderStages();
         }
       }
 
-      async function savePolicy(resourceId, payload) {
-        document.getElementById("mapping-message").textContent = "Saving mapping…";
-        await api("/api/setup/resources/" + resourceId + "/policy", {
-          method: "PUT",
-          body: JSON.stringify({
-            ...payload,
-            failureThreshold: 3,
-            cooldownSeconds: 60,
-            healthyThreshold: 2,
-          }),
-        });
-        await loadResources();
-        document.getElementById("mapping-message").textContent = "Mapping saved.";
+      async function savePolicy(resourceId, label, payload) {
+        const message = document.getElementById("mapping-message");
+        message.dataset.state = "checking";
+        message.textContent = "Saving " + label + "…";
+        try {
+          await api("/api/setup/resources/" + resourceId + "/policy", {
+            method: "PUT",
+            body: JSON.stringify(payload),
+          });
+          message.dataset.state = "success";
+          message.textContent = label + " saved.";
+          return true;
+        } catch (error) {
+          message.dataset.state = "error";
+          message.textContent = "Couldn't save " + label + ": " + error.message;
+          return false;
+        }
       }
 
       document.getElementById("camera-form")?.addEventListener("submit", async (event) => {
@@ -1543,13 +1710,15 @@ export function renderSetupPage(input: {
           });
           form.password.value = "";
           message.dataset.state = "success";
-          message.textContent = "Credentials verified. Finding connected cameras…";
+          message.textContent = "Login accepted. Looking for cameras…";
           await loadNvrs();
           resumeFromSavedProgress = false;
           currentStage = 3;
           renderStages();
+          // The scan shows its own progress; one toast at a time.
+          message.textContent = "";
           try { await enumerateCameras(saved.nvr.id); }
-          catch (error) { document.getElementById("camera-message").textContent = "NVR added. " + error.message + " Use Find cameras to retry."; }
+          catch (error) { document.getElementById("camera-message").textContent = "NVR added. " + error.message + " Use Scan recorder again to retry."; }
         } catch (error) {
           message.dataset.state = "error";
           message.setAttribute("role", "alert");
@@ -1562,14 +1731,17 @@ export function renderSetupPage(input: {
       });
 
       // Finds recorders on the LAN and fills the form when one is picked.
-      // var, not let: renderStages() may read this before this line runs.
-      var nvrSearchDone = false;
+      // var without an initializer: renderStages() runs before this line, and
+      // re-initialising here would reset the flag and start a second search.
+      var nvrSearchDone;
+      var nvrSearchRunning;
       async function findRecordersOnNetwork() {
         const button = document.getElementById("find-nvrs-btn");
         const message = document.getElementById("find-nvrs-message");
         const results = document.getElementById("find-nvrs-results");
-        if (!button || !message || !results) return;
+        if (!button || !message || !results || nvrSearchRunning) return;
         nvrSearchDone = true;
+        nvrSearchRunning = true;
         button.disabled = true;
         message.dataset.state = "checking";
         message.textContent = "Looking for recorders on this network… (about 5 seconds)";
@@ -1584,6 +1756,7 @@ export function renderSetupPage(input: {
           }
           message.dataset.state = "success";
           message.textContent = found.length === 1 ? "Found 1 device. Tap it to fill in the form." : "Found " + found.length + " devices. Tap the recorder to fill in the form.";
+          const seenRecorders = new Set();
           for (const item of found) {
             const pick = document.createElement("button");
             pick.type = "button";
@@ -1610,13 +1783,15 @@ export function renderSetupPage(input: {
                 nvrMessage.textContent = "Address filled in. Enter the NVR's username and password, then choose Verify & add NVR.";
               }
             });
-            results.appendChild(pick);
+            if (!seenRecorders.has(item.host + ":" + item.rtspPort)) results.appendChild(pick);
+            seenRecorders.add(item.host + ":" + item.rtspPort);
           }
         } catch (error) {
           message.dataset.state = "error";
           message.textContent = error.message;
         } finally {
           button.disabled = false;
+          nvrSearchRunning = false;
         }
       }
       document.getElementById("find-nvrs-btn")?.addEventListener("click", () => void findRecordersOnNetwork());

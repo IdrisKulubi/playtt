@@ -761,7 +761,7 @@ test("setup wizard shows progress and polls until cloud config applies", () => {
   assert.match(html, /Applying the configuration from PlayTT/)
   assert.match(html, /Waiting for PlayTT admin to publish this setup/)
   assert.match(html, /autoPublishStatus/)
-  assert.match(html, /Latest cloud revision received/)
+  assert.match(html, /PlayTT's latest setup received/)
   assert.match(html, /does not match this PC/)
   assert.match(html, /workflow\.published && workflow\.configApplied/)
   assert.match(html, /open-cloud-dashboard/)
@@ -772,4 +772,25 @@ test("setup wizard shows progress and polls until cloud config applies", () => {
   assert.match(html, /Sync completion with PlayTT/)
   assert.match(html, /\/api\/setup\/cameras\/live\/stop/)
   assert.match(html, /setTimeout/)
+})
+
+test("failover readiness ignores tables turned off in PlayTT and is never one refresh stale", async () => {
+  const stack = await createCommissioningStack({
+    fixture: "edge-v2-cross-nvr-failover.json",
+    probeRunner: createProbeScenario("ok"),
+  })
+  await seedTwoCameraResource(stack)
+
+  // Two cameras on an active table: a switch-over check is required.
+  assert.equal(stack.commissioningManager.buildChecklist(true).failoverReady, false)
+
+  // PlayTT turns the table off. It can no longer run a drill, so it must not block.
+  stack.edgeConfigV2.resources[0].enabled = false
+  assert.equal(
+    stack.commissioningManager.buildChecklist(true).failoverReady,
+    true,
+    "the first checklist after the change already reflects it",
+  )
+
+  stack.database.close()
 })

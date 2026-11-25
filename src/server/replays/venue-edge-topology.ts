@@ -656,7 +656,16 @@ export async function ingestCommissioningSnapshotForLocation(input: {
             .set({
               isEnabled: false,
               ...(existingRoute.installationId
-                ? { retiredAt: now, lastReportedVersion: reportedVersion }
+                ? {
+                    retiredAt: now,
+                    // Report versions are counted per installation. A route left
+                    // by an earlier installation (e.g. before re-pairing) keeps its
+                    // own lineage; stamping this installation's lower version on it
+                    // violates replay_source_routes_report_lineage_valid.
+                    ...(existingRoute.installationId === installation.id
+                      ? { lastReportedVersion: reportedVersion }
+                      : {}),
+                  }
                 : {}),
               updatedAt: now,
             })

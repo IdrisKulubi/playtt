@@ -116,3 +116,56 @@ test("cleanup preselects only failed disabled cameras and rejects stale fingerpr
   )
   database.close()
 })
+
+test("review flags one channel saved as both main and sub and removes the unused copy", async () => {
+  const { database, repositories, reviewManager } = await createStack()
+  const nvr = insertNvr(repositories, { label: "Main NVR" })
+  const main = repositories.insertLocalCamera({
+    id: randomUUID(), nvrId: nvr.id, label: "Main NVR ch1 (main)",
+    channelKey: "1", streamProfile: "main", codec: "h264", enabled: true,
+  })
+  const sub = repositories.insertLocalCamera({
+    id: randomUUID(), nvrId: nvr.id, label: "Main NVR ch1 (sub)",
+    channelKey: "1", streamProfile: "sub", codec: "h264", enabled: false,
+  })
+
+  const proposal = reviewManager.buildProposal()
+  const issue = proposal.issues.find((entry) => entry.code === "duplicate_channel")
+  assert.ok(issue)
+  assert.equal(issue.severity, "warning")
+  assert.deepEqual(proposal.deleteCameraIds, [sub.id])
+
+  const after = await reviewManager.apply({
+    fingerprint: proposal.fingerprint,
+    deleteNvrIds: [],
+    deleteCameraIds: proposal.deleteCameraIds,
+  })
+  assert.equal(after.issues.length, 0)
+  assert.deepEqual(repositories.listLocalCameras().map((camera) => camera.id), [main.id])
+  database.close()
+})
+
+test("review points out the same login saved as two recorders without deleting anything", async () => {
+  const { database, repositories, reviewManager } = await createStack()
+  const first = insertNvr(repositories, { label: "Main NVR" })
+  const second = repositories.insertLocalNvr({
+    id: randomUUID(), label: "Old NVR", vendor: "vigi", host: "192.168.0.83",
+    rtspPort: 554, playbackPort: null, username: "playtt_edge",
+    localConnectionKey: `memory:${randomUUID()}`, enabled: true,
+    testChannelKey: "1", timeMode: "unknown",
+  })
+  for (const nvr of [first, second]) {
+    repositories.insertLocalCamera({
+      id: randomUUID(), nvrId: nvr.id, label: `${nvr.label} ch1 (main)`,
+      channelKey: "1", streamProfile: "main", codec: "h264", enabled: false,
+    })
+  }
+
+  const proposal = reviewManager.buildProposal()
+  const issue = proposal.issues.find((entry) => entry.code === "possible_duplicate_recorder")
+  assert.ok(issue)
+  assert.equal(issue.severity, "notice")
+  assert.match(issue.message, /Old NVR at 192\.168\.0\.83/)
+  assert.deepEqual(proposal.deleteNvrIds, [])
+  database.close()
+})

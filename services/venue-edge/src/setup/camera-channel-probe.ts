@@ -25,7 +25,8 @@ function mapCodec(value: string | null | undefined): LocalCameraCodec {
   if (value === "h264") {
     return "h264"
   }
-  if (value === "h265") {
+  // ffmpeg reports H.265 as "hevc".
+  if (value === "h265" || value === "hevc") {
     return "h265"
   }
   return "unknown"

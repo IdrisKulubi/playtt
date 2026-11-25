@@ -178,7 +178,7 @@ export function diagnoseCodecProbe(probe: CodecProbeResult): NvrProbeDiagnostic 
     return { ...base, code: "ffmpeg_failed", summary: `The recorder didn't send video for this camera (code ${probe.exitCode ?? "unknown"}).`, action: "Check this camera shows a picture in the NVR's own app. If it does, wait a minute and test again; if it keeps failing, save a support bundle and send it to PlayTT." }
   }
   if (!probe.codec) return { ...base, code: "video_stream_missing", summary: "The recorder connected but sent no picture for this camera.", action: "Check the camera is switched on and showing a picture in the NVR's own app, then test again." }
-  if (!probe.compatible) return { ...base, code: "codec_incompatible", summary: `This camera sends ${probe.codec.toUpperCase()} video, which replays can't use yet.`, action: "Choose Find cameras again: PlayTT will try the camera's H.264 sub-stream. For full quality, set the camera's main stream to H.264 in the NVR." }
+  if (!probe.compatible) return { ...base, code: "codec_incompatible", summary: `This camera sends ${probe.codec === "hevc" ? "H.265" : probe.codec.toUpperCase()} video, which replays can't use yet.`, action: "In the NVR, open this camera's video settings and set Video Encoding to H.264 (turn off H.265+ / Smart Coding), save, then choose Scan recorder again." }
   return { ...base, code: "ok", summary: `Live ${probe.codec.toUpperCase()} video was detected.`, action: "No action is needed." }
 }
 
