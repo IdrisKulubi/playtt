@@ -1,0 +1,27 @@
+{
+  "contractVersion": 1,
+  "action": "booking.plan",
+  "case": "success",
+  "result": {
+    "success": true,
+    "data": {
+      "status": "available",
+      "requested": {
+        "startsAt": "2026-08-18T08:50:00.000Z",
+        "endsAt": "2026-08-18T09:50:00.000Z",
+        "durationMinutes": 60
+      },
+      "resourceId": "018f4d65-3c1a-7f1d-9d54-6f547f24b002",
+      "price": {
+        "currency": "KES",
+        "subtotalAmount": 1600,
+        "discountAmount": 0,
+        "totalAmount": 1600,
+        "pricingRuleSnapshot": { "pricingTier": "off_peak" }
+      },
+      "conflicts": [],
+      "suggestions": [],
+      "earliestStartIso": "2026-08-18T08:20:00.000Z"
+    }
+  }
+}

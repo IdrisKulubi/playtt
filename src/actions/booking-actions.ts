@@ -8,7 +8,9 @@ import {
   getBookingBootstrapData,
   getBookingQuote,
   getLocationAvailability,
+  planBookingTime,
 } from "@/server/bookings/service";
+import type { BookingDurationMinutes } from "@/server/bookings/constants";
 import { getUserProfileById } from "@/server/users/onboarding";
 import {
   coordinatePendingBookingCreation,
@@ -39,7 +41,7 @@ export async function getBookingBootstrapAction() {
 export async function getAvailabilityAction(input: {
   locationId: string;
   date: string;
-  durationMinutes: 30 | 60;
+  durationMinutes: BookingDurationMinutes;
   groupSize: 2 | 3 | 4 | 5 | 6 | 7 | 8;
 }) {
   try {
@@ -61,7 +63,7 @@ export async function getBookingQuoteAction(input: {
   locationId: string;
   resourceId: string;
   startTimeIso: string;
-  durationMinutes: 30 | 60;
+  durationMinutes: BookingDurationMinutes;
   groupSize: 2 | 3 | 4 | 5 | 6 | 7 | 8;
 }) {
   try {
@@ -73,6 +75,25 @@ export async function getBookingQuoteAction(input: {
       success: false as const,
       message:
         error instanceof Error ? error.message : "Failed to calculate quote.",
+    };
+  }
+}
+
+export async function planBookingAction(input: {
+  locationId: string;
+  startTimeIso: string;
+  durationMinutes: BookingDurationMinutes;
+  groupSize: 2 | 3 | 4 | 5 | 6 | 7 | 8;
+}) {
+  try {
+    const context = await resolvePublicCatalogContext();
+    const data = await planBookingTime(context, input);
+    return { success: true as const, data };
+  } catch (error) {
+    return {
+      success: false as const,
+      message:
+        error instanceof Error ? error.message : "Could not check that time.",
     };
   }
 }

@@ -1,8 +1,17 @@
 import { subHours } from "date-fns"
 
 import { formatUnknownEnumValue } from "@/lib/compatibility/status-values"
-import { BOOKING_EDIT_CUTOFF_HOURS, BOOKING_SLOT_INTERVAL_MINUTES } from "@/server/bookings/constants"
-import type { SlotAvailability, UserBookingSummary } from "@/server/bookings/types"
+import {
+  BOOKING_DURATION_OPTIONS,
+  BOOKING_EDIT_CUTOFF_HOURS,
+  BOOKING_START_GRACE_MS,
+  type BookingDurationMinutes,
+} from "@/server/bookings/constants"
+import type {
+  BookingSuggestion,
+  SlotAvailability,
+  UserBookingSummary,
+} from "@/server/bookings/types"
 
 export const GROUP_SIZE_OPTIONS = [2, 3, 4, 5, 6, 7, 8] as const
 export type GroupSize = (typeof GROUP_SIZE_OPTIONS)[number]
@@ -23,11 +32,51 @@ export function formatPricingTierLabel(
     .replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+/** Same rule as the server: a start is gone once it is a minute behind now. */
 export function isSlotStartInPast(startsAtIso: string, nowMs: number): boolean {
-  return (
-    nowMs >=
-    new Date(startsAtIso).getTime() + BOOKING_SLOT_INTERVAL_MINUTES * 60 * 1000
-  )
+  return nowMs > new Date(startsAtIso).getTime() + BOOKING_START_GRACE_MS
+}
+
+export const DURATION_CHOICES: { value: BookingDurationMinutes; label: string }[] =
+  BOOKING_DURATION_OPTIONS.map((value) => ({
+    value,
+    label: formatDurationLabel(value),
+  }))
+
+export function formatDurationLabel(minutes: number) {
+  if (minutes < 60) return `${minutes} min`
+  const hours = minutes / 60
+  if (hours === 1) return "1 hour"
+  return `${hours % 1 === 0 ? hours : hours.toFixed(1)} hours`
+}
+
+/** A time the person picked or accepted that isn't one of the listed starts. */
+export type SelectedSlot = SlotAvailability & { isCustom?: boolean }
+
+export function slotFromSuggestion(suggestion: BookingSuggestion): SelectedSlot {
+  return {
+    startsAt: suggestion.startsAt,
+    endsAt: suggestion.endsAt,
+    durationMinutes: suggestion.durationMinutes,
+    isAvailable: true,
+    openTableCount: 1,
+    availableResourceIds: [suggestion.resourceId],
+    price: suggestion.price,
+    isCustom: true,
+  }
+}
+
+/** "20 min earlier", "1h 40m later", "30 min game". */
+export function describeSuggestion(suggestion: BookingSuggestion) {
+  if (suggestion.kind === "shorter") {
+    return `Same start, ${formatDurationLabel(suggestion.durationMinutes)}`
+  }
+  const minutes = Math.abs(suggestion.shiftMinutes)
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  const amount =
+    hours === 0 ? `${rest} min` : rest === 0 ? `${hours}h` : `${hours}h ${rest}m`
+  return suggestion.shiftMinutes < 0 ? `${amount} earlier` : `${amount} later`
 }
 
 export function availabilitySubtitle(
@@ -35,7 +84,7 @@ export function availabilitySubtitle(
   startInPast: boolean
 ): string {
   if (startInPast) return "Past"
-  if (!slot.isAvailable || slot.openTableCount <= 0) return "No tables"
+  if (!slot.isAvailable || slot.openTableCount <= 0) return "Taken · see options"
   if (slot.openTableCount === 1) return "1 open table"
   return `${slot.openTableCount} open tables`
 }

@@ -6,8 +6,8 @@ import {
 import {
   buildDateTimeRange,
   isSlotClosedForBooking,
-  roundDateToSlot,
 } from "@/server/bookings/utils"
+import { isOnStartStep } from "@/server/bookings/scheduling.mjs"
 import { assertBookingEditable } from "@/server/bookings/modifications/eligibility"
 import { BookingModificationError } from "@/server/bookings/modifications/errors"
 import {
@@ -103,12 +103,10 @@ export async function quoteBookingModification(input: {
       booking.durationMinutes
     )
 
-    const roundedStart = roundDateToSlot(start)
-
-    if (roundedStart.toISOString() !== start.toISOString()) {
+    if (!isOnStartStep(start)) {
       throw new BookingModificationError(
         "INVALID_SLOT",
-        "Bookings must start on a 30-minute boundary.",
+        "Pick a start time on a 5-minute step, like 11:50.",
         400
       )
     }

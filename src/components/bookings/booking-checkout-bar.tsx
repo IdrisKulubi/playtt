@@ -3,6 +3,7 @@
 import { format } from "date-fns";
 import { ArrowRightIcon } from "@phosphor-icons/react";
 
+import { formatDurationLabel } from "@/components/bookings/booking-utils";
 import { Button } from "@/components/ui/button";
 import type { BookingQuote, SlotAvailability } from "@/server/bookings/types";
 
@@ -43,7 +44,7 @@ export function BookingCheckoutBar({
                 {format(new Date(selectedSlot.startsAt), "EEE d MMM · h:mm a")}
               </p>
               <p className="truncate text-sm font-semibold">
-                {durationMinutes} min · {selectedSlot.price.currency}{" "}
+                {formatDurationLabel(durationMinutes)} · {selectedSlot.price.currency}{" "}
                 {selectedSlot.price.totalAmount.toLocaleString()}
               </p>
             </>

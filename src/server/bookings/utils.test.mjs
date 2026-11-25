@@ -41,11 +41,11 @@ test("Nairobi wall clock hours stay stable regardless of server timezone", () =>
   assert.equal(getZonedHours(lateEvening, TIME_ZONE), 22)
 })
 
-test("current 30-minute slot stays bookable until the next slot starts", () => {
-  const startsAt = zonedWallTime(DATE_KEY, 18, 30, TIME_ZONE)
-  const stillOpen = new Date(startsAt.getTime() + 2 * 60 * 1000)
-  const nextSlot = new Date(startsAt.getTime() + 30 * 60 * 1000)
+test("a start time closes once it has passed (one minute of grace)", () => {
+  const startsAt = zonedWallTime(DATE_KEY, 11, 30, TIME_ZONE)
+  const withinGrace = new Date(startsAt.getTime() + 30 * 1000)
+  const later = new Date(startsAt.getTime() + 17 * 60 * 1000)
 
-  assert.equal(isSlotClosedForBooking(startsAt, stillOpen), false)
-  assert.equal(isSlotClosedForBooking(startsAt, nextSlot), true)
+  assert.equal(isSlotClosedForBooking(startsAt, withinGrace), false)
+  assert.equal(isSlotClosedForBooking(startsAt, later), true)
 })

@@ -31,6 +31,14 @@
       "errorFixtures": ["fixtures/booking.quote.failure.json"]
     },
     {
+      "id": "booking.plan",
+      "actionFile": "src/actions/booking-actions.ts",
+      "exportName": "planBookingAction",
+      "webConsumers": ["src/components/bookings/booking-console.tsx"],
+      "successFixture": "fixtures/booking.plan.success.json",
+      "errorFixtures": ["fixtures/booking.plan.failure.json"]
+    },
+    {
       "id": "booking.create",
       "actionFile": "src/actions/booking-actions.ts",
       "exportName": "createPendingBookingAction",

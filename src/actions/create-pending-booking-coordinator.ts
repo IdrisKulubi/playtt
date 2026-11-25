@@ -1,5 +1,7 @@
+import type { BookingDurationMinutes } from "@/server/bookings/constants"
+
 export type PendingBookingActionInput = {
-  durationMinutes: 30 | 60
+  durationMinutes: BookingDurationMinutes
   groupSize: 2 | 3 | 4 | 5 | 6 | 7 | 8
   locationId: string
   notes?: string

@@ -2,6 +2,12 @@
 
 import type { ScoreState } from "@/server/scoring/types"
 
+import {
+  TvIdleScene,
+  TvSessionScene,
+  TvUpNextScene,
+  useNow,
+} from "@/components/display/tv-scenes"
 import type { DisplaySnapshotPayload } from "@/components/display/use-live-score"
 
 interface LiveScoreBoardProps {
@@ -89,7 +95,82 @@ function MatchMeta({
   )
 }
 
-export function LiveScoreBoard({ payload, variant }: LiveScoreBoardProps) {
+/** Minutes before a booking when the TV switches to "Up next". */
+const UP_NEXT_LEAD_MS = 5 * 60 * 1000
+
+/**
+ * Venue TV: follows the booking clock, not only the scoring hardware.
+ * Free table → idle scene; 5 minutes before a booking → up next; during the
+ * booking → the booker's session scene; once a point is scored → scoreboard.
+ */
+function TvBoard({ payload }: { payload: DisplaySnapshotPayload }) {
+  const now = useNow()
+  const state = payload.snapshot?.state
+  const schedule = payload.schedule
+  const tableName = payload.resource.name
+  const venue = schedule?.venueName ?? "PlayTT"
+
+  const scoring =
+    payload.status === "active" &&
+    state &&
+    (state.matchStatus !== "not_started" || state.pointsA + state.pointsB + state.gamesA + state.gamesB > 0)
+
+  if (scoring) {
+    return <LiveScoreBoard payload={payload} variant="tv" forceScoreboard />
+  }
+
+  // The server picks current/next at fetch time; re-check against the clock so
+  // the scene flips on the exact second between 5-second refreshes.
+  const candidates = [schedule?.current, schedule?.next].filter(
+    (booking): booking is NonNullable<typeof booking> => Boolean(booking),
+  )
+  const current = candidates.find(
+    (booking) =>
+      new Date(booking.startsAt).getTime() <= now &&
+      new Date(booking.endsAt).getTime() > now,
+  )
+  const upcoming = candidates.find(
+    (booking) => new Date(booking.startsAt).getTime() > now,
+  )
+
+  if (current) {
+    return <TvSessionScene key={current.bookingId} tableName={tableName} venue={venue} booking={current} />
+  }
+
+  if (payload.status === "active" && payload.playSession) {
+    // Session started on the hardware without a matching booking on screen.
+    return (
+      <TvSessionScene
+        key={payload.playSession.id}
+        tableName={tableName}
+        venue={venue}
+        booking={{
+          bookingId: payload.playSession.bookingId,
+          firstName: "Game on",
+          groupSize: 2,
+          startsAt: payload.playSession.scheduledStartAt,
+          endsAt: payload.playSession.scheduledEndAt,
+        }}
+      />
+    )
+  }
+
+  if (upcoming && new Date(upcoming.startsAt).getTime() - now <= UP_NEXT_LEAD_MS) {
+    return <TvUpNextScene key={`next-${upcoming.bookingId}`} tableName={tableName} venue={venue} booking={upcoming} />
+  }
+
+  return <TvIdleScene tableName={tableName} venue={venue} next={upcoming ?? null} />
+}
+
+export function LiveScoreBoard({
+  payload,
+  variant,
+  forceScoreboard = false,
+}: LiveScoreBoardProps & { forceScoreboard?: boolean }) {
+  if (variant === "tv" && !forceScoreboard) {
+    return <TvBoard payload={payload} />
+  }
+
   const state = payload.snapshot?.state
   const sessionWindow =
     payload.playSession &&

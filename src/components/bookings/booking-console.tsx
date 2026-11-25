@@ -8,21 +8,32 @@ import {
   createPendingBookingAction,
   getAvailabilityAction,
   getBookingQuoteAction,
+  planBookingAction,
 } from "@/actions/booking-actions"
 import { BookingCheckoutBar } from "@/components/bookings/booking-checkout-bar"
 import { BookingSummaryRail } from "@/components/bookings/booking-summary-rail"
 import {
   type BookingStep,
   type GroupSize,
+  type SelectedSlot,
   isSlotStartInPast,
+  slotFromSuggestion,
 } from "@/components/bookings/booking-utils"
 import { CheckoutSummary } from "@/components/bookings/checkout-summary"
+import { CustomTimePanel } from "@/components/bookings/custom-time-panel"
 import { GroupSizeSheet } from "@/components/bookings/group-size-sheet"
 import { TimingPanel } from "@/components/bookings/timing-panel"
 import { VenueList } from "@/components/bookings/venue-list"
 import { authClient } from "@/lib/auth-client"
+import {
+  DEFAULT_VENUE_TIMEZONE,
+  type BookingDurationMinutes,
+} from "@/server/bookings/constants"
+import { zonedWallTime } from "@/server/bookings/day-slots.mjs"
 import type {
+  BookingPlan,
   BookingQuote,
+  BookingSuggestion,
   CreatePendingBookingResult,
   LocationSummary,
   SlotAvailability,
@@ -51,11 +62,12 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
   const [selectedDate, setSelectedDate] = useState(
     format(new Date(), "yyyy-MM-dd")
   )
-  const [durationMinutes, setDurationMinutes] = useState<30 | 60>(60)
+  const [durationMinutes, setDurationMinutes] =
+    useState<BookingDurationMinutes>(60)
   const [groupSize, setGroupSize] = useState<GroupSize>(2)
-  const [selectedSlot, setSelectedSlot] = useState<SlotAvailability | null>(
-    null
-  )
+  const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | null>(null)
+  const [plan, setPlan] = useState<BookingPlan | null>(null)
+  const [isCheckingPlan, setIsCheckingPlan] = useState(false)
   const [availability, setAvailability] = useState<SlotAvailability[]>([])
   const [quote, setQuote] = useState<BookingQuote | null>(null)
   const [notes, setNotes] = useState("")
@@ -68,7 +80,9 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
   const [groupSheetOpen, setGroupSheetOpen] = useState(false)
   const [nowMs, setNowMs] = useState(() => Date.now())
 
-  const latestSelectedSlotRef = useRef<SlotAvailability | null>(null)
+  const latestSelectedSlotRef = useRef<SelectedSlot | null>(null)
+  const customPanelRef = useRef<HTMLDivElement | null>(null)
+  const lastAvailabilityKeyRef = useRef("")
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -100,7 +114,24 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
 
   const selectedResourceId = selectedSlot?.availableResourceIds[0] ?? ""
 
-  const visibleSlots = selectedLocationId && selectedDate ? availability : []
+  const visibleSlots =
+    selectedLocationId && selectedDate
+      ? availability.filter((slot) => !isSlotStartInPast(slot.startsAt, nowMs))
+      : []
+
+  const isToday = selectedDate === format(new Date(nowMs), "yyyy-MM-dd")
+  // Refresh today's list every minute so the "soonest" start keeps moving.
+  const refreshMinute = isToday && step === "timing" ? Math.floor(nowMs / 60_000) : 0
+
+  const venueTimeZone = selectedLocation?.timezone ?? DEFAULT_VENUE_TIMEZONE
+  const firstOpenSlot = visibleSlots.find((slot) => slot.isAvailable)
+  const customDefaultTime = firstOpenSlot
+    ? format(new Date(firstOpenSlot.startsAt), "HH:mm")
+    : "18:00"
+  // Must sit on the 5-minute grid: the browser counts `step` from `min`.
+  const customMinTime = isToday
+    ? format(new Date(Math.ceil((nowMs - 60_000) / 300_000) * 300_000), "HH:mm")
+    : undefined
 
   const dateStripDays = useMemo(() => {
     const start = startOfDay(new Date())
@@ -127,6 +158,7 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
     setSelectedLocationId(locationId)
     setSelectedSlot(null)
     setQuote(null)
+    setPlan(null)
     setStep("timing")
   }
 
@@ -134,19 +166,83 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
     setSelectedDate(value)
     setSelectedSlot(null)
     setQuote(null)
+    setPlan(null)
   }
 
-  function handleDurationChange(value: 30 | 60) {
+  function handleDurationChange(value: BookingDurationMinutes) {
     setDurationMinutes(value)
     setSelectedSlot(null)
     setQuote(null)
+    setPlan(null)
   }
 
-  function handleSlotSelect(slot: SlotAvailability) {
+  function handleSlotSelect(slot: SelectedSlot) {
     setQuote(null)
     setPaymentDisplayText(null)
+    setPlan(null)
     setSelectedSlot(slot)
     setGroupSheetOpen(true)
+  }
+
+  /** Checks any start time and shows either "free" or the nearest options. */
+  async function checkStart(startTimeIso: string, minutes = durationMinutes) {
+    if (!selectedLocationId) return
+    setIsCheckingPlan(true)
+    try {
+      const result = await planBookingAction({
+        locationId: selectedLocationId,
+        startTimeIso,
+        durationMinutes: minutes,
+        groupSize,
+      })
+      if (!result.success) {
+        toast.error(result.message)
+        setPlan(null)
+        return
+      }
+      setPlan(result.data)
+      customPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" })
+    } finally {
+      setIsCheckingPlan(false)
+    }
+  }
+
+  function handleCustomCheck(time: string) {
+    const [hour, minute] = time.split(":").map(Number)
+    if (Number.isNaN(hour) || Number.isNaN(minute)) return
+    // Snap to the 5-minute step the venue books in.
+    const snapped = Math.round(minute / 5) * 5
+    const start = zonedWallTime(selectedDate, hour, 0, venueTimeZone)
+    start.setTime(start.getTime() + snapped * 60_000)
+    void checkStart(start.toISOString())
+  }
+
+  function handleTakenSlot(slot: SlotAvailability) {
+    void checkStart(slot.startsAt)
+  }
+
+  function handleBookPlannedTime() {
+    if (!plan || plan.status !== "available" || !plan.resourceId || !plan.price) {
+      return
+    }
+    handleSlotSelect({
+      startsAt: plan.requested.startsAt,
+      endsAt: plan.requested.endsAt,
+      durationMinutes: plan.requested.durationMinutes,
+      isAvailable: true,
+      openTableCount: 1,
+      availableResourceIds: [plan.resourceId],
+      price: plan.price,
+      isCustom: true,
+    })
+  }
+
+  function handlePickSuggestion(suggestion: BookingSuggestion) {
+    // A shorter suggestion changes the game length too; keep the pick.
+    if (suggestion.durationMinutes !== durationMinutes) {
+      setDurationMinutes(suggestion.durationMinutes as BookingDurationMinutes)
+    }
+    handleSlotSelect(slotFromSuggestion(suggestion))
   }
 
   function handleGroupContinue() {
@@ -159,8 +255,12 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
       return
     }
 
+    const availabilityKey = `${selectedLocationId}|${selectedDate}|${durationMinutes}|${groupSize}`
+    const isRefresh = lastAvailabilityKeyRef.current === availabilityKey
+    lastAvailabilityKeyRef.current = availabilityKey
+
     startTransition(async () => {
-      setAvailability([])
+      if (!isRefresh) setAvailability([])
       const result = await getAvailabilityAction({
         locationId: selectedLocationId,
         date: selectedDate,
@@ -184,10 +284,16 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
         return
       }
 
-      const matchingSlot =
-        data.find(
-          (slot) => slot.startsAt === currentSlot.startsAt && slot.isAvailable
-        ) ?? null
+      const listed = data.find((slot) => slot.startsAt === currentSlot.startsAt)
+      const matchingSlot: SelectedSlot | null =
+        listed?.isAvailable
+          ? listed
+          : // A custom time isn't in the list; the server re-checks it on booking.
+            !listed &&
+              currentSlot.isCustom &&
+              currentSlot.durationMinutes === durationMinutes
+            ? currentSlot
+            : null
 
       if (!matchingSlot) {
         setQuote(null)
@@ -197,7 +303,7 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
 
       setSelectedSlot(matchingSlot)
     })
-  }, [durationMinutes, groupSize, selectedDate, selectedLocationId])
+  }, [durationMinutes, groupSize, selectedDate, selectedLocationId, refreshMinute])
 
   useEffect(() => {
     if (!selectedSlot || !selectedLocationId || !selectedResourceId) {
@@ -260,6 +366,14 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
 
       if (!result.success) {
         toast.error(result.message)
+        if (result.message.includes("no longer available")) {
+          // Someone just took it: go back and offer the nearest free times.
+          const taken = selectedSlot
+          setSelectedSlot(null)
+          setQuote(null)
+          setStep("timing")
+          void checkStart(taken.startsAt, taken.durationMinutes as BookingDurationMinutes)
+        }
         return
       }
 
@@ -344,6 +458,22 @@ export function BookingConsole({ locations }: BookingConsoleProps) {
               onShowDatePicker={() => setShowDatePicker(true)}
               onDurationChange={handleDurationChange}
               onSlotSelect={handleSlotSelect}
+              onTakenSlotSelect={handleTakenSlot}
+              customTime={
+                <div ref={customPanelRef}>
+                  <CustomTimePanel
+                    key={`${selectedDate}|${customDefaultTime}`}
+                    defaultTime={customDefaultTime}
+                    minTime={customMinTime}
+                    durationMinutes={durationMinutes}
+                    plan={plan}
+                    isChecking={isCheckingPlan}
+                    onCheck={handleCustomCheck}
+                    onBookRequested={handleBookPlannedTime}
+                    onPickSuggestion={handlePickSuggestion}
+                  />
+                </div>
+              }
             />
           ) : null}
 

@@ -1163,7 +1163,7 @@ export const bookings = pgTable(
     ),
     check(
       "bookings_duration_allowed",
-      sql`${table.durationMinutes} in (30, 60)`
+      sql`${table.durationMinutes} in (30, 60, 90, 120, 180)`
     ),
     check("bookings_discount_not_negative", sql`${table.discountAmount} >= 0`),
     check("bookings_total_not_negative", sql`${table.totalAmount} >= 0`),

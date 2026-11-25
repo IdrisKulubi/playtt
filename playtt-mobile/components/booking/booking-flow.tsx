@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { BackHandler, StyleSheet, TextInput, View } from "react-native"
 
 import { BookingSummary } from "@/components/booking/flow/booking-summary"
+import { CustomTimePicker } from "@/components/booking/flow/custom-time-picker"
 import { ChoiceChips } from "@/components/kit/choice-chips"
 import { DateStrip } from "@/components/booking/flow/date-strip"
 import { PayStep } from "@/components/booking/flow/pay-step"
@@ -27,23 +28,32 @@ import {
   createBooking,
   fetchAvailability,
   fetchBookingBootstrap,
+  fetchBookingPlan,
   fetchBookingQuote,
 } from "@/lib/booking-api"
-import type {
-  BookingQuote,
-  CreateBookingResult,
-  GroupSize,
-  LocationSummary,
-  SlotAvailability,
+import {
+  BOOKING_DURATION_OPTIONS,
+  type BookingDurationMinutes,
+  type BookingPlan,
+  type BookingQuote,
+  type BookingSuggestion,
+  type CreateBookingResult,
+  type GroupSize,
+  type LocationSummary,
+  type SelectedSlot,
+  type SlotAvailability,
 } from "@/lib/booking-types"
 import {
   addDaysToDateKey,
   buildDateStrip,
+  earliestStartMs,
   EXTRA_PLAYER_SURCHARGE,
   extraPlayerSurcharge,
+  formatDurationChip,
   formatKes,
   INCLUDED_PLAYERS,
   isSlotStartInPast,
+  slotFromSuggestion,
   toDateKey,
 } from "@/lib/booking-utils"
 import { addGameToCalendar } from "@/lib/calendar"
@@ -68,10 +78,19 @@ const STEP_BACK_LABELS: Partial<Record<FlowStep, string>> = {
   players: "Players",
 }
 
-const DURATION_OPTIONS = [
-  { value: 60 as const, label: "1 hour" },
-  { value: 30 as const, label: "30 min" },
-]
+const DURATION_OPTIONS = BOOKING_DURATION_OPTIONS.map((value) => ({
+  value,
+  label: formatDurationChip(value),
+}))
+
+const DAY_MS = 24 * 60 * 60 * 1000
+const STEP_MS = 5 * 60 * 1000
+
+/** Local midnight of a yyyy-MM-dd key (the app shows times in device time). */
+function dayStartMs(dateKey: string) {
+  const [year, month, day] = dateKey.split("-").map(Number)
+  return new Date(year, month - 1, day).getTime()
+}
 
 /** The times scroll in their own box, about three and a half rows tall. */
 const TIME_GRID_MAX_HEIGHT = 340
@@ -94,10 +113,13 @@ export function BookingFlow() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedLocationId, setSelectedLocationId] = useState("")
   const [selectedDate, setSelectedDate] = useState(toDateKey(new Date()))
-  const [durationMinutes, setDurationMinutes] = useState<30 | 60>(60)
+  const [durationMinutes, setDurationMinutes] = useState<BookingDurationMinutes>(60)
   const [groupSize, setGroupSize] = useState<GroupSize>(2)
   const [slots, setSlots] = useState<SlotAvailability[]>([])
-  const [selectedSlot, setSelectedSlot] = useState<SlotAvailability | null>(null)
+  const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | null>(null)
+  const [plan, setPlan] = useState<BookingPlan | null>(null)
+  const [isCheckingPlan, setIsCheckingPlan] = useState(false)
+  const [customStartMs, setCustomStartMs] = useState<number | null>(null)
   const [quote, setQuote] = useState<BookingQuote | null>(null)
   const [confirmation, setConfirmation] = useState<CreateBookingResult | null>(null)
   const [notes, setNotes] = useState("")
@@ -108,7 +130,7 @@ export function BookingFlow() {
   const [loadedAvailabilityKey, setLoadedAvailabilityKey] = useState<string | null>(null)
   const isLoadingSlots = loadedAvailabilityKey !== availabilityKey
 
-  const latestSelectedSlotRef = useRef<SlotAvailability | null>(null)
+  const latestSelectedSlotRef = useRef<SelectedSlot | null>(null)
   const dateStrip = useMemo(() => buildDateStrip(7), [])
   const selectedLocation = locations.find((item) => item.id === selectedLocationId) ?? null
   const singleVenue = locations.length <= 1
@@ -127,7 +149,27 @@ export function BookingFlow() {
   const clearSelection = useCallback(() => {
     setSelectedSlot(null)
     setQuote(null)
+    setPlan(null)
   }, [])
+
+  // Today's list refreshes every minute so the "soonest" start keeps moving.
+  const isToday = selectedDate === toDateKey(new Date(nowMs))
+  const refreshMinute = isToday && step === "time" ? Math.floor(nowMs / 60_000) : 0
+
+  // Bounds for "pick your own time": not before now, not past the day.
+  const dayStart = dayStartMs(selectedDate)
+  const pickerMinMs = isToday ? Math.max(dayStart, earliestStartMs(nowMs)) : dayStart
+  const pickerMaxMs = dayStart + DAY_MS - STEP_MS
+  const firstOpenSlot = slots.find(
+    (slot) => slot.isAvailable && !isSlotStartInPast(slot.startsAt, nowMs),
+  )
+  const pickerValueMs = Math.min(
+    pickerMaxMs,
+    Math.max(
+      pickerMinMs,
+      customStartMs ?? (firstOpenSlot ? new Date(firstOpenSlot.startsAt).getTime() : pickerMinMs),
+    ),
+  )
 
   const stepRef = useRef(step)
   useEffect(() => {
@@ -193,8 +235,13 @@ export function BookingFlow() {
 
         const currentSlot = latestSelectedSlotRef.current
         if (!currentSlot) return
-        const matchingSlot =
-          data.find((slot) => slot.startsAt === currentSlot.startsAt && slot.isAvailable) ?? null
+        const listed = data.find((slot) => slot.startsAt === currentSlot.startsAt)
+        // A custom time isn't in the list; the server re-checks it on booking.
+        const matchingSlot: SelectedSlot | null = listed?.isAvailable
+          ? listed
+          : !listed && currentSlot.isCustom && currentSlot.durationMinutes === durationMinutes
+            ? currentSlot
+            : null
         if (matchingSlot) {
           setSelectedSlot(matchingSlot)
         } else {
@@ -211,7 +258,8 @@ export function BookingFlow() {
     return () => {
       cancelled = true
     }
-  }, [availabilityKey, clearSelection, durationMinutes, groupSize, selectedDate, selectedLocationId, step])
+    // refreshMinute re-runs this each minute for today.
+  }, [availabilityKey, clearSelection, durationMinutes, groupSize, selectedDate, selectedLocationId, step, refreshMinute])
 
   const loadQuote = useCallback(async () => {
     if (!selectedSlot || !selectedLocationId || !selectedResourceId) return null
@@ -238,12 +286,74 @@ export function BookingFlow() {
 
   function handleDateChange(dateKey: string) {
     setSelectedDate(dateKey)
+    setCustomStartMs(null)
     clearSelection()
   }
 
-  function handleDurationChange(value: 30 | 60) {
+  function handleDurationChange(value: BookingDurationMinutes) {
     setDurationMinutes(value)
     clearSelection()
+  }
+
+  /** Checks any start and shows either "free" or the nearest options. */
+  async function checkStart(startMs: number, minutes: number = durationMinutes) {
+    if (!selectedLocationId) return
+    setIsCheckingPlan(true)
+    try {
+      const result = await fetchBookingPlan({
+        locationId: selectedLocationId,
+        startTimeIso: new Date(startMs).toISOString(),
+        durationMinutes: minutes,
+        groupSize,
+      })
+      setPlan(result)
+      if (result.status === "available") haptics.success()
+      else haptics.error()
+    } catch (error) {
+      toast.apiError(error, "Could not check that time.")
+      setPlan(null)
+    } finally {
+      setIsCheckingPlan(false)
+    }
+  }
+
+  function handleCustomChange(nextMs: number) {
+    setCustomStartMs(nextMs)
+    setPlan(null)
+  }
+
+  function handleTakenSlot(slot: SlotAvailability) {
+    const startMs = new Date(slot.startsAt).getTime()
+    setCustomStartMs(startMs)
+    void checkStart(startMs)
+  }
+
+  function handleBookPlannedTime() {
+    if (!plan || plan.status !== "available" || !plan.resourceId || !plan.price) return
+    setSelectedSlot({
+      startsAt: plan.requested.startsAt,
+      endsAt: plan.requested.endsAt,
+      durationMinutes: plan.requested.durationMinutes,
+      isAvailable: true,
+      openTableCount: 1,
+      availableResourceIds: [plan.resourceId],
+      price: plan.price,
+      isCustom: true,
+    })
+    setPlan(null)
+    setStep("players")
+  }
+
+  function handlePickSuggestion(suggestion: BookingSuggestion) {
+    // A shorter suggestion changes the game length too; keep the pick.
+    if (suggestion.durationMinutes !== durationMinutes) {
+      setDurationMinutes(suggestion.durationMinutes as BookingDurationMinutes)
+    }
+    setCustomStartMs(new Date(suggestion.startsAt).getTime())
+    setSelectedSlot(slotFromSuggestion(suggestion))
+    setPlan(null)
+    setQuote(null)
+    setStep("players")
   }
 
   function handleGroupSizeChange(size: GroupSize) {
@@ -278,9 +388,13 @@ export function BookingFlow() {
     } catch (error) {
       if (error instanceof ApiError && error.code === "SLOT_UNAVAILABLE") {
         haptics.error()
-        toast.error("That time was just taken. Pick another one below.")
+        toast.error("That time was just taken. Here are the nearest free times.")
+        const takenMs = new Date(selectedSlot.startsAt).getTime()
+        const takenMinutes = selectedSlot.durationMinutes
         clearSelection()
+        setCustomStartMs(takenMs)
         setStep("time")
+        void checkStart(takenMs, takenMinutes)
         return
       }
       toast.apiError(error, "Could not complete your booking.")
@@ -458,9 +572,25 @@ export function BookingFlow() {
                 selectedSlot={selectedSlot}
                 nowMs={nowMs}
                 isLoading={isLoadingSlots}
-                onSelect={setSelectedSlot}
+                onSelect={(slot) => {
+                  setPlan(null)
+                  setSelectedSlot(slot)
+                }}
+                onSelectTaken={handleTakenSlot}
                 onTryTomorrow={() => handleDateChange(addDaysToDateKey(selectedDate, 1))}
                 maxHeight={TIME_GRID_MAX_HEIGHT}
+              />
+              <CustomTimePicker
+                valueMs={pickerValueMs}
+                minMs={pickerMinMs}
+                maxMs={pickerMaxMs}
+                durationMinutes={durationMinutes}
+                plan={plan}
+                isChecking={isCheckingPlan}
+                onChange={handleCustomChange}
+                onCheck={() => void checkStart(pickerValueMs)}
+                onBook={handleBookPlannedTime}
+                onPickSuggestion={handlePickSuggestion}
               />
             </View>
           ) : null}

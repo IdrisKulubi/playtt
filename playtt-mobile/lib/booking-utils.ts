@@ -1,4 +1,9 @@
-import type { SlotAvailability, UserBookingSummary } from "@/lib/booking-types"
+import type {
+  BookingSuggestion,
+  SelectedSlot,
+  SlotAvailability,
+  UserBookingSummary,
+} from "@/lib/booking-types"
 
 export const INCLUDED_PLAYERS = 5
 export const EXTRA_PLAYER_SURCHARGE = 500
@@ -7,9 +12,54 @@ export function extraPlayerSurcharge(groupSize: number) {
   return Math.max(0, groupSize - INCLUDED_PLAYERS) * EXTRA_PLAYER_SURCHARGE
 }
 
+/** Same rule as the server: a start is gone once it is a minute behind now. */
+const START_GRACE_MS = 60 * 1000
+const START_STEP_MS = 5 * 60 * 1000
+
 export function isSlotStartInPast(startsAtIso: string, nowMs = Date.now()) {
-  const slotIntervalMs = 30 * 60 * 1000
-  return nowMs >= new Date(startsAtIso).getTime() + slotIntervalMs
+  return nowMs > new Date(startsAtIso).getTime() + START_GRACE_MS
+}
+
+/** Soonest start someone can book right now: the next 5-minute step. */
+export function earliestStartMs(nowMs = Date.now()) {
+  return Math.ceil((nowMs - START_GRACE_MS) / START_STEP_MS) * START_STEP_MS
+}
+
+export function formatDurationLabel(minutes: number) {
+  if (minutes < 60) return `${minutes} min`
+  const hours = minutes / 60
+  if (hours === 1) return "1 hour"
+  return `${hours % 1 === 0 ? hours : hours.toFixed(1)} hours`
+}
+
+/** Short chip label: 30m, 1h, 1.5h, 2h, 3h. */
+export function formatDurationChip(minutes: number) {
+  return minutes < 60 ? `${minutes}m` : `${minutes / 60}h`
+}
+
+/** "20 min earlier", "1h 40m later", "Same start, 1 hour". */
+export function describeSuggestion(suggestion: BookingSuggestion) {
+  if (suggestion.kind === "shorter") {
+    return `Same start, ${formatDurationLabel(suggestion.durationMinutes)}`
+  }
+  const minutes = Math.abs(suggestion.shiftMinutes)
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  const amount = hours === 0 ? `${rest} min` : rest === 0 ? `${hours}h` : `${hours}h ${rest}m`
+  return suggestion.shiftMinutes < 0 ? `${amount} earlier` : `${amount} later`
+}
+
+export function slotFromSuggestion(suggestion: BookingSuggestion): SelectedSlot {
+  return {
+    startsAt: suggestion.startsAt,
+    endsAt: suggestion.endsAt,
+    durationMinutes: suggestion.durationMinutes,
+    isAvailable: true,
+    openTableCount: 1,
+    availableResourceIds: [suggestion.resourceId],
+    price: suggestion.price,
+    isCustom: true,
+  }
 }
 
 export function formatPricingTierLabel(

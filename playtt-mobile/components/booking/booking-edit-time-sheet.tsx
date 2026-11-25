@@ -6,14 +6,14 @@ import { Button } from "@/components/kit/button"
 import { AppText } from "@/components/ui/app-text"
 import { PlayTTSpacing } from "@/constants/playtt-tokens"
 import type { LocationSummary, SlotAvailability } from "@/lib/booking-types"
-import { addDaysToDateKey } from "@/lib/booking-utils"
+import { addDaysToDateKey, formatDurationLabel } from "@/lib/booking-utils"
 
 type BookingEditTimeStepProps = {
   location: LocationSummary | null
   dateStrip: Date[]
   selectedDate: string
   /** A time change keeps the booking's length. */
-  durationMinutes: 30 | 60
+  durationMinutes: number
   slots: SlotAvailability[]
   selectedSlot: SlotAvailability | null
   isLoadingSlots: boolean
@@ -43,7 +43,7 @@ export function BookingEditTimeStep({
     <View style={styles.stack}>
       <AppText variant="callout" color="secondaryLabel">
         {location ? `${location.name} · ` : ""}
-        {durationMinutes === 60 ? "1 hour" : "30 min"}, same as now
+        {formatDurationLabel(durationMinutes)}, same as now
       </AppText>
       <DateStrip days={dateStrip} selectedDate={selectedDate} onChange={onDateChange} />
       <TimeGrid

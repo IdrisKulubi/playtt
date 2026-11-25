@@ -4,8 +4,24 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import type { ScoreState } from "@/server/scoring/types"
 
+/** A paid booking on this table (first name only: the screen is public). */
+export interface DisplayBooking {
+  bookingId: string
+  firstName: string
+  groupSize: number
+  startsAt: string
+  endsAt: string
+}
+
 export interface DisplaySnapshotPayload {
   status: "idle" | "active"
+  /** Optional so an older server build still renders the scoreboard. */
+  schedule?: {
+    current: DisplayBooking | null
+    next: DisplayBooking | null
+    serverTime: string
+    venueName: string
+  }
   resource: {
     id: string
     tenantId: string

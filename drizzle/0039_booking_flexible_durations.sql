@@ -1,0 +1,2 @@
+ALTER TABLE "bookings" DROP CONSTRAINT "bookings_duration_allowed";--> statement-breakpoint
+ALTER TABLE "bookings" ADD CONSTRAINT "bookings_duration_allowed" CHECK ("bookings"."duration_minutes" in (30, 60, 90, 120, 180));

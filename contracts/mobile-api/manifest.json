@@ -106,6 +106,17 @@
       "notes": ["Quote money fields are JSON numbers.", "pricingRuleSnapshot is opaque and additive."]
     },
     {
+      "id": "bookings.plan.get",
+      "method": "GET",
+      "pathTemplate": "/api/bookings/plan?locationId={locationId}&startTimeIso={startTimeIso}&durationMinutes={durationMinutes}&groupSize={groupSize}",
+      "routeFile": "src/app/api/bookings/plan/route.ts",
+      "authMode": "public",
+      "mobileConsumers": ["playtt-mobile/lib/booking-api.ts", "playtt-mobile/components/booking/booking-flow.tsx"],
+      "successFixture": "fixtures/bookings.plan.get.success.json",
+      "errorFixtures": ["fixtures/errors/validation-error.json"],
+      "notes": ["status is available, conflict or past.", "conflicts list busy times only, never who booked them.", "startTimeIso may be any 5-minute step."]
+    },
+    {
       "id": "bookings.create.post",
       "method": "POST",
       "pathTemplate": "/api/bookings",

@@ -23,14 +23,47 @@ export type SlotAvailability = {
   isAvailable: boolean
   openTableCount: number
   availableResourceIds: string[]
-  price: {
-    currency: string
-    subtotalAmount: number
-    discountAmount: number
-    totalAmount: number
-    pricingRuleSnapshot: Record<string, unknown>
-  }
+  /** The "soonest" start the server adds for today (e.g. 11:50 at 11:47). */
+  isEarliest?: boolean
+  price: SlotPrice
 }
+
+export type SlotPrice = {
+  currency: string
+  subtotalAmount: number
+  discountAmount: number
+  totalAmount: number
+  pricingRuleSnapshot: Record<string, unknown>
+}
+
+/** Game lengths the venue sells, in minutes. Same list as the server. */
+export const BOOKING_DURATION_OPTIONS = [30, 60, 90, 120, 180] as const
+export type BookingDurationMinutes = (typeof BOOKING_DURATION_OPTIONS)[number]
+
+export type BookingSuggestion = {
+  kind: "later" | "earlier" | "shorter"
+  startsAt: string
+  endsAt: string
+  durationMinutes: number
+  /** Minutes moved from the requested start (negative = earlier). */
+  shiftMinutes: number
+  resourceId: string
+  price: SlotPrice
+}
+
+/** Server answer to "can I play at this time?" (GET /api/bookings/plan). */
+export type BookingPlan = {
+  status: "available" | "conflict" | "past"
+  requested: { startsAt: string; endsAt: string; durationMinutes: number }
+  resourceId: string | null
+  price: SlotPrice | null
+  conflicts: { startsAt: string; endsAt: string }[]
+  suggestions: BookingSuggestion[]
+  earliestStartIso: string
+}
+
+/** A picked time; isCustom when it isn't one of the listed starts. */
+export type SelectedSlot = SlotAvailability & { isCustom?: boolean }
 
 export type BookingQuote = {
   locationId: string

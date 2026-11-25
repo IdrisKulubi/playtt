@@ -1,0 +1,9 @@
+{
+  "contractVersion": 1,
+  "action": "booking.plan",
+  "case": "failure",
+  "result": {
+    "success": false,
+    "message": "Could not check that time."
+  }
+}

@@ -18,6 +18,11 @@ type TimeGridProps = {
   nowMs: number
   isLoading: boolean
   onSelect: (slot: SlotAvailability) => void
+  /**
+   * When given, taken times stay tappable so people can see the nearest
+   * times that do work instead of a dead end.
+   */
+  onSelectTaken?: (slot: SlotAvailability) => void
   onTryTomorrow: () => void
   /**
    * Cap the grid's height so the times scroll in their own faded box and the
@@ -44,6 +49,7 @@ export function TimeGrid({
   nowMs,
   isLoading,
   onSelect,
+  onSelectTaken,
   onTryTomorrow,
   maxHeight,
 }: TimeGridProps) {
@@ -54,7 +60,7 @@ export function TimeGrid({
 
   if (isLoading) return <SlotListSkeleton surface={skeletonSurface} />
 
-  if (!upcoming.some(isOpen)) {
+  if (!onSelectTaken && !upcoming.some(isOpen)) {
     return (
       <EmptyState
         icon="calendar"
@@ -72,16 +78,25 @@ export function TimeGrid({
         const selected = selectedSlot?.startsAt === slot.startsAt
         const price = formatKes(slot.price.totalAmount, slot.price.currency)
         const lastTable = open && slot.openTableCount === 1
-        const detail = !open ? "Taken" : lastTable ? `${price} · last table` : price
+        const takenTappable = !open && Boolean(onSelectTaken)
+        const detail = !open
+          ? takenTappable
+            ? "Taken · options"
+            : "Taken"
+          : lastTable
+            ? `${price} · last table`
+            : price
+        const title = slot.isEarliest ? `${formatStart(slot.startsAt)} · soonest` : formatStart(slot.startsAt)
 
         return (
           <PressableScale
             key={slot.startsAt}
-            onPress={() => onSelect(slot)}
-            disabled={!open}
+            onPress={() => (open ? onSelect(slot) : onSelectTaken?.(slot))}
+            disabled={!open && !takenTappable}
             haptic="selection"
-            accessibilityLabel={`${formatStart(slot.startsAt)}, ${detail}`}
-            accessibilityState={{ selected, disabled: !open }}
+            accessibilityLabel={`${title}, ${detail}`}
+            accessibilityHint={takenTappable ? "Shows the nearest free times" : undefined}
+            accessibilityState={{ selected, disabled: !open && !takenTappable }}
             style={[
               styles.cell,
               {
@@ -91,7 +106,7 @@ export function TimeGrid({
             ]}
           >
             <AppText variant="title3" tabular color={selected ? "onAccent" : open ? "label" : "tertiaryLabel"}>
-              {formatStart(slot.startsAt)}
+              {title}
             </AppText>
             <AppText
               variant="footnote"

@@ -3,9 +3,16 @@
 import { format, isSameDay, isToday } from "date-fns"
 import { ArrowLeftIcon, MapPinIcon } from "@phosphor-icons/react"
 
-import { isSlotStartInPast } from "@/components/bookings/booking-utils"
+import type { ReactNode } from "react"
+
+import {
+  DURATION_CHOICES,
+  formatDurationLabel,
+  isSlotStartInPast,
+} from "@/components/bookings/booking-utils"
 import { SlotRow } from "@/components/bookings/slot-row"
 import { Button } from "@/components/ui/button"
+import type { BookingDurationMinutes } from "@/server/bookings/constants"
 import type { LocationSummary, SlotAvailability } from "@/server/bookings/types"
 
 interface TimingPanelProps {
@@ -15,7 +22,7 @@ interface TimingPanelProps {
   dateStripDays: Date[]
   showExtendedDates: boolean
   showDatePicker: boolean
-  durationMinutes: 30 | 60
+  durationMinutes: BookingDurationMinutes
   slots: SlotAvailability[]
   selectedSlot: SlotAvailability | null
   isPending: boolean
@@ -25,8 +32,12 @@ interface TimingPanelProps {
   onDateChange: (value: string) => void
   onShowExtendedDates: () => void
   onShowDatePicker: () => void
-  onDurationChange: (value: 30 | 60) => void
+  onDurationChange: (value: BookingDurationMinutes) => void
   onSlotSelect: (slot: SlotAvailability) => void
+  /** A taken time was tapped: show the nearest times that work. */
+  onTakenSlotSelect: (slot: SlotAvailability) => void
+  /** The "pick your own time" box. */
+  customTime: ReactNode
 }
 
 export function TimingPanel({
@@ -48,6 +59,8 @@ export function TimingPanel({
   onShowDatePicker,
   onDurationChange,
   onSlotSelect,
+  onTakenSlotSelect,
+  customTime,
 }: TimingPanelProps) {
   return (
     <section className="booking-stage booking-timing-stage">
@@ -55,7 +68,7 @@ export function TimingPanel({
         <div>
           <p className="booking-stage__eyebrow">Step 1 of 3</p>
           <h2>When do you want to play?</h2>
-          <p>Choose a day and an available time.</p>
+          <p>Pick a listed time or set your own start.</p>
         </div>
         {canChangeVenue ? (
           <Button
@@ -129,20 +142,18 @@ export function TimingPanel({
           role="group"
           aria-label="Session duration"
         >
-          <button
-            type="button"
-            onClick={() => onDurationChange(30)}
-            className={`segmented-control__item ${durationMinutes === 30 ? "segmented-control__item--active" : ""}`}
-          >
-            30 min
-          </button>
-          <button
-            type="button"
-            onClick={() => onDurationChange(60)}
-            className={`segmented-control__item ${durationMinutes === 60 ? "segmented-control__item--active" : ""}`}
-          >
-            60 min
-          </button>
+          {DURATION_CHOICES.map((choice) => (
+            <button
+              key={choice.value}
+              type="button"
+              aria-pressed={durationMinutes === choice.value}
+              aria-label={choice.label}
+              onClick={() => onDurationChange(choice.value)}
+              className={`segmented-control__item ${durationMinutes === choice.value ? "segmented-control__item--active" : ""}`}
+            >
+              {choice.value < 60 ? "30m" : `${choice.value / 60}h`}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -169,9 +180,11 @@ export function TimingPanel({
         </button>
       )}
 
+      {customTime}
+
       <div className="booking-slots-heading">
-        <span>Available times</span>
-        <span>{durationMinutes} min sessions</span>
+        <span>Quick picks</span>
+        <span>{formatDurationLabel(durationMinutes)} games</span>
       </div>
       <ul className="booking-slot-list mx-5 mt-3 max-h-[min(26rem,52vh)] overflow-y-auto sm:mx-6 sm:max-h-[min(30rem,58vh)]">
         {slots.length === 0 ? (
@@ -179,10 +192,12 @@ export function TimingPanel({
             {isPending ? "Loading…" : "No times this day."}
           </li>
         ) : (
-          slots.map((slot) => {
+          slots
+            .filter((slot) => !isSlotStartInPast(slot.startsAt, nowMs))
+            .map((slot) => {
             const selected = selectedSlot?.startsAt === slot.startsAt
             const startInPast = isSlotStartInPast(slot.startsAt, nowMs)
-            const rowDisabled = !slot.isAvailable || isPending || startInPast
+            const rowDisabled = isPending || startInPast
 
             return (
               <SlotRow
@@ -191,7 +206,9 @@ export function TimingPanel({
                 selected={selected}
                 disabled={rowDisabled}
                 nowMs={nowMs}
-                onSelect={() => onSlotSelect(slot)}
+                onSelect={() =>
+                  slot.isAvailable ? onSlotSelect(slot) : onTakenSlotSelect(slot)
+                }
               />
             )
           })

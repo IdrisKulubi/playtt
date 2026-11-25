@@ -34,10 +34,15 @@ export function SlotRow({
           if (!disabled) onSelect()
         }}
         disabled={disabled}
-        className={`booking-slot-row ${selected && !startInPast ? "booking-slot-row--selected" : ""}`}
+        className={`booking-slot-row ${selected && !startInPast ? "booking-slot-row--selected" : ""} ${!slot.isAvailable ? "opacity-60" : ""}`}
       >
         <span className="min-w-[4.5rem] text-base font-semibold text-foreground tabular-nums">
           {format(new Date(slot.startsAt), "h:mm a")}
+          {slot.isEarliest ? (
+            <span className="block text-[11px] font-medium text-muted-foreground">
+              Soonest
+            </span>
+          ) : null}
         </span>
         <span
           className={`hidden flex-1 text-center text-xs font-medium sm:block ${

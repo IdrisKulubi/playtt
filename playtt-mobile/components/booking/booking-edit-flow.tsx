@@ -115,7 +115,7 @@ export function BookingEditFlow({
     [booking.locationId, booking.locationName]
   )
 
-  const durationMinutes = booking.durationMinutes as 30 | 60
+  const durationMinutes = booking.durationMinutes
   const selectedSlot = useMemo(
     () => slots.find((slot) => slot.startsAt === selectedStartIso) ?? null,
     [selectedStartIso, slots]

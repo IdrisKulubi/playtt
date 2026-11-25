@@ -2,6 +2,7 @@ import { addMinutes } from "date-fns"
 
 import {
   BOOKING_SLOT_INTERVAL_MINUTES,
+  BOOKING_START_GRACE_MS,
   DEFAULT_VENUE_TIMEZONE,
 } from "./constants.ts"
 
@@ -139,5 +140,7 @@ export function isSlotClosedForBooking(startsAt, now = new Date()) {
     startsAt instanceof Date ? startsAt.getTime() : new Date(startsAt).getTime()
   const nowMs = now instanceof Date ? now.getTime() : Number(now)
 
-  return nowMs >= startMs + BOOKING_SLOT_INTERVAL_MINUTES * 60 * 1000
+  // Once a start time has passed it can't be booked: an 11:30 start is gone at
+  // 11:47. People who want to play now pick the soonest start instead.
+  return nowMs > startMs + BOOKING_START_GRACE_MS
 }

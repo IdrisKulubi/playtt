@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api-client"
 import type {
+  BookingPlan,
   BookingQuote,
   CreateBookingResult,
   InitiatePaymentResult,
@@ -19,6 +20,7 @@ import {
 type BootstrapResponse = { data?: { locations: LocationSummary[] } }
 type AvailabilityResponse = { data?: { slots: SlotAvailability[] } }
 type QuoteResponse = { data?: { quote: BookingQuote } }
+type PlanResponse = { data?: { plan: BookingPlan } }
 type CreateResponse = { data?: CreateBookingResult }
 type MineResponse = { data?: { bookings: UserBookingSummary[] } }
 type DetailResponse = { data?: { booking: UserBookingSummary } }
@@ -43,7 +45,7 @@ export async function fetchBookingBootstrap() {
 export async function fetchAvailability(input: {
   locationId: string
   date: string
-  durationMinutes: 30 | 60
+  durationMinutes: number
   groupSize: number
 }) {
   const params = new URLSearchParams({
@@ -62,7 +64,7 @@ export async function fetchBookingQuote(input: {
   locationId: string
   resourceId: string
   startTimeIso: string
-  durationMinutes: 30 | 60
+  durationMinutes: number
   groupSize: number
 }) {
   const params = new URLSearchParams({
@@ -78,11 +80,33 @@ export async function fetchBookingQuote(input: {
   return response.data?.quote ?? null
 }
 
+/**
+ * Checks any start time (5-minute steps) across the venue's tables. Free:
+ * returns the table and price. Clashing or past: busy times plus the nearest
+ * times that work.
+ */
+export async function fetchBookingPlan(input: {
+  locationId: string
+  startTimeIso: string
+  durationMinutes: number
+  groupSize: number
+}) {
+  const params = new URLSearchParams({
+    locationId: input.locationId,
+    startTimeIso: input.startTimeIso,
+    durationMinutes: String(input.durationMinutes),
+    groupSize: String(input.groupSize),
+  })
+  const response = await apiFetch<PlanResponse>(`/api/bookings/plan?${params.toString()}`)
+  if (!response.data?.plan) throw new Error("Could not check that time.")
+  return response.data.plan
+}
+
 export async function createBooking(input: {
   locationId: string
   resourceId: string
   startTimeIso: string
-  durationMinutes: 30 | 60
+  durationMinutes: number
   groupSize: number
   notes?: string
 }) {

@@ -7,7 +7,10 @@ import {
   LockKeyIcon,
 } from "@phosphor-icons/react"
 
-import { formatPricingTierLabel } from "@/components/bookings/booking-utils"
+import {
+  formatDurationLabel,
+  formatPricingTierLabel,
+} from "@/components/bookings/booking-utils"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import type {
@@ -19,7 +22,7 @@ import type {
 interface CheckoutSummaryProps {
   location: LocationSummary | null
   selectedSlot: SlotAvailability | null
-  durationMinutes: 30 | 60
+  durationMinutes: number
   groupSize: number
   quote: BookingQuote | null
   notes: string
@@ -91,7 +94,7 @@ export function CheckoutSummary({
             {selectedSlot
               ? format(new Date(selectedSlot.startsAt), "EEE, MMM d")
               : ""}{" "}
-            · {durationMinutes} min
+            · {formatDurationLabel(durationMinutes)}
           </p>
           {tierLabel ? (
             <span className="booking-tier-badge mt-3 inline-block">
