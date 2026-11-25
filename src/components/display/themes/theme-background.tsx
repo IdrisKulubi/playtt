@@ -4,9 +4,10 @@ import { useEffect, useRef } from "react"
 
 import {
   FIELD_SCALE,
-  GLASS_ORBS,
+  GLASS_ORB_COUNT,
   drawThemeField,
   glassOrbLayout,
+  type ThemeComposition,
 } from "@/components/display/themes/theme-renderers"
 import type { DisplayTheme } from "@/lib/display-themes"
 
@@ -21,10 +22,13 @@ const GRAIN =
 export function ThemeBackground({
   theme,
   speed = 1,
+  composition = "left",
   className = "",
 }: {
   theme: DisplayTheme
   speed?: number
+  /** Where the text sits, so visuals keep clear of it. */
+  composition?: ThemeComposition
   className?: string
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -32,11 +36,13 @@ export function ThemeBackground({
   const orbRefs = useRef<(HTMLDivElement | null)[]>([])
   const themeRef = useRef(theme)
   const speedRef = useRef(speed)
+  const compositionRef = useRef(composition)
 
   useEffect(() => {
     themeRef.current = theme
     speedRef.current = speed
-  }, [theme, speed])
+    compositionRef.current = composition
+  }, [theme, speed, composition])
 
   useEffect(() => {
     const container = containerRef.current
@@ -75,9 +81,9 @@ export function ThemeBackground({
       last = now
       if (!reduced) clock += dt * speedRef.current
       const current = themeRef.current
-      drawThemeField(ctx, canvas.width, canvas.height, clock, current)
+      drawThemeField(ctx, canvas.width, canvas.height, clock, current, compositionRef.current)
       const glass = current.renderer === "liquid_glass"
-      const layout = glass ? glassOrbLayout(clock, width, height) : []
+      const layout = glass ? glassOrbLayout(clock, width, height, compositionRef.current) : []
       orbRefs.current.forEach((el, index) => {
         if (!el) return
         const orb = layout[index]
@@ -103,7 +109,7 @@ export function ThemeBackground({
         className="absolute"
         style={{ inset: "-2%", width: "104%", height: "104%" }}
       />
-      {GLASS_ORBS.map((_, index) => (
+      {Array.from({ length: GLASS_ORB_COUNT }, (_, index) => (
         <div
           key={index}
           ref={(el) => {

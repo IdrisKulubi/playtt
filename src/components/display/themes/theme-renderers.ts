@@ -171,27 +171,64 @@ const DRAWERS: Record<DisplayTheme["renderer"], Draw> = {
   rally_ripples: rallyRipples,
 }
 
+/**
+ * Where the screen's text sits. "left": name top-left (session, up next), so
+ * the visuals live on the right. "centre": one big centred message (free
+ * table), so visuals move to the edges and a soft wash sits behind the text.
+ */
+export type ThemeComposition = "left" | "centre"
+
 export function drawThemeField(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
   t: number,
   theme: DisplayTheme,
+  composition: ThemeComposition = "left",
 ) {
-  DRAWERS[theme.renderer](ctx, W, H, t, colours(theme.palette), theme.ink === "light")
+  const c = colours(theme.palette)
+  const inkLight = theme.ink === "light"
+  DRAWERS[theme.renderer](ctx, W, H, t, c, inkLight)
+  if (composition === "centre") {
+    // A wide, soft wash behind the centred message, in the colour that makes
+    // the text pop: depth under white text, light under navy text.
+    const wash = inkLight ? c.deep : mix(c.base, WHITE, 0.6)
+    ctx.save()
+    ctx.translate(W * 0.5, H * 0.44)
+    ctx.scale(1.9, 1)
+    blob(ctx, 0, 0, H * 0.42, wash, inkLight ? 0.4 : 0.7)
+    ctx.restore()
+  }
 }
 
 /** Glass spheres for Liquid Glass, in container units (fractions of height/width). */
-export const GLASS_ORBS = [
+const GLASS_ORBS_LEFT = [
   { d: 0.46, cx: 0.7, cy: 0.52, ax: 0.09, ay: 0.07, fx: 0.013, fy: 0.017, ph: 0 },
   { d: 0.24, cx: 0.52, cy: 0.72, ax: 0.12, ay: 0.06, fx: 0.019, fy: 0.012, ph: 2 },
   { d: 0.15, cx: 0.87, cy: 0.68, ax: 0.04, ay: 0.06, fx: 0.023, fy: 0.021, ph: 4 },
   { d: 0.1, cx: 0.4, cy: 0.52, ax: 0.07, ay: 0.06, fx: 0.017, fy: 0.026, ph: 5.5 },
 ]
 
+/** Centred layout: spheres frame the message from the corners and edges. */
+const GLASS_ORBS_CENTRE = [
+  { d: 0.5, cx: 0.97, cy: 0.52, ax: 0.02, ay: 0.06, fx: 0.011, fy: 0.014, ph: 0 },
+  { d: 0.34, cx: 0.06, cy: 0.74, ax: 0.03, ay: 0.06, fx: 0.016, fy: 0.012, ph: 2 },
+  { d: 0.16, cx: 0.12, cy: 0.18, ax: 0.03, ay: 0.04, fx: 0.022, fy: 0.019, ph: 4 },
+  { d: 0.12, cx: 0.9, cy: 0.74, ax: 0.03, ay: 0.04, fx: 0.018, fy: 0.024, ph: 5.5 },
+]
+
+/** Number of sphere elements a background should mount. */
+export const GLASS_ORB_COUNT = GLASS_ORBS_LEFT.length
+
 /** Centre and diameter of each glass sphere at time t, in pixels. */
-export function glassOrbLayout(t: number, width: number, height: number) {
-  return GLASS_ORBS.map((o) => {
+export function glassOrbLayout(
+  t: number,
+  width: number,
+  height: number,
+  composition: ThemeComposition = "left",
+) {
+  const orbs = composition === "centre" ? GLASS_ORBS_CENTRE : GLASS_ORBS_LEFT
+  return orbs.map((o) => {
     const d = o.d * height * (1 + 0.025 * Math.sin(t * 0.3 + o.ph))
     return {
       d,

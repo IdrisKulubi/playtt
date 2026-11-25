@@ -65,15 +65,17 @@ function inkVars(theme: DisplayTheme): CSSProperties {
 function ThemedScene({
   theme,
   speed,
+  composition = "left",
   children,
 }: {
   theme: DisplayTheme
   speed: number
+  composition?: "left" | "centre"
   children: ReactNode
 }) {
   return (
     <div className="relative h-screen w-screen overflow-hidden" style={inkVars(theme)}>
-      <ThemeBackground theme={theme} speed={speed} />
+      <ThemeBackground theme={theme} speed={speed} composition={composition} />
       {children}
     </div>
   )
@@ -189,18 +191,35 @@ export function TvIdleScene({
   theme?: DisplayTheme
 }) {
   const now = useNow()
+  // The table name is the message, so it is as big as the screen allows:
+  // up to 24vh tall, shrinking only when a long name would overflow the width.
+  const headlineSize = `min(24vh, ${(86 / (0.56 * Math.max(4, tableName.length))).toFixed(2)}vw)`
 
   return (
-    <ThemedScene theme={theme} speed={0.6}>
-      <div className="absolute top-[7vh] left-[4vw] max-w-[62vw]">
-        <Label>Table free</Label>
-        <h1 className="mt-[1.4vh] text-[13vh] leading-[0.9] font-bold tracking-[-0.045em]">
+    <ThemedScene theme={theme} speed={0.6} composition="centre">
+      <div className="absolute inset-x-[4vw] top-[44%] flex -translate-y-1/2 flex-col items-center text-center">
+        <Label>{venue}</Label>
+        <h1
+          className="mt-[2.4vh] leading-[0.92] font-bold tracking-[-0.05em]"
+          style={{ fontSize: headlineSize }}
+        >
           <RisingWord text={tableName} />
+          <br />
+          <span style={{ color: "var(--tv-ink-soft)" }}>
+            <RisingWord text="is free." />
+          </span>
         </h1>
-        <p className="tv-rise mt-[2vh] text-[2.8vh]" style={{ color: "var(--tv-ink-soft)", animationDelay: "600ms" }}>
-          {next
-            ? `Free until ${t(next.startsAt)}. Book in the PlayTT app.`
-            : "Free for the rest of the day. Book in the PlayTT app."}
+        <p
+          className="tv-rise mt-[3.6vh] text-[3.6vh] font-medium"
+          style={{ animationDelay: "700ms" }}
+        >
+          Book it now in the PlayTT app.
+        </p>
+        <p
+          className="tv-rise mt-[1vh] text-[2.6vh]"
+          style={{ color: "var(--tv-ink-soft)", animationDelay: "800ms" }}
+        >
+          {next ? `Free until ${t(next.startsAt)}.` : "Free for the rest of the day."}
         </p>
       </div>
 
@@ -211,7 +230,7 @@ export function TvIdleScene({
         venue={venue}
         progress={null}
         cells={[
-          { label: "Table", value: tableName },
+          { label: "Venue", value: venue },
           { label: "Next game", value: next ? `${t(next.startsAt)} – ${t(next.endsAt)}` : "None today" },
           { label: "Book", value: "PlayTT app" },
         ]}
