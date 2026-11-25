@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PlayTT TV concepts</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Geist+Mono:wght@500&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #040a12; color: #fff; font-family: "Space Grotesk", system-ui, sans-serif; padding: 48px 4vw 80px; }
+  header { max-width: 1400px; margin: 0 auto 36px; }
+  h1 { font-size: 40px; letter-spacing: -.03em; }
+  header p { margin-top: 8px; color: rgba(255,255,255,.6); font-size: 17px; }
+  .grid { max-width: 1400px; margin: 0 auto; display: grid; gap: 40px; }
+  figure { display: grid; gap: 14px; }
+  .frame { position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; border: 1px solid #203149; }
+  iframe { position: absolute; inset: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; }
+  figcaption { display: flex; justify-content: space-between; gap: 24px; align-items: baseline; }
+  figcaption b { font-size: 22px; }
+  figcaption span { color: rgba(255,255,255,.6); font-size: 16px; max-width: 62ch; text-align: right; }
+  .n { font-family: "Geist Mono", monospace; color: #00b7ff; margin-right: 10px; font-size: 15px; letter-spacing: .1em; }
+  a { color: #00b7ff; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Venue TV · five motion concepts</h1>
+  <p>Brand colours only (azure #00b7ff on navy #07111d). Each shows the live session text on top. Open one full screen with the link under it; press 1-5 to switch, H to hide the text.</p>
+</header>
+<div class="grid">
+  <figure><div class="frame"><iframe src="concept.html?c=1" title="Liquid Mesh"></iframe></div>
+    <figcaption><b><span class="n">01</span>Liquid Mesh</b><span>Deep azure and steel masses drift and merge like ink in water, with navy carving through them. Calm, premium, Apple-Music feel. <a href="concept.html?c=1">Full screen</a></span></figcaption></figure>
+  <figure><div class="frame"><iframe src="concept.html?c=2" title="Azure Aurora"></iframe></div>
+    <figcaption><b><span class="n">02</span>Azure Aurora</b><span>Ribbons of light fold across the screen with rays rising off them, like northern lights in brand blue. Atmospheric and slow. <a href="concept.html?c=2">Full screen</a></span></figcaption></figure>
+  <figure><div class="frame"><iframe src="concept.html?c=3" title="Rally Light"></iframe></div>
+    <figcaption><b><span class="n">03</span>Rally Light</b><span>A point of light is "hit" side to side in a rally rhythm, trailing a comet wake; each wall flashes as it arrives. The most table-tennis of the five. <a href="concept.html?c=3">Full screen</a></span></figcaption></figure>
+  <figure><div class="frame"><iframe src="concept.html?c=4" title="Arena Beams"></iframe></div>
+    <figcaption><b><span class="n">04</span>Arena Beams</b><span>Stage spotlights sweep slowly through haze and pool on the floor. Feels like walking out into an arena. <a href="concept.html?c=4">Full screen</a></span></figcaption></figure>
+  <figure><div class="frame"><iframe src="concept.html?c=5" title="Halo"></iframe></div>
+    <figcaption><b><span class="n">05</span>Halo</b><span>A huge ring of light breathes while its colour rotates around it. Iconic and minimal; strongest as a photo backdrop. <a href="concept.html?c=5">Full screen</a></span></figcaption></figure>
+</div>
+<script>
+  // Scale each 1920x1080 iframe to fit its card.
+  const fit = () => document.querySelectorAll(".frame").forEach((f) => {
+    f.querySelector("iframe").style.transform = `scale(${f.clientWidth / 1920})`
+  })
+  addEventListener("resize", fit)
+  fit()
+</script>
+</body>
+</html>

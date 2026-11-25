@@ -9,6 +9,8 @@ import {
   scoreSnapshots,
   user,
 } from "@/db/schema"
+import type { DisplayTheme } from "@/lib/display-themes"
+import { resolveDisplayThemeForLocation } from "@/server/display/themes-service"
 import type { ScoreState } from "@/server/scoring/types"
 
 export interface DisplayResourceSummary {
@@ -67,6 +69,7 @@ export type DisplaySnapshotResponse =
       playSession: null
       snapshot: null
       schedule: DisplaySchedule
+      theme: DisplayTheme
     }
   | {
       status: "active"
@@ -74,6 +77,7 @@ export type DisplaySnapshotResponse =
       playSession: DisplayPlaySessionSummary
       snapshot: DisplaySnapshotSummary | null
       schedule: DisplaySchedule
+      theme: DisplayTheme
     }
 
 function firstNameOf(fullName: string | null | undefined) {
@@ -190,7 +194,13 @@ export async function getDisplaySnapshotForResource(
     )
     .limit(1)
 
-  const schedule = await getDisplaySchedule(resource)
+  const [schedule, theme] = await Promise.all([
+    getDisplaySchedule(resource),
+    resolveDisplayThemeForLocation({
+      tenantId: resource.tenantId,
+      locationId: resource.locationId,
+    }),
+  ])
 
   if (!playSession) {
     return {
@@ -199,6 +209,7 @@ export async function getDisplaySnapshotForResource(
       playSession: null,
       snapshot: null,
       schedule,
+      theme,
     }
   }
 
@@ -222,6 +233,7 @@ export async function getDisplaySnapshotForResource(
   return {
     status: "active",
     schedule,
+    theme,
     resource: resourceSummary,
     playSession: {
       id: playSession.id,

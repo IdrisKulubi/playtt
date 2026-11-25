@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 
+import type { DisplayTheme } from "@/lib/display-themes"
 import type { ScoreState } from "@/server/scoring/types"
 
 /** A paid booking on this table (first name only: the screen is public). */
@@ -15,6 +16,8 @@ export interface DisplayBooking {
 
 export interface DisplaySnapshotPayload {
   status: "idle" | "active"
+  /** The venue's TV theme, set in admin. Optional for older servers. */
+  theme?: DisplayTheme
   /** Optional so an older server build still renders the scoreboard. */
   schedule?: {
     current: DisplayBooking | null

@@ -1936,3 +1936,44 @@
 .tv-pop {
   animation: tv-pop 2.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
+
+@keyframes tv-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(0 183 255 / 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 1.1vh rgb(0 183 255 / 0);
+  }
+}
+
+.tv-pulse {
+  animation: tv-pulse 1.8s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+}
+
+/* Venue TV Liquid Glass spheres. Blur is set from JS to match the screen. */
+.tv-glass-orb {
+  background: radial-gradient(120% 120% at 30% 22%, rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.08) 42%, rgb(255 255 255 / 0.02) 60%, rgb(255 255 255 / 0.14) 100%);
+  box-shadow:
+    inset 0 0 0 1.5px rgb(255 255 255 / 0.55),
+    inset 0 -1.6vh 4vh rgb(0 60 140 / 0.2),
+    0 2.4vh 6vh rgb(0 50 130 / 0.22);
+  will-change: transform;
+}
+
+.tv-glass-orb::after {
+  content: "";
+  position: absolute;
+  inset: 7% 18% 58% 14%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(255 255 255 / 0.75), rgb(255 255 255 / 0));
+  filter: blur(3px);
+  transform: rotate(-18deg);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .tv-glass-orb {
+    backdrop-filter: none !important;
+    background: rgb(255 255 255 / 0.55);
+  }
+}

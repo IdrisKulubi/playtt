@@ -281,6 +281,13 @@
       "when": 1795597095877,
       "tag": "0039_booking_flexible_durations",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1795603816475,
+      "tag": "0040_display_themes",
+      "breakpoints": true
     }
   ]
 }

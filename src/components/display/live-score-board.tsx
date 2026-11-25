@@ -9,6 +9,7 @@ import {
   useNow,
 } from "@/components/display/tv-scenes"
 import type { DisplaySnapshotPayload } from "@/components/display/use-live-score"
+import { defaultTheme } from "@/lib/display-themes"
 
 interface LiveScoreBoardProps {
   payload: DisplaySnapshotPayload
@@ -109,6 +110,7 @@ function TvBoard({ payload }: { payload: DisplaySnapshotPayload }) {
   const schedule = payload.schedule
   const tableName = payload.resource.name
   const venue = schedule?.venueName ?? "PlayTT"
+  const theme = payload.theme ?? defaultTheme()
 
   const scoring =
     payload.status === "active" &&
@@ -134,7 +136,7 @@ function TvBoard({ payload }: { payload: DisplaySnapshotPayload }) {
   )
 
   if (current) {
-    return <TvSessionScene key={current.bookingId} tableName={tableName} venue={venue} booking={current} />
+    return <TvSessionScene key={current.bookingId} theme={theme} tableName={tableName} venue={venue} booking={current} />
   }
 
   if (payload.status === "active" && payload.playSession) {
@@ -142,6 +144,7 @@ function TvBoard({ payload }: { payload: DisplaySnapshotPayload }) {
     return (
       <TvSessionScene
         key={payload.playSession.id}
+        theme={theme}
         tableName={tableName}
         venue={venue}
         booking={{
@@ -156,10 +159,10 @@ function TvBoard({ payload }: { payload: DisplaySnapshotPayload }) {
   }
 
   if (upcoming && new Date(upcoming.startsAt).getTime() - now <= UP_NEXT_LEAD_MS) {
-    return <TvUpNextScene key={`next-${upcoming.bookingId}`} tableName={tableName} venue={venue} booking={upcoming} />
+    return <TvUpNextScene key={`next-${upcoming.bookingId}`} theme={theme} tableName={tableName} venue={venue} booking={upcoming} />
   }
 
-  return <TvIdleScene tableName={tableName} venue={venue} next={upcoming ?? null} />
+  return <TvIdleScene theme={theme} tableName={tableName} venue={venue} next={upcoming ?? null} />
 }
 
 export function LiveScoreBoard({

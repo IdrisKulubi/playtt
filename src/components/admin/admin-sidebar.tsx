@@ -25,6 +25,7 @@ import {
   QueueIcon,
   ShapesIcon,
   UsersThreeIcon,
+  TelevisionSimpleIcon,
   WalletIcon,
 } from "@phosphor-icons/react"
 
@@ -68,6 +69,7 @@ const navigationGroups: NavGroup[] = [
     label: "Catalog",
     items: [
       { href: "/admin/venues", label: "Venues", icon: BuildingsIcon },
+      { href: "/admin/tv", label: "TV display", icon: TelevisionSimpleIcon },
       { href: "/nvr", label: "VenueEdge", icon: HardDrivesIcon },
       { href: "/admin/devices", label: "Devices", icon: CpuIcon },
       { href: "/admin/access", label: "Venue access", icon: DoorOpenIcon },

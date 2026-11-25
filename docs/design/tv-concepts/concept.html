@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PlayTT TV concept</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root { --azure: #00b7ff; --ink: #ffffff; --ink-soft: rgba(255,255,255,.78); --ink-faint: rgba(255,255,255,.6); --track: rgba(255,255,255,.35); --fill: #ffffff; }
+  body.ink-dark { --ink: #041019; --ink-soft: rgba(4,16,25,.72); --ink-faint: rgba(4,16,25,.55); --track: rgba(4,16,25,.16); --fill: #0090d9; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; overflow: hidden; font-family: "Space Grotesk", system-ui, sans-serif; background: #00b7ff; }
+  /* Drawn small, scaled up and lightly blurred: soft light, no banding. */
+  canvas { position: fixed; inset: -2vh; width: calc(100vw + 4vh); height: calc(100vh + 4vh); filter: blur(1vh); }
+  .grain { position: fixed; inset: 0; pointer-events: none; opacity: .06; mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+
+  /* Liquid glass orbs (concept 3): real backdrop blur over the colour field. */
+  .orb { position: fixed; left: 0; top: 0; border-radius: 50%; pointer-events: none; display: none;
+    backdrop-filter: blur(2.6vh) saturate(1.12) brightness(1.04); -webkit-backdrop-filter: blur(2.6vh) saturate(1.12) brightness(1.04);
+    background: radial-gradient(120% 120% at 30% 22%, rgba(255,255,255,.55), rgba(255,255,255,.08) 42%, rgba(255,255,255,.02) 60%, rgba(255,255,255,.14) 100%);
+    box-shadow: inset 0 0 0 .18vh rgba(255,255,255,.55), inset 0 -2.4vh 5vh rgba(0,90,180,.25), inset 0 2vh 4vh rgba(255,255,255,.35), 0 4vh 9vh rgba(0,70,160,.25); }
+  body.glass .orb { display: block; }
+  .orb::after { content: ""; position: absolute; inset: 7% 18% 58% 14%; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(255,255,255,.75), rgba(255,255,255,0)); filter: blur(.6vh); transform: rotate(-18deg); }
+
+  .overlay { position: fixed; inset: 0; pointer-events: none; color: var(--ink); }
+  .label { position: absolute; top: 7vh; left: 4vw; display: flex; gap: 1vh; align-items: center; font: 500 1.7vh "Geist Mono", monospace; letter-spacing: .28em; text-transform: uppercase; color: var(--ink-soft); }
+  .dot { width: 1.1vh; height: 1.1vh; border-radius: 50%; background: var(--fill); box-shadow: 0 0 0 .5vh color-mix(in srgb, var(--fill) 25%, transparent); }
+  .name { position: absolute; top: 9.6vh; left: 4vw; font-weight: 700; font-size: 19vh; line-height: .86; letter-spacing: -.05em; }
+  .sub { position: absolute; top: 28vh; left: 4vw; font-size: 2.8vh; color: var(--ink-soft); }
+  .timer { position: absolute; top: 7vh; right: 4vw; text-align: right; }
+  .timer small { display: block; font: 500 1.5vh "Geist Mono", monospace; letter-spacing: .28em; color: var(--ink-faint); text-transform: uppercase; }
+  .timer b { display: block; margin-top: .8vh; font: 500 8vh "Geist Mono", monospace; letter-spacing: -.03em; }
+  .bar { position: absolute; left: 4vw; right: 4vw; bottom: 3.6vh; }
+  .track { height: .25vh; border-radius: 1vh; background: var(--track); position: relative; }
+  .track i { position: absolute; inset: 0 auto 0 0; width: 31%; border-radius: 1vh; background: var(--fill); }
+  .cells { margin-top: 2.6vh; display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 3vw; align-items: end; }
+  .cells small { font: 500 1.3vh "Geist Mono", monospace; letter-spacing: .26em; color: var(--ink-faint); text-transform: uppercase; }
+  .cells p { margin-top: .6vh; font-size: 2.5vh; font-weight: 500; }
+  .brand { text-align: right; font-weight: 700; letter-spacing: .34em; font-size: 1.7vh; }
+  .tag { position: fixed; right: 4vw; bottom: 13vh; font: 500 1.4vh "Geist Mono", monospace; letter-spacing: .22em; text-transform: uppercase; color: var(--ink-faint); }
+  body.clean .overlay, body.clean .tag { display: none; }
+  body.bar-light .bar, body.bar-light .tag { --ink-faint: rgba(255,255,255,.72); --track: rgba(255,255,255,.35); --fill: #ffffff; color: #ffffff; }
+  body.bar-light .tag { color: rgba(255,255,255,.72); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="orb" id="o1"></div><div class="orb" id="o2"></div><div class="orb" id="o3"></div><div class="orb" id="o4"></div>
+<div class="grain"></div>
+<div class="overlay">
+  <p class="label"><span class="dot"></span>Now playing</p>
+  <h1 class="name">Idris</h1>
+  <p class="sub">and 2 friends on Hurlingham Main Pod</p>
+  <div class="timer"><small>Time left</small><b>1:04:23</b></div>
+  <div class="bar">
+    <div class="track"><i></i></div>
+    <div class="cells">
+      <div><small>Table</small><p>Hurlingham Main Pod</p></div>
+      <div><small>Session</small><p>12:50 – 14:20</p></div>
+      <div><small>Players</small><p>3</p></div>
+      <div class="brand">PLAYTT</div>
+    </div>
+  </div>
+</div>
+<p class="tag" id="tag"></p>
+
+<script>
+// Bright, brand-forward concepts for a TV in a lit room. Brand azure #00b7ff is
+// the hero; tints run from white and ice through sky to cobalt. Every concept is
+// a pure function of time t (seconds).
+const params = new URLSearchParams(location.search)
+let concept = Number(params.get("c") || 1)
+if (params.has("clean")) document.body.classList.add("clean")
+const fixedT = params.has("t") ? Number(params.get("t")) : null
+
+const META = {
+  1: { name: "Azure Bloom", ink: "light" },
+  2: { name: "Sky Layers", ink: "dark", bar: "light" },
+  3: { name: "Liquid Glass", ink: "light" },
+  4: { name: "Silk", ink: "dark" },
+  5: { name: "Rally Ripples", ink: "dark" },
+}
+const tag = document.getElementById("tag")
+function applyMeta() {
+  tag.textContent = `Concept ${concept} · ${META[concept].name}`
+  document.body.classList.toggle("ink-dark", META[concept].ink === "dark")
+  document.body.classList.toggle("glass", concept === 3)
+  document.body.classList.toggle("bar-light", META[concept].bar === "light")
+}
+applyMeta()
+
+const canvas = document.getElementById("c")
+const ctx = canvas.getContext("2d")
+const SCALE = 1 / 4
+let W = 0, H = 0
+function resize() {
+  W = Math.max(64, Math.round(innerWidth * SCALE))
+  H = Math.max(36, Math.round(innerHeight * SCALE))
+  canvas.width = W
+  canvas.height = H
+}
+resize()
+addEventListener("resize", resize)
+
+const AZ = [0, 183, 255]
+const SKY = [110, 214, 255]
+const ICE = [214, 243, 255]
+const WHITE = [255, 255, 255]
+const COBALT = [0, 118, 222]
+const DEEP = [0, 72, 178]
+const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`
+const mix = (a, b, k) => a.map((v, i) => Math.round(v + (b[i] - v) * k))
+const TAU = Math.PI * 2
+
+function blob(x, y, r, c, a) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r)
+  g.addColorStop(0, rgba(c, a))
+  g.addColorStop(0.5, rgba(c, a * 0.5))
+  g.addColorStop(1, rgba(c, 0))
+  ctx.fillStyle = g
+  ctx.beginPath()
+  ctx.arc(x, y, r, 0, TAU)
+  ctx.fill()
+}
+
+function linear(x0, y0, x1, y1, stops) {
+  const g = ctx.createLinearGradient(x0, y0, x1, y1)
+  for (const [k, c, a = 1] of stops) g.addColorStop(k, rgba(c, a))
+  return g
+}
+
+// 1 · Azure Bloom: a saturated azure field; soft white light blooms through it
+// like sun through water, with cobalt depth drifting at the edges.
+function azureBloom(t) {
+  ctx.globalCompositeOperation = "source-over"
+  ctx.fillStyle = linear(0, H, W, 0, [[0, COBALT], [0.45, AZ], [1, SKY]])
+  ctx.fillRect(0, 0, W, H)
+  const m = Math.max(W, H)
+  const p = (fx, fy, ph, cx, cy, ax, ay) => [
+    W * (cx + ax * Math.sin(t * fx * TAU + ph)),
+    H * (cy + ay * Math.cos(t * fy * TAU + ph * 1.3)),
+  ]
+  // Cobalt depth.
+  let q = p(0.009, 0.012, 0.4, 0.15, 0.9, 0.12, 0.1)
+  blob(q[0], q[1], m * 0.55, DEEP, 0.75)
+  q = p(0.011, 0.008, 2.2, 0.95, 1.0, 0.1, 0.08)
+  blob(q[0], q[1], m * 0.35, COBALT, 0.6)
+  // White light blooms.
+  ctx.globalCompositeOperation = "screen"
+  q = p(0.013, 0.017, 1.1, 0.72, 0.38, 0.14, 0.18)
+  blob(q[0], q[1], m * 0.42, WHITE, 0.75)
+  q = p(0.017, 0.011, 3.4, 0.5, 0.75, 0.2, 0.12)
+  blob(q[0], q[1], m * 0.3, ICE, 0.5)
+  q = p(0.021, 0.019, 5.0, 0.66, 0.62, 0.1, 0.12)
+  blob(q[0], q[1], m * 0.22, WHITE, 0.55)
+  q = p(0.015, 0.023, 4.1, 0.32, 0.25, 0.14, 0.1)
+  blob(q[0], q[1], m * 0.2, SKY, 0.45)
+  ctx.globalCompositeOperation = "source-over"
+  // Keep the name area deep enough for white type.
+  ctx.fillStyle = linear(0, 0, W * 0.5, H * 0.5, [[0, DEEP, 0.45], [1, DEEP, 0]])
+  ctx.fillRect(0, 0, W, H)
+  ctx.fillStyle = linear(W, 0, W * 0.72, H * 0.3, [[0, COBALT, 0.55], [1, COBALT, 0]])
+  ctx.fillRect(0, 0, W, H)
+  ctx.fillStyle = linear(0, H, 0, H * 0.78, [[0, DEEP, 0.55], [1, DEEP, 0]])
+  ctx.fillRect(0, 0, W, H)
+}
+
+// 2 · Sky Layers: bright layered waves rolling slowly, from ice-white sky down
+// to deep azure, each crest catching a line of light.
+function skyLayers(t) {
+  ctx.globalCompositeOperation = "source-over"
+  ctx.fillStyle = linear(0, 0, 0, H, [[0, WHITE], [0.5, ICE], [1, SKY]])
+  ctx.fillRect(0, 0, W, H)
+  blob(W * 0.78, H * 0.22, Math.max(W, H) * 0.35, WHITE, 0.9)
+  const layers = [
+    { y: 0.5, a: 0.07, f: 0.9, s: 0.012, top: SKY, bot: AZ, ph: 0.0 },
+    { y: 0.6, a: 0.08, f: 1.25, s: -0.016, top: AZ, bot: COBALT, ph: 1.4 },
+    { y: 0.7, a: 0.07, f: 0.7, s: 0.02, top: [40, 170, 250], bot: COBALT, ph: 2.9 },
+    { y: 0.8, a: 0.06, f: 1.6, s: -0.024, top: COBALT, bot: DEEP, ph: 4.1 },
+    { y: 0.9, a: 0.05, f: 1.1, s: 0.03, top: [0, 96, 200], bot: [0, 52, 140], ph: 5.3 },
+  ]
+  for (const L of layers) {
+    const yAt = (x) => {
+      const u = x / W
+      return H * (L.y + L.a * Math.sin(u * L.f * TAU + t * L.s * TAU + L.ph) +
+        L.a * 0.4 * Math.sin(u * L.f * 2.3 * TAU - t * L.s * 1.7 * TAU))
+    }
+    ctx.beginPath()
+    ctx.moveTo(0, H)
+    for (let x = 0; x <= W; x += 2) ctx.lineTo(x, yAt(x))
+    ctx.lineTo(W, H)
+    ctx.closePath()
+    const crest = H * (L.y - L.a * 1.4)
+    ctx.fillStyle = linear(0, crest, 0, H, [[0, L.top], [1, L.bot]])
+    ctx.fill()
+    // Light along the crest.
+    ctx.beginPath()
+    for (let x = 0; x <= W; x += 2) (x ? ctx.lineTo : ctx.moveTo).call(ctx, x, yAt(x))
+    ctx.strokeStyle = rgba(WHITE, 0.55)
+    ctx.lineWidth = 1.2
+    ctx.stroke()
+  }
+}
+
+// 3 · Liquid Glass: an azure field with frosted glass orbs drifting over it.
+// The orbs are real glass (backdrop blur), so the colour bends through them.
+const orbs = [1, 2, 3, 4].map((i) => document.getElementById(`o${i}`))
+function liquidGlass(t) {
+  azureBloom(t * 0.8 + 7)
+  const vh = innerHeight / 100
+  const vw = innerWidth / 100
+  const spec = [
+    { d: 46, cx: 70, cy: 52, ax: 9, ay: 7, fx: 0.013, fy: 0.017, ph: 0 },
+    { d: 24, cx: 52, cy: 72, ax: 12, ay: 6, fx: 0.019, fy: 0.012, ph: 2 },
+    { d: 15, cx: 87, cy: 68, ax: 4, ay: 6, fx: 0.023, fy: 0.021, ph: 4 },
+    { d: 10, cx: 40, cy: 52, ax: 7, ay: 6, fx: 0.017, fy: 0.026, ph: 5.5 },
+  ]
+  spec.forEach((s, i) => {
+    const d = s.d * vh * (1 + 0.025 * Math.sin(t * 0.3 + s.ph))
+    const x = (s.cx + s.ax * Math.sin(t * s.fx * TAU + s.ph)) * vw - d / 2
+    const y = (s.cy + s.ay * Math.cos(t * s.fy * TAU + s.ph)) * vh - d / 2
+    const el = orbs[i]
+    el.style.width = el.style.height = `${d}px`
+    el.style.transform = `translate(${x}px, ${y}px)`
+  })
+}
+
+// 4 · Silk: one wide azure ribbon folding across a white field. Each slice is
+// shaded by how steeply the ribbon turns, which reads as light on fabric.
+function silk(t) {
+  ctx.globalCompositeOperation = "source-over"
+  ctx.fillStyle = linear(0, 0, W, H, [[0, WHITE], [1, ICE]])
+  ctx.fillRect(0, 0, W, H)
+  const ribbons = [
+    { y: 0.62, amp: 0.16, width: 0.34, f: 0.55, s: 0.011, ph: 0.0, light: SKY, dark: COBALT, a: 1 },
+    { y: 0.74, amp: 0.1, width: 0.14, f: 0.8, s: -0.015, ph: 2.2, light: WHITE, dark: AZ, a: 0.85 },
+  ]
+  for (const R of ribbons) {
+    const centre = (x) => {
+      const u = x / W
+      return H * (R.y + R.amp * Math.sin(u * R.f * TAU + t * R.s * TAU + R.ph) +
+        0.05 * Math.sin(u * 2.1 * TAU - t * R.s * 1.6 * TAU + R.ph))
+    }
+    const twist = (x) => Math.sin((x / W) * 1.7 * TAU + t * 0.017 * TAU + R.ph)
+    for (let x = -2; x <= W + 2; x += 1) {
+      const c = centre(x)
+      const slope = (centre(x + 1) - centre(x - 1)) / 2
+      const tw = twist(x)
+      const half = (H * R.width * (0.35 + 0.65 * Math.abs(tw))) / 2
+      const light = Math.max(0, Math.min(1, 0.55 + slope * 0.9 + tw * 0.25))
+      const col = mix(R.dark, R.light, light)
+      const g = ctx.createLinearGradient(0, c - half, 0, c + half)
+      g.addColorStop(0, rgba(mix(col, WHITE, 0.35), R.a))
+      g.addColorStop(0.5, rgba(col, R.a))
+      g.addColorStop(1, rgba(mix(col, DEEP, 0.3), R.a))
+      ctx.fillStyle = g
+      ctx.fillRect(x, c - half, 1.6, half * 2)
+    }
+  }
+  // Soft shadow under the ribbon onto the white.
+  ctx.globalCompositeOperation = "multiply"
+  ctx.fillStyle = linear(0, H * 0.9, 0, H, [[0, WHITE], [1, [200, 230, 250]]])
+  ctx.fillRect(0, H * 0.9, W, H * 0.1)
+  ctx.globalCompositeOperation = "source-over"
+}
+
+// 5 · Rally Ripples: a bounce lands on alternate sides in a rally rhythm; each
+// landing sends azure rings across a bright ice field, and the rings overlap
+// like water.
+function rallyRipples(t) {
+  ctx.globalCompositeOperation = "source-over"
+  ctx.fillStyle = linear(0, 0, W, H, [[0, WHITE], [0.55, ICE], [1, SKY]])
+  ctx.fillRect(0, 0, W, H)
+  const P = 1.4
+  const k = Math.floor(t / P)
+  const points = [[W * 0.66, H * 0.62], [W * 0.88, H * 0.42]]
+  blob(W * 0.8, H * 0.55, Math.max(W, H) * 0.5, AZ, 0.32)
+  for (let i = 0; i < 6; i += 1) {
+    const n = k - i
+    const age = t - n * P
+    const [x, y] = points[((n % 2) + 2) % 2]
+    const r = H * (0.03 + age * 0.22)
+    const fade = Math.max(0, 1 - age / (P * 6))
+    for (const [w, a, c] of [[H * 0.07, 0.22, AZ], [H * 0.02, 0.95, AZ], [H * 0.008, 0.7, COBALT], [H * 0.004, 0.9, WHITE]]) {
+      ctx.strokeStyle = rgba(c, a * fade * fade)
+      ctx.lineWidth = w
+      ctx.beginPath()
+      ctx.arc(x, y, r, 0, TAU)
+      ctx.stroke()
+    }
+    if (age < 0.8) blob(x, y, H * (0.1 + age * 0.35), AZ, 0.9 * (1 - age / 0.8))
+  }
+  // The light itself, arcing to the next landing.
+  const f = (t - k * P) / P
+  const [ax, ay] = points[((k % 2) + 2) % 2]
+  const [bx, by] = points[(((k + 1) % 2) + 2) % 2]
+  const bx2 = ax + (bx - ax) * f
+  const by2 = ay + (by - ay) * f - H * 0.22 * Math.sin(Math.PI * f)
+  blob(bx2, by2, H * 0.09, AZ, 0.55)
+  blob(bx2, by2, H * 0.025, WHITE, 1)
+}
+
+const DRAW = { 1: azureBloom, 2: skyLayers, 3: liquidGlass, 4: silk, 5: rallyRipples }
+const start = performance.now()
+function frame(now) {
+  const t = fixedT ?? (now - start) / 1000 + 20
+  DRAW[concept](t)
+  if (fixedT === null) requestAnimationFrame(frame)
+}
+requestAnimationFrame(frame)
+
+addEventListener("keydown", (e) => {
+  if (DRAW[Number(e.key)]) { concept = Number(e.key); applyMeta() }
+  if (e.key === "h") document.body.classList.toggle("clean")
+})
+</script>
+</body>
+</html>

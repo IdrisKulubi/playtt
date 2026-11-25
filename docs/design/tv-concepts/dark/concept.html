@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PlayTT TV concept</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root { --azure: #00b7ff; --navy: #07111d; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; background: var(--navy); color: #fff; overflow: hidden; font-family: "Space Grotesk", system-ui, sans-serif; }
+  /* Drawn at low resolution and scaled up: the browser's smoothing gives the soft, blurred light for free. */
+  canvas { position: fixed; inset: -2vh; width: calc(100vw + 4vh); height: calc(100vh + 4vh); filter: blur(1.1vh); }
+  .grain { position: fixed; inset: 0; pointer-events: none; opacity: .09; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+  .overlay { position: fixed; inset: 0; pointer-events: none; }
+  .label { position: absolute; top: 7vh; left: 4vw; display: flex; gap: 1vh; align-items: center; font: 500 1.7vh "Geist Mono", monospace; letter-spacing: .28em; text-transform: uppercase; color: rgba(255,255,255,.75); }
+  .dot { width: 1.1vh; height: 1.1vh; border-radius: 50%; background: var(--azure); box-shadow: 0 0 1.4vh var(--azure); }
+  .name { position: absolute; top: 9.6vh; left: 4vw; font-weight: 700; font-size: 19vh; line-height: .86; letter-spacing: -.05em; }
+  .sub { position: absolute; top: 28vh; left: 4vw; font-size: 2.8vh; color: rgba(255,255,255,.65); }
+  .timer { position: absolute; top: 7vh; right: 4vw; text-align: right; }
+  .timer small { display: block; font: 500 1.5vh "Geist Mono", monospace; letter-spacing: .28em; color: rgba(255,255,255,.5); }
+  .timer b { display: block; margin-top: .8vh; font: 500 8vh "Geist Mono", monospace; letter-spacing: -.03em; }
+  .bar { position: absolute; left: 4vw; right: 4vw; bottom: 3.6vh; }
+  .track { height: 1px; background: rgba(255,255,255,.14); position: relative; }
+  .track i { position: absolute; inset: 0 auto 0 0; width: 31%; background: var(--azure); }
+  .cells { margin-top: 2.6vh; display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 3vw; align-items: end; }
+  .cells small { font: 500 1.3vh "Geist Mono", monospace; letter-spacing: .26em; color: rgba(255,255,255,.45); text-transform: uppercase; }
+  .cells p { margin-top: .6vh; font-size: 2.5vh; font-weight: 500; }
+  .brand { text-align: right; font-weight: 700; letter-spacing: .34em; font-size: 1.7vh; }
+  .tag { position: fixed; right: 4vw; bottom: 13vh; font: 500 1.4vh "Geist Mono", monospace; letter-spacing: .22em; text-transform: uppercase; color: rgba(255,255,255,.4); }
+  body.clean .overlay, body.clean .tag { display: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="grain"></div>
+<div class="overlay">
+  <p class="label"><span class="dot"></span>Now playing</p>
+  <h1 class="name">Idris</h1>
+  <p class="sub">and 2 friends on Hurlingham Main Pod</p>
+  <div class="timer"><small>Time left</small><b>1:04:23</b></div>
+  <div class="bar">
+    <div class="track"><i></i></div>
+    <div class="cells">
+      <div><small>Table</small><p>Hurlingham Main Pod</p></div>
+      <div><small>Session</small><p>12:50 – 14:20</p></div>
+      <div><small>Players</small><p>3</p></div>
+      <div class="brand">PLAYTT</div>
+    </div>
+  </div>
+</div>
+<p class="tag" id="tag"></p>
+
+<script>
+// Every concept is a pure function of time t (seconds). Brand palette only:
+// azure #00b7ff on navy #07111d, with deeper and lighter tints of the same blue.
+const params = new URLSearchParams(location.search)
+let concept = Number(params.get("c") || 1)
+if (params.has("clean")) document.body.classList.add("clean")
+const fixedT = params.has("t") ? Number(params.get("t")) : null
+
+const NAMES = { 1: "Liquid Mesh", 2: "Azure Aurora", 3: "Rally Light", 4: "Arena Beams", 5: "Halo" }
+const tag = document.getElementById("tag")
+const setTag = () => { tag.textContent = `Concept ${concept} · ${NAMES[concept]}` }
+setTag()
+
+const canvas = document.getElementById("c")
+const ctx = canvas.getContext("2d")
+const SCALE = 1 / 4 // render small, upscale soft
+let W = 0, H = 0
+function resize() {
+  W = Math.max(64, Math.round(innerWidth * SCALE))
+  H = Math.max(36, Math.round(innerHeight * SCALE))
+  canvas.width = W
+  canvas.height = H
+}
+resize()
+addEventListener("resize", resize)
+
+const AZ = [0, 183, 255]
+const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`
+const DEEP = [0, 92, 170]
+const STEEL = [24, 64, 120]
+const ICE = [150, 225, 255]
+const NAVY = [7, 17, 29]
+
+function base(top = [5, 12, 22], bottom = [3, 8, 15]) {
+  const g = ctx.createLinearGradient(0, 0, 0, H)
+  g.addColorStop(0, rgba(top, 1))
+  g.addColorStop(1, rgba(bottom, 1))
+  ctx.globalCompositeOperation = "source-over"
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, W, H)
+}
+
+function blob(x, y, r, c, a) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r)
+  g.addColorStop(0, rgba(c, a))
+  g.addColorStop(0.55, rgba(c, a * 0.45))
+  g.addColorStop(1, rgba(c, 0))
+  ctx.fillStyle = g
+  ctx.beginPath()
+  ctx.arc(x, y, r, 0, Math.PI * 2)
+  ctx.fill()
+}
+
+// 1 · Liquid Mesh: deep colour masses drift on slow Lissajous paths and merge.
+// A navy mass moves through them too, carving shape so it never goes flat.
+function liquidMesh(t) {
+  base([4, 10, 19], [3, 8, 15])
+  const m = Math.max(W, H)
+  const o = (fx, fy, ph, cx, cy, ax, ay) => [
+    W * (cx + ax * Math.sin(t * fx * 6.28 + ph)),
+    H * (cy + ay * Math.cos(t * fy * 6.28 + ph * 1.3)),
+  ]
+  ctx.globalCompositeOperation = "lighter"
+  const masses = [
+    { c: DEEP, a: 0.55, r: 0.62, p: o(0.011, 0.014, 0.0, 0.78, 0.35, 0.16, 0.2) },
+    { c: AZ, a: 0.42, r: 0.42, p: o(0.017, 0.012, 1.9, 0.7, 0.62, 0.2, 0.22) },
+    { c: STEEL, a: 0.6, r: 0.55, p: o(0.009, 0.016, 3.3, 0.38, 0.85, 0.22, 0.12) },
+    { c: ICE, a: 0.22, r: 0.2, p: o(0.021, 0.018, 4.6, 0.82, 0.5, 0.12, 0.25) },
+    { c: AZ, a: 0.3, r: 0.3, p: o(0.014, 0.022, 5.4, 0.55, 0.3, 0.18, 0.18) },
+  ]
+  for (const mass of masses) blob(mass.p[0], mass.p[1], m * mass.r, mass.c, mass.a)
+  // Navy masses carve through the light.
+  ctx.globalCompositeOperation = "source-over"
+  const carve = o(0.013, 0.01, 2.6, 0.62, 0.5, 0.18, 0.2)
+  blob(carve[0], carve[1], m * 0.26, [4, 10, 19], 0.85)
+  const carve2 = o(0.008, 0.012, 0.7, 0.92, 0.85, 0.1, 0.12)
+  blob(carve2[0], carve2[1], m * 0.2, [4, 10, 19], 0.7)
+  // Keep the text side calm and dark.
+  const shade = ctx.createLinearGradient(0, 0, W * 0.62, 0)
+  shade.addColorStop(0, rgba([4, 10, 19], 0.75))
+  shade.addColorStop(1, rgba([4, 10, 19], 0))
+  ctx.fillStyle = shade
+  ctx.fillRect(0, 0, W, H)
+}
+
+// 2 · Azure Aurora: ribbons of light across the sky. Each ribbon has a bright
+// lower edge with rays rising off it, folding and travelling slowly.
+function aurora(t) {
+  base([2, 6, 13], [6, 15, 28])
+  ctx.globalCompositeOperation = "lighter"
+  const ribbons = [
+    { c: AZ, a: 0.55, y: 0.5, amp: 0.1, f: 1.1, s: 0.018, ray: 0.42, ph: 0 },
+    { c: ICE, a: 0.25, y: 0.42, amp: 0.08, f: 1.6, s: -0.013, ray: 0.3, ph: 2.1 },
+    { c: DEEP, a: 0.6, y: 0.58, amp: 0.12, f: 0.8, s: 0.011, ray: 0.55, ph: 4.2 },
+  ]
+  const step = 2
+  for (const R of ribbons) {
+    for (let x = 0; x < W; x += step) {
+      const u = x / W
+      const edge =
+        H * (R.y + R.amp * Math.sin(u * R.f * 6.28 + t * R.s * 6.28 + R.ph) +
+          0.03 * Math.sin(u * 9 + t * 0.35 + R.ph))
+      // Brightness varies along the ribbon and drifts: folds catching light.
+      const fold =
+        0.55 + 0.45 * Math.sin(u * 7.3 + t * 0.21 + R.ph) * Math.sin(u * 3.1 - t * 0.13)
+      const rays = 0.7 + 0.3 * Math.sin(u * 61 + t * 0.6 + R.ph)
+      const intensity = Math.max(0, fold) * rays
+      if (intensity < 0.03) continue
+      const len = H * R.ray * (0.5 + 0.5 * intensity)
+      const g = ctx.createLinearGradient(0, edge, 0, edge - len)
+      g.addColorStop(0, rgba(R.c, 0))
+      g.addColorStop(0.04, rgba(R.c, R.a * intensity))
+      g.addColorStop(0.35, rgba(R.c, R.a * intensity * 0.35))
+      g.addColorStop(1, rgba(R.c, 0))
+      ctx.fillStyle = g
+      ctx.fillRect(x, edge - len, step + 0.5, len + H * 0.02)
+    }
+  }
+  // A faint reflection band low on the screen.
+  const glow = ctx.createLinearGradient(0, H * 0.7, 0, H)
+  glow.addColorStop(0, rgba(AZ, 0))
+  glow.addColorStop(1, rgba(DEEP, 0.12))
+  ctx.fillStyle = glow
+  ctx.fillRect(0, H * 0.7, W, H * 0.3)
+  ctx.globalCompositeOperation = "source-over"
+  const shade = ctx.createLinearGradient(0, 0, W * 0.55, 0)
+  shade.addColorStop(0, rgba([3, 8, 15], 0.6))
+  shade.addColorStop(1, rgba([3, 8, 15], 0))
+  ctx.fillStyle = shade
+  ctx.fillRect(0, 0, W, H)
+}
+
+// 3 · Rally Light: a point of light is "hit" from one side to the other like a
+// rally. A long comet wake follows it; each arrival flashes a wash of light up
+// the wall on that side, which cools as the light travels back.
+function rallyLight(t) {
+  base([3, 8, 16], [4, 10, 19])
+  ctx.globalCompositeOperation = "lighter"
+  const P = 1.5
+  const k = Math.floor(t / P)
+  const f = (t - k * P) / P
+  const ltr = k % 2 === 0
+  const ease = (x) => (x < 0.5 ? 2 * x * x : 1 - (-2 * x + 2) ** 2 / 2) * 0.35 + x * 0.65
+  const xA = W * 0.06, xB = W * 0.94
+  const pos = (ff, dir) => {
+    const e = ease(Math.min(1, Math.max(0, ff)))
+    const x = dir ? xA + (xB - xA) * e : xB - (xB - xA) * e
+    const y = H * (0.7 - 0.2 * Math.sin(Math.PI * ff))
+    return [x, y]
+  }
+  // Wall washes: the side just hit flashes, both sides keep a low ember.
+  const hitAge = f * P
+  const sideNow = ltr ? 0 : W
+  const sidePrev = ltr ? W : 0
+  const wash = (x, a) => {
+    ctx.save()
+    ctx.translate(x, H * 0.62)
+    ctx.scale(0.55, 1.25)
+    blob(0, 0, H * 0.75, AZ, a)
+    ctx.restore()
+  }
+  wash(sideNow, 0.08 + 0.42 * Math.exp(-hitAge * 1.8))
+  wash(sidePrev, 0.08 + 0.3 * Math.max(0, f - 0.75) * 4 * 0.25)
+  // Comet wake.
+  const N = 34
+  for (let i = N; i >= 1; i -= 1) {
+    const [x, y] = pos(f - i * 0.011, ltr)
+    if (f - i * 0.011 < 0) continue
+    const k2 = 1 - i / N
+    blob(x, y, H * (0.035 + 0.05 * (1 - k2)), AZ, 0.16 * k2 * k2)
+  }
+  const [x, y] = pos(f, ltr)
+  blob(x, y, H * 0.22, DEEP, 0.35)
+  blob(x, y, H * 0.08, AZ, 0.7)
+  blob(x, y, H * 0.025, [235, 250, 255], 1)
+  // Floor reflection under the path.
+  ctx.save()
+  ctx.translate(x, H * 0.86)
+  ctx.scale(1, 0.12)
+  blob(0, 0, H * 0.6, AZ, 0.25)
+  ctx.restore()
+  ctx.globalCompositeOperation = "source-over"
+}
+
+// 4 · Arena Beams: stage lights from above sweep slowly through haze.
+function arenaBeams(t) {
+  base([2, 6, 12], [6, 14, 26])
+  ctx.globalCompositeOperation = "lighter"
+  const beams = [
+    { x: 0.2, sw: 0.32, sp: 0.05, ph: 0.0, c: AZ, a: 0.2 },
+    { x: 0.48, sw: 0.25, sp: 0.037, ph: 2.1, c: ICE, a: 0.1 },
+    { x: 0.75, sw: 0.3, sp: 0.043, ph: 4.0, c: AZ, a: 0.18 },
+    { x: 0.95, sw: 0.22, sp: 0.03, ph: 1.0, c: DEEP, a: 0.3 },
+  ]
+  for (const b of beams) {
+    const angle = b.sw * Math.sin(t * b.sp * 6.28 + b.ph)
+    const ax = W * b.x, ay = -H * 0.08
+    const len = H * 1.35
+    const spread = 0.13
+    const tip = (s) => [ax + Math.sin(angle + s) * len, ay + Math.cos(angle + s) * len]
+    const [lx, ly] = tip(-spread)
+    const [rx, ry] = tip(spread)
+    const g = ctx.createLinearGradient(ax, ay, ax + Math.sin(angle) * len, ay + Math.cos(angle) * len)
+    g.addColorStop(0, rgba(b.c, b.a * 1.6))
+    g.addColorStop(0.6, rgba(b.c, b.a * 0.5))
+    g.addColorStop(1, rgba(b.c, 0))
+    ctx.fillStyle = g
+    ctx.beginPath()
+    ctx.moveTo(ax, ay)
+    ctx.lineTo(lx, ly)
+    ctx.lineTo(rx, ry)
+    ctx.closePath()
+    ctx.fill()
+    // Pool of light where the beam meets the floor.
+    const fx = ax + Math.tan(angle) * (H * 0.9 - ay)
+    ctx.save()
+    ctx.translate(fx, H * 0.9)
+    ctx.scale(1, 0.25)
+    blob(0, 0, H * 0.5, b.c, b.a * 0.9)
+    ctx.restore()
+  }
+  // Haze.
+  const haze = ctx.createLinearGradient(0, 0, 0, H)
+  haze.addColorStop(0, rgba(AZ, 0.0))
+  haze.addColorStop(1, rgba(AZ, 0.05))
+  ctx.fillStyle = haze
+  ctx.fillRect(0, 0, W, H)
+  ctx.globalCompositeOperation = "source-over"
+}
+
+// 5 · Halo: a huge ring of light, its colour rotating around it, breathing slowly.
+function halo(t) {
+  base([3, 8, 16], [4, 10, 19])
+  const cx = W * 0.7, cy = H * 0.56
+  const r = H * (0.36 + 0.02 * Math.sin(t * 0.4))
+  ctx.globalCompositeOperation = "lighter"
+  blob(cx, cy, r * 1.9, DEEP, 0.35)
+  const ring = (width, alpha, rot) => {
+    const g = ctx.createConicGradient(rot, cx, cy)
+    g.addColorStop(0, rgba(AZ, alpha))
+    g.addColorStop(0.25, rgba(ICE, alpha * 0.8))
+    g.addColorStop(0.5, rgba(DEEP, alpha * 0.35))
+    g.addColorStop(0.75, rgba(AZ, alpha * 0.9))
+    g.addColorStop(1, rgba(AZ, alpha))
+    ctx.strokeStyle = g
+    ctx.lineWidth = width
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, 0, Math.PI * 2)
+    ctx.stroke()
+  }
+  ring(H * 0.16, 0.12, t * 0.25)
+  ring(H * 0.07, 0.3, t * 0.25 + 0.6)
+  ring(H * 0.02, 0.9, t * 0.25 + 1.1)
+  ctx.globalCompositeOperation = "source-over"
+  // Dark core so the ring reads as light, not a disc.
+  blob(cx, cy, r * 0.85, [2, 7, 14], 0.9)
+}
+
+const DRAW = { 1: liquidMesh, 2: aurora, 3: rallyLight, 4: arenaBeams, 5: halo }
+const start = performance.now()
+function frame(now) {
+  const t = fixedT ?? (now - start) / 1000 + 20
+  DRAW[concept](t)
+  if (fixedT === null) requestAnimationFrame(frame)
+}
+requestAnimationFrame(frame)
+window.renderAt = (t) => DRAW[concept](t)
+
+addEventListener("keydown", (e) => {
+  if (DRAW[Number(e.key)]) { concept = Number(e.key); setTag() }
+  if (e.key === "h") document.body.classList.toggle("clean")
+})
+</script>
+</body>
+</html>

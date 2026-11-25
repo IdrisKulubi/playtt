@@ -1,13 +1,10 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react"
 
-import {
-  drawIdle,
-  drawRally,
-  drawWarmup,
-} from "@/components/display/tv-canvas"
+import { ThemeBackground } from "@/components/display/themes/theme-background"
 import type { DisplayBooking } from "@/components/display/use-live-score"
+import { defaultTheme, type DisplayTheme } from "@/lib/display-themes"
 
 const timeFormatter = new Intl.DateTimeFormat("en-KE", {
   hour: "numeric",
@@ -39,113 +36,53 @@ export function useNow(intervalMs = 1000) {
   return now
 }
 
-function formatCountdown(ms: number) {
+/** h:mm:ss (or m:ss under an hour) for a live countdown. */
+function formatClockCountdown(ms: number) {
   const total = Math.max(0, Math.ceil(ms / 1000))
-  const minutes = Math.floor(total / 60)
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
   const seconds = total % 60
-  return `${minutes}:${String(seconds).padStart(2, "0")}`
+  const ss = String(seconds).padStart(2, "0")
+  return hours > 0 ? `${hours}:${String(minutes).padStart(2, "0")}:${ss}` : `${minutes}:${ss}`
 }
 
-function formatMinutesLeft(ms: number) {
-  const minutes = Math.max(0, Math.ceil(ms / 60_000))
-  if (minutes < 60) return `${minutes} min left`
-  const hours = Math.floor(minutes / 60)
-  const rest = minutes % 60
-  return rest === 0 ? `${hours}h left` : `${hours}h ${rest}m left`
+/** Text colours for a theme, as CSS variables every scene element reads. */
+function inkVars(theme: DisplayTheme): CSSProperties {
+  const light = theme.ink === "light"
+  return {
+    "--tv-ink": light ? "#ffffff" : "#041019",
+    "--tv-ink-soft": light ? "rgb(255 255 255 / 0.8)" : "rgb(4 16 25 / 0.72)",
+    "--tv-ink-faint": light ? "rgb(255 255 255 / 0.68)" : "rgb(4 16 25 / 0.55)",
+    "--tv-track": light ? "rgb(255 255 255 / 0.32)" : "rgb(4 16 25 / 0.16)",
+    "--tv-fill": light ? "#ffffff" : theme.palette.deep,
+    "--tv-accent": light ? "#ffffff" : theme.palette.deep,
+    color: "var(--tv-ink)",
+    backgroundColor: theme.palette.base,
+  } as CSSProperties
 }
 
-/**
- * Full-screen canvas driven by one animation-frame loop. `draw` gets the
- * seconds since mount; with reduced motion the scene holds a still frame.
- */
-function SceneCanvas({
-  draw,
+/** Full-screen scene on the venue's theme. Free tables move slower. */
+function ThemedScene({
+  theme,
+  speed,
+  children,
 }: {
-  draw: (ctx: CanvasRenderingContext2D, w: number, h: number, t: number) => void
+  theme: DisplayTheme
+  speed: number
+  children: ReactNode
 }) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const drawRef = useRef(draw)
-
-  useEffect(() => {
-    drawRef.current = draw
-  }, [draw])
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    const start = performance.now()
-    let frame = 0
-
-    const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2)
-      canvas.width = Math.round(canvas.clientWidth * dpr)
-      canvas.height = Math.round(canvas.clientHeight * dpr)
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    }
-    resize()
-    window.addEventListener("resize", resize)
-
-    const loop = (nowMs: number) => {
-      const seconds = reduced ? 4.2 : (nowMs - start) / 1000
-      drawRef.current(ctx, canvas.clientWidth, canvas.clientHeight, seconds)
-      if (!reduced) frame = requestAnimationFrame(loop)
-    }
-    frame = requestAnimationFrame(loop)
-
-    return () => {
-      cancelAnimationFrame(frame)
-      window.removeEventListener("resize", resize)
-    }
-  }, [])
-
-  return <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" aria-hidden />
-}
-
-function useMarkImage() {
-  const [mark, setMark] = useState<HTMLImageElement | null>(null)
-  useEffect(() => {
-    const image = new Image()
-    image.src = "/brand/playtt-mark.svg"
-    image.onload = () => setMark(image)
-  }, [])
-  return mark
-}
-
-/** Bottom strip on every scene: brand, date and clock, so a photo tells the story. */
-function ShareStrip({ now, venue }: { now: number; venue: string }) {
   return (
-    <footer className="tv-rise absolute inset-x-0 bottom-0 flex items-end justify-between px-[4vw] pb-[3.2vh] text-white/55">
-      <div className="flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/playtt-mark.svg" alt="" className="h-[3.2vh] w-auto" />
-        <span className="text-[1.6vh] font-semibold tracking-[0.32em] text-white/80">
-          PLAYTT
-        </span>
-        <span className="hidden text-[1.5vh] sm:inline">Book a pod. Play on.</span>
-      </div>
-      <div className="text-right font-mono text-[1.5vh] tracking-[0.12em] uppercase tabular-nums">
-        {venue} · {dateFormatter.format(new Date(now))}
-      </div>
-    </footer>
-  )
-}
-
-function Clock({ now }: { now: number }) {
-  return (
-    <div className="absolute top-[3.2vh] right-[4vw] font-mono text-[2.4vh] tabular-nums text-white/60">
-      {clockFormatter.format(new Date(now))}
+    <div className="relative h-screen w-screen overflow-hidden" style={inkVars(theme)}>
+      <ThemeBackground theme={theme} speed={speed} />
+      {children}
     </div>
   )
 }
 
 /** Splits a word into letters that rise in one after another. */
-function RisingWord({ text, className }: { text: string; className?: string }) {
+function RisingWord({ text }: { text: string }) {
   return (
-    <span className={`inline-flex overflow-hidden pb-[0.08em] ${className ?? ""}`} aria-label={text}>
+    <span className="inline-flex overflow-hidden pb-[0.08em]" aria-label={text}>
       {Array.from(text).map((letter, index) => (
         <span
           key={`${letter}-${index}`}
@@ -160,60 +97,126 @@ function RisingWord({ text, className }: { text: string; className?: string }) {
   )
 }
 
+function Label({ children, live = false }: { children: string; live?: boolean }) {
+  return (
+    <p className="tv-rise flex items-center gap-[1vh] font-mono text-[1.7vh] tracking-[0.28em] uppercase" style={{ color: "var(--tv-ink-soft)" }}>
+      <span
+        className={`inline-block size-[1.1vh] rounded-full ${live ? "tv-pulse" : ""}`}
+        style={{ backgroundColor: "var(--tv-fill)" }}
+        aria-hidden
+      />
+      {children}
+    </p>
+  )
+}
+
+function BarCell({ label, value, delay }: { label: string; value: string; delay: number }) {
+  return (
+    <div className="tv-rise min-w-0" style={{ animationDelay: `${delay}ms` }}>
+      <p className="font-mono text-[1.3vh] tracking-[0.26em] uppercase" style={{ color: "var(--tv-ink-faint)" }}>
+        {label}
+      </p>
+      <p className="mt-[0.6vh] truncate text-[2.5vh] font-medium tabular-nums">{value}</p>
+    </div>
+  )
+}
+
+/** Info bar: optional progress line, the facts, and brand + date for photos. */
+function InfoBar({
+  now,
+  venue,
+  progress,
+  cells,
+}: {
+  now: number
+  venue: string
+  progress: number | null
+  cells: { label: string; value: string }[]
+}) {
+  const pct = progress === null ? 0 : Math.min(100, Math.max(0, progress * 100))
+  return (
+    <div className="absolute inset-x-0 bottom-0 px-[4vw] pb-[3.6vh]">
+      {progress !== null ? (
+        <div className="relative h-[0.25vh] w-full rounded-full" style={{ backgroundColor: "var(--tv-track)" }}>
+          <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pct}%`, backgroundColor: "var(--tv-fill)" }} />
+        </div>
+      ) : null}
+      <div className="mt-[2.6vh] grid grid-cols-[repeat(3,minmax(0,1fr))_auto] items-end gap-[3vw]">
+        {cells.map((cell, index) => (
+          <BarCell key={cell.label} label={cell.label} value={cell.value} delay={500 + index * 90} />
+        ))}
+        <div className="tv-rise text-right" style={{ animationDelay: "800ms" }}>
+          <div className="flex items-center justify-end gap-[0.8vh]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/playtt-mark.svg" alt="" className="h-[2.8vh] w-auto" />
+            <span className="text-[1.7vh] font-bold tracking-[0.34em]">PLAYTT</span>
+          </div>
+          <p className="mt-[0.6vh] font-mono text-[1.3vh] tracking-[0.2em] uppercase" style={{ color: "var(--tv-ink-faint)" }}>
+            {venue} · {dateFormatter.format(new Date(now))}
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Corner({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="tv-rise absolute top-[7vh] right-[4vw] text-right" style={{ animationDelay: "700ms" }}>
+      <p className="font-mono text-[1.5vh] tracking-[0.28em] uppercase" style={{ color: "var(--tv-ink-faint)" }}>
+        {label}
+      </p>
+      <p
+        className="mt-[0.8vh] font-mono text-[8vh] leading-none font-medium tracking-[-0.03em] tabular-nums"
+        style={accent ? { color: "var(--tv-accent)" } : undefined}
+        aria-live="polite"
+      >
+        {value}
+      </p>
+    </div>
+  )
+}
+
 export function TvIdleScene({
   tableName,
   venue,
   next,
+  theme = defaultTheme(),
 }: {
   tableName: string
   venue: string
   next: DisplayBooking | null
+  theme?: DisplayTheme
 }) {
   const now = useNow()
-  const mark = useMarkImage()
-  const [corner, setCorner] = useState(false)
-  const cornerRef = useRef(false)
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#07111d] text-white">
-      <SceneCanvas
-        draw={(ctx, w, h, seconds) => {
-          const { cornerAge } = drawIdle(ctx, w, h, seconds, mark)
-          const showCorner = cornerAge < 2.5
-          if (showCorner !== cornerRef.current) {
-            cornerRef.current = showCorner
-            setCorner(showCorner)
-          }
-        }}
-      />
-      <Clock now={now} />
-
-      <div className="absolute bottom-[14vh] left-[4vw] max-w-[70vw]">
-        <p className="tv-rise text-[2vh] font-semibold tracking-[0.32em] text-[#00b7ff] uppercase">
-          Table free
-        </p>
-        <h1 className="mt-[1.6vh] text-[9vh] leading-[0.95] font-bold tracking-tight">
+    <ThemedScene theme={theme} speed={0.6}>
+      <div className="absolute top-[7vh] left-[4vw] max-w-[62vw]">
+        <Label>Table free</Label>
+        <h1 className="mt-[1.4vh] text-[13vh] leading-[0.9] font-bold tracking-[-0.045em]">
           <RisingWord text={tableName} />
-          <br />
-          <span className="text-white/45">
-            <RisingWord text="is free." />
-          </span>
         </h1>
-        <p className="tv-rise mt-[2.4vh] text-[2.6vh] text-white/70" style={{ animationDelay: "700ms" }}>
+        <p className="tv-rise mt-[2vh] text-[2.8vh]" style={{ color: "var(--tv-ink-soft)", animationDelay: "600ms" }}>
           {next
             ? `Free until ${t(next.startsAt)}. Book in the PlayTT app.`
             : "Free for the rest of the day. Book in the PlayTT app."}
         </p>
       </div>
 
-      {corner ? (
-        <div className="tv-pop absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[5vh] font-bold tracking-tight text-[#00b7ff]">
-          Corner.
-        </div>
-      ) : null}
+      <Corner label="Now" value={clockFormatter.format(new Date(now))} />
 
-      <ShareStrip now={now} venue={venue} />
-    </div>
+      <InfoBar
+        now={now}
+        venue={venue}
+        progress={null}
+        cells={[
+          { label: "Table", value: tableName },
+          { label: "Next game", value: next ? `${t(next.startsAt)} – ${t(next.endsAt)}` : "None today" },
+          { label: "Book", value: "PlayTT app" },
+        ]}
+      />
+    </ThemedScene>
   )
 }
 
@@ -221,40 +224,41 @@ export function TvUpNextScene({
   tableName,
   venue,
   booking,
+  theme = defaultTheme(),
 }: {
   tableName: string
   venue: string
   booking: DisplayBooking
+  theme?: DisplayTheme
 }) {
   const now = useNow()
   const msToStart = new Date(booking.startsAt).getTime() - now
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#07111d] text-white">
-      <SceneCanvas draw={(ctx, w, h, seconds) => drawWarmup(ctx, w, h, seconds)} />
-      <Clock now={now} />
-
-      <div className="absolute top-1/2 left-[4vw] max-w-[62vw] -translate-y-1/2">
-        <p className="tv-rise text-[2vh] font-semibold tracking-[0.32em] text-[#00b7ff] uppercase">
-          Up next on {tableName}
-        </p>
-        <h1 className="mt-[1.6vh] text-[16vh] leading-[0.9] font-bold tracking-tight">
+    <ThemedScene theme={theme} speed={0.85}>
+      <div className="absolute top-[7vh] left-[4vw] max-w-[60vw]">
+        <Label live>{`Up next · ${tableName}`}</Label>
+        <h1 className="mt-[1.4vh] text-[17vh] leading-[0.86] font-bold tracking-[-0.05em]">
           <RisingWord text={booking.firstName} />
         </h1>
-        <p className="tv-rise mt-[2.4vh] text-[2.8vh] text-white/70" style={{ animationDelay: "600ms" }}>
-          Your table is ready at {t(booking.startsAt)}. Grab a paddle.
-        </p>
-        <p
-          className="tv-rise mt-[4vh] font-mono text-[12vh] leading-none font-semibold tabular-nums text-[#00b7ff]"
-          style={{ animationDelay: "800ms" }}
-          aria-live="polite"
-        >
-          {formatCountdown(msToStart)}
+        <p className="tv-rise mt-[1.8vh] text-[2.8vh]" style={{ color: "var(--tv-ink-soft)", animationDelay: "600ms" }}>
+          Your table is getting ready.
         </p>
       </div>
 
-      <ShareStrip now={now} venue={venue} />
-    </div>
+      <Corner label="Starts in" value={formatClockCountdown(msToStart)} accent />
+
+      <InfoBar
+        now={now}
+        venue={venue}
+        progress={1 - msToStart / (5 * 60_000)}
+        cells={[
+          { label: "Table", value: tableName },
+          { label: "Starts", value: `${t(booking.startsAt)} – ${t(booking.endsAt)}` },
+          { label: "Players", value: String(booking.groupSize) },
+        ]}
+      />
+    </ThemedScene>
   )
 }
 
@@ -262,56 +266,43 @@ export function TvSessionScene({
   tableName,
   venue,
   booking,
+  theme = defaultTheme(),
 }: {
   tableName: string
   venue: string
   booking: DisplayBooking
+  theme?: DisplayTheme
 }) {
   const now = useNow()
   const startMs = new Date(booking.startsAt).getTime()
   const endMs = new Date(booking.endsAt).getTime()
   const msLeft = endMs - now
+  const lastMinutes = msLeft <= 5 * 60_000
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#07111d] text-white">
-      <SceneCanvas
-        draw={(ctx, w, h, seconds) =>
-          drawRally(ctx, w, h, seconds, (Date.now() - startMs) / Math.max(1, endMs - startMs))
-        }
-      />
-      <Clock now={now} />
-
-      <div className="absolute top-[9vh] left-[4vw] max-w-[88vw]">
-        <p className="tv-rise text-[2vh] font-semibold tracking-[0.32em] text-[#00b7ff] uppercase">
-          Now playing · {tableName}
-        </p>
-        <h1 className="mt-[1.2vh] text-[22vh] leading-[0.86] font-bold tracking-[-0.04em]">
+    <ThemedScene theme={theme} speed={1}>
+      <div className="absolute top-[7vh] left-[4vw] max-w-[62vw]">
+        <Label live>Now playing</Label>
+        <h1 className="mt-[1.4vh] text-[19vh] leading-[0.86] font-bold tracking-[-0.05em]">
           <RisingWord text={booking.firstName} />
-          <span className="tv-rise text-[#00b7ff]" style={{ animationDelay: "900ms" }}>
-            .
-          </span>
         </h1>
-        <p
-          className="tv-rise mt-[2.4vh] text-[3vh] text-white/75"
-          style={{ animationDelay: "700ms" }}
-        >
-          {t(booking.startsAt)} – {t(booking.endsAt)} · {booking.groupSize} players
+        <p className="tv-rise mt-[1.8vh] text-[2.8vh]" style={{ color: "var(--tv-ink-soft)", animationDelay: "600ms" }}>
+          {booking.groupSize > 2 ? `and ${booking.groupSize - 1} friends` : "and a friend"} on {tableName}
         </p>
       </div>
 
-      <div
-        className="tv-rise absolute top-[9vh] right-[4vw] mt-[5vh] text-right"
-        style={{ animationDelay: "900ms" }}
-      >
-        <p className={`font-mono text-[4.4vh] font-semibold tabular-nums ${msLeft <= 5 * 60_000 ? "text-[#ffb800]" : "text-white"}`}>
-          {formatMinutesLeft(msLeft)}
-        </p>
-        <p className="mt-[0.6vh] text-[1.8vh] tracking-[0.2em] text-white/50 uppercase">
-          {msLeft <= 5 * 60_000 ? "Last points" : "On the clock"}
-        </p>
-      </div>
+      <Corner label={lastMinutes ? "Last points" : "Time left"} value={formatClockCountdown(msLeft)} accent={lastMinutes} />
 
-      <ShareStrip now={now} venue={venue} />
-    </div>
+      <InfoBar
+        now={now}
+        venue={venue}
+        progress={(now - startMs) / Math.max(1, endMs - startMs)}
+        cells={[
+          { label: "Table", value: tableName },
+          { label: "Session", value: `${t(booking.startsAt)} – ${t(booking.endsAt)}` },
+          { label: "Players", value: String(booking.groupSize) },
+        ]}
+      />
+    </ThemedScene>
   )
 }

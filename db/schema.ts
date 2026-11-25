@@ -680,6 +680,8 @@ export const locations = pgTable(
     timezone: text("timezone").default("Africa/Nairobi").notNull(),
     isActive: boolean("is_active").default(true).notNull(),
     settings: jsonb("settings").$type<Record<string, unknown>>(),
+    /** Main venue TV theme: "builtin:<renderer>" or a display_themes id. */
+    displayThemeKey: text("display_theme_key"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -981,6 +983,42 @@ export const featureFlags = pgTable(
       table.key
     ),
     index("feature_flags_tenant_id_idx").on(table.tenantId),
+  ]
+)
+
+/**
+ * Venue TV themes created by a tenant (e.g. a Christmas Silk). The three
+ * built-in themes live in code (src/lib/display-themes.ts); a row here is a
+ * renderer plus a palette, so new looks need no code change.
+ */
+export const displayThemes = pgTable(
+  "display_themes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .default(PLAYTT_TENANT_ID)
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    renderer: text("renderer").notNull(),
+    palette: jsonb("palette").$type<Record<string, string>>().notNull(),
+    ink: text("ink").default("dark").notNull(),
+    createdBy: text("created_by"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("display_themes_tenant_id_idx").on(table.tenantId),
+    check(
+      "display_themes_renderer_allowed",
+      sql`${table.renderer} in ('liquid_glass', 'silk', 'rally_ripples')`
+    ),
+    check("display_themes_ink_allowed", sql`${table.ink} in ('light', 'dark')`),
   ]
 )
 
