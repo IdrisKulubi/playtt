@@ -18,7 +18,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-KE", {
   year: "numeric",
 })
 
-const clockFormatter = new Intl.DateTimeFormat("en-KE", {
+export const clockFormatter = new Intl.DateTimeFormat("en-KE", {
   hour: "2-digit",
   minute: "2-digit",
   hourCycle: "h23",
@@ -62,7 +62,7 @@ function inkVars(theme: DisplayTheme): CSSProperties {
 }
 
 /** Full-screen scene on the venue's theme. Free tables move slower. */
-function ThemedScene({
+export function ThemedScene({
   theme,
   speed,
   composition = "left",
@@ -82,7 +82,7 @@ function ThemedScene({
 }
 
 /** Splits a word into letters that rise in one after another. */
-function RisingWord({ text }: { text: string }) {
+export function RisingWord({ text }: { text: string }) {
   return (
     <span className="inline-flex overflow-hidden pb-[0.08em]" aria-label={text}>
       {Array.from(text).map((letter, index) => (

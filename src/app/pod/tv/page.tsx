@@ -1,4 +1,4 @@
-import { LiveScoreDisplay } from "@/components/display/live-score-display"
+import { VenueTvDisplay } from "@/components/display/tv-display"
 
 export const dynamic = "force-dynamic"
 
@@ -22,5 +22,5 @@ export default async function PodTvPage({ searchParams }: PageProps) {
     )
   }
 
-  return <LiveScoreDisplay resourceId={resourceId.trim()} variant="tv" />
+  return <VenueTvDisplay resourceId={resourceId.trim()} />
 }

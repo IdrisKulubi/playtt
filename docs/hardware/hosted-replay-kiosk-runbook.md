@@ -38,7 +38,7 @@ From **Operator → Venue → Resources**, copy links for each table:
 | --- | --- |
 | Replay tablet | `https://www.theplaytt.com/replay?resourceId=<uuid>` or `/replay/table-01` when `resources.code` is set |
 | TV overlay | `https://www.theplaytt.com/pod/tv?resourceId=<uuid>` |
-| Scoreboard (optional) | `https://www.theplaytt.com/pod/scoreboard?resourceId=<uuid>` |
+| Scoreboard | Built into the TV page: it switches to the scoreboard while a match is on. Start matches from the tablet. |
 
 Bookmark the replay URL on the table-side tablet in kiosk Chrome.
 

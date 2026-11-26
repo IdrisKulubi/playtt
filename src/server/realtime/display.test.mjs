@@ -61,16 +61,21 @@ test("device ingest drains durable work only for new events", () => {
   assert.match(source, /runDurableWorkCycle\(\)/)
 })
 
-test("kiosk and tv pages load live score display", () => {
+test("the tv page is the scoreboard; the old scoreboard page redirects to it", () => {
   const scoreboard = readFileSync(
     join(appRoot, "pod", "scoreboard", "page.tsx"),
     "utf8",
   )
   const tv = readFileSync(join(appRoot, "pod", "tv", "page.tsx"), "utf8")
+  const display = readFileSync(
+    join(repoRoot, "src", "components", "display", "tv-display.tsx"),
+    "utf8",
+  )
 
-  assert.match(scoreboard, /variant="kiosk"/)
-  assert.match(tv, /variant="tv"/)
-  assert.match(scoreboard, /resourceId/)
+  assert.match(tv, /VenueTvDisplay/)
+  assert.match(display, /TvScoreboardScene/)
+  assert.match(scoreboard, /redirect\(/)
+  assert.match(scoreboard, /\/pod\/tv\?resourceId=/)
 })
 
 test("live score hook refetches on version gaps", () => {

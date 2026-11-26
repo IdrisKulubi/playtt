@@ -4,7 +4,23 @@ export type ScoreSide = "a" | "b"
 export type ScoreEventKind = "point" | "correction"
 export type MatchStatus = "not_started" | "in_progress" | "completed"
 
+export type MatchMode = "singles" | "doubles"
+
+/**
+ * Who is playing, set from the table tablet before a match. Stored inside the
+ * score snapshot state so it travels with every ESP32 point and realtime hint.
+ */
+export interface MatchSetup {
+  mode: MatchMode
+  /** One name per side for singles, two for doubles. Side A is the TV's left half. */
+  sides: { a: string[]; b: string[] }
+  bestOf: 3 | 5 | 7
+  startedAt: string
+}
+
 export interface ScoreState {
+  /** Absent when the buttons were pressed without a match set up on the tablet. */
+  setup?: MatchSetup | null
   ruleset: string
   matchStatus: MatchStatus
   gamesA: number

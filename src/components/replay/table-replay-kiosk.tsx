@@ -2,6 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 
+import { useLiveScore } from "@/components/display/use-live-score"
+import { useNow } from "@/components/display/tv-scenes"
+import { TableFreeState } from "@/components/replay/table-free-state"
+import { TableMatchControls } from "@/components/replay/table-match-controls"
+import { TABLET_INK, TabletBackdrop } from "@/components/replay/tablet-backdrop"
+
 type KioskStatus = {
   status: "idle" | "active"
   resource: {
@@ -84,6 +90,12 @@ type ViewState =
   | "success"
   | "error"
 
+const dateFormatter = new Intl.DateTimeFormat("en-KE", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+})
+
 const IDLE_POLL_MS = 5_000
 const PROCESSING_POLL_MS = 1_000
 const SUCCESS_MS = 4_000
@@ -151,11 +163,13 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
   const [status, setStatus] = useState<KioskStatus | null>(null)
   const [viewState, setViewState] = useState<ViewState>("loading")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const pendingReplayIdRef = useRef<string | null>(null)
   const idempotencyKeyRef = useRef<string | null>(null)
   const dismissedFailureIdRef = useRef<string | null>(null)
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Match state comes from the same snapshot + stream the TV reads.
+  const live = useLiveScore(resourceId, { replayOverlay: false })
+  const now = useNow(30_000)
 
   const fetchStatus = useCallback(async () => {
     const response = await fetch(
@@ -258,23 +272,6 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
       clearInterval(interval)
     }
   }, [applyStatusToView, fetchStatus, viewState])
-
-  useEffect(() => {
-    if (viewState !== "processing") {
-      setElapsedSeconds(0)
-      return
-    }
-
-    const startedAt = status?.inFlightReplay?.requestedAt
-      ? new Date(status.inFlightReplay.requestedAt).getTime()
-      : Date.now()
-    const updateElapsed = () => {
-      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)))
-    }
-    updateElapsed()
-    const timer = setInterval(updateElapsed, 1_000)
-    return () => clearInterval(timer)
-  }, [status?.inFlightReplay?.requestedAt, viewState])
 
   useEffect(() => {
     if (viewState !== "success") {
@@ -410,50 +407,67 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
 
   if (viewState === "loading" && !status) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#050505] text-white/70">
-        Loading replay kiosk…
+      <div className="flex min-h-screen items-center justify-center bg-[#041019] text-white/70">
+        Loading…
       </div>
     )
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#050505] text-white">
-      <header className="border-b border-white/10 px-6 py-5">
-        <p className="text-sm uppercase tracking-[0.2em] text-white/50">
-          PlayTT Replay
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold">{tableLabel}</h1>
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-[#041019] text-white">
+      <TabletBackdrop />
+      {/* Table · logo · date, like the TV's top bar. */}
+      <header
+        className="relative grid grid-cols-3 items-center px-8 pt-7 pb-4"
+        style={{ color: TABLET_INK.ink }}
+      >
+        <h1 className="truncate text-4xl font-bold tracking-[-0.03em]">{tableLabel}</h1>
+        <div className="flex justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={TABLET_INK.logo}
+            alt="PlayTT"
+            className="h-12 w-auto"
+            style={{ filter: TABLET_INK.logoFilter }}
+          />
+        </div>
+        <p className="text-right text-xl font-semibold">{dateFormatter.format(new Date(now))}</p>
       </header>
 
-      <main className="flex flex-1 flex-col items-center justify-center px-6 py-10">
+      <main className="relative flex flex-1 items-center justify-center px-6 pb-10">
+        {/* Navy glass panel: the controls stay legible on any background. */}
+        <div className="flex w-full max-w-3xl flex-col items-center rounded-[2.25rem] border border-white/10 bg-[#041019]/92 px-8 py-12 shadow-[0_2.5rem_6rem_rgb(4_16_25/0.35)] backdrop-blur-2xl">
         {viewState === "idle" ? (
-          <div className="max-w-lg text-center">
-            <p className="text-2xl font-medium text-white/90">No session</p>
-            <p className="mt-4 text-lg text-white/60">
-              Start a booking to capture highlights from this table.
-            </p>
-          </div>
+          <TableFreeState schedule={live.payload?.schedule} now={now} />
         ) : null}
 
         {viewState === "ready" ? (
-          <div className="flex w-full max-w-xl flex-col items-center gap-6">
-            {status?.remainingCredits != null ? (
-              <p className="text-lg text-white/60">
-                {status.remainingCredits} clip
-                {status.remainingCredits === 1 ? "" : "s"} remaining
+          <TableMatchControls
+            resourceId={resourceId}
+            state={live.payload?.status === "active" ? (live.payload.snapshot?.state ?? null) : null}
+            onChanged={() => void live.refetch().catch(() => undefined)}
+            replayButton={(size) => (
+              <button
+                type="button"
+                onClick={() => void handleReplayTap()}
+                className={
+                  size === "hero"
+                    ? "flex h-44 w-full items-center justify-center rounded-3xl bg-[#00b7ff] text-4xl font-bold text-[#041019] shadow-[0_0_60px_rgba(0,183,255,0.35)] transition hover:bg-[#33c5ff] active:scale-[0.98]"
+                    : "flex h-20 w-full items-center justify-center rounded-3xl border border-white/20 text-2xl font-semibold text-white transition active:scale-[0.98] active:bg-white/5"
+                }
+              >
+                Replay
+              </button>
+            )}
+            replayNote={
+              <p className="text-center text-white/50">
+                Tap Replay to save the last rally to your library and play it on the TV.
+                {status?.remainingCredits != null
+                  ? ` ${status.remainingCredits} clip${status.remainingCredits === 1 ? "" : "s"} left.`
+                  : ""}
               </p>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => void handleReplayTap()}
-              className="flex h-44 w-full max-w-md items-center justify-center rounded-3xl bg-emerald-500 text-4xl font-bold text-black shadow-[0_0_60px_rgba(16,185,129,0.35)] transition hover:bg-emerald-400 active:scale-[0.98]"
-            >
-              Replay
-            </button>
-            <p className="text-center text-white/50">
-              Tap to save the last rally to your library and play it on the TV.
-            </p>
-          </div>
+            }
+          />
         ) : null}
 
         {viewState === "processing" ? (
@@ -463,7 +477,7 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
             aria-live="polite"
           >
             <div
-              className="mx-auto h-16 w-16 animate-spin rounded-full border-4 border-white/20 border-t-emerald-400 motion-reduce:animate-none"
+              className="mx-auto h-16 w-16 animate-spin rounded-full border-4 border-white/20 border-t-[#00b7ff] motion-reduce:animate-none"
               aria-hidden="true"
             />
             <p className="mt-8 text-2xl font-medium">
@@ -479,12 +493,12 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
               {CAPTURE_STAGES.map((stage, index) => (
                 <span
                   key={stage.label}
-                  className={`h-1.5 flex-1 rounded-full transition-colors duration-200 ${index <= captureStage(status?.inFlightReplay?.status).index ? "bg-emerald-400" : "bg-white/20"}`}
+                  className={`h-1.5 flex-1 rounded-full transition-colors duration-200 ${index <= captureStage(status?.inFlightReplay?.status).index ? "bg-[#00b7ff]" : "bg-white/20"}`}
                 />
               ))}
             </div>
             <p className="mt-5 tabular-nums text-sm text-white/50">
-              {elapsedSeconds}s elapsed · Most replays are ready in about 15 seconds
+              <ElapsedSeconds since={status?.inFlightReplay?.requestedAt} />s elapsed · Most replays are ready in about 15 seconds
             </p>
             <p className="mt-2 text-sm text-white/50">
               It will play on the TV first, then we’ll send the email.
@@ -494,7 +508,7 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
 
         {viewState === "success" ? (
           <div className="max-w-lg text-center">
-            <p className="text-3xl font-semibold text-emerald-400">
+            <p className="text-3xl font-semibold text-[#00b7ff]">
               Clip saved
             </p>
             <p className="mt-4 text-lg text-white/70">
@@ -525,7 +539,19 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
             </button>
           </div>
         ) : null}
+        </div>
       </main>
     </div>
   )
+}
+
+/**
+ * Seconds since the replay was requested. Mounted only while a capture is in
+ * flight, so it starts from zero each time without resetting state.
+ */
+function ElapsedSeconds({ since }: { since: string | undefined }) {
+  const now = useNow(1_000)
+  const [mountedAt] = useState(() => Date.now())
+  const startedAt = since ? new Date(since).getTime() : mountedAt
+  return <>{Math.max(0, Math.floor((now - startedAt) / 1000))}</>
 }

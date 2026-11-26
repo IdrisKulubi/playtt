@@ -290,8 +290,7 @@ function TableRow({
       ) : null}
 
       <div className="flex gap-4 text-sm">
-        <TableLink href={`/replay?resourceId=${table.id}`}>Replays</TableLink>
-        <TableLink href={`/pod/scoreboard?resourceId=${table.id}`}>Scoreboard</TableLink>
+        <TableLink href={`/replay?resourceId=${table.id}`}>Tablet</TableLink>
         <TableLink href={`/pod/tv?resourceId=${table.id}`}>TV</TableLink>
       </div>
     </li>

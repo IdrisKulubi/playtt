@@ -18,8 +18,8 @@
 | `/verify-email`                                  | `src/app/verify-email/page.tsx`                                   | Email verification                                       |
 | `/reset-password`                                | `src/app/reset-password/page.tsx`                                 | Password reset request                                   |
 | `/reset-password/confirm`                        | `src/app/reset-password/confirm/page.tsx`                         | Password reset confirm                                   |
-| `/pod/scoreboard`                                | `src/app/pod/scoreboard/page.tsx`                                 | Kiosk live score display                                 |
-| `/pod/tv`                                        | `src/app/pod/tv/page.tsx`                                         | TV live score display                                    |
+| `/pod/scoreboard`                                | `src/app/pod/scoreboard/page.tsx`                                 | Retired: redirects to `/pod/tv`                          |
+| `/pod/tv`                                        | `src/app/pod/tv/page.tsx`                                         | Venue TV: idle, up next, session, scoreboard, replay     |
 | `/api/display/v1/resources/:resourceId/snapshot` | `src/app/api/display/v1/resources/[resourceId]/snapshot/route.ts` | Authoritative score snapshot                             |
 | `/api/display/v1/resources/:resourceId/stream`   | `src/app/api/display/v1/resources/[resourceId]/stream/route.ts`   | SSE score hints                                          |
 | `/api/auth/*`                                    | `src/app/api/auth/[...all]/route.ts`                              | better-auth API                                          |

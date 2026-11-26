@@ -97,7 +97,12 @@ function wait(delayMs: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, delayMs))
 }
 
-export function useLiveScore(resourceId: string) {
+export function useLiveScore(
+  resourceId: string,
+  options: { replayOverlay?: boolean } = {},
+) {
+  // The table tablet reads the score but never plays replays itself.
+  const watchReplays = options.replayOverlay ?? true
   const [payload, setPayload] = useState<DisplaySnapshotPayload | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -233,6 +238,10 @@ export function useLiveScore(resourceId: string) {
     )
 
     source.addEventListener("replay", (event) => {
+      if (!watchReplays) {
+        return
+      }
+
       try {
         const hint = JSON.parse(event.data) as { replayId?: string }
 
@@ -292,9 +301,13 @@ export function useLiveScore(resourceId: string) {
       }
       source.close()
     }
-  }, [fetchSnapshot, loadReplayOverlay, resourceId])
+  }, [fetchSnapshot, loadReplayOverlay, resourceId, watchReplays])
 
   useEffect(() => {
+    if (!watchReplays) {
+      return
+    }
+
     async function discoverReadyReplay() {
       try {
         const response = await fetch(
@@ -335,7 +348,7 @@ export function useLiveScore(resourceId: string) {
     void discoverReadyReplay()
     const interval = setInterval(discoverReadyReplay, REPLAY_POLL_MS)
     return () => clearInterval(interval)
-  }, [loadReplayOverlay, resourceId])
+  }, [loadReplayOverlay, resourceId, watchReplays])
 
   useEffect(() => {
     const interval = setInterval(() => {

@@ -173,7 +173,7 @@ This is the **brain** of in-pod scoring—not a consumer “tablet on the table.
 
 **Buy:** 1× tablet, 1× **VESA or tablet wall mount** (eye level, away from table flight path), 1× **USB-C permanent power** (no battery reliance).
 
-**Software:** Full-screen browser or kiosk app → `https://your-domain.com/pod/scoreboard?resourceId=…` (route to be built in Phase 3). Session tied to active `booking_id`.
+**Software:** Full-screen browser or kiosk app → `https://your-domain.com/pod/tv?resourceId=…` (the TV page switches into the scoreboard during a match; `/pod/scoreboard` redirects there). Session tied to active `booking_id`.
 
 ---
 
