@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, CircleIcon, CloudArrowUpIcon, WrenchIcon } from "@phosphor-icons/react"
 
 import { isSetupStageComplete, setupPresentation } from "@/components/nvr/nvr-setup-state"
+import { NvrCameraAssignments } from "@/components/nvr/nvr-camera-assignments"
 import { NvrConfigStatus } from "@/components/nvr/nvr-config-status"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -196,6 +197,8 @@ export function NvrInstallationDetail({ installation: initialInstallation, canMa
       </div>
 
       {message ? <p role="status" className="rounded-xl bg-muted px-4 py-3 text-sm">{message}</p> : null}
+
+      <NvrCameraAssignments installationId={installation.id} canManage={canManage} />
 
       <details id="technician" className="rounded-2xl bg-card ring-1 ring-border">
         <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><WrenchIcon />Technician details<span className="ml-auto text-sm font-normal text-muted-foreground">Identity, recovery, and event history</span></summary>

@@ -123,7 +123,23 @@ function BarCell({ label, value, delay }: { label: string; value: string; delay:
   )
 }
 
-/** Info bar: optional progress line, the facts, and brand + date for photos. */
+/** Brand + date, top-left, so it is in every photo of the screen. */
+function Brand({ now, venue }: { now: number; venue: string }) {
+  return (
+    <div className="tv-rise absolute top-[7vh] left-[4vw]" style={{ animationDelay: "800ms" }}>
+      <div className="flex items-center gap-[0.8vh]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/playtt-mark.svg" alt="" className="h-[2.8vh] w-auto" />
+        <span className="text-[1.7vh] font-bold tracking-[0.34em]">PLAYTT</span>
+      </div>
+      <p className="mt-[0.6vh] font-mono text-[1.3vh] tracking-[0.2em] uppercase" style={{ color: "var(--tv-ink-faint)" }}>
+        {venue} · {dateFormatter.format(new Date(now))}
+      </p>
+    </div>
+  )
+}
+
+/** Info bar: optional progress line and the facts. The brand sits top-left. */
 function InfoBar({
   now,
   venue,
@@ -137,28 +153,21 @@ function InfoBar({
 }) {
   const pct = progress === null ? 0 : Math.min(100, Math.max(0, progress * 100))
   return (
-    <div className="absolute inset-x-0 bottom-0 px-[4vw] pb-[3.6vh]">
-      {progress !== null ? (
-        <div className="relative h-[0.25vh] w-full rounded-full" style={{ backgroundColor: "var(--tv-track)" }}>
-          <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pct}%`, backgroundColor: "var(--tv-fill)" }} />
-        </div>
-      ) : null}
-      <div className="mt-[2.6vh] grid grid-cols-[repeat(3,minmax(0,1fr))_auto] items-end gap-[3vw]">
-        {cells.map((cell, index) => (
-          <BarCell key={cell.label} label={cell.label} value={cell.value} delay={500 + index * 90} />
-        ))}
-        <div className="tv-rise text-right" style={{ animationDelay: "800ms" }}>
-          <div className="flex items-center justify-end gap-[0.8vh]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/playtt-mark.svg" alt="" className="h-[2.8vh] w-auto" />
-            <span className="text-[1.7vh] font-bold tracking-[0.34em]">PLAYTT</span>
+    <>
+      <Brand now={now} venue={venue} />
+      <div className="absolute inset-x-0 bottom-0 px-[4vw] pb-[3.6vh]">
+        {progress !== null ? (
+          <div className="relative h-[0.25vh] w-full rounded-full" style={{ backgroundColor: "var(--tv-track)" }}>
+            <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pct}%`, backgroundColor: "var(--tv-fill)" }} />
           </div>
-          <p className="mt-[0.6vh] font-mono text-[1.3vh] tracking-[0.2em] uppercase" style={{ color: "var(--tv-ink-faint)" }}>
-            {venue} · {dateFormatter.format(new Date(now))}
-          </p>
+        ) : null}
+        <div className="mt-[2.6vh] grid grid-cols-[repeat(3,minmax(0,1fr))] items-end gap-[3vw]">
+          {cells.map((cell, index) => (
+            <BarCell key={cell.label} label={cell.label} value={cell.value} delay={500 + index * 90} />
+          ))}
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -198,7 +207,6 @@ export function TvIdleScene({
   return (
     <ThemedScene theme={theme} speed={0.6} composition="centre">
       <div className="absolute inset-x-[4vw] top-[44%] flex -translate-y-1/2 flex-col items-center text-center">
-        <Label>{venue}</Label>
         <h1
           className="mt-[2.4vh] leading-[0.92] font-bold tracking-[-0.05em]"
           style={{ fontSize: headlineSize }}
@@ -255,7 +263,7 @@ export function TvUpNextScene({
 
   return (
     <ThemedScene theme={theme} speed={0.85}>
-      <div className="absolute top-[7vh] left-[4vw] max-w-[60vw]">
+      <div className="absolute top-[15vh] left-[4vw] max-w-[60vw]">
         <Label live>{`Up next · ${tableName}`}</Label>
         <h1 className="mt-[1.4vh] text-[17vh] leading-[0.86] font-bold tracking-[-0.05em]">
           <RisingWord text={booking.firstName} />
@@ -300,7 +308,7 @@ export function TvSessionScene({
 
   return (
     <ThemedScene theme={theme} speed={1}>
-      <div className="absolute top-[7vh] left-[4vw] max-w-[62vw]">
+      <div className="absolute top-[15vh] left-[4vw] max-w-[62vw]">
         <Label live>Now playing</Label>
         <h1 className="mt-[1.4vh] text-[19vh] leading-[0.86] font-bold tracking-[-0.05em]">
           <RisingWord text={booking.firstName} />

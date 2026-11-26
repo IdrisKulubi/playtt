@@ -144,6 +144,10 @@ export class EdgeV1Client {
     this.secret = null
   }
 
+  hasCredentials(): boolean {
+    return Boolean(this.deviceId && this.secret)
+  }
+
   authHeaders(): Record<string, string> {
     if (!this.deviceId || !this.secret) {
       throw new EdgeProtocolError(
@@ -269,6 +273,20 @@ export class EdgeV1Client {
     })) as { data: { publishedAt: string; autoPublish?: CommissioningAutoPublish } }
 
     return body.data
+  }
+
+  /** Short-lived upload URL for one camera's preview still. */
+  async requestCameraStillGrant(input: {
+    localConnectionKey: string
+    channelKey: string
+    contentLength: number
+  }): Promise<{ url: string; contentType: string }> {
+    const body = (await this.request("/api/edge/v1/camera-stills", {
+      method: "POST",
+      body: input,
+    })) as { data: { grant: { url: string; contentType: string } } }
+
+    return body.data.grant
   }
 
   async heartbeat(input: {

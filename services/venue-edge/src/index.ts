@@ -38,6 +38,8 @@ import { TopologyReviewManager } from "./setup/topology-review-manager"
 import { LocalResourceMappingManager } from "./setup/local-resource-mapping-manager"
 import { CommissioningManager } from "./setup/commissioning-manager"
 import { resolveRuntimeEdgeConfigV2 } from "./setup/local-config-overlay"
+import { adoptCloudTableMappings } from "./setup/cloud-mapping-adoption"
+import { CameraStillPublisher } from "./cloud/camera-stills"
 import { VenueEdgeUpdater } from "./update/updater"
 import {
   probeVenueEdgeHealth,
@@ -308,6 +310,17 @@ export async function startVenueEdge(
   const activateRuntimeConfig = async (
     baseConfig: import("./cloud/config-v2").EdgeConfigV2 | null,
   ): Promise<void> => {
+    if (baseConfig) {
+      // After setup, table ↔ camera changes are made in PlayTT admin.
+      const adoption = adoptCloudTableMappings(repositories, baseConfig)
+      if (adoption.adopted || adoption.skippedTables.length > 0) {
+        safeLog("info", "Applied table cameras from PlayTT", {
+          revisionVersion: baseConfig.configRevision.version,
+          changedTables: adoption.changedTables,
+          skippedTables: adoption.skippedTables,
+        })
+      }
+    }
     const nextRuntimeConfig = buildRuntimeEdgeConfigV2(baseConfig)
 
     if (!shouldRunRollingBuffer(env.mode, getCommissioningCompleted())) {
@@ -471,6 +484,18 @@ export async function startVenueEdge(
     void refreshConfig()
   }, 60_000)
 
+  // Preview stills for PlayTT admin's "Cameras & tables" view.
+  const cameraStillPublisher = new CameraStillPublisher({
+    repositories,
+    passwordStore: nvrPasswordStore,
+    client,
+    isActive: () =>
+      env.mode !== "simulate" &&
+      client.hasCredentials() &&
+      Boolean(repositories.getCommissioningState().publishedAt),
+  })
+  cameraStillPublisher.start()
+
   const localResourceMappingManager = new LocalResourceMappingManager(
     repositories,
     getEdgeConfigV2,
@@ -535,6 +560,7 @@ export async function startVenueEdge(
     setupHost,
     async stop() {
       heartbeatLoop.stop()
+      cameraStillPublisher.stop()
       clearInterval(configRefreshTimer)
       if (setupHost) {
         await setupHost.stop()

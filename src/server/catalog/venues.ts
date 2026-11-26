@@ -59,6 +59,8 @@ export interface CreateResourceInput {
 
 export interface UpdateResourceInput {
   resourceId: string
+  /** When set, the update only applies if the resource belongs to this venue. */
+  locationId?: string
   zoneId?: string | null
   resourceTypeId?: string | null
   name?: string
@@ -255,6 +257,7 @@ export async function updateResource(
       and(
         eq(resources.id, input.resourceId),
         eq(resources.tenantId, context.tenantId),
+        input.locationId ? eq(resources.locationId, input.locationId) : undefined,
       ),
     )
     .returning()
