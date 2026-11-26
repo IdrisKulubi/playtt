@@ -29,3 +29,13 @@ test("player-facing messages never show codes or internal names", () => {
     assert.doesNotMatch(`${notice.title} ${notice.detail}`, /[A-Z]{2,}_[A-Z]|VenueEdge|buffer|config/)
   }
 })
+
+test("cameras not recording says so, and every capture failure returns the credit", () => {
+  const notice = noticeForCaptureFailure("extraction_failed", "no_healthy_source")
+  assert.equal(notice.title, "The camera isn't recording right now")
+  for (const status of ["extraction_failed", "upload_failed", "edge_offline", "buffer_missing"]) {
+    assert.match(noticeForCaptureFailure(status, null).detail, /credit has been returned/)
+  }
+  // Refused before capture: nothing was charged, so nothing to return.
+  assert.doesNotMatch(noticeForRequestError("NO_CREDITS").detail, /returned/)
+})

@@ -263,19 +263,19 @@ function deriveWorkflow(input: {
       detail:
         input.diagnostic?.remediation ??
         (input.latestReportPublished
-          ? "The latest reviewed topology is published. Keep the venue PC online while it applies."
-          : "The local snapshot is newer than the published configuration. Review and publish this snapshot."),
+          ? "The latest setup is published. Keep the venue PC online while it applies; this takes a few seconds."
+          : "The venue PC has setup changes PlayTT hasn't received. On the venue PC, open VenueEdge setup and choose Publish to PlayTT."),
       stage: "publish_config",
     })
   }
   if (!input.commissioned) {
-    blockers.push({ code: "COMPLETE_COMMISSIONING", label: "Complete commissioning", detail: "Finish the local checks after configuration is applied.", stage: "complete_commissioning" })
+    blockers.push({ code: "COMPLETE_COMMISSIONING", label: "Finish setup on the venue PC", detail: "On the venue PC, open VenueEdge setup and choose Publish to PlayTT, then Complete commissioning.", stage: "complete_commissioning" })
   }
   if (input.reauthRequiredCount > 0) {
-    blockers.push({ code: "REENTER_CREDENTIALS", label: "Re-enter NVR credentials", detail: "Credentials are entered only in the local setup wizard.", stage: "add_nvr" })
+    blockers.push({ code: "REENTER_CREDENTIALS", label: "Re-enter the recorder password", detail: "On the venue PC, open VenueEdge setup and enter the NVR password again. Passwords are only ever entered there.", stage: "add_nvr" })
   }
   if (input.hostSleepRisk) {
-    blockers.push({ code: "HOST_SLEEP_RISK", label: "Disable sleep on the venue PC", detail: "Sleep can interrupt replay capture and commissioning checks.", stage: "complete_commissioning" })
+    blockers.push({ code: "HOST_SLEEP_RISK", label: "Stop the venue PC from sleeping", detail: "In Windows Settings > System > Power, set Sleep to Never. A sleeping PC can't record replays.", stage: "complete_commissioning" })
   }
 
   const next = blockers[0]

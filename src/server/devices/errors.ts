@@ -35,11 +35,14 @@ export type DeviceErrorCode =
 export class DeviceError extends Error {
   readonly code: DeviceErrorCode
   readonly status: number
+  /** Machine-readable facts a device can act on (e.g. the version to catch up to). */
+  readonly details?: Record<string, unknown>
 
-  constructor(code: DeviceErrorCode, message: string, status = 400) {
+  constructor(code: DeviceErrorCode, message: string, status = 400, details?: Record<string, unknown>) {
     super(message)
     this.name = "DeviceError"
     this.code = code
     this.status = status
+    this.details = details
   }
 }

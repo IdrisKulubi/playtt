@@ -43,15 +43,28 @@ function formatAgo(iso: string | null, now: number) {
   return new Date(iso).toLocaleDateString("en-GB")
 }
 
+/**
+ * Whether the cameras in use are actually sending video. The venue PC can be
+ * online while the recorder (NVR) is off, so this is reported separately.
+ */
+function recordingState(installation: VenueEdgeInstallationFleetView) {
+  const inUse = installation.sourceHealthRows.filter((row) => row.status !== "disabled")
+  const recording = inUse.filter((row) => row.status === "healthy" || row.status === "online").length
+  return { inUse: inUse.length, recording }
+}
+
 function buildHealthChecks(installation: VenueEdgeInstallationFleetView, now: number): HealthCheck[] {
   const metrics = installation.heartbeatMetrics
   const online = installation.connectivity === "online"
   const { enabledCameraCount, cameraCount } = installation.reportedTopology.topology
-  const issues = installation.sourceHealthRows.filter((row) => row.status !== "healthy" && row.status !== "online").length
+  const issues = installation.sourceHealthRows.filter(
+    (row) => row.status !== "healthy" && row.status !== "online" && row.status !== "disabled",
+  ).length
+  const { inUse, recording } = recordingState(installation)
 
   const checks: HealthCheck[] = [
     {
-      label: "Connection",
+      label: "Venue PC",
       value: online
         ? `Online, seen ${formatAgo(installation.lastHeartbeatAt, now)}`
         : installation.connectivity === "offline"
@@ -59,6 +72,20 @@ function buildHealthChecks(installation: VenueEdgeInstallationFleetView, now: nu
           : installation.connectivity.replace(/_/g, " "),
       problem: !online,
     },
+    ...(online && inUse > 0
+      ? [
+          {
+            label: "Recording",
+            value:
+              recording === 0
+                ? "No camera is recording. Check the recorder (NVR) is switched on and connected to the venue PC."
+                : recording < inUse
+                  ? `${recording} of ${inUse} cameras recording`
+                  : "All cameras recording",
+            problem: recording < inUse,
+          },
+        ]
+      : []),
     {
       label: "Cameras",
       value:
@@ -94,6 +121,8 @@ function buildHealthChecks(installation: VenueEdgeInstallationFleetView, now: nu
 
 function statusLine(installation: VenueEdgeInstallationFleetView, checks: HealthCheck[]) {
   if (installation.connectivity === "offline") return "Offline"
+  const { inUse, recording } = recordingState(installation)
+  if (installation.connectivity === "online" && inUse > 0 && recording === 0) return "Online, but not recording"
   if (installation.readiness !== "ready") return "Needs attention"
   const problems = checks.filter((check) => check.problem).length
   return problems > 0 ? `Ready, ${problems} thing${problems === 1 ? "" : "s"} to check` : "Ready"

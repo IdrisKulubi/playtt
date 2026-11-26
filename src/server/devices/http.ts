@@ -11,9 +11,10 @@ export function deviceError(input: {
   code: string
   message: string
   status?: number
+  details?: Record<string, unknown>
 }) {
   return NextResponse.json(
-    { code: input.code, message: input.message },
+    { code: input.code, message: input.message, ...(input.details ? { details: input.details } : {}) },
     { status: input.status ?? 400 },
   )
 }
@@ -24,6 +25,7 @@ export function mapDeviceError(error: unknown) {
       code: error.code,
       message: error.message,
       status: error.status,
+      details: error.details,
     })
   }
 

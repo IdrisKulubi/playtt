@@ -8,6 +8,13 @@ import { safeLog } from "../health/metrics"
 import type { EdgeRepositories } from "../local-storage/repositories"
 import type { LocalStoragePaths } from "../local-storage/paths"
 
+/**
+ * RTSP socket timeout. ffmpeg's default is to wait forever, so a recorder
+ * that is switched off left a process "running" with no video for hours.
+ * With this, ffmpeg exits and the registry restarts it.
+ */
+export const RTSP_SOCKET_TIMEOUT_US = 15_000_000
+
 export interface RollingBufferOptions {
   segmentSeconds?: number
   retentionSeconds?: number
@@ -21,6 +28,8 @@ export class RollingBufferSupervisor {
   private running = false
   private segmentTimer: NodeJS.Timeout | null = null
   private ffmpegAbortController: AbortController | null = null
+  /** Last time this buffer started or saved a segment (ms). */
+  private lastProgressAt = 0
 
   constructor(
     private readonly camera: CameraSourceConfig,
@@ -31,6 +40,15 @@ export class RollingBufferSupervisor {
 
   isRunning(): boolean {
     return this.running
+  }
+
+  /** Running, but no segment saved for longer than `stallMs`. */
+  isStalled(now: number, stallMs: number): boolean {
+    return this.running && now - this.lastProgressAt > stallMs
+  }
+
+  getLastProgressAt(): number {
+    return this.lastProgressAt
   }
 
   getCameraId(): string {
@@ -56,6 +74,7 @@ export class RollingBufferSupervisor {
     }
 
     this.running = true
+    this.lastProgressAt = Date.now()
     this.ffmpegAbortController = new AbortController()
 
     if (this.options.simulate) {
@@ -86,6 +105,8 @@ export class RollingBufferSupervisor {
       args: [
         "-rtsp_transport",
         "tcp",
+        "-timeout",
+        String(RTSP_SOCKET_TIMEOUT_US),
         "-i",
         this.camera.rtspUrl!,
         "-c",
@@ -236,6 +257,7 @@ export class RollingBufferSupervisor {
     )
 
     if (newlyIndexed > 0) {
+      this.lastProgressAt = Date.now()
       safeLog("info", "Live buffer segments indexed", {
         sourceId: this.camera.cameraId,
         resourceId: this.camera.resourceId ?? null,
@@ -318,6 +340,7 @@ export class RollingBufferSupervisor {
       })
 
       sequence += 1
+      this.lastProgressAt = Date.now()
 
       const cutoff = new Date(Date.now() - retentionSeconds * 1000)
       const segments = this.repositories.listBufferSegmentsForWindow(

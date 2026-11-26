@@ -81,10 +81,24 @@ export function noticeForRequestError(code: string | undefined): KioskNotice {
   }
 }
 
-/** Capture started but finished in a failed state. */
+/** Capture started but finished in a failed state. The clip credit is refunded. */
 export function noticeForCaptureFailure(status: string, reason: string | null): KioskNotice {
+  const notice = captureFailureNotice(status, reason)
+  return { ...notice, detail: `${notice.detail} Your clip credit has been returned.` }
+}
+
+function captureFailureNotice(status: string, reason: string | null): KioskNotice {
   if (reason === "resource_not_configured" || reason === "no_source_configured") {
     return NO_CAMERA
+  }
+  // The venue PC is up, but no camera for this table is sending video:
+  // usually the recorder (NVR) is off or unplugged.
+  if (reason === "no_healthy_source") {
+    return {
+      title: "The camera isn't recording right now",
+      detail: "This table's camera isn't sending video. Ask staff to check the recorder is switched on.",
+      action: "ok",
+    }
   }
   if (status === "edge_offline") return RECORDER_OFFLINE
   if (status === "buffer_missing") {

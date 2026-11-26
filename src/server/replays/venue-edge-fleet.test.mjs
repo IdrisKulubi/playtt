@@ -120,7 +120,8 @@ test("fleet UI surfaces do not embed device or NVR secrets", () => {
   assert.match(detail, /clearOverride/)
   assert.match(detail, /update-actions/)
   assert.match(detail, /Download diagnostics/)
-  assert.match(detail, /loopback/)
+  // Points people to the setup on the venue PC itself (passwords never go to the cloud).
+  assert.match(detail, /VenueEdge setup/)
   assert.doesNotMatch(detail, /type=["']password["']/)
 })
 

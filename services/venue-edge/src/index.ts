@@ -405,6 +405,12 @@ export async function startVenueEdge(
     await bufferRegistry.ensureAllBuffering(edgeConfig, getEdgeConfigV2())
   }
 
+  // Restart recordings that stall or exit (recorder off, network blip).
+  bufferRegistry.startWatchdog(
+    () => ({ edgeConfig, edgeConfigV2: getEdgeConfigV2() }),
+    () => shouldRunRollingBuffer(env.mode, getCommissioningCompleted()),
+  )
+
   const orchestrator = new ReplayOrchestrator({
     env,
     client,

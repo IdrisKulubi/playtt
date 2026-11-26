@@ -37,6 +37,8 @@ type KioskStatus = {
     status: string
     failureReason: string | null
     readyAt: string | null
+    /** When it last changed; older servers don't send it. */
+    updatedAt?: string
   } | null
 }
 
@@ -69,6 +71,13 @@ const dateFormatter = new Intl.DateTimeFormat("en-KE", {
   day: "numeric",
   month: "short",
 })
+
+const RECENT_FAILURE_MS = 2 * 60_000
+
+function isRecentFailure(updatedAt: string | undefined) {
+  if (!updatedAt) return true
+  return Date.now() - Date.parse(updatedAt) < RECENT_FAILURE_MS
+}
 
 const IDLE_POLL_MS = 5_000
 const PROCESSING_POLL_MS = 1_000
@@ -168,7 +177,10 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
     if (
       next.latestReplay &&
       CAPTURE_FAILURE_STATUSES.has(next.latestReplay.status) &&
-      next.latestReplay.id !== dismissedFailureIdRef.current
+      next.latestReplay.id !== dismissedFailureIdRef.current &&
+      // Only a failure from just now is news; an old one shouldn't greet the
+      // next people who walk up to the table.
+      isRecentFailure(next.latestReplay.updatedAt)
     ) {
       setViewState("error")
       setNotice(
@@ -191,8 +203,9 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
         const next = await fetchStatus()
 
         if (!cancelled) {
+          // applyStatusToView sets (or clears) the notice itself; clearing it
+          // here left a failed replay as an empty card.
           applyStatusToView(next)
-          setNotice(null)
         }
       } catch {
         if (!cancelled) {
@@ -408,7 +421,7 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
           <TableFreeState schedule={live.payload?.schedule} now={now} />
         ) : null}
 
-        {viewState === "ready" ? (
+        {viewState === "ready" || (viewState === "error" && !notice) ? (
           <TableMatchControls
             resourceId={resourceId}
             state={live.payload?.status === "active" ? (live.payload.snapshot?.state ?? null) : null}

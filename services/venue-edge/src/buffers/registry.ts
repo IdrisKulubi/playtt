@@ -9,8 +9,19 @@ import type { EdgeRepositories } from "../local-storage/repositories"
 import type { LocalStoragePaths } from "../local-storage/paths"
 import { safeLog } from "../health/metrics"
 
+/** No new segment for this long while "running" means ffmpeg is stuck. */
+export const BUFFER_STALL_MS = 45_000
+export const BUFFER_RESTART_MIN_MS = 10_000
+export const BUFFER_RESTART_MAX_MS = 120_000
+const WATCHDOG_INTERVAL_MS = 15_000
+
+type BufferConfigs = { edgeConfig: EdgeConfig | null; edgeConfigV2: EdgeConfigV2 | null }
+
 export class SourceSupervisorRegistry {
   private readonly supervisors = new Map<string, RollingBufferSupervisor>()
+  /** Per source: when the next restart may happen, and the current back-off. */
+  private readonly restartBackoff = new Map<string, { notBefore: number; delayMs: number }>()
+  private watchdogTimer: NodeJS.Timeout | null = null
 
   constructor(
     private readonly env: VenueEdgeEnv,
@@ -82,11 +93,63 @@ export class SourceSupervisorRegistry {
   ): Promise<void> {
     const cameras = listBufferingCameras(this.env, edgeConfig, edgeConfigV2)
 
+    const now = Date.now()
     for (const camera of cameras) {
-      if (!this.supervisors.has(camera.cameraId)) {
-        await this.tryStartCamera(camera)
+      // A supervisor whose ffmpeg exited stays in the map; restart it too.
+      if (this.supervisors.get(camera.cameraId)?.isRunning()) continue
+      const backoff = this.restartBackoff.get(camera.cameraId)
+      if (backoff && backoff.notBefore > now) continue
+      await this.tryStartCamera(camera)
+    }
+  }
+
+  /**
+   * One watchdog pass: restarts buffers that stalled (connected but no video,
+   * e.g. the recorder was switched off) or whose ffmpeg exited, backing off
+   * from 10 s to 2 min per source so a recorder that stays off isn't hammered.
+   */
+  async superviseOnce(configs: BufferConfigs, now = Date.now()): Promise<void> {
+    for (const [sourceId, supervisor] of this.supervisors) {
+      const stalled = supervisor.isStalled(now, BUFFER_STALL_MS)
+      const exited = !supervisor.isRunning()
+
+      if (!stalled && !exited) {
+        // Saving video again: forget earlier failures.
+        if (now - supervisor.getLastProgressAt() < BUFFER_STALL_MS) this.restartBackoff.delete(sourceId)
+        continue
+      }
+
+      if (stalled) {
+        safeLog("warn", "Buffer stalled; restarting FFmpeg", {
+          sourceId,
+          secondsWithoutVideo: Math.round((now - supervisor.getLastProgressAt()) / 1000),
+          action: "Check the recorder (NVR) is switched on and reachable from this PC.",
+        })
+        await this.stopSource(sourceId)
+      }
+
+      if (!this.restartBackoff.has(sourceId) || this.restartBackoff.get(sourceId)!.notBefore <= now) {
+        const previous = this.restartBackoff.get(sourceId)?.delayMs ?? 0
+        const delayMs = Math.min(BUFFER_RESTART_MAX_MS, previous ? previous * 2 : BUFFER_RESTART_MIN_MS)
+        this.restartBackoff.set(sourceId, { notBefore: now + delayMs, delayMs })
       }
     }
+
+    await this.ensureAllBuffering(configs.edgeConfig, configs.edgeConfigV2)
+  }
+
+  /** Runs `superviseOnce` every 15 s while `shouldRun()` is true. */
+  startWatchdog(getConfigs: () => BufferConfigs, shouldRun: () => boolean = () => true): void {
+    if (this.watchdogTimer) return
+    this.watchdogTimer = setInterval(() => {
+      if (!shouldRun()) return
+      void this.superviseOnce(getConfigs()).catch((error) => {
+        safeLog("warn", "Buffer watchdog pass failed", {
+          message: error instanceof Error ? error.message : String(error),
+        })
+      })
+    }, WATCHDOG_INTERVAL_MS)
+    this.watchdogTimer.unref?.()
   }
 
   async tryStartSource(
@@ -180,6 +243,10 @@ export class SourceSupervisorRegistry {
   }
 
   async stopAll(): Promise<void> {
+    if (this.watchdogTimer) {
+      clearInterval(this.watchdogTimer)
+      this.watchdogTimer = null
+    }
     for (const sourceId of [...this.supervisors.keys()]) {
       await this.stopSource(sourceId)
     }

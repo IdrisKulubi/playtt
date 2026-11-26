@@ -160,3 +160,10 @@ test("operator reconciliation returns a safe recovery message for database failu
   assert.match(actions, /No configuration was published/)
   assert.match(actions, /findDatabaseErrorMetadata/)
 })
+
+test("a stale setup report tells the venue PC which version to catch up to", () => {
+  const service = readFileSync(join(repoRoot, "src/server/replays/venue-edge-commissioning.ts"), "utf8")
+  assert.match(service, /"CONFIG_STALE",[\s\S]{0,120}409,\s+\{ latestReportVersion: installation\.lastReportVersion \}/)
+  const http = readFileSync(join(repoRoot, "src/server/devices/http.ts"), "utf8")
+  assert.match(http, /details: error\.details/)
+})

@@ -563,6 +563,7 @@ export async function getKioskReplayStatus(resourceId: string) {
           status: latest.status,
           failureReason: latest.failureReason,
           readyAt: latest.readyAt?.toISOString() ?? null,
+          updatedAt: latest.updatedAt.toISOString(),
         }
       : null,
   }

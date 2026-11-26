@@ -93,6 +93,17 @@ function rethrowAsCommissioningError(error: unknown, fallbackCode: string): neve
   )
 }
 
+/**
+ * PlayTT's latest accepted report version, when it rejected ours as stale.
+ * Our counter can fall behind (local setup state reset, restored data folder),
+ * and without this every publish would be rejected forever.
+ */
+export function staleReportCatchUpVersion(error: unknown): number | null {
+  if (!(error instanceof EdgeProtocolError) || error.code !== "CONFIG_STALE") return null
+  const latest = (error.body as { details?: { latestReportVersion?: unknown } } | null)?.details?.latestReportVersion
+  return typeof latest === "number" && Number.isSafeInteger(latest) && latest >= 0 ? latest : null
+}
+
 function nonemptyOrNull(value: string | null | undefined): string | null {
   if (typeof value !== "string") {
     return null
@@ -686,6 +697,38 @@ export class CommissioningManager {
     return payload
   }
 
+  /**
+   * Sends the setup report. If PlayTT says our version is behind, adopt its
+   * latest version and resend once, so the setup never gets stuck on
+   * "older than the latest accepted report".
+   */
+  private async sendReport(
+    commissioned: boolean,
+    reportVersion: number,
+  ): Promise<{ result: { publishedAt: string; autoPublish?: CommissioningAutoPublish }; reportVersion: number }> {
+    const client = this.client!
+    try {
+      const result = await client.publishCommissioning(this.buildRedactedPublishPayload(commissioned, reportVersion))
+      return { result, reportVersion }
+    } catch (error) {
+      const latest = staleReportCatchUpVersion(error)
+      if (latest === null) rethrowAsCommissioningError(error, "publish_failed")
+
+      safeLog("warn", "Setup report version was behind PlayTT; catching up and resending", {
+        sentVersion: reportVersion,
+        playttVersion: latest,
+      })
+      this.repositories.updateCommissioningState({ reportVersion: latest })
+      const retryVersion = latest + 1
+      try {
+        const result = await client.publishCommissioning(this.buildRedactedPublishPayload(commissioned, retryVersion))
+        return { result, reportVersion: retryVersion }
+      } catch (retryError) {
+        rethrowAsCommissioningError(retryError, "publish_failed")
+      }
+    }
+  }
+
   async publish(
     enrolled: boolean,
   ): Promise<{ publishedAt: string; autoPublish?: CommissioningAutoPublish }> {
@@ -704,18 +747,11 @@ export class CommissioningManager {
     }
 
     const state = this.repositories.getCommissioningState()
-    const reportVersion = state.reportVersion + 1
     // A topology refresh after commissioning must not silently decommission the
     // cloud installation. Local topology mutations explicitly invalidate this
     // state, so the durable local flag is the source of truth for the report.
-    const payload = this.buildRedactedPublishPayload(state.completed, reportVersion)
-    let autoPublish: CommissioningAutoPublish | undefined
-    try {
-      const result = await this.client.publishCommissioning(payload)
-      autoPublish = result.autoPublish
-    } catch (error) {
-      rethrowAsCommissioningError(error, "publish_failed")
-    }
+    const { result, reportVersion } = await this.sendReport(state.completed, state.reportVersion + 1)
+    const autoPublish: CommissioningAutoPublish | undefined = result.autoPublish
 
     const publishedAt = new Date().toISOString()
     this.repositories.updateCommissioningState({ publishedAt, reportVersion })
@@ -738,13 +774,10 @@ export class CommissioningManager {
       )
     }
 
-    const reportVersion = this.repositories.getCommissioningState().reportVersion + 1
-    const payload = this.buildRedactedPublishPayload(true, reportVersion)
-    try {
-      await this.client.publishCommissioning(payload)
-    } catch (error) {
-      rethrowAsCommissioningError(error, "publish_failed")
-    }
+    const { reportVersion } = await this.sendReport(
+      true,
+      this.repositories.getCommissioningState().reportVersion + 1,
+    )
 
     const completedAt = new Date().toISOString()
     return this.repositories.updateCommissioningState({

@@ -186,10 +186,13 @@ export async function publishVenueEdgeCommissioning(input: {
       installation.lastReportVersion !== null &&
       receivedReportVersion <= installation.lastReportVersion
     ) {
+      // Tell the PC which version PlayTT has, so it can catch up and resend
+      // instead of being stuck (its counter falls behind after a local reset).
       throw new DeviceError(
         "CONFIG_STALE",
         "This commissioning report is older than the latest accepted report.",
         409,
+        { latestReportVersion: installation.lastReportVersion },
       )
     }
 

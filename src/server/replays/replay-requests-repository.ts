@@ -14,6 +14,10 @@ import {
   venueEdgeConfigApplications,
   venueEdgeConfigRevisions,
 } from "@/db/schema"
+import {
+  REPLAY_FAILURE_STATUSES,
+  refundReplayCaptureCredit,
+} from "@/server/replays/replay-credit-refund"
 import type {
   replayCaptureSourceEnum,
   replayRequestStatusEnum,
@@ -430,6 +434,14 @@ export async function transitionReplayRequestStatus(
       "Replay request changed before the status update.",
       409
     )
+  }
+
+  // No clip was delivered: give the player their credit back (once).
+  if (REPLAY_FAILURE_STATUSES.has(input.toStatus)) {
+    await refundReplayCaptureCredit(executor, {
+      tenantId: context.tenantId,
+      replayId: updated.replayId,
+    })
   }
 
   return mapReplayRequest(updated)

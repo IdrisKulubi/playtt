@@ -565,6 +565,54 @@ test("publishing a refreshed snapshot preserves completed commissioning", async 
   stack.database.close()
 })
 
+test("a report version behind PlayTT catches up and publishes instead of failing forever", async () => {
+  const { EdgeProtocolError } = await import("../src/cloud/client.ts")
+  const sentVersions = []
+  const stack = await createCommissioningStack({
+    client: {
+      async publishCommissioning(payload) {
+        sentVersions.push(payload.reportVersion)
+        // PlayTT has already accepted version 4.
+        if (payload.reportVersion <= 4) {
+          throw new EdgeProtocolError(
+            "CONFIG_STALE",
+            "This commissioning report is older than the latest accepted report.",
+            409,
+            { code: "CONFIG_STALE", details: { latestReportVersion: 4 } },
+          )
+        }
+        return { publishedAt: new Date().toISOString() }
+      },
+    },
+  })
+  // The local counter fell behind (e.g. setup state was reset).
+  stack.repositories.updateCommissioningState({ reportVersion: 2 })
+
+  await stack.commissioningManager.publish(true)
+
+  assert.deepEqual(sentVersions, [3, 5])
+  assert.equal(stack.repositories.getCommissioningState().reportVersion, 5)
+  assert.ok(stack.repositories.getCommissioningState().publishedAt)
+  stack.database.close()
+})
+
+test("a stale rejection without PlayTT's version is reported, not retried", async () => {
+  const { EdgeProtocolError } = await import("../src/cloud/client.ts")
+  let calls = 0
+  const stack = await createCommissioningStack({
+    client: {
+      async publishCommissioning() {
+        calls += 1
+        throw new EdgeProtocolError("CONFIG_STALE", "This commissioning report is older than the latest accepted report.", 409, null)
+      },
+    },
+  })
+
+  await assert.rejects(() => stack.commissioningManager.publish(true), (error) => error instanceof CommissioningError)
+  assert.equal(calls, 1)
+  stack.database.close()
+})
+
 test("unpaired publish returns 409 through setup host", async () => {
   const stack = await createCommissioningStack({
     client: {
