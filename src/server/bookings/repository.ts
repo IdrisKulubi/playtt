@@ -10,6 +10,7 @@ import {
   user,
 } from "@/db/schema";
 import { BOOKING_STATUSES_BLOCKING } from "@/server/bookings/constants";
+import { bookableTableCondition } from "@/server/bookings/table-readiness";
 import type {
   CreatePendingBookingInput,
   CreatePendingBookingResult,
@@ -103,6 +104,8 @@ export async function listActiveLocationsWithResources(
         eq(resources.tenantId, context.tenantId),
         eq(locations.isActive, true),
         eq(resources.isActive, true),
+        // Only tables with score buttons and a camera can be booked.
+        bookableTableCondition(),
       ),
     )
     .orderBy(asc(locations.name), asc(resources.sortOrder), asc(resources.name));
@@ -163,6 +166,7 @@ export async function getResourceContext(
         eq(resources.locationId, input.locationId),
         eq(resources.isActive, true),
         eq(locations.isActive, true),
+        bookableTableCondition(),
       ),
     )
     .limit(1);
@@ -170,6 +174,7 @@ export async function getResourceContext(
   return row ?? null;
 }
 
+/** Tables at a venue that can be booked right now (active and ready). */
 export async function listActiveResourcesByLocation(
   context: TenantContext,
   locationId: string,
@@ -193,6 +198,7 @@ export async function listActiveResourcesByLocation(
         eq(resources.locationId, locationId),
         eq(resources.isActive, true),
         eq(locations.isActive, true),
+        bookableTableCondition(),
       ),
     )
     .orderBy(asc(resources.sortOrder), asc(resources.name));

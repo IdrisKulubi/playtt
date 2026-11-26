@@ -1,4 +1,4 @@
-import { and, eq, notInArray } from "drizzle-orm"
+import { and, eq, inArray, notInArray } from "drizzle-orm"
 
 import db from "@/db/drizzle"
 import {
@@ -161,6 +161,67 @@ async function linkChildRowsToPlaySession(
         and(eq(replays.tenantId, tenantId), eq(replays.bookingId, bookingId)),
       ),
   ])
+}
+
+/** Statuses where the session hasn't started, so it can still change table. */
+const RETARGETABLE_SESSION_STATUSES = ["held", "confirmed"] as const
+
+/**
+ * Keeps a booking's play session on the same table and times as the booking
+ * after the booking moves (an edit, or a move off a table that isn't ready).
+ * Sessions that have already started stay where they are.
+ */
+export async function retargetPlaySessionForBooking(
+  tx: DbExecutor,
+  input: {
+    tenantId: string
+    bookingId: string
+    resourceId: string
+    startTime: Date
+    endTime: Date
+  },
+) {
+  const [session] = await tx
+    .select({ id: playSessions.id, configurationSnapshot: playSessions.configurationSnapshot })
+    .from(playSessions)
+    .where(
+      and(
+        eq(playSessions.tenantId, input.tenantId),
+        eq(playSessions.bookingId, input.bookingId),
+        inArray(playSessions.status, [...RETARGETABLE_SESSION_STATUSES]),
+      ),
+    )
+    .limit(1)
+
+  if (!session) return false
+
+  const [resource] = await tx
+    .select({
+      ruleset: resources.ruleset,
+      configuration: resources.configuration,
+      metadata: resources.metadata,
+      name: resources.name,
+      code: resources.code,
+    })
+    .from(resources)
+    .where(and(eq(resources.tenantId, input.tenantId), eq(resources.id, input.resourceId)))
+    .limit(1)
+
+  await tx
+    .update(playSessions)
+    .set({
+      resourceId: input.resourceId,
+      scheduledStartAt: input.startTime,
+      scheduledEndAt: input.endTime,
+      configurationSnapshot: {
+        ...(session.configurationSnapshot as Record<string, unknown>),
+        resource: resource ?? null,
+      },
+      updatedAt: new Date(),
+    })
+    .where(eq(playSessions.id, session.id))
+
+  return true
 }
 
 export async function getPlaySessionByBookingId(

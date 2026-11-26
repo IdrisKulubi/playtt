@@ -1,3 +1,5 @@
+import { createBookingTableChangedConsumers } from "@/server/bookings/table-change-email"
+import { reassignBookingsOffUnreadyTables } from "@/server/bookings/table-reassignment"
 import { createPaymentConfirmedEmailConsumers } from "@/server/payments/confirmation-email-consumer"
 import {
   expireStaleDeviceCommands,
@@ -49,8 +51,14 @@ export async function runDurableWorkCycle() {
       ...createRelayConsumers(),
       ...createNotificationConsumers(),
       ...createCommunityNotificationConsumers(),
+      ...createBookingTableChangedConsumers(),
     },
     reconcile: async () => {
+      // Before the session lifecycle runs, so a moved booking starts on its new table.
+      const tables = await reassignBookingsOffUnreadyTables().catch((error) => {
+        console.error("[durable-work] moving bookings off unready tables failed", error)
+        return { checked: 0, moved: 0, stuck: 0, failed: true }
+      })
       const [sessions, expiredCommands, failedCommands, prunedHeartbeats, media, access] =
         await Promise.all([
           reconcilePlaySessionLifecycle(),
@@ -62,6 +70,7 @@ export async function runDurableWorkCycle() {
         ])
 
       return {
+        tables,
         sessions,
         devices: {
           expiredCommands,

@@ -19,7 +19,6 @@ import {
 import { calculateBookingQuote } from "@/server/bookings/pricing"
 import {
   ensureUserExists,
-  findBlockingBookings,
   findBlockingBookingsForResources,
   getResourceContext,
   getUserBookingById,
@@ -52,6 +51,8 @@ import { authorize } from "@/server/tenancy/authorize-context.mjs"
 import type { TenantContext } from "@/server/tenancy/types"
 
 const START_STEP_MESSAGE = "Pick a start time on a 5-minute step, like 11:50."
+const NO_READY_TABLES_MESSAGE =
+  "No tables at this venue are open for booking right now. Please try another venue."
 
 export async function getBookingBootstrapData(
   context: TenantContext,
@@ -263,7 +264,7 @@ export async function planBookingTime(
   )
 
   if (activeResources.length === 0) {
-    throw new Error("The selected location or resource is unavailable.")
+    throw new Error(NO_READY_TABLES_MESSAGE)
   }
 
   const timeZone = activeResources[0]?.timezone ?? DEFAULT_VENUE_TIMEZONE
@@ -409,10 +410,15 @@ export async function createPendingBooking(
   await runBookingExpirySweep()
 
   const parsed = createPendingBookingSchema.parse(input)
-  const resourceContext = await getResourceContext(context, parsed)
+  // Ready tables only (score buttons + camera). The picked one may have been
+  // taken, or switched off since the app loaded, so look at the whole venue.
+  const venueResources = await listActiveResourcesByLocation(
+    context,
+    parsed.locationId,
+  )
 
-  if (!resourceContext) {
-    throw new Error("The selected location or resource is unavailable.")
+  if (venueResources.length === 0) {
+    throw new Error(NO_READY_TABLES_MESSAGE)
   }
 
   const existingUser = await ensureUserExists(parsed.userId)
@@ -434,41 +440,28 @@ export async function createPendingBooking(
     throw new Error("Bookings must be made for a future time.")
   }
 
-  // If someone just took the chosen table, move to another free table at the
-  // same venue for the same time before giving up.
-  let resourceId = parsed.resourceId
-  const blockingBookings = await findBlockingBookings(context, {
-    resourceId,
+  // Keep the chosen table when it is ready and free; otherwise move to another
+  // ready table that is free for the same time before giving up.
+  const readyIds = venueResources.map((resource) => resource.id)
+  const venueBookings = await findBlockingBookingsForResources(context, {
+    resourceIds: readyIds,
+    start,
+    end,
+  })
+  const freeIds = freeResourceIds({
+    resourceIds: readyIds,
+    bookings: venueBookings,
     start,
     end,
   })
 
-  if (blockingBookings.length > 0) {
-    const venueResources = await listActiveResourcesByLocation(
-      context,
-      parsed.locationId,
-    )
-    const otherIds = venueResources
-      .map((resource) => resource.id)
-      .filter((id) => id !== parsed.resourceId)
-    const otherBookings = await findBlockingBookingsForResources(context, {
-      resourceIds: otherIds,
-      start,
-      end,
-    })
-    const [freeId] = freeResourceIds({
-      resourceIds: otherIds,
-      bookings: otherBookings,
-      start,
-      end,
-    })
-
-    if (!freeId) {
-      throw new Error("That time slot is no longer available.")
-    }
-
-    resourceId = freeId
+  if (freeIds.length === 0) {
+    throw new Error("That time slot is no longer available.")
   }
+
+  const resourceId = freeIds.includes(parsed.resourceId)
+    ? parsed.resourceId
+    : freeIds[0]
 
   const quote = calculateBookingQuote({
     locationId: parsed.locationId,
@@ -477,7 +470,7 @@ export async function createPendingBooking(
     end,
     durationMinutes: parsed.durationMinutes,
     groupSize: parsed.groupSize,
-    timeZone: resourceContext.timezone ?? DEFAULT_VENUE_TIMEZONE,
+    timeZone: venueResources[0]?.timezone ?? DEFAULT_VENUE_TIMEZONE,
   })
 
   try {

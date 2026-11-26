@@ -5,6 +5,12 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useLiveScore } from "@/components/display/use-live-score"
 import { useNow } from "@/components/display/tv-scenes"
 import { TableFreeState } from "@/components/replay/table-free-state"
+import {
+  NETWORK_NOTICE,
+  noticeForCaptureFailure,
+  noticeForRequestError,
+  type KioskNotice,
+} from "@/components/replay/replay-notices"
 import { TableMatchControls } from "@/components/replay/table-match-controls"
 import { TABLET_INK, TabletBackdrop } from "@/components/replay/tablet-backdrop"
 
@@ -42,38 +48,6 @@ const CAPTURE_FAILURE_STATUSES = new Set([
   "upload_failed",
   "edge_offline",
 ])
-
-function describeCaptureFailure(status: string, reason: string | null) {
-  if (status === "buffer_missing") {
-    return "No camera buffer yet. Wait a few seconds after VenueEdge starts, then try again."
-  }
-
-  if (status === "extraction_failed") {
-    return "Could not cut the clip. Check the camera stream and try again."
-  }
-
-  if (status === "upload_failed") {
-    return "Clip upload failed. Check internet on the venue PC and try again."
-  }
-
-  if (status === "edge_offline") {
-    return "Replay capture is offline. Ask staff for help."
-  }
-
-  if (reason === "resource_not_configured" || reason === "no_source_configured") {
-    return "This table is not mapped to a camera. Map it in VenueEdge setup, then try again."
-  }
-
-  if (reason === "stale_config") {
-    return "VenueEdge config changed during capture. Tap Replay again."
-  }
-
-  if (reason === "capture_command_expired") {
-    return "Capture timed out before VenueEdge picked it up. Tap Replay again."
-  }
-
-  return reason || "Could not capture replay."
-}
 
 type ReplayRequestResult = {
   replayRequestId: string
@@ -141,28 +115,10 @@ function createIdempotencyKey() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
-function mapReplayError(code: string | undefined, message: string) {
-  switch (code) {
-    case "NO_CREDITS":
-      return "No clip credits left. Buy a clip pack in the app."
-    case "VENUE_EDGE_UNAVAILABLE":
-      return "Replay capture is offline. Ask staff for help."
-    case "REPLAY_IN_FLIGHT":
-      return "A replay is already being captured."
-    case "SESSION_NOT_ACTIVE":
-      return "No active booking on this table."
-    case "REPLAY_EDGE_DISABLED":
-    case "PRIVATE_MEDIA_DISABLED":
-      return "Replay capture is not enabled for this venue."
-    default:
-      return message
-  }
-}
-
 export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
   const [status, setStatus] = useState<KioskStatus | null>(null)
   const [viewState, setViewState] = useState<ViewState>("loading")
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [notice, setNotice] = useState<KioskNotice | null>(null)
   const pendingReplayIdRef = useRef<string | null>(null)
   const idempotencyKeyRef = useRef<string | null>(null)
   const dismissedFailureIdRef = useRef<string | null>(null)
@@ -205,7 +161,7 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
       pendingReplayIdRef.current = null
       idempotencyKeyRef.current = null
       setViewState("success")
-      setErrorMessage(null)
+      setNotice(null)
       return
     }
 
@@ -215,8 +171,8 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
       next.latestReplay.id !== dismissedFailureIdRef.current
     ) {
       setViewState("error")
-      setErrorMessage(
-        describeCaptureFailure(
+      setNotice(
+        noticeForCaptureFailure(
           next.latestReplay.status,
           next.latestReplay.failureReason,
         ),
@@ -236,16 +192,12 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
 
         if (!cancelled) {
           applyStatusToView(next)
-          setErrorMessage(null)
+          setNotice(null)
         }
-      } catch (loadError) {
+      } catch {
         if (!cancelled) {
           setViewState("error")
-          setErrorMessage(
-            loadError instanceof Error
-              ? loadError.message
-              : "Unable to load replay kiosk.",
-          )
+          setNotice(NETWORK_NOTICE)
         }
       }
     }
@@ -261,7 +213,8 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
     const interval = setInterval(() => {
       void fetchStatus()
         .then((next) => {
-          if (viewState !== "success") {
+          // A notice stays until it's closed or times out.
+          if (viewState !== "success" && viewState !== "error") {
             applyStatusToView(next)
           }
         })
@@ -320,7 +273,7 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
         pendingReplayIdRef.current = null
         idempotencyKeyRef.current = null
         setViewState("success")
-        setErrorMessage(null)
+        setNotice(null)
       } catch {
         // Ignore malformed replay hints.
       }
@@ -330,6 +283,22 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
       source.close()
     }
   }, [resourceId])
+
+  const closeNotice = useCallback(() => {
+    dismissedFailureIdRef.current = status?.latestReplay?.id ?? null
+    setNotice(null)
+    setViewState("ready")
+    // Back to whatever the table is doing now (it may have no session).
+    void fetchStatus()
+      .then((next) => applyStatusToView(next))
+      .catch(() => undefined)
+  }, [applyStatusToView, fetchStatus, status?.latestReplay?.id])
+
+  useEffect(() => {
+    if (viewState !== "error" || !notice?.autoDismissMs) return
+    const timer = setTimeout(closeNotice, notice.autoDismissMs)
+    return () => clearTimeout(timer)
+  }, [closeNotice, notice, viewState])
 
   const handleReplayTap = async () => {
     if (viewState === "processing") {
@@ -341,7 +310,7 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
     idempotencyKeyRef.current = clientIdempotencyKey
 
     setViewState("processing")
-    setErrorMessage(null)
+    setNotice(null)
 
     try {
       const response = await fetch(
@@ -362,9 +331,7 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
       if (!response.ok) {
         idempotencyKeyRef.current = null
         setViewState("error")
-        setErrorMessage(
-          mapReplayError(body.code, body.message ?? "Replay capture failed."),
-        )
+        setNotice(noticeForRequestError(body.code))
         return
       }
 
@@ -373,7 +340,7 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
       if (!result) {
         idempotencyKeyRef.current = null
         setViewState("error")
-        setErrorMessage("Replay capture failed.")
+        setNotice(noticeForRequestError(undefined))
         return
       }
 
@@ -398,7 +365,7 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
     } catch {
       idempotencyKeyRef.current = null
       setViewState("error")
-      setErrorMessage("Network error. Check the connection and try again.")
+      setNotice(NETWORK_NOTICE)
     }
   }
 
@@ -517,25 +484,20 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
           </div>
         ) : null}
 
-        {viewState === "error" ? (
-          <div className="max-w-lg text-center">
-            <p className="text-2xl font-medium text-red-400">
-              Could not capture replay
-            </p>
-            <p className="mt-4 text-lg text-white/70">
-              {errorMessage ?? "Something went wrong."}
-            </p>
+        {viewState === "error" && notice ? (
+          <div className="max-w-lg text-center" role="status" aria-live="polite">
+            <p className="text-3xl font-semibold tracking-tight">{notice.title}</p>
+            <p className="mt-4 text-lg text-white/70">{notice.detail}</p>
             <button
               type="button"
-              onClick={() => {
-                dismissedFailureIdRef.current =
-                  status?.latestReplay?.id ?? null
-                setErrorMessage(null)
-                setViewState("ready")
-              }}
-              className="mt-8 rounded-2xl border border-white/20 px-6 py-3 text-lg text-white/80 hover:bg-white/5"
+              onClick={closeNotice}
+              className={
+                notice.action === "retry"
+                  ? "mt-8 h-14 rounded-2xl bg-[#00b7ff] px-8 text-lg font-semibold text-[#041019] transition active:scale-[0.98]"
+                  : "mt-8 h-14 rounded-2xl border border-white/20 px-8 text-lg text-white/85 transition active:scale-[0.98] active:bg-white/5"
+              }
             >
-              Try again
+              OK
             </button>
           </div>
         ) : null}

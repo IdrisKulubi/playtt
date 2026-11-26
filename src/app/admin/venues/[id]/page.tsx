@@ -6,7 +6,11 @@ import { AdminVenueHealthStrip } from "@/components/admin/admin-health-overview"
 import { AdminShell } from "@/components/admin/admin-shell"
 import { adminShellUser } from "@/components/admin/admin-utils"
 import { AdminVenueDetails } from "@/components/admin/admin-venue-details"
-import { AdminVenueTables, type VenueTableRow } from "@/components/admin/admin-venue-tables"
+import {
+  AdminVenueTables,
+  type StrandedBookingRow,
+  type VenueTableRow,
+} from "@/components/admin/admin-venue-tables"
 import { AdminVenueWorkspace } from "@/components/admin/admin-venue-workspace"
 import { NvrCameraAssignments } from "@/components/nvr/nvr-camera-assignments"
 import { OperatorAccessPointPanels } from "@/components/operator/operator-access-points"
@@ -14,6 +18,8 @@ import { OperatorReplayRequestsPanel } from "@/components/operator/operator-repl
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { requireAdminPageAccess } from "@/server/admin/gate"
+import { getTableReadiness } from "@/server/bookings/table-readiness"
+import { listStrandedBookings } from "@/server/bookings/table-reassignment"
 import {
   getVenueEdgeCapacityForLocation,
   listDevicesForOperator,
@@ -49,6 +55,21 @@ async function loadVenuePc(context: TenantContext, venueId: string) {
   return { id: installation.id, name: installation.displayName, assignments }
 }
 
+function strandedRow(
+  booking: Awaited<ReturnType<typeof listStrandedBookings>>[number],
+  timeZone: string,
+): StrandedBookingRow {
+  const day = new Intl.DateTimeFormat("en-KE", { weekday: "short", day: "numeric", month: "short", timeZone })
+  const time = new Intl.DateTimeFormat("en-KE", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone })
+  return {
+    bookingId: booking.bookingId,
+    tableName: booking.resourceName,
+    firstName: booking.firstName,
+    when: `${day.format(booking.startTime)}, ${time.format(booking.startTime)} – ${time.format(booking.endTime)}`,
+    paid: booking.status === "confirmed",
+  }
+}
+
 export default async function AdminVenueDetailPage({ params }: PageProps) {
   const { id } = await params
   const access = await requireAdminPageAccess()
@@ -58,13 +79,20 @@ export default async function AdminVenueDetailPage({ params }: PageProps) {
     notFound()
   }
 
-  const [devices, replayRequests, edgeCapacity, venueHealth, venuePc] = await Promise.all([
+  const [devices, replayRequests, edgeCapacity, venueHealth, venuePc, readiness, stranded] = await Promise.all([
     listDevicesForOperator(access.context, id),
     listReplayRequestsForOperator(access.context, id),
     getVenueEdgeCapacityForLocation(access.context, id),
     getVenueHealthSnapshot(access.context, id),
     loadVenuePc(access.context, id),
+    getTableReadiness(
+      access.context.tenantId,
+      detail.resources.map((resource) => resource.id),
+    ),
+    // The durable-work cycle moves what it can every minute; what's left needs staff.
+    listStrandedBookings({ tenantId: access.context.tenantId, locationId: id }),
   ])
+  const venueTimeZone = detail.venue.timezone || "Africa/Nairobi"
   const canManageVenue = canPerformTenantAction(access.context.role, "venue.manage")
 
   const zoneName = new Map(detail.zones.map((zone) => [zone.id, zone.name]))
@@ -79,6 +107,7 @@ export default async function AdminVenueDetailPage({ params }: PageProps) {
       isActive: resource.isActive,
       cameraLabel: assigned?.primaryCameraId ? (cameraLabel.get(assigned.primaryCameraId) ?? null) : null,
       backupCameraLabel: assigned?.backupCameraId ? (cameraLabel.get(assigned.backupCameraId) ?? null) : null,
+      readiness: readiness.get(resource.id) ?? { hasScoreInput: false, hasCamera: false },
     }
   })
   const tableCountByZone: Record<string, number> = {}
@@ -118,6 +147,7 @@ export default async function AdminVenueDetailPage({ params }: PageProps) {
                 zones={detail.zones.map((zone) => ({ id: zone.id, name: zone.name }))}
                 canManage={access.canManageCatalog}
                 hasVenuePc={Boolean(venuePc)}
+                strandedBookings={stranded.map((booking) => strandedRow(booking, venueTimeZone))}
               />
             ),
             cameras: venuePc ? (

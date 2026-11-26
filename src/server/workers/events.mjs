@@ -3,6 +3,7 @@ import { sessionLifecycleIdempotencyKey } from "../sessions/lifecycle-schedule.m
 export const EVENT_TYPES = {
   PAYMENT_CONFIRMED_V1: "payment.confirmed.v1",
   BOOKING_CONFIRMED_V1: "booking.confirmed.v1",
+  BOOKING_TABLE_CHANGED_V1: "booking.table_changed.v1",
   SESSION_PREPARING_V1: "session.preparing.v1",
   SESSION_STARTED_V1: "session.started.v1",
   SESSION_ENDING_V1: "session.ending.v1",

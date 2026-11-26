@@ -14,6 +14,7 @@ import { applyAccessModificationForBooking } from "@/server/access/orchestration
 import { isAccessFeatureEnabled } from "@/server/access/feature-policy"
 import type { EditableBookingRow } from "@/server/bookings/modifications/eligibility"
 import type { ModificationSnapshot } from "@/server/bookings/modifications/types"
+import { retargetPlaySessionForBooking } from "@/server/sessions/play-sessions"
 import type { TenantContext } from "@/server/tenancy/types"
 
 type BookingTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
@@ -262,6 +263,15 @@ export async function applyModificationWithinTransaction(
         eq(bookings.id, modification.bookingId),
       ),
     )
+
+  // The session would otherwise start on the old table at the old time.
+  await retargetPlaySessionForBooking(tx, {
+    tenantId: context.tenantId,
+    bookingId: modification.bookingId,
+    resourceId: after.resourceId,
+    startTime: new Date(after.startTime),
+    endTime: new Date(after.endTime),
+  })
 
   await tx.insert(bookingStatusHistory).values({
     tenantId: context.tenantId,

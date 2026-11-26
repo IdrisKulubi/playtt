@@ -18,7 +18,19 @@ export interface VenueTableRow {
   isActive: boolean
   /** Camera the table records from, when a venue PC is set up. */
   cameraLabel: string | null
+  /** Bookable only with score buttons and a camera assigned. */
+  readiness: { hasScoreInput: boolean; hasCamera: boolean }
   backupCameraLabel: string | null
+}
+
+/** An upcoming booking on a table that isn't ready, with no ready table free to move it to. */
+export interface StrandedBookingRow {
+  bookingId: string
+  tableName: string
+  firstName: string
+  /** Already formatted in the venue's time zone, e.g. "Thu 26 Nov, 12:25 – 13:25". */
+  when: string
+  paid: boolean
 }
 
 const NO_ZONE = "none"
@@ -29,9 +41,11 @@ export function AdminVenueTables({
   zones,
   canManage,
   hasVenuePc,
+  strandedBookings = [],
 }: {
   venueId: string
   tables: VenueTableRow[]
+  strandedBookings?: StrandedBookingRow[]
   zones: { id: string; name: string }[]
   canManage: boolean
   hasVenuePc: boolean
@@ -92,6 +106,7 @@ export function AdminVenueTables({
   return (
     <Card>
       <CardContent className="space-y-5">
+        {strandedBookings.length > 0 ? <StrandedBookings bookings={strandedBookings} /> : null}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">Tables</h2>
@@ -273,6 +288,7 @@ function TableRow({
               ) : null}
             </p>
             {table.zoneName ? <p className="text-sm text-muted-foreground">{table.zoneName}</p> : null}
+            <TableBookable table={table} />
           </>
         )}
       </div>
@@ -294,6 +310,56 @@ function TableRow({
         <TableLink href={`/pod/tv?resourceId=${table.id}`}>TV</TableLink>
       </div>
     </li>
+  )
+}
+
+/**
+ * Bookings PlayTT couldn't move by itself: their table isn't ready and every
+ * ready table is taken at that time. Staff fix the table, or contact the player.
+ */
+function StrandedBookings({ bookings }: { bookings: StrandedBookingRow[] }) {
+  return (
+    <section className="space-y-3 rounded-lg border p-4" aria-labelledby="stranded-bookings">
+      <div>
+        <h3 id="stranded-bookings" className="font-semibold">
+          {bookings.length === 1 ? "1 booking needs you" : `${bookings.length} bookings need you`}
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          These are on a table without score buttons or a camera, and no ready table is free at that
+          time. Assign what&apos;s missing to the table, or contact the player to move or refund.
+        </p>
+      </div>
+      <ul className="divide-y text-sm">
+        {bookings.map((booking) => (
+          <li key={booking.bookingId} className="flex flex-wrap justify-between gap-2 py-2">
+            <span>
+              <span className="font-medium">{booking.firstName}</span> · {booking.tableName}
+              {booking.paid ? null : <span className="text-muted-foreground"> · not paid yet</span>}
+            </span>
+            <span className="text-muted-foreground tabular-nums">{booking.when}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/** Says whether players can book the table, and what's missing if not. */
+function TableBookable({ table }: { table: VenueTableRow }) {
+  if (!table.isActive) return null
+  const missing = [
+    table.readiness.hasScoreInput ? null : "score buttons",
+    table.readiness.hasCamera ? null : "a camera",
+  ].filter(Boolean)
+
+  if (missing.length === 0) {
+    return <p className="text-sm text-muted-foreground">Open for booking</p>
+  }
+
+  return (
+    <p className="text-sm text-muted-foreground">
+      Not bookable: assign {missing.join(" and ")}
+    </p>
   )
 }
 
