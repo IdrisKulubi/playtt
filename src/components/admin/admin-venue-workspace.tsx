@@ -5,12 +5,13 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-export const VENUE_TABS = ["tables", "cameras", "replays", "access", "details"] as const
+export const VENUE_TABS = ["tables", "cameras", "controllers", "replays", "access", "details"] as const
 export type VenueTab = (typeof VENUE_TABS)[number]
 
 const LABELS: Record<VenueTab, string> = {
   tables: "Tables",
   cameras: "Cameras",
+  controllers: "Score controllers",
   replays: "Replays",
   access: "Doors & access",
   details: "Venue details",

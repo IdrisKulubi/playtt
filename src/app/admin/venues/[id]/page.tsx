@@ -11,6 +11,7 @@ import {
   type StrandedBookingRow,
   type VenueTableRow,
 } from "@/components/admin/admin-venue-tables"
+import { AdminScoreControllers } from "@/components/admin/admin-score-controllers"
 import { AdminVenueWorkspace } from "@/components/admin/admin-venue-workspace"
 import { NvrCameraAssignments } from "@/components/nvr/nvr-camera-assignments"
 import { OperatorAccessPointPanels } from "@/components/operator/operator-access-points"
@@ -175,6 +176,7 @@ export default async function AdminVenueDetailPage({ params }: PageProps) {
                 </CardContent>
               </Card>
             ),
+            controllers: <AdminScoreControllers venueId={id} canManage={canManageVenue} />,
             replays: (
               <OperatorReplayRequestsPanel
                 venueId={id}
