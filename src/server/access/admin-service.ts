@@ -347,9 +347,10 @@ export async function requestRemoteUnlockOtp(context: TenantContext) {
 
   const html = await renderOtpEmailHtml({
     otp: otpCode,
-    purpose: "two-factor",
+    purpose: "remote-unlock",
     name: actor.name,
     email: actor.email,
+    expiresInMinutes: 10,
   })
   await resend.emails.send({
     from: resendFromEmail,

@@ -1,22 +1,18 @@
-import type { OtpEmailPurpose } from "@/emails/otp-email";
+import type { OtpEmailPurpose } from "@/emails/otp-email"
 
+/** HTML for a one-time-code email (sign in, verify, reset, 2FA, remote unlock). */
 export async function renderOtpEmailHtml(input: {
-  otp: string;
-  purpose: OtpEmailPurpose;
-  name?: string;
-  email?: string;
+  otp: string
+  purpose: OtpEmailPurpose
+  name?: string
+  email?: string
+  expiresInMinutes?: number
 }) {
-  const [{ render }, { default: OtpEmail }] = await Promise.all([
-    import("@react-email/components"),
+  const [{ renderEmail }, { default: OtpEmail }] = await Promise.all([
+    import("@/emails/render"),
     import("@/emails/otp-email"),
-  ]);
+  ])
 
-  return render(
-    OtpEmail({
-      otp: input.otp,
-      purpose: input.purpose,
-      name: input.name,
-      email: input.email,
-    }),
-  );
+  const { html } = await renderEmail(OtpEmail(input))
+  return html
 }

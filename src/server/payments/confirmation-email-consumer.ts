@@ -29,6 +29,7 @@ async function loadBookingEmailContext(
       userEmail: user.email,
       userName: user.name,
       locationName: locations.name,
+      timeZone: locations.timezone,
       resourceName: resources.name,
       startTime: bookings.startTime,
       endTime: bookings.endTime,
@@ -101,6 +102,8 @@ export async function consumePaymentConfirmedEmail(
         totalAmount: String(booking.totalAmount),
         currency: booking.currency,
         idempotencyKey,
+        bookingId,
+        timeZone: booking.timeZone,
       }),
     markSent: () =>
       db

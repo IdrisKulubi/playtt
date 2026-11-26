@@ -27,10 +27,15 @@ test("confirmation email consumer marks sent only after idempotent provider deli
 })
 
 test("confirmation email provider receives its deterministic idempotency key", () => {
-  const source = readFileSync(join(paymentsRoot, "confirmation-email.ts"), "utf8")
-  assert.match(source, /\{ idempotencyKey: input\.idempotencyKey \}/)
-  assert.match(source, /if \(result\.error\)/)
-  assert.match(source, /if \(!process\.env\.RESEND_API_KEY\?\.trim\(\)\) {\s*throw/s)
+  const source = readFileSync(join(paymentsRoot, "confirmation-email.tsx"), "utf8")
+  assert.match(source, /idempotencyKey: input\.idempotencyKey/)
+  assert.match(source, /sendPlayttEmail/)
+
+  // The shared sender checks configuration and provider errors for every email.
+  const sender = readFileSync(join(paymentsRoot, "..", "email", "send-email.ts"), "utf8")
+  assert.match(sender, /\{ idempotencyKey: input\.idempotencyKey \}/)
+  assert.match(sender, /if \(result\.error\)/)
+  assert.match(sender, /if \(!process\.env\.RESEND_API_KEY\?\.trim\(\)\) {\s*throw/s)
 })
 
 test("delivery failure remains recoverable and never marks the notification sent", async () => {

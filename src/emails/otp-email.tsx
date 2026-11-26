@@ -1,14 +1,11 @@
 import {
-  Body,
-  Container,
-  Head,
-  Heading,
-  Html,
-  Img,
-  Preview,
-  Section,
-  Text,
-} from "@react-email/components"
+  EmailCode,
+  EmailFinePrint,
+  EmailHero,
+  EmailLayout,
+  EmailText,
+  firstName,
+} from "@/emails/components"
 
 export type OtpEmailPurpose =
   | "email-verification"
@@ -16,243 +13,86 @@ export type OtpEmailPurpose =
   | "sign-in"
   | "change-email"
   | "two-factor"
+  | "remote-unlock"
 
-interface OtpEmailProps {
-  otp?: string
-  purpose?: OtpEmailPurpose
+export interface OtpEmailProps {
+  otp: string
+  purpose: OtpEmailPurpose
   name?: string
   email?: string
+  /** Minutes until the code stops working. */
+  expiresInMinutes?: number
 }
 
-const fontFamily =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
-
-const colors = {
-  background: "#ffffff",
-  foreground: "#0a1628",
-  secondary: "#6b7280",
-  tertiary: "#86868b",
-  codeSurface: "#f2f2f2",
-} as const
-
-function getEmailContent(purpose: OtpEmailPurpose) {
-  switch (purpose) {
-    case "forget-password":
-      return {
-        preview: "Your PlayTT password reset code",
-        headline: "Reset your password on PlayTT",
-        detailPrefix: "We received a password reset request for ",
-        detailSuffix: ".",
-        instruction:
-          "Enter the 6-digit code in PlayTT to choose a new password.",
-      }
-    case "sign-in":
-      return {
-        preview: "Your PlayTT sign-in code",
-        headline: "Verify your email to sign in to PlayTT",
-        detailPrefix: "We received a sign-in attempt for ",
-        detailSuffix: ".",
-        instruction: "Enter the 6-digit code in PlayTT to continue.",
-      }
-    case "change-email":
-      return {
-        preview: "Confirm your new PlayTT email",
-        headline: "Confirm your new email on PlayTT",
-        detailPrefix: "Confirm the new email address ",
-        detailSuffix: ".",
-        instruction: "Enter the 6-digit code in PlayTT to confirm this change.",
-      }
-    case "two-factor":
-      return {
-        preview: "Your PlayTT security code",
-        headline: "Verify your identity on PlayTT",
-        detailPrefix: "Two-factor authentication was requested for ",
-        detailSuffix: ".",
-        instruction: "Enter the 6-digit code in PlayTT to finish signing in.",
-      }
-  }
-
-  return {
-    preview: "Your PlayTT verification code",
-    headline: "Verify your email for PlayTT",
-    detailPrefix: "Finish setting up your account for ",
-    detailSuffix: ".",
-    instruction: "Enter the 6-digit code in PlayTT to continue.",
-  }
+const COPY: Record<OtpEmailPurpose, { subject: string; eyebrow: string; title: string; lede: string }> = {
+  "email-verification": {
+    subject: "Verify your email address",
+    eyebrow: "Welcome to PlayTT",
+    title: "Confirm it's you.",
+    lede: "Enter this code in PlayTT to finish setting up your account.",
+  },
+  "sign-in": {
+    subject: "Your PlayTT sign-in code",
+    eyebrow: "Sign in",
+    title: "Here's your sign-in code.",
+    lede: "Enter it in PlayTT to continue.",
+  },
+  "forget-password": {
+    subject: "Reset your PlayTT password",
+    eyebrow: "Password reset",
+    title: "Reset your password.",
+    lede: "Enter this code in PlayTT, then choose a new password.",
+  },
+  "change-email": {
+    subject: "Confirm your new email address",
+    eyebrow: "Email change",
+    title: "Confirm your new email.",
+    lede: "Enter this code in PlayTT to start using this address.",
+  },
+  "two-factor": {
+    subject: "Your PlayTT security code",
+    eyebrow: "Two-step sign-in",
+    title: "Your security code.",
+    lede: "Enter it in PlayTT to finish signing in.",
+  },
+  "remote-unlock": {
+    subject: "PlayTT remote unlock verification code",
+    eyebrow: "Remote unlock",
+    title: "Confirm the unlock.",
+    lede: "Enter this code in PlayTT admin to unlock the venue door.",
+  },
 }
 
-function EmailBrandMark() {
+export function otpEmailSubject(purpose: OtpEmailPurpose) {
+  return COPY[purpose].subject
+}
+
+export default function OtpEmail({ otp, purpose, name, email, expiresInMinutes = 5 }: OtpEmailProps) {
+  const copy = COPY[purpose]
+
   return (
-    <Section style={{ marginBottom: "32px", textAlign: "center" }}>
-      <Img
-        src="https://www.theplaytt.com/brand/playtt-logo-primary.png"
-        alt="PlayTT"
-        width="168"
-        height="49"
-        style={{ display: "block", margin: "0 auto" }}
+    <EmailLayout
+      preview={`${copy.title} Your code is ${otp}.`}
+      footerNote={email ? `Sent to ${email} because a code was requested for this address.` : undefined}
+    >
+      <EmailHero
+        eyebrow={copy.eyebrow}
+        title={name ? `${copy.title.replace(/\.$/, "")}, ${firstName(name)}.` : copy.title}
+        lede={copy.lede}
       />
-    </Section>
+      <EmailCode code={otp} caption={`Expires in ${expiresInMinutes} minutes`} />
+      <EmailText muted>Never share this code. PlayTT staff will never ask you for it.</EmailText>
+      <EmailFinePrint>
+        Didn&apos;t ask for this? You can ignore this email: nothing changes unless the code is entered. PlayTT
+        emails only come from theplaytt.com.
+      </EmailFinePrint>
+    </EmailLayout>
   )
 }
 
-const bodyTextStyle = {
-  margin: "0 0 16px",
-  fontFamily,
-  fontSize: "15px",
-  fontWeight: 400,
-  lineHeight: "24px",
-  color: colors.foreground,
-} as const
-
-export default function OtpEmail({
-  otp = "123456",
-  purpose = "email-verification",
-  name,
-  email = "",
-}: OtpEmailProps) {
-  const content = getEmailContent(purpose)
-  const greeting = name?.trim() ? `Hello ${name.trim()},` : "Hello,"
-  const accountLabel = email.trim() || "your account"
-
-  return (
-    <Html>
-      <Head>
-        <style>{`
-          body {
-            font-family: ${fontFamily};
-            -webkit-font-smoothing: antialiased;
-          }
-        `}</style>
-      </Head>
-      <Preview>{content.preview}</Preview>
-      <Body style={{ margin: 0, backgroundColor: colors.background }}>
-        <Container
-          style={{
-            margin: "0 auto",
-            maxWidth: "480px",
-            padding: "48px 24px 56px",
-          }}
-        >
-          <EmailBrandMark />
-
-          <Heading
-            as="h1"
-            style={{
-              margin: "0 0 28px",
-              fontFamily,
-              fontSize: "30px",
-              fontWeight: 600,
-              lineHeight: "36px",
-              letterSpacing: "-0.02em",
-              textAlign: "center",
-              color: colors.foreground,
-            }}
-          >
-            {content.headline}
-          </Heading>
-
-          <Text
-            style={{
-              margin: "0 0 16px",
-              fontFamily,
-              fontSize: "15px",
-              fontWeight: 600,
-              lineHeight: "24px",
-              color: colors.foreground,
-            }}
-          >
-            {greeting}
-          </Text>
-
-          <Text style={bodyTextStyle}>
-            {content.detailPrefix}
-            <strong>{accountLabel}</strong>
-            {content.detailSuffix}
-          </Text>
-
-          <Text style={bodyTextStyle}>{content.instruction}</Text>
-
-          <Section
-            style={{
-              marginBottom: "24px",
-              borderRadius: "8px",
-              backgroundColor: colors.codeSurface,
-              padding: "24px 16px",
-              textAlign: "center",
-            }}
-          >
-            <Text
-              style={{
-                margin: 0,
-                fontFamily,
-                fontSize: "48px",
-                fontWeight: 600,
-                lineHeight: "52px",
-                letterSpacing: "0.14em",
-                fontVariantNumeric: "tabular-nums",
-                color: colors.foreground,
-              }}
-            >
-              {otp}
-            </Text>
-          </Section>
-
-          <Text
-            style={{
-              margin: "0 0 28px",
-              fontFamily,
-              fontSize: "14px",
-              fontWeight: 400,
-              lineHeight: "20px",
-              color: colors.secondary,
-            }}
-          >
-            Expires in 5 minutes.
-          </Text>
-
-          <Text
-            style={{
-              margin: "0 0 12px",
-              fontFamily,
-              fontSize: "13px",
-              fontWeight: 400,
-              lineHeight: "20px",
-              color: colors.tertiary,
-            }}
-          >
-            If you did not request this, you can ignore this email. The request
-            will not be completed unless you enter the code above.
-          </Text>
-
-          <Text
-            style={{
-              margin: "0 0 12px",
-              fontFamily,
-              fontSize: "13px",
-              fontWeight: 400,
-              lineHeight: "20px",
-              color: colors.tertiary,
-            }}
-          >
-            Do not share this code with anyone. PlayTT will never ask you to
-            read this code out loud.
-          </Text>
-
-          <Text
-            style={{
-              margin: 0,
-              fontFamily,
-              fontSize: "13px",
-              fontWeight: 400,
-              lineHeight: "20px",
-              color: colors.tertiary,
-            }}
-          >
-            Make sure you recognize this request before entering the code.
-            Emails from PlayTT will only come from theplaytt.com.
-          </Text>
-        </Container>
-      </Body>
-    </Html>
-  )
-}
+OtpEmail.PreviewProps = {
+  otp: "482916",
+  purpose: "sign-in",
+  name: "Amina Otieno",
+  email: "amina@example.com",
+} satisfies OtpEmailProps
