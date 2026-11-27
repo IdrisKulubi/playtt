@@ -36,6 +36,22 @@
             </intent-filter>
         </activity>
 
+        <!-- Kiosk mode (opt-in, off until enabled with adb, see README): the
+             app becomes the TV's home screen, so it opens at boot and the
+             Home button returns to it. Google TV resets "display over other
+             apps" at every boot, so this is the reliable way to auto-start. -->
+        <activity-alias
+            android:name=".KioskHome"
+            android:enabled="false"
+            android:exported="true"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+
         <activity
             android:name=".SetupActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density"

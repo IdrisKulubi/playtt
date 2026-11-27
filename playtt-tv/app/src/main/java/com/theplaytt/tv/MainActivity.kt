@@ -36,6 +36,7 @@ class MainActivity : Activity() {
     private lateinit var offlineView: TextView
     private val handler = Handler(Looper.getMainLooper())
     private var pageFailed = false
+    private var hint: Toast? = null
     private var backPresses = 0
     private var firstBackPressAt = 0L
 
@@ -75,6 +76,8 @@ class MainActivity : Activity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun createWebView(pageUrl: String) {
+        // Debug builds only: lets chrome://inspect look inside the page.
+        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
         val view = WebView(this)
         view.setBackgroundColor(Color.BLACK)
         view.isFocusable = false
@@ -176,7 +179,9 @@ class MainActivity : Activity() {
                     backPresses = 0
                     openSetup()
                 } else if (backPresses >= 2) {
-                    Toast.makeText(this, "Press Back $remaining more times for setup", Toast.LENGTH_SHORT).show()
+                    hint?.cancel()
+                    hint = Toast.makeText(this, "Press Back $remaining more times for setup", Toast.LENGTH_SHORT)
+                        .also { it.show() }
                 }
             }
             return true
@@ -185,6 +190,8 @@ class MainActivity : Activity() {
     }
 
     private fun openSetup() {
+        // Don't leave "Press Back…" covering the setup screen's buttons.
+        hint?.cancel()
         startActivity(Intent(this, SetupActivity::class.java))
         finish()
     }

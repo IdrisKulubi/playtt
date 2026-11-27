@@ -16,8 +16,11 @@ import {
 import { defaultTheme } from "@/lib/display-themes"
 import { hasMatch } from "@/server/scoring/match-setup"
 
-/** How long a venue-PC clip gets to start before the TV tries the next link. */
-const LOCAL_CLIP_START_TIMEOUT_MS = 3_000
+/**
+ * How long a downloaded venue-PC clip gets to start playing before the TV
+ * gives up on it and waits for the R2 copy.
+ */
+const LOCAL_CLIP_START_TIMEOUT_MS = 5_000
 /** Minutes before a booking when the TV switches to "Up next". */
 const UP_NEXT_LEAD_MS = 5 * 60 * 1000
 /** How long the match-won card stays up before the session scene returns. */
@@ -38,9 +41,8 @@ export function VenueTvDisplay({ resourceId }: { resourceId: string }) {
     handleReplayError,
   } = useLiveScore(resourceId)
 
-  // A venue-PC link that can't be reached (TV on another network, browser
-  // blocking it) must not leave the TV waiting: give it a few seconds, then
-  // move on to the next link or the R2 copy.
+  // A venue-PC clip that won't start must not leave the TV on black: give it
+  // a few seconds, then fall back to the R2 copy.
   const playbackUrl = replayOverlay?.playbackUrl
   const isLocal = replayOverlay?.isLocal ?? false
   const [startedUrl, setStartedUrl] = useState<string | null>(null)

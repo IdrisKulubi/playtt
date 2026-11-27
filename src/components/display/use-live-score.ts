@@ -101,6 +101,40 @@ const REPLAY_POLL_IDLE_MS = 3_000
 const RECENT_REPLAY_WINDOW_MS = 60_000
 const PLAYBACK_RETRY_DELAYS_MS = [0, 250, 500, 1_000] as const
 
+/** Per link; a 40 s clip is ~7-20 MB, well under a second on a venue LAN. */
+const LOCAL_CLIP_DOWNLOAD_TIMEOUT_MS = 8_000
+
+/**
+ * Downloads a clip from the venue PC and returns a blob: URL to play it from
+ * memory, or null when no link works.
+ *
+ * Why not point <video> at the link: the TV page is https and the venue PC
+ * serves plain http. Android TV's WebView blocks http *video* on an https
+ * page even when the app allows mixed content, but lets fetch() through.
+ * Chrome on the venue PC itself allows fetch() to http://127.0.0.1.
+ */
+async function downloadLocalClip(urls: string[]): Promise<string | null> {
+  for (const url of urls) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), LOCAL_CLIP_DOWNLOAD_TIMEOUT_MS)
+    try {
+      const response = await fetch(url, { cache: "no-store", signal: controller.signal })
+      if (!response.ok) {
+        continue
+      }
+      const blob = await response.blob()
+      if (blob.size > 0) {
+        return URL.createObjectURL(blob)
+      }
+    } catch {
+      // Unreachable from here (other network, blocked): try the next link.
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+  return null
+}
+
 function wait(delayMs: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, delayMs))
 }
@@ -123,6 +157,16 @@ export function useLiveScore(
   /** Replays whose venue-PC links didn't play here; wait for R2 instead. */
   const localFailedRef = useRef<Set<string>>(new Set())
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Free a downloaded clip once it's no longer on screen.
+  const overlayUrl = replayOverlay?.playbackUrl
+  useEffect(() => {
+    return () => {
+      if (overlayUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(overlayUrl)
+      }
+    }
+  }, [overlayUrl])
 
   const applyPayload = useCallback((next: DisplaySnapshotPayload) => {
     setPayload(next)
@@ -438,12 +482,25 @@ export function useLiveScore(
           loadingReplayIdRef.current !== latest.replayId &&
           !localFailedRef.current.has(latest.replayId)
         ) {
-          showReplayOverlay(latest.replayId, {
-            url: localUrls[0]!,
-            fallbackUrls: localUrls.slice(1),
-            durationSeconds: latest.localPlayback?.durationSeconds,
-            isLocal: true,
+          const replayId = latest.replayId
+          loadingReplayIdRef.current = replayId
+          const clipUrl = await downloadLocalClip(localUrls).finally(() => {
+            if (loadingReplayIdRef.current === replayId) {
+              loadingReplayIdRef.current = null
+            }
           })
+          if (!clipUrl) {
+            // Not reachable from this screen: play the R2 copy when ready.
+            localFailedRef.current.add(replayId)
+          } else if (lastReplayIdRef.current === replayId) {
+            URL.revokeObjectURL(clipUrl)
+          } else {
+            showReplayOverlay(replayId, {
+              url: clipUrl,
+              durationSeconds: latest.localPlayback?.durationSeconds,
+              isLocal: true,
+            })
+          }
           return
         }
 

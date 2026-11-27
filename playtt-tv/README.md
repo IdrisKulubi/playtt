@@ -11,7 +11,7 @@ What it does:
 - **Full-screen, always on:** no browser bars, the screen never sleeps,
   and Back doesn't close it.
 - **Change table later:** press **Back 5 times** quickly on the TV screen.
-- **Starts with the TV** (after the one-time permission below).
+- **Starts with the TV** in kiosk mode (see below).
 - **Offline:** shows "Can't reach PlayTT. Retrying…" and retries every 10 s.
 - **Website updates need no reinstall.** The scoreboard, replays and look all
   live on the website. Reinstall only when this app itself changes.
@@ -62,16 +62,45 @@ keyPassword=…
    ```powershell
    adb connect <tv-ip>:5555        # accept the prompt on the TV the first time
    adb install -r app-release.apk
-   # Let it open itself when the TV turns on (one time):
-   adb shell appops set com.theplaytt.tv SYSTEM_ALERT_WINDOW allow
-   adb shell monkey -p com.theplaytt.tv 1   # open it now
+   adb shell am start -n com.theplaytt.tv/.MainActivity   # open it now
    ```
 
-4. On the TV, pick the venue and the table. Done.
+4. On the TV, pick the venue and the table.
 
 Without a laptop, use the **Downloader** app from the TV's app store: enter a
-private link to the APK and install it. Auto-start still needs the one `adb`
-command above.
+private link to the APK and install it. Kiosk mode below still needs `adb`.
+
+## Kiosk mode: start with the TV, Home stays on PlayTT
+
+Google TV resets "display over other apps" at every boot and its own home
+screen always takes over the Home button, so the reliable way is to make
+PlayTT TV the TV's home screen:
+
+1. On the TV, open setup (**Back 5 times**), select **Kiosk mode: Off** so it
+   says **On**.
+2. From the laptop:
+
+   ```powershell
+   adb shell cmd package set-home-activity com.theplaytt.tv/.KioskHome
+   # Google TV only: switch off Google's home screen so it can't take over.
+   adb shell pm disable-user --user 0 com.google.android.apps.tv.launcherx
+   ```
+
+3. Wait ~20 seconds (Android saves the change), then restart the TV. It opens
+   straight into PlayTT TV, and Home returns to it.
+
+To reach the TV's own settings in kiosk mode: Back 5 times → **Android
+settings**. To undo kiosk mode:
+
+```powershell
+adb shell pm enable com.google.android.apps.tv.launcherx
+```
+
+then turn **Kiosk mode** off in setup.
+
+Tested on the Google TV (Android 14) emulator: boots into PlayTT TV, Home
+stays on it. Non-Google Android TV boxes use a different home app; the
+`set-home-activity` command is usually enough there.
 
 ## Venue network checklist
 

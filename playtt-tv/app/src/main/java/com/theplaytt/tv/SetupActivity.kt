@@ -2,7 +2,9 @@ package com.theplaytt.tv
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -10,6 +12,7 @@ import android.graphics.drawable.StateListDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.text.InputType
 import android.view.Gravity
 import android.view.KeyEvent
@@ -166,6 +169,41 @@ class SetupActivity : Activity() {
         if (settings.resourceId != null) {
             footer.addView(smallButton("Cancel") { backToTv() })
         }
+        footer.addView(
+            smallButton("Kiosk mode: ${if (isKioskEnabled()) "On" else "Off"}") {
+                setKioskEnabled(!isKioskEnabled())
+                renderFooter()
+            },
+        )
+        // In kiosk mode Home leads back here, so this is the way to the TV's
+        // own settings (Wi-Fi, display, updates).
+        footer.addView(
+            smallButton("Android settings") {
+                runCatching { startActivity(Intent(Settings.ACTION_SETTINGS)) }
+            },
+        )
+    }
+
+    /**
+     * Kiosk mode offers this app as a home screen, so it opens at boot and on
+     * Home. Making it *the* home screen is one adb command (see README).
+     */
+    private val kioskHome get() = ComponentName(this, "$packageName.KioskHome")
+
+    private fun isKioskEnabled(): Boolean =
+        packageManager.getComponentEnabledSetting(kioskHome) ==
+            PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+
+    private fun setKioskEnabled(enabled: Boolean) {
+        packageManager.setComponentEnabledSetting(
+            kioskHome,
+            if (enabled) {
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            } else {
+                PackageManager.COMPONENT_ENABLED_STATE_DEFAULT
+            },
+            PackageManager.DONT_KILL_APP,
+        )
     }
 
     private fun editServer() {
