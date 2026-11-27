@@ -199,6 +199,7 @@ export class SourceSupervisorRegistry {
       {
         simulate: this.env.mode === "simulate",
         maxDiskBytes: this.env.perSourceBufferDiskBytes,
+        segmentSeconds: this.env.bufferSegmentSeconds,
         clockOffsetSeconds: this.getClockOffsetSeconds?.(camera.cameraId) ?? 0,
         onFfmpegExited: this.onFfmpegExited,
       }

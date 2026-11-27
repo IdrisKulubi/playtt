@@ -30,6 +30,12 @@ export interface VenueEdgeEnv {
   maxConcurrentReplays: number
   maxBufferProcesses: number
   perSourceBufferDiskBytes: number
+  /** Rolling-buffer segment length (s). 1 s only helps with a 1 s keyframe interval. */
+  bufferSegmentSeconds: number
+  /** Port the venue TVs fetch fresh clips from; 0 turns local playback off. */
+  localPlaybackPort: number
+  /** Host/IP put in local links instead of the detected LAN address. */
+  localPlaybackHost: string | null
   reservedFreeDiskBytes: number
   minFreeMemoryBytes: number
   maxCpuLoadAverage: number
@@ -70,6 +76,33 @@ function parseMode(value: string | undefined): VenueEdgeMode {
   }
 
   return "simulate"
+}
+
+export const DEFAULT_LOCAL_PLAYBACK_PORT = 8787
+
+/** "0"/"off" disables local playback; invalid values use the default port. */
+export function parseLocalPlaybackPort(value: number | string | undefined): number {
+  if (value === undefined || value === "") {
+    return DEFAULT_LOCAL_PLAYBACK_PORT
+  }
+  if (
+    typeof value === "string" &&
+    ["off", "false", "no"].includes(value.trim().toLowerCase())
+  ) {
+    return 0
+  }
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 65_535
+    ? parsed
+    : DEFAULT_LOCAL_PLAYBACK_PORT
+}
+
+/** Whole seconds 1-6; anything else falls back to the 2 s default. */
+export function parseBufferSegmentSeconds(
+  value: number | string | undefined
+): number {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 6 ? parsed : 2
 }
 
 export function loadEnv(overrides: Partial<VenueEdgeEnv> = {}): VenueEdgeEnv {
@@ -160,6 +193,17 @@ export function loadEnv(overrides: Partial<VenueEdgeEnv> = {}): VenueEdgeEnv {
       overrides.perSourceBufferDiskBytes ??
         process.env.VENUE_EDGE_PER_SOURCE_BUFFER_BYTES ??
         256 * 1024 * 1024
+    ),
+    localPlaybackPort: parseLocalPlaybackPort(
+      overrides.localPlaybackPort ??
+        process.env.VENUE_EDGE_LOCAL_PLAYBACK_PORT
+    ),
+    localPlaybackHost:
+      overrides.localPlaybackHost ??
+      (process.env.VENUE_EDGE_LOCAL_PLAYBACK_HOST?.trim() || null),
+    bufferSegmentSeconds: parseBufferSegmentSeconds(
+      overrides.bufferSegmentSeconds ??
+        process.env.VENUE_EDGE_SEGMENT_SECONDS
     ),
     reservedFreeDiskBytes: Number(
       overrides.reservedFreeDiskBytes ??

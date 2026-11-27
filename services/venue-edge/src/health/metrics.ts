@@ -61,11 +61,25 @@ export function redactStringSecrets(value: string): string {
   return output
 }
 
+/**
+ * "debug" is for routine lines that repeat every few seconds (heartbeats,
+ * buffer indexing). They are hidden unless VENUE_EDGE_DEBUG_LOGS=1, so the
+ * terminal shows replays, warnings and errors.
+ */
+export function debugLogsEnabled(): boolean {
+  const value = process.env.VENUE_EDGE_DEBUG_LOGS?.trim().toLowerCase()
+  return value === "1" || value === "true" || value === "yes"
+}
+
 export function safeLog(
-  level: "info" | "warn" | "error",
+  level: "debug" | "info" | "warn" | "error",
   message: string,
   context?: Record<string, unknown>,
 ): void {
+  if (level === "debug" && !debugLogsEnabled()) {
+    return
+  }
+
   const payload = context ? redactSecrets(context) : undefined
   const line = payload
     ? `${message} ${JSON.stringify(payload)}`

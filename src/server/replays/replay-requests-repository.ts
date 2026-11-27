@@ -64,6 +64,7 @@ export interface ReplayRequestRecord {
   clientIdempotencyKey: string
   deviceCommandId: string | null
   failureReason: string | null
+  localPlayback: ReplayLocalPlayback | null
   dispatchedAt: Date | null
   edgeAcknowledgedAt: Date | null
   capturingAt: Date | null
@@ -75,6 +76,13 @@ export interface ReplayRequestRecord {
   expiredAt: Date | null
   createdAt: Date
   updatedAt: Date
+}
+
+/** Venue-LAN links to the clip, served by the edge before the R2 upload. */
+export interface ReplayLocalPlayback {
+  urls: string[]
+  expiresAt: string
+  durationSeconds?: number
 }
 
 export interface ActivePlaySessionForReplay {
@@ -176,6 +184,7 @@ function mapReplayRequest(
     clientIdempotencyKey: row.clientIdempotencyKey,
     deviceCommandId: row.deviceCommandId,
     failureReason: row.failureReason,
+    localPlayback: row.localPlayback ?? null,
     dispatchedAt: row.dispatchedAt,
     edgeAcknowledgedAt: row.edgeAcknowledgedAt,
     capturingAt: row.capturingAt,
@@ -821,4 +830,23 @@ export async function bumpReplayRequestAttempts(
     .returning()
 
   return mapReplayRequest(updated!)
+}
+
+/** Stores the edge's venue-LAN links for this clip (replacing any earlier). */
+export async function setReplayRequestLocalPlayback(
+  context: TenantContext,
+  replayRequestId: string,
+  localPlayback: ReplayLocalPlayback,
+  tx?: DbExecutor
+) {
+  const executor = tx ?? db
+  await executor
+    .update(replayRequests)
+    .set({ localPlayback, updatedAt: new Date() })
+    .where(
+      and(
+        eq(replayRequests.tenantId, context.tenantId),
+        eq(replayRequests.id, replayRequestId)
+      )
+    )
 }

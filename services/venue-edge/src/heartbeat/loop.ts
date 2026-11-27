@@ -108,7 +108,7 @@ export class HeartbeatLoop {
         },
       })
 
-      safeLog("info", "Heartbeat ok", {
+      safeLog("debug", "Heartbeat ok", {
         health: response.health,
         pendingCommandCount: response.pendingCommandCount,
       })

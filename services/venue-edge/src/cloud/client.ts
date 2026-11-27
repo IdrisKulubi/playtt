@@ -346,6 +346,12 @@ export class EdgeV1Client {
       failureReason?: string
       checksumSha256?: string
       sizeBytes?: number
+      /** Venue-LAN links to the clip, so the TV can start before R2. */
+      localPlayback?: {
+        urls: string[]
+        expiresAt: string
+        durationSeconds?: number
+      }
     }
   ): Promise<unknown> {
     return this.request(

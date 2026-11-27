@@ -124,6 +124,9 @@
     },
     "0040_display_themes": {
       "sha256": "fe73ab4b6287003eaac2383be9f0b87b3cded24a475c1731706b29800fe7cb00"
+    },
+    "0041_replay_request_local_playback": {
+      "sha256": "e33df3599f5f7feec394d24f67f38b11680e21efe0c3c04ca8ec8f28e6d51082"
     }
   },
   "acknowledgedMetadataDrift": [],

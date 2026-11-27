@@ -22,8 +22,11 @@ export const RTSP_SOCKET_TIMEOUT_US = 15_000_000
  * longer keyframe interval simply produces longer segments.)
  */
 export const DEFAULT_SEGMENT_SECONDS = 2
-/** How often closed segments are indexed. Also latency on every replay. */
-export const LIVE_INDEX_INTERVAL_MS = 500
+/**
+ * How often closed segments are indexed. Also latency on every replay (a
+ * readdir every 250 ms is cheap next to that).
+ */
+export const LIVE_INDEX_INTERVAL_MS = 250
 /** Disk budget checks stat every segment, so they run less often. */
 const DISK_BUDGET_INTERVAL_MS = 5_000
 
@@ -285,7 +288,7 @@ export class RollingBufferSupervisor {
         new Date().toISOString()
       )
       this.lastProgressAt = Date.now()
-      safeLog("info", "Live buffer segments indexed", {
+      safeLog("debug", "Live buffer segments indexed", {
         sourceId: this.camera.cameraId,
         resourceId: this.camera.resourceId ?? null,
         newlyIndexed,
@@ -383,7 +386,7 @@ export class RollingBufferSupervisor {
         endedAt.toISOString()
       )
 
-      safeLog("info", "Simulated buffer segment recorded", {
+      safeLog("debug", "Simulated buffer segment recorded", {
         sourceId: this.camera.cameraId,
         resourceId: this.camera.resourceId ?? null,
         segmentCount: segments.length,

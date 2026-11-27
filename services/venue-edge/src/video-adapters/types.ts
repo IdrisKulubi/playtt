@@ -10,6 +10,8 @@ export interface VideoExtractionResult {
   outputPath: string
   source: "edge_buffer" | "nvr_playback"
   durationSeconds: number
+  /** Stage durations (ms) and facts for the per-replay timing log. */
+  timings?: Record<string, number | string | boolean | null>
 }
 
 export interface VideoAdapter {

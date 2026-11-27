@@ -31,6 +31,11 @@ import {
   type DirectUploadResult,
 } from "../upload/direct-upload"
 import { renewUploadGrant } from "../upload/grant-client"
+import { ReplayTimer } from "./timing"
+import type {
+  LocalClipPublication,
+  LocalClipServer,
+} from "../local-playback/clip-server"
 import { RollingBufferVideoAdapter } from "../video-adapters/rolling-buffer-adapter"
 import { VigiNvrPlaybackAdapter } from "../video-adapters/vigi-nvr-playback-adapter"
 import type { VideoAdapter } from "../video-adapters/types"
@@ -45,6 +50,8 @@ export interface ReplayOrchestratorDeps {
   healthEngine?: SourceHealthEngine | null
   getSimulatorScenario?: () => SimulatorScenario | null
   fetchImpl?: typeof fetch
+  /** Serves fresh clips to the venue TVs; absent or stopped = R2 only. */
+  localClips?: LocalClipServer | null
 }
 
 const PROGRESS_SEQUENCE = [
@@ -78,18 +85,26 @@ const PROGRESS_RETRY_DELAY_MS = 300
  * caller. If one fails it stops (later statuses would be rejected as out of
  * order) and `drain()` retries what's left before the capture moves on.
  */
+type ProgressExtras = { localPlayback?: LocalClipPublication }
+
 export class ProgressPipeline {
-  private readonly queue: ProgressStatus[] = []
+  private readonly queue: Array<{
+    status: ProgressStatus
+    extras?: ProgressExtras
+  }> = []
   private worker: Promise<void> | null = null
   private error: unknown = null
 
   constructor(
-    private readonly send: (status: ProgressStatus) => Promise<void>,
+    private readonly send: (
+      status: ProgressStatus,
+      extras?: ProgressExtras,
+    ) => Promise<void>,
     private readonly retryDelayMs = PROGRESS_RETRY_DELAY_MS,
   ) {}
 
-  enqueue(status: ProgressStatus): void {
-    this.queue.push(status)
+  enqueue(status: ProgressStatus, extras?: ProgressExtras): void {
+    this.queue.push({ status, extras })
     if (!this.worker && this.error === null) {
       this.worker = this.run().finally(() => {
         this.worker = null
@@ -110,7 +125,8 @@ export class ProgressPipeline {
     this.error = null
     try {
       while (this.queue.length > 0) {
-        await this.send(this.queue[0]!)
+        const item = this.queue[0]!
+        await this.send(item.status, item.extras)
         this.queue.shift()
       }
     } catch (error) {
@@ -129,9 +145,9 @@ export class ProgressPipeline {
 
   private async run(): Promise<void> {
     while (this.queue.length > 0) {
-      const status = this.queue[0]!
+      const { status, extras } = this.queue[0]!
       try {
-        await this.sendWithRetry(status)
+        await this.sendWithRetry(status, extras)
         this.queue.shift()
       } catch (error) {
         this.error = error
@@ -144,12 +160,15 @@ export class ProgressPipeline {
     }
   }
 
-  private async sendWithRetry(status: ProgressStatus): Promise<void> {
+  private async sendWithRetry(
+    status: ProgressStatus,
+    extras?: ProgressExtras,
+  ): Promise<void> {
     try {
-      await this.send(status)
+      await this.send(status, extras)
     } catch {
       await new Promise((resolve) => setTimeout(resolve, this.retryDelayMs))
-      await this.send(status)
+      await this.send(status, extras)
     }
   }
 }
@@ -157,6 +176,8 @@ export class ProgressPipeline {
 export class ReplayOrchestrator {
   private readonly limiter
   private readonly uploadResults = new Map<string, DirectUploadResult>()
+  /** Venue-LAN links for clips cut but not yet reported to the cloud. */
+  private readonly localPublications = new Map<string, LocalClipPublication>()
 
   constructor(private readonly deps: ReplayOrchestratorDeps) {
     this.limiter = createReplayLimiter(deps.env.maxConcurrentReplays)
@@ -195,8 +216,9 @@ export class ReplayOrchestrator {
     payload: Parameters<ReplayOrchestrator["handleCapture"]>[1],
     options: { resumeFrom?: string; correlationId?: string } = {}
   ): Promise<void> {
+    const receivedAtMs = Date.now()
     return this.limiter.run(() =>
-      this.handleCapture(commandId, payload, options)
+      this.handleCapture(commandId, payload, { ...options, receivedAtMs })
     )
   }
 
@@ -211,9 +233,26 @@ export class ReplayOrchestrator {
   private async handleCapture(
     commandId: string,
     payload: import("../cloud/client.ts").CaptureReplayPayload,
-    options: { resumeFrom?: string; correlationId?: string }
+    options: {
+      resumeFrom?: string
+      correlationId?: string
+      receivedAtMs?: number
+    }
   ): Promise<void> {
     const correlationId = options.correlationId
+    const timer = new ReplayTimer(
+      Date.parse(payload.captureAt),
+      Date.now,
+      options.receivedAtMs
+    )
+    timer.set(
+      "queueWaitMs",
+      options.receivedAtMs === undefined
+        ? null
+        : Date.now() - options.receivedAtMs
+    )
+    timer.set("clipSeconds", payload.preRollSeconds + payload.postRollSeconds)
+    timer.set("resumedFrom", options.resumeFrom ?? null)
     const edgeConfig = this.deps.getEdgeConfig()
     const edgeConfigV2 = this.deps.getEdgeConfigV2?.() ?? null
     const existingJob = this.deps.repositories.getReplayJob(
@@ -282,8 +321,8 @@ export class ReplayOrchestrator {
         ? 0
         : Math.max(0, PROGRESS_SEQUENCE.indexOf(job.status as never))
 
-    const progress = new ProgressPipeline((status) =>
-      this.reportProgress(payload.replayRequestId, status, undefined, correlationId)
+    const progress = new ProgressPipeline((status, extras) =>
+      this.reportProgress(payload.replayRequestId, status, extras, correlationId)
     )
 
     try {
@@ -293,8 +332,13 @@ export class ReplayOrchestrator {
         index += 1
       ) {
         const status = PROGRESS_SEQUENCE[index]!
-        await this.advance(payload, status, progress, correlationId)
+        await this.advance(payload, status, progress, timer, correlationId)
       }
+
+      safeLog("info", "Replay timing", {
+        replayRequestId: payload.replayRequestId,
+        ...timer.summary("ready"),
+      })
 
       const ackExtras = this.buildSelectionAckExtras(payload.replayRequestId)
 
@@ -326,6 +370,7 @@ export class ReplayOrchestrator {
         repositories: this.deps.repositories,
       })
     } catch (error) {
+      this.localPublications.delete(payload.replayRequestId)
       // Let queued "capturing"/"extracting" reports land first, otherwise the
       // cloud rejects the failure status as out of order.
       await progress.settle()
@@ -341,6 +386,12 @@ export class ReplayOrchestrator {
         failureReason,
         lastStatus,
         terminalStatus,
+      })
+      safeLog("info", "Replay timing", {
+        replayRequestId: payload.replayRequestId,
+        failureReason,
+        lastStatus: lastStatus ?? null,
+        ...timer.summary("failed"),
       })
 
       const healthReason = failureReason.includes("upload")
@@ -489,18 +540,34 @@ export class ReplayOrchestrator {
     payload: import("../cloud/client.ts").CaptureReplayPayload,
     status: ProgressStatus,
     progress: ProgressPipeline,
+    timer: ReplayTimer,
     correlationId?: string,
   ): Promise<void> {
     if (BACKGROUND_PROGRESS.has(status)) {
-      progress.enqueue(status)
+      // "uploading" carries the venue-LAN links, so the TV can start the clip
+      // while the upload runs.
+      const localPlayback =
+        status === "uploading"
+          ? this.localPublications.get(payload.replayRequestId)
+          : undefined
+      progress.enqueue(status, localPlayback ? { localPlayback } : undefined)
+      if (localPlayback) {
+        this.localPublications.delete(payload.replayRequestId)
+      }
     } else {
       // The cloud must have every earlier status before it can verify.
-      await progress.drain()
+      await timer.time(`${status}DrainMs`, () => progress.drain())
       const uploadResult = this.uploadResults.get(payload.replayRequestId)
-      await this.reportProgress(payload.replayRequestId, status, {
-        checksumSha256: uploadResult?.checksumSha256,
-        sizeBytes: uploadResult?.bytesUploaded,
-      }, correlationId)
+      // "verifying" is the call that makes the cloud check R2 and tell the TV.
+      await timer.time(`${status}ReportMs`, () =>
+        this.reportProgress(payload.replayRequestId, status, {
+          checksumSha256: uploadResult?.checksumSha256,
+          sizeBytes: uploadResult?.bytesUploaded,
+        }, correlationId)
+      )
+      if (status === "verifying") {
+        timer.markSinceTap("tapToVerifiedMs")
+      }
     }
 
     this.deps.repositories.updateReplayJob(payload.replayRequestId, {
@@ -512,18 +579,64 @@ export class ReplayOrchestrator {
     }
 
     if (status === "extracting") {
-      await this.extractClip(payload)
+      await timer.time("extractMs", () => this.extractClip(payload, timer))
+      await this.publishLocally(payload, timer)
     }
 
     if (status === "uploading") {
-      await this.uploadClip(payload)
+      await this.uploadClip(payload, timer)
+    }
+  }
+
+  /**
+   * Hands the cut clip to the local clip server. Never fails the replay: if
+   * it doesn't work the TV simply waits for the R2 copy, as before.
+   */
+  private async publishLocally(
+    payload: import("../cloud/client.ts").CaptureReplayPayload,
+    timer: ReplayTimer,
+  ): Promise<void> {
+    const localClips = this.deps.localClips
+    if (!localClips?.isRunning() || this.deps.env.mode === "simulate") {
+      timer.set("localPlayback", false)
+      return
+    }
+
+    const job = this.deps.repositories.getReplayJob(payload.replayRequestId)
+    if (!job?.localClipPath) {
+      timer.set("localPlayback", false)
+      return
+    }
+
+    const startedAt = Date.now()
+    try {
+      const publication = await localClips.publish(
+        job.localClipPath,
+        payload.preRollSeconds + payload.postRollSeconds,
+      )
+      if (publication) {
+        this.localPublications.set(payload.replayRequestId, publication)
+      }
+      timer.set("localPlayback", Boolean(publication))
+    } catch (error) {
+      timer.set("localPlayback", false)
+      safeLog("warn", "Could not publish clip for local playback", {
+        replayRequestId: payload.replayRequestId,
+        message: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      timer.set("localPublishMs", Date.now() - startedAt)
     }
   }
 
   private async reportProgress(
     replayRequestId: string,
     status: ProgressStatus,
-    extras?: { checksumSha256?: string; sizeBytes?: number },
+    extras?: {
+      checksumSha256?: string
+      sizeBytes?: number
+      localPlayback?: LocalClipPublication
+    },
     correlationId?: string,
   ): Promise<void> {
     const client = this.clientForCorrelation(correlationId)
@@ -534,6 +647,9 @@ export class ReplayOrchestrator {
           ? { checksumSha256: extras.checksumSha256 }
           : {}),
         ...(extras?.sizeBytes ? { sizeBytes: extras.sizeBytes } : {}),
+        ...(extras?.localPlayback
+          ? { localPlayback: extras.localPlayback }
+          : {}),
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -607,7 +723,8 @@ export class ReplayOrchestrator {
   }
 
   private async extractClip(
-    payload: import("../cloud/client.ts").CaptureReplayPayload
+    payload: import("../cloud/client.ts").CaptureReplayPayload,
+    timer?: ReplayTimer
   ): Promise<void> {
     const edgeConfig = this.deps.getEdgeConfig()
     const edgeConfigV2 = this.deps.getEdgeConfigV2?.() ?? null
@@ -616,7 +733,7 @@ export class ReplayOrchestrator {
     const plan = this.resolveCapturePlan(payload, job)
 
     if (!plan) {
-      await this.extractClipLegacy(payload, edgeConfig, edgeConfigV2)
+      await this.extractClipLegacy(payload, edgeConfig, edgeConfigV2, timer)
       return
     }
 
@@ -715,8 +832,11 @@ export class ReplayOrchestrator {
           this.deps.repositories.updateReplayJob(payload.replayRequestId, {
             localClipPath: result.outputPath,
           })
+          timer?.merge(result.timings)
         }
 
+        timer?.set("captureMode", attempt.captureMode)
+        timer?.set("captureAttempt", attempt.ordinal)
         const completedAt = new Date().toISOString()
 
         this.deps.repositories.updateCaptureAttempt(
@@ -789,7 +909,8 @@ export class ReplayOrchestrator {
   private async extractClipLegacy(
     payload: import("../cloud/client.ts").CaptureReplayPayload,
     edgeConfig: EdgeConfig | null,
-    edgeConfigV2: EdgeConfigV2 | null
+    edgeConfigV2: EdgeConfigV2 | null,
+    timer?: ReplayTimer
   ): Promise<void> {
     const camera = getCameraForResource(
       this.deps.env,
@@ -846,6 +967,8 @@ export class ReplayOrchestrator {
         this.deps.repositories.updateReplayJob(payload.replayRequestId, {
           localClipPath: result.outputPath,
         })
+        timer?.merge(result.timings)
+        timer?.set("captureMode", adapter.name)
 
         return
       } catch (error) {
@@ -950,28 +1073,37 @@ export class ReplayOrchestrator {
   }
 
   private async uploadClip(
-    payload: import("../cloud/client.ts").CaptureReplayPayload
+    payload: import("../cloud/client.ts").CaptureReplayPayload,
+    timer?: ReplayTimer
   ): Promise<void> {
     const job = this.deps.repositories.getReplayJob(payload.replayRequestId)
     if (!job?.localClipPath) {
       throw new Error("upload_failed")
     }
 
+    const currentGrant = job.uploadGrant ?? payload.uploadGrant
+    const grantStartedAt = Date.now()
     const grant = await renewUploadGrant(
       this.deps.client,
       payload.mediaAssetId,
-      job.uploadGrant ?? payload.uploadGrant
+      currentGrant
     )
+    timer?.set("grantMs", Date.now() - grantStartedAt)
+    timer?.set("grantRenewed", grant !== currentGrant)
 
     this.deps.repositories.updateReplayJob(payload.replayRequestId, {
       uploadGrant: grant,
     })
 
+    const uploadStartedAt = Date.now()
     const uploaded = await uploadToPresignedUrl({
       grant,
       filePath: job.localClipPath,
       fetchImpl: this.deps.fetchImpl,
     })
+    // Includes reading and hashing the file (small next to the PUT itself).
+    timer?.set("uploadMs", Date.now() - uploadStartedAt)
+    timer?.set("sizeBytes", uploaded.bytesUploaded)
 
     this.uploadResults.set(payload.replayRequestId, uploaded)
   }

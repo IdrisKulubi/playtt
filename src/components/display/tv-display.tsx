@@ -1,5 +1,7 @@
 "use client"
 
+import { useEffect, useState } from "react"
+
 import { TvScoreboardScene } from "@/components/display/tv-scoreboard"
 import {
   TvIdleScene,
@@ -14,6 +16,8 @@ import {
 import { defaultTheme } from "@/lib/display-themes"
 import { hasMatch } from "@/server/scoring/match-setup"
 
+/** How long a venue-PC clip gets to start before the TV tries the next link. */
+const LOCAL_CLIP_START_TIMEOUT_MS = 3_000
 /** Minutes before a booking when the TV switches to "Up next". */
 const UP_NEXT_LEAD_MS = 5 * 60 * 1000
 /** How long the match-won card stays up before the session scene returns. */
@@ -25,8 +29,28 @@ const END_CARD_MS = 90 * 1000
  * the booker's session → up next (5 minutes before) → idle.
  */
 export function VenueTvDisplay({ resourceId }: { resourceId: string }) {
-  const { payload, isLoading, error, replayOverlay, dismissReplayOverlay } =
-    useLiveScore(resourceId)
+  const {
+    payload,
+    isLoading,
+    error,
+    replayOverlay,
+    dismissReplayOverlay,
+    handleReplayError,
+  } = useLiveScore(resourceId)
+
+  // A venue-PC link that can't be reached (TV on another network, browser
+  // blocking it) must not leave the TV waiting: give it a few seconds, then
+  // move on to the next link or the R2 copy.
+  const playbackUrl = replayOverlay?.playbackUrl
+  const isLocal = replayOverlay?.isLocal ?? false
+  const [startedUrl, setStartedUrl] = useState<string | null>(null)
+  useEffect(() => {
+    if (!playbackUrl || !isLocal || startedUrl === playbackUrl) {
+      return
+    }
+    const timer = setTimeout(handleReplayError, LOCAL_CLIP_START_TIMEOUT_MS)
+    return () => clearTimeout(timer)
+  }, [handleReplayError, isLocal, playbackUrl, startedUrl])
 
   if (!payload) {
     return (
@@ -53,7 +77,9 @@ export function VenueTvDisplay({ resourceId }: { resourceId: string }) {
             playsInline
             src={replayOverlay.playbackUrl}
             onEnded={dismissReplayOverlay}
-            onError={dismissReplayOverlay}
+            onError={handleReplayError}
+            // Started: cancels the "can't reach the venue PC" timeout.
+            onLoadedData={() => setStartedUrl(replayOverlay.playbackUrl)}
           />
         </div>
       ) : null}

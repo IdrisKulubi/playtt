@@ -10,6 +10,8 @@ import {
   createKioskReplayRequest,
   getKioskReplayStatus,
 } from "@/server/replays/replay-requests-service"
+import { shouldAttachDisplayPlayback } from "@/server/replays/display-playback-hint"
+import { getDisplayReplayPlaybackGrant } from "@/server/replays/playback"
 
 const bodySchema = z.object({
   clientIdempotencyKey: z.string().trim().min(1),
@@ -19,7 +21,7 @@ type RouteContext = {
   params: Promise<{ resourceId: string }>
 }
 
-export async function GET(_req: NextRequest, routeContext: RouteContext) {
+export async function GET(req: NextRequest, routeContext: RouteContext) {
   const { resourceId } = await routeContext.params
   const status = await getKioskReplayStatus(resourceId)
 
@@ -31,7 +33,51 @@ export async function GET(_req: NextRequest, routeContext: RouteContext) {
     })
   }
 
-  return replayJson(status)
+  // The TV asks for the playback link up front (?playback=1) so it can start
+  // a freshly ready clip without a second request. `seen` is the replay it
+  // already played, so links aren't minted on every poll.
+  const wantsPlayback = req.nextUrl.searchParams.get("playback") === "1"
+  const seenReplayId = req.nextUrl.searchParams.get("seen")
+  const latest =
+    status.latestReplay && !wantsPlayback
+      ? // Venue-LAN links are for the TV only.
+        { ...status.latestReplay, localPlayback: null }
+      : status.latestReplay
+  const publicStatus = { ...status, latestReplay: latest }
+
+  if (
+    wantsPlayback &&
+    latest &&
+    shouldAttachDisplayPlayback({
+      latestReplay: latest,
+      seenReplayId,
+      nowMs: Date.now(),
+    })
+  ) {
+    try {
+      const playback = await getDisplayReplayPlaybackGrant({
+        resourceId,
+        replayId: latest.replayId!,
+      })
+      return replayJson({
+        ...publicStatus,
+        latestReplay: {
+          ...latest,
+          playback: {
+            replayId: playback.replayId,
+            mediaId: playback.mediaId,
+            durationSeconds: playback.durationSeconds,
+            url: playback.grant.url,
+            expiresAt: playback.grant.expiresAt,
+          },
+        },
+      })
+    } catch {
+      // The TV falls back to the playback endpoint.
+    }
+  }
+
+  return replayJson(publicStatus)
 }
 
 export async function POST(req: NextRequest, routeContext: RouteContext) {

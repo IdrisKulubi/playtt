@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises"
 import { pathToFileURL } from "node:url"
+import { join } from "node:path"
 
 import { CredentialManager } from "./auth/credential-manager"
 import type { VenueEdgeEnv } from "./config/env"
@@ -21,6 +22,7 @@ import { SourceHealthEngine } from "./health/engine"
 import { HeartbeatLoop } from "./heartbeat/loop"
 import { createLocalStoragePaths } from "./local-storage/paths"
 import { EdgeRepositories } from "./local-storage/repositories"
+import { LocalClipServer } from "./local-playback/clip-server"
 import { ReplayOrchestrator } from "./replay/orchestrator"
 import { reindexBufferSegmentsFromDisk } from "./recovery/reindex-buffers"
 import { resumeUnfinishedJobs } from "./recovery/resume"
@@ -290,6 +292,7 @@ export async function startVenueEdge(
       repositories,
       paths,
       sourceIds: listBufferingSourceIds(edgeConfigV2OnBoot),
+      segmentSeconds: env.bufferSegmentSeconds,
     })
   }
 
@@ -411,6 +414,27 @@ export async function startVenueEdge(
     () => shouldRunRollingBuffer(env.mode, getCommissioningCompleted()),
   )
 
+  // Venue TVs fetch fresh clips from here instead of waiting for R2.
+  const localClips =
+    env.localPlaybackPort > 0 && env.mode !== "simulate"
+      ? new LocalClipServer({
+          directory: join(env.dataDir, "local-clips"),
+          port: env.localPlaybackPort,
+          advertisedHost: env.localPlaybackHost,
+        })
+      : null
+  if (localClips) {
+    try {
+      await localClips.start()
+    } catch (error) {
+      // e.g. port taken: replays still work, the TV just uses the R2 copy.
+      safeLog("warn", "Local clip server could not start; TVs will use R2", {
+        port: env.localPlaybackPort,
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
   const orchestrator = new ReplayOrchestrator({
     env,
     client,
@@ -420,6 +444,7 @@ export async function startVenueEdge(
     getEdgeConfigV2,
     healthEngine,
     getSimulatorScenario,
+    localClips,
   })
 
   const processor = new CommandProcessor(
@@ -571,6 +596,7 @@ export async function startVenueEdge(
       if (setupHost) {
         await setupHost.stop()
       }
+      await localClips?.stop()
       await bufferRegistry.stopAll()
       database.close()
     },

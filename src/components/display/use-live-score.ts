@@ -83,6 +83,10 @@ export interface ReplayOverlayPayload {
   replayId: string
   mediaId: string
   playbackUrl: string
+  /** Served by the venue PC over the local network (not the R2 copy). */
+  isLocal: boolean
+  /** Links to try, in order, if this one can't be played. */
+  fallbackUrls: string[]
 }
 
 // Safety timeout only: the video closes itself on `ended` (or `error`). It is
@@ -116,6 +120,8 @@ export function useLiveScore(
   const versionRef = useRef<number | null>(null)
   const lastReplayIdRef = useRef<string | null>(null)
   const loadingReplayIdRef = useRef<string | null>(null)
+  /** Replays whose venue-PC links didn't play here; wait for R2 instead. */
+  const localFailedRef = useRef<Set<string>>(new Set())
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const applyPayload = useCallback((next: DisplaySnapshotPayload) => {
@@ -129,6 +135,70 @@ export function useLiveScore(
       clearTimeout(overlayTimerRef.current)
       overlayTimerRef.current = null
     }
+  }, [])
+
+  const showReplayOverlay = useCallback(
+    (
+      replayId: string,
+      playback: {
+        url: string
+        mediaId?: string
+        durationSeconds?: number
+        isLocal?: boolean
+        fallbackUrls?: string[]
+      },
+    ) => {
+      lastReplayIdRef.current = replayId
+      setReplayOverlay({
+        replayId,
+        mediaId: playback.mediaId ?? "",
+        playbackUrl: playback.url,
+        isLocal: playback.isLocal ?? false,
+        fallbackUrls: playback.fallbackUrls ?? [],
+      })
+
+      if (overlayTimerRef.current) {
+        clearTimeout(overlayTimerRef.current)
+      }
+      const durationMs =
+        typeof playback.durationSeconds === "number" && playback.durationSeconds > 0
+          ? playback.durationSeconds * 1000 + REPLAY_OVERLAY_SLACK_MS
+          : REPLAY_OVERLAY_FALLBACK_MS
+      overlayTimerRef.current = setTimeout(() => {
+        setReplayOverlay(null)
+        overlayTimerRef.current = null
+      }, durationMs)
+    },
+    [],
+  )
+
+  /**
+   * The clip couldn't play. Try the next link; when the venue-PC links are
+   * used up, close and let the R2 copy play once it's ready.
+   */
+  const handleReplayError = useCallback(() => {
+    setReplayOverlay((current) => {
+      if (!current) {
+        return current
+      }
+
+      const [next, ...rest] = current.fallbackUrls
+      if (next) {
+        return { ...current, playbackUrl: next, fallbackUrls: rest }
+      }
+
+      if (current.isLocal) {
+        localFailedRef.current.add(current.replayId)
+        if (lastReplayIdRef.current === current.replayId) {
+          lastReplayIdRef.current = null
+        }
+      }
+      if (overlayTimerRef.current) {
+        clearTimeout(overlayTimerRef.current)
+        overlayTimerRef.current = null
+      }
+      return null
+    })
   }, [])
 
   const loadReplayOverlay = useCallback(
@@ -168,24 +238,7 @@ export function useLiveScore(
             continue
           }
 
-          lastReplayIdRef.current = replayId
-          setReplayOverlay({
-            replayId,
-            mediaId: playback.mediaId ?? "",
-            playbackUrl: playback.url,
-          })
-
-          if (overlayTimerRef.current) {
-            clearTimeout(overlayTimerRef.current)
-          }
-          const durationMs =
-            typeof playback.durationSeconds === "number" && playback.durationSeconds > 0
-              ? playback.durationSeconds * 1000 + REPLAY_OVERLAY_SLACK_MS
-              : REPLAY_OVERLAY_FALLBACK_MS
-          overlayTimerRef.current = setTimeout(() => {
-            setReplayOverlay(null)
-            overlayTimerRef.current = null
-          }, durationMs)
+          showReplayOverlay(replayId, { ...playback, url: playback.url })
           return
         }
       } catch {
@@ -194,7 +247,7 @@ export function useLiveScore(
         loadingReplayIdRef.current = null
       }
     },
-    [resourceId],
+    [resourceId, showReplayOverlay],
   )
 
   const fetchSnapshot = useCallback(async () => {
@@ -325,8 +378,13 @@ export function useLiveScore(
     async function discoverReadyReplay() {
       nextDelay = REPLAY_POLL_IDLE_MS
       try {
+        // playback=1: a just-ready clip comes with its link, saving a request.
+        const params = new URLSearchParams({ playback: "1" })
+        if (lastReplayIdRef.current) {
+          params.set("seen", lastReplayIdRef.current)
+        }
         const response = await fetch(
-          `/api/display/v1/resources/${encodeURIComponent(resourceId)}/replay-requests`,
+          `/api/display/v1/resources/${encodeURIComponent(resourceId)}/replay-requests?${params}`,
           { cache: "no-store" },
         )
         if (!response.ok) {
@@ -337,9 +395,19 @@ export function useLiveScore(
           data?: {
             inFlightReplayRequestId?: string | null
             latestReplay?: {
+              id?: string
               replayId?: string
               status?: string
               readyAt?: string | null
+              playback?: {
+                url?: string
+                mediaId?: string
+                durationSeconds?: number
+              } | null
+              localPlayback?: {
+                urls?: string[]
+                durationSeconds?: number
+              } | null
             } | null
           }
         }
@@ -353,13 +421,48 @@ export function useLiveScore(
           ? new Date(latest.readyAt).getTime()
           : Number.NaN
 
+        // Fastest path: the venue PC has the clip before the R2 upload ends.
+        // Only for the capture running now (or one that just finished), so a
+        // reload never replays an old clip.
+        const localUrls = latest?.localPlayback?.urls?.filter(Boolean) ?? []
+        const isCurrent =
+          (latest?.id !== undefined &&
+            latest.id === body.data?.inFlightReplayRequestId) ||
+          (Number.isFinite(readyAt) &&
+            Date.now() - readyAt <= RECENT_REPLAY_WINDOW_MS)
+        if (
+          latest?.replayId &&
+          localUrls.length > 0 &&
+          isCurrent &&
+          lastReplayIdRef.current !== latest.replayId &&
+          loadingReplayIdRef.current !== latest.replayId &&
+          !localFailedRef.current.has(latest.replayId)
+        ) {
+          showReplayOverlay(latest.replayId, {
+            url: localUrls[0]!,
+            fallbackUrls: localUrls.slice(1),
+            durationSeconds: latest.localPlayback?.durationSeconds,
+            isLocal: true,
+          })
+          return
+        }
+
         if (
           latest?.status === "ready" &&
           latest.replayId &&
           Number.isFinite(readyAt) &&
           Date.now() - readyAt <= RECENT_REPLAY_WINDOW_MS
         ) {
-          await loadReplayOverlay(latest.replayId)
+          const playback = latest.playback
+          if (
+            playback?.url &&
+            lastReplayIdRef.current !== latest.replayId &&
+            loadingReplayIdRef.current !== latest.replayId
+          ) {
+            showReplayOverlay(latest.replayId, { ...playback, url: playback.url })
+          } else {
+            await loadReplayOverlay(latest.replayId)
+          }
         }
       } catch {
         // The realtime stream remains the primary path.
@@ -379,7 +482,7 @@ export function useLiveScore(
       cancelled = true
       if (timer) clearTimeout(timer)
     }
-  }, [loadReplayOverlay, resourceId, watchReplays])
+  }, [loadReplayOverlay, resourceId, showReplayOverlay, watchReplays])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -392,6 +495,7 @@ export function useLiveScore(
   }, [fetchSnapshot])
 
   return {
+    handleReplayError,
     payload,
     isLoading,
     error,

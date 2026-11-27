@@ -28,6 +28,14 @@ const progressSchema = z.object({
     .regex(/^[a-f0-9]{64}$/i)
     .optional(),
   sizeBytes: z.number().int().positive().optional(),
+  // Venue-LAN links to the clip; validated and capped by the service.
+  localPlayback: z
+    .object({
+      urls: z.array(z.string().max(512)).min(1).max(8),
+      expiresAt: z.string().max(64),
+      durationSeconds: z.number().positive().max(600).optional(),
+    })
+    .optional(),
 })
 
 export async function POST(
@@ -45,6 +53,7 @@ export async function POST(
       replayRequestId: id,
       toStatus: body.status,
       failureReason: body.failureReason,
+      localPlayback: body.localPlayback,
     })
 
     let completion:

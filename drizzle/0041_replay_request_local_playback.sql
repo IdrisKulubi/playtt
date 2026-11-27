@@ -1,0 +1,1 @@
+ALTER TABLE "replay_requests" ADD COLUMN "local_playback" jsonb;

@@ -3405,6 +3405,16 @@ export const replayRequests = pgTable(
       }
     ),
     failureReason: text("failure_reason"),
+    /**
+     * Venue-LAN links the edge serves the clip from before the R2 upload
+     * finishes, so the table's TV can start it early. Short-lived (minutes);
+     * the URLs only work on the venue network.
+     */
+    localPlayback: jsonb("local_playback").$type<{
+      urls: string[]
+      expiresAt: string
+      durationSeconds?: number
+    }>(),
     dispatchedAt: timestamp("dispatched_at", { withTimezone: true }),
     edgeAcknowledgedAt: timestamp("edge_acknowledged_at", {
       withTimezone: true,

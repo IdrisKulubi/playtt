@@ -34,9 +34,16 @@ import {
   insertReplayRequest,
   listReplayRequestsForLocation,
   resolveVenueEdgeForResource,
+  setReplayRequestLocalPlayback,
   transitionReplayRequestStatus,
   type ReplayRequestRecord,
 } from "@/server/replays/replay-requests-repository"
+import {
+  activeLocalPlayback,
+  sanitizeLocalPlaybackReport,
+  type LocalPlaybackReport,
+} from "@/server/replays/local-playback"
+import { REPLAY_FAILURE_STATUSES } from "@/server/replays/replay-credit-refund"
 import {
   OPERATOR_CANCELABLE_REPLAY_REQUEST_STATUSES,
   OPERATOR_RETRYABLE_REPLAY_REQUEST_STATUSES,
@@ -567,6 +574,10 @@ export async function getKioskReplayStatus(resourceId: string) {
           failureReason: latest.failureReason,
           readyAt: latest.readyAt?.toISOString() ?? null,
           updatedAt: latest.updatedAt.toISOString(),
+          // The display route only passes this on to the TV (?playback=1).
+          localPlayback: REPLAY_FAILURE_STATUSES.has(latest.status)
+            ? null
+            : activeLocalPlayback(latest.localPlayback, Date.now()),
         }
       : null,
   }
@@ -635,6 +646,8 @@ export async function updateReplayRequestProgressFromEdge(input: {
   replayRequestId: string
   toStatus: ReplayRequestRecord["status"]
   failureReason?: string | null
+  /** Venue-LAN links to the clip, sent with "uploading". */
+  localPlayback?: LocalPlaybackReport
 }) {
   const context: TenantContext = {
     tenantId: input.tenantId,
@@ -666,11 +679,25 @@ export async function updateReplayRequestProgressFromEdge(input: {
     )
   }
 
-  return transitionReplayRequestStatus(context, {
+  const updated = await transitionReplayRequestStatus(context, {
     replayRequestId: input.replayRequestId,
     toStatus: input.toStatus,
     failureReason: input.failureReason,
   })
+
+  const localPlayback = input.localPlayback
+    ? sanitizeLocalPlaybackReport(input.localPlayback, Date.now())
+    : null
+  if (localPlayback) {
+    await setReplayRequestLocalPlayback(
+      context,
+      input.replayRequestId,
+      localPlayback
+    )
+    return { ...updated, localPlayback }
+  }
+
+  return updated
 }
 
 export async function listReplayRequestsForOperator(
