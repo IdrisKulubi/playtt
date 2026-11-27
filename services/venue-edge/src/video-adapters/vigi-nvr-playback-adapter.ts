@@ -108,9 +108,10 @@ export class VigiNvrPlaybackAdapter implements VideoAdapter {
 
     const expectedDuration = request.preRollSeconds + request.postRollSeconds
     let extractionMethod = "stream_copy"
+    let validated: Awaited<ReturnType<typeof assertReplayClip>> | null = null
     if (result.exitCode === 0) {
       try {
-        await assertReplayClip(request.outputPath, expectedDuration)
+        validated = await assertReplayClip(request.outputPath, expectedDuration)
       } catch {
         result = { ...result, exitCode: 1 }
       }
@@ -150,7 +151,9 @@ export class VigiNvrPlaybackAdapter implements VideoAdapter {
       throw new Error(result.stderr.trim() || "extraction_failed")
     }
 
-    const validated = await assertReplayClip(request.outputPath, expectedDuration)
+    if (extractionMethod !== "stream_copy" || !validated) {
+      validated = await assertReplayClip(request.outputPath, expectedDuration)
+    }
 
     safeLog("info", "Replay clip extracted and validated", {
       replayRequestId: request.replayRequestId,

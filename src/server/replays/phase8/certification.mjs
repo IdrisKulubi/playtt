@@ -24,10 +24,10 @@ export async function certifySingleVenueClipWindow() {
 
   return stepFromCheck(
     "single_venue_clip_window",
-    "Single-venue fixture uses a 15-second replay window and H.264 source",
+    "Single-venue fixture uses a bounded replay window and H.264 source",
     evidence.codec === "h264" &&
-      clip.clipDurationSeconds === 15 &&
-      evidence.clipWindowSeconds === 15,
+      evidence.clipWindowSeconds >= clip.minClipSeconds &&
+      evidence.clipWindowSeconds <= clip.maxClipSeconds,
     {
       codec: evidence.codec,
       clipWindowSeconds: evidence.clipWindowSeconds,

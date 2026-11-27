@@ -1,4 +1,6 @@
 import {
+  MAX_REPLAY_CLIP_SECONDS,
+  MIN_REPLAY_CLIP_SECONDS,
   REPLAY_CLIP_DURATION_SECONDS,
   REPLAY_POST_ROLL_SECONDS,
   REPLAY_PRE_ROLL_SECONDS,
@@ -18,9 +20,18 @@ export function assertClipOnlyUploadPolicy(): {
   clipDurationSeconds: number
   preRollSeconds: number
   postRollSeconds: number
+  minClipSeconds: number
+  maxClipSeconds: number
 } {
-  if (REPLAY_CLIP_DURATION_SECONDS !== 15) {
-    throw new Error("Replay clip duration must remain 15 seconds for certification.")
+  // Clips are admin-configurable, but always a short bounded window: never
+  // longer than the edge buffer holds, never a continuous stream.
+  if (
+    MIN_REPLAY_CLIP_SECONDS < 1 ||
+    MAX_REPLAY_CLIP_SECONDS > 60 ||
+    REPLAY_CLIP_DURATION_SECONDS < MIN_REPLAY_CLIP_SECONDS ||
+    REPLAY_CLIP_DURATION_SECONDS > MAX_REPLAY_CLIP_SECONDS
+  ) {
+    throw new Error("Replay clip duration must stay within the certified 1-60 second window.")
   }
 
   if (REPLAY_PRE_ROLL_SECONDS + REPLAY_POST_ROLL_SECONDS !== REPLAY_CLIP_DURATION_SECONDS) {
@@ -31,6 +42,8 @@ export function assertClipOnlyUploadPolicy(): {
     clipDurationSeconds: REPLAY_CLIP_DURATION_SECONDS,
     preRollSeconds: REPLAY_PRE_ROLL_SECONDS,
     postRollSeconds: REPLAY_POST_ROLL_SECONDS,
+    minClipSeconds: MIN_REPLAY_CLIP_SECONDS,
+    maxClipSeconds: MAX_REPLAY_CLIP_SECONDS,
   }
 }
 

@@ -39,6 +39,7 @@ export function VenueTvDisplay({ resourceId }: { resourceId: string }) {
   return (
     <>
       <TvBoard payload={payload} />
+      {/* onError: a clip that can't play must not leave the TV stuck on black. */}
       {replayOverlay ? (
         <div className="tv-fade fixed inset-0 z-50 flex flex-col items-center justify-center bg-black px-[4vw]">
           <p className="mb-[2.4vh] self-start font-mono text-[1.7vh] tracking-[0.28em] text-white/70 uppercase">
@@ -52,6 +53,7 @@ export function VenueTvDisplay({ resourceId }: { resourceId: string }) {
             playsInline
             src={replayOverlay.playbackUrl}
             onEnded={dismissReplayOverlay}
+            onError={dismissReplayOverlay}
           />
         </div>
       ) : null}

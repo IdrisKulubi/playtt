@@ -35,6 +35,8 @@ export async function GET(_req: NextRequest, routeContext: RouteContext) {
 }
 
 export async function POST(req: NextRequest, routeContext: RouteContext) {
+  // Taken first so the clip lines up with the tap, not with our DB round trips.
+  const requestedAt = new Date()
   try {
     let requestBody: unknown
 
@@ -53,6 +55,7 @@ export async function POST(req: NextRequest, routeContext: RouteContext) {
     const result = await createKioskReplayRequest({
       resourceId,
       clientIdempotencyKey: body.clientIdempotencyKey,
+      requestedAt,
     })
 
     return replayJson(result, 201)

@@ -82,6 +82,22 @@ function isRecentFailure(updatedAt: string | undefined) {
 const IDLE_POLL_MS = 5_000
 const PROCESSING_POLL_MS = 1_000
 const SUCCESS_MS = 4_000
+/**
+ * After a tap, polls that don't mention the new request yet are stale (the
+ * POST hasn't committed, or a read raced it). They're ignored for this long
+ * since the request was last seen, so the screen never flips back to the
+ * buttons mid-capture.
+ */
+const PENDING_STALE_GRACE_MS = 15_000
+/** A capture that's been "in progress" this long is treated as lost. */
+const PENDING_MAX_MS = 3 * 60_000
+
+type PendingReplay = {
+  replayRequestId: string | null
+  replayId: string | null
+  startedAt: number
+  lastSeenAt: number
+}
 
 const CAPTURE_STAGES = [
   {
@@ -128,15 +144,20 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
   const [status, setStatus] = useState<KioskStatus | null>(null)
   const [viewState, setViewState] = useState<ViewState>("loading")
   const [notice, setNotice] = useState<KioskNotice | null>(null)
-  const pendingReplayIdRef = useRef<string | null>(null)
+  // The tap we're waiting on. While set, stale polls can't reset the screen.
+  const pendingRef = useRef<PendingReplay | null>(null)
   const idempotencyKeyRef = useRef<string | null>(null)
   const dismissedFailureIdRef = useRef<string | null>(null)
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Responses can land out of order; only the newest request may update state.
+  const fetchSeqRef = useRef(0)
+  const appliedSeqRef = useRef(0)
   // Match state comes from the same snapshot + stream the TV reads.
   const live = useLiveScore(resourceId, { replayOverlay: false })
   const now = useNow(30_000)
 
-  const fetchStatus = useCallback(async () => {
+  const fetchStatus = useCallback(async (): Promise<KioskStatus | null> => {
+    const seq = ++fetchSeqRef.current
     const response = await fetch(
       `/api/display/v1/resources/${encodeURIComponent(resourceId)}/replay-requests`,
       { cache: "no-store" },
@@ -147,11 +168,78 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
     }
 
     const body = (await response.json()) as { data: KioskStatus }
-    setStatus(body.data)
+
+    if (seq < appliedSeqRef.current) {
+      // A newer response already landed; this one would roll the screen back.
+      return null
+    }
+    appliedSeqRef.current = seq
+
+    setStatus((current) => {
+      const pending = pendingRef.current
+      // Keep the optimistic in-flight info until the server reports it.
+      if (pending && !body.data.inFlightReplayRequestId && current?.inFlightReplay) {
+        return { ...body.data, inFlightReplayRequestId: current.inFlightReplayRequestId, inFlightReplay: current.inFlightReplay }
+      }
+      return body.data
+    })
     return body.data
   }, [resourceId])
 
-  const applyStatusToView = useCallback((next: KioskStatus) => {
+  const finishPending = useCallback(() => {
+    pendingRef.current = null
+    idempotencyKeyRef.current = null
+  }, [])
+
+  const applyStatusToView = useCallback((next: KioskStatus | null) => {
+    if (!next) return
+
+    const pending = pendingRef.current
+    if (pending) {
+      const nowMs = Date.now()
+      const inFlightId = next.inFlightReplayRequestId
+
+      if (
+        inFlightId &&
+        (pending.replayRequestId === null || pending.replayRequestId === inFlightId)
+      ) {
+        pending.lastSeenAt = nowMs
+        if (nowMs - pending.startedAt < PENDING_MAX_MS) {
+          setViewState("processing")
+          return
+        }
+      }
+
+      const latest = next.latestReplay
+      if (pending.replayId && latest?.replayId === pending.replayId) {
+        if (latest.status === "ready") {
+          finishPending()
+          setViewState("success")
+          setNotice(null)
+          return
+        }
+
+        if (CAPTURE_FAILURE_STATUSES.has(latest.status)) {
+          finishPending()
+          setViewState("error")
+          setNotice(noticeForCaptureFailure(latest.status, latest.failureReason))
+          return
+        }
+      }
+
+      // This snapshot doesn't know about the tap yet: keep the progress screen.
+      if (
+        nowMs - pending.lastSeenAt < PENDING_STALE_GRACE_MS &&
+        nowMs - pending.startedAt < PENDING_MAX_MS
+      ) {
+        setViewState("processing")
+        return
+      }
+
+      // Lost track of it (session ended, or the request vanished).
+      finishPending()
+    }
+
     if (next.status === "idle") {
       setViewState("idle")
       return
@@ -159,18 +247,6 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
 
     if (next.inFlightReplayRequestId) {
       setViewState("processing")
-      return
-    }
-
-    if (
-      pendingReplayIdRef.current &&
-      next.latestReplay?.status === "ready" &&
-      next.latestReplay.replayId === pendingReplayIdRef.current
-    ) {
-      pendingReplayIdRef.current = null
-      idempotencyKeyRef.current = null
-      setViewState("success")
-      setNotice(null)
       return
     }
 
@@ -193,7 +269,7 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
     }
 
     setViewState("ready")
-  }, [])
+  }, [finishPending])
 
   useEffect(() => {
     let cancelled = false
@@ -276,15 +352,14 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
           return
         }
 
-        if (
-          pendingReplayIdRef.current &&
-          hint.replayId !== pendingReplayIdRef.current
-        ) {
+        const pending = pendingRef.current
+        // Mid-tap (POST not back yet) we can't tell whose clip this is; the
+        // next poll will match it by id instead.
+        if (pending && hint.replayId !== pending.replayId) {
           return
         }
 
-        pendingReplayIdRef.current = null
-        idempotencyKeyRef.current = null
+        finishPending()
         setViewState("success")
         setNotice(null)
       } catch {
@@ -295,7 +370,7 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
     return () => {
       source.close()
     }
-  }, [resourceId])
+  }, [finishPending, resourceId])
 
   const closeNotice = useCallback(() => {
     dismissedFailureIdRef.current = status?.latestReplay?.id ?? null
@@ -314,14 +389,23 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
   }, [closeNotice, notice, viewState])
 
   const handleReplayTap = async () => {
-    if (viewState === "processing") {
+    if (viewState === "processing" || pendingRef.current) {
       return
     }
 
+    // Reused after a network failure, so a retry can't charge twice for a
+    // request the server did receive.
     const clientIdempotencyKey =
       idempotencyKeyRef.current ?? createIdempotencyKey()
     idempotencyKeyRef.current = clientIdempotencyKey
 
+    const tappedAt = Date.now()
+    pendingRef.current = {
+      replayRequestId: null,
+      replayId: null,
+      startedAt: tappedAt,
+      lastSeenAt: tappedAt,
+    }
     setViewState("processing")
     setNotice(null)
 
@@ -335,14 +419,22 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
         },
       )
 
-      const body = (await response.json()) as {
+      const body = (await response.json().catch(() => ({}))) as {
         data?: ReplayRequestResult
         code?: string
         message?: string
       }
 
       if (!response.ok) {
-        idempotencyKeyRef.current = null
+        finishPending()
+        if (body.code === "REPLAY_IN_FLIGHT") {
+          // Someone already tapped: follow that capture instead of erroring.
+          setViewState("processing")
+          void fetchStatus()
+            .then((next) => applyStatusToView(next))
+            .catch(() => undefined)
+          return
+        }
         setViewState("error")
         setNotice(noticeForRequestError(body.code))
         return
@@ -351,13 +443,17 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
       const result = body.data
 
       if (!result) {
-        idempotencyKeyRef.current = null
+        finishPending()
         setViewState("error")
         setNotice(noticeForRequestError(undefined))
         return
       }
 
-      pendingReplayIdRef.current = result.replayId
+      if (pendingRef.current) {
+        pendingRef.current.replayRequestId = result.replayRequestId
+        pendingRef.current.replayId = result.replayId
+        pendingRef.current.lastSeenAt = Date.now()
+      }
       dismissedFailureIdRef.current = null
       idempotencyKeyRef.current = null
 
@@ -370,13 +466,14 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
               inFlightReplay: {
                 id: result.replayRequestId,
                 status: result.status,
-                requestedAt: new Date().toISOString(),
+                requestedAt: new Date(tappedAt).toISOString(),
               },
             }
           : current,
       )
     } catch {
-      idempotencyKeyRef.current = null
+      // Keep the idempotency key: if the server did get it, the retry reuses it.
+      pendingRef.current = null
       setViewState("error")
       setNotice(NETWORK_NOTICE)
     }
@@ -478,7 +575,7 @@ export function TableReplayKiosk({ resourceId }: { resourceId: string }) {
               ))}
             </div>
             <p className="mt-5 tabular-nums text-sm text-white/50">
-              <ElapsedSeconds since={status?.inFlightReplay?.requestedAt} />s elapsed · Most replays are ready in about 15 seconds
+              <ElapsedSeconds since={status?.inFlightReplay?.requestedAt} />s elapsed
             </p>
             <p className="mt-2 text-sm text-white/50">
               It will play on the TV first, then we’ll send the email.

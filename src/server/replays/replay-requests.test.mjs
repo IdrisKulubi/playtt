@@ -50,10 +50,10 @@ test("seed includes replay_edge feature flag", () => {
   assert.match(featureEnvFallbackSource, /REPLAY_EDGE_FLAG_KEY = "replay_edge"/)
 })
 
-test("replay timing constants use 12s pre-roll and 3s post-roll", () => {
-  assert.equal(REPLAY_PRE_ROLL_SECONDS, 12)
+test("replay timing defaults to a 40s clip: 37s pre-roll and 3s post-roll", () => {
+  assert.equal(REPLAY_PRE_ROLL_SECONDS, 37)
   assert.equal(REPLAY_POST_ROLL_SECONDS, 3)
-  assert.equal(REPLAY_CLIP_DURATION_SECONDS, 15)
+  assert.equal(REPLAY_CLIP_DURATION_SECONDS, 40)
   assert.equal(
     REPLAY_PRE_ROLL_SECONDS + REPLAY_POST_ROLL_SECONDS,
     REPLAY_CLIP_DURATION_SECONDS
@@ -375,4 +375,41 @@ test("activity highlights link ready replays to playback page", () => {
   )
 
   assert.match(activityPage, /\/replays\/\$\{replay\.id\}/)
+})
+
+test("replay duration comes from request metadata, old rows stay 15s", async () => {
+  const { replayDurationSeconds, LEGACY_REPLAY_CLIP_SECONDS } = await import(
+    "./constants.ts"
+  )
+  assert.equal(replayDurationSeconds({ clipDurationSeconds: 50 }), 50)
+  assert.equal(replayDurationSeconds({}), LEGACY_REPLAY_CLIP_SECONDS)
+  assert.equal(replayDurationSeconds(null), 15)
+  assert.equal(replayDurationSeconds({ clipDurationSeconds: "40" }), 15)
+})
+
+test("kiosk replay requests anchor the clip to the tap and use admin clip length", () => {
+  const service = readFileSync(join(replaysRoot, "replay-requests-service.ts"), "utf8")
+  const kioskRoute = readFileSync(
+    join(repoRoot, "src/app/api/display/v1/resources/[resourceId]/replay-requests/route.ts"),
+    "utf8",
+  )
+  assert.match(service, /const captureAt = input\.requestedAt \?\? new Date\(\)/)
+  assert.match(service, /loadReplayClipSettings\(input\.context\.tenantId\)/)
+  assert.doesNotMatch(service, /REPLAY_PRE_ROLL_SECONDS/)
+  assert.match(kioskRoute, /requestedAt/)
+})
+
+test("admin clip length is bounded and falls back to the default", async () => {
+  const { clipWindowFor, isValidClipDuration } = await import("./constants.ts")
+  assert.deepEqual(clipWindowFor(30), {
+    clipDurationSeconds: 30,
+    preRollSeconds: 27,
+    postRollSeconds: 3,
+  })
+  assert.equal(clipWindowFor(undefined).clipDurationSeconds, 40)
+  assert.equal(clipWindowFor(5).clipDurationSeconds, 40)
+  assert.equal(clipWindowFor(61).clipDurationSeconds, 40)
+  assert.equal(clipWindowFor(32.5).clipDurationSeconds, 40)
+  assert.equal(isValidClipDuration(10), true)
+  assert.equal(isValidClipDuration(60), true)
 })

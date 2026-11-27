@@ -20,7 +20,9 @@ test("phase8 simulator certification passes", async () => {
 
 test("phase8 privacy invariants hold", () => {
   const clip = assertClipOnlyUploadPolicy()
-  assert.equal(clip.clipDurationSeconds, 15)
+  assert.equal(clip.clipDurationSeconds, 40)
+  assert.equal(clip.preRollSeconds + clip.postRollSeconds, clip.clipDurationSeconds)
+  assert.ok(clip.maxClipSeconds <= 60)
   assert.equal(assertDiagnosticsRedaction(), true)
   assert.equal(assertNoContinuousStreamUploadPaths(), true)
 })

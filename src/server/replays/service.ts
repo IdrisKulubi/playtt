@@ -10,7 +10,10 @@ import {
   PaystackApiError,
 } from "@/server/payments/paystack-client"
 import { PaymentServiceError } from "@/server/payments/errors"
-import { REPLAY_CLIP_DURATION_SECONDS } from "@/server/replays/constants"
+import {
+  REPLAY_CLIP_DURATION_SECONDS,
+  replayDurationSeconds,
+} from "@/server/replays/constants"
 import { ReplayServiceError } from "@/server/replays/errors"
 import { loadReplayClipPricing } from "@/server/replays/pricing"
 import { isReplayEdgeEnabledForTenant } from "@/server/replays/feature-policy"
@@ -288,7 +291,7 @@ export async function listUserReplays(context: TenantContext, userId: string) {
         id: row.id,
         title: metadataTitle(row.title as Record<string, unknown> | null),
         recordedAt: (row.readyAt ?? row.requestedAt).toISOString(),
-        durationSeconds: REPLAY_CLIP_DURATION_SECONDS,
+        durationSeconds: replayDurationSeconds(row.title),
         locationName: row.locationName,
         status: row.status,
         isFavorite: Boolean(row.favoritedAt),

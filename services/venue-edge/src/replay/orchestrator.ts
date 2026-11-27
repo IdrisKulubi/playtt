@@ -56,6 +56,104 @@ const PROGRESS_SEQUENCE = [
   "ready",
 ] as const
 
+type ProgressStatus = (typeof PROGRESS_SEQUENCE)[number]
+
+/**
+ * These are status updates only; the work doesn't depend on the cloud's
+ * answer. They are sent in the background (in order) so capture, cut and
+ * upload never wait on a round trip. "verifying" and "ready" stay blocking:
+ * verifying is what makes the cloud check the upload and tell the TV.
+ */
+const BACKGROUND_PROGRESS = new Set<ProgressStatus>([
+  "edge_acknowledged",
+  "capturing",
+  "extracting",
+  "uploading",
+])
+
+const PROGRESS_RETRY_DELAY_MS = 300
+
+/**
+ * Sends progress reports one at a time, in order, without blocking the
+ * caller. If one fails it stops (later statuses would be rejected as out of
+ * order) and `drain()` retries what's left before the capture moves on.
+ */
+export class ProgressPipeline {
+  private readonly queue: ProgressStatus[] = []
+  private worker: Promise<void> | null = null
+  private error: unknown = null
+
+  constructor(
+    private readonly send: (status: ProgressStatus) => Promise<void>,
+    private readonly retryDelayMs = PROGRESS_RETRY_DELAY_MS,
+  ) {}
+
+  enqueue(status: ProgressStatus): void {
+    this.queue.push(status)
+    if (!this.worker && this.error === null) {
+      this.worker = this.run().finally(() => {
+        this.worker = null
+      })
+    }
+  }
+
+  /** Waits until every queued report is accepted; throws if one can't be sent. */
+  async drain(): Promise<void> {
+    while (this.worker) {
+      await this.worker
+    }
+
+    if (this.error === null) {
+      return
+    }
+
+    this.error = null
+    try {
+      while (this.queue.length > 0) {
+        await this.send(this.queue[0]!)
+        this.queue.shift()
+      }
+    } catch (error) {
+      // Keep the unsent statuses queued (and the queue paused) for next time.
+      this.error = error
+      throw error
+    }
+  }
+
+  /** Waits for in-flight reports without throwing (used on the failure path). */
+  async settle(): Promise<void> {
+    while (this.worker) {
+      await this.worker.catch(() => undefined)
+    }
+  }
+
+  private async run(): Promise<void> {
+    while (this.queue.length > 0) {
+      const status = this.queue[0]!
+      try {
+        await this.sendWithRetry(status)
+        this.queue.shift()
+      } catch (error) {
+        this.error = error
+        safeLog("warn", "Background replay progress failed; will retry", {
+          status,
+          message: error instanceof Error ? error.message : String(error),
+        })
+        return
+      }
+    }
+  }
+
+  private async sendWithRetry(status: ProgressStatus): Promise<void> {
+    try {
+      await this.send(status)
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, this.retryDelayMs))
+      await this.send(status)
+    }
+  }
+}
+
 export class ReplayOrchestrator {
   private readonly limiter
   private readonly uploadResults = new Map<string, DirectUploadResult>()
@@ -184,6 +282,10 @@ export class ReplayOrchestrator {
         ? 0
         : Math.max(0, PROGRESS_SEQUENCE.indexOf(job.status as never))
 
+    const progress = new ProgressPipeline((status) =>
+      this.reportProgress(payload.replayRequestId, status, undefined, correlationId)
+    )
+
     try {
       for (
         let index = startIndex;
@@ -191,7 +293,7 @@ export class ReplayOrchestrator {
         index += 1
       ) {
         const status = PROGRESS_SEQUENCE[index]!
-        await this.advance(payload, status, commandId, correlationId)
+        await this.advance(payload, status, progress, correlationId)
       }
 
       const ackExtras = this.buildSelectionAckExtras(payload.replayRequestId)
@@ -224,6 +326,9 @@ export class ReplayOrchestrator {
         repositories: this.deps.repositories,
       })
     } catch (error) {
+      // Let queued "capturing"/"extracting" reports land first, otherwise the
+      // cloud rejects the failure status as out of order.
+      await progress.settle()
       const failureReason =
         error instanceof Error ? error.message : "capture_failed"
       const lastStatus = this.deps.repositories.getReplayJob(
@@ -382,22 +487,21 @@ export class ReplayOrchestrator {
 
   private async advance(
     payload: import("../cloud/client.ts").CaptureReplayPayload,
-    status: (typeof PROGRESS_SEQUENCE)[number],
-    commandId: string,
+    status: ProgressStatus,
+    progress: ProgressPipeline,
     correlationId?: string,
   ): Promise<void> {
-    const uploadResult = this.uploadResults.get(payload.replayRequestId)
-
-    await this.reportProgress(payload.replayRequestId, status, {
-      checksumSha256:
-        status === "verifying" || status === "ready"
-          ? uploadResult?.checksumSha256
-          : undefined,
-      sizeBytes:
-        status === "verifying" || status === "ready"
-          ? uploadResult?.bytesUploaded
-          : undefined,
-    }, correlationId)
+    if (BACKGROUND_PROGRESS.has(status)) {
+      progress.enqueue(status)
+    } else {
+      // The cloud must have every earlier status before it can verify.
+      await progress.drain()
+      const uploadResult = this.uploadResults.get(payload.replayRequestId)
+      await this.reportProgress(payload.replayRequestId, status, {
+        checksumSha256: uploadResult?.checksumSha256,
+        sizeBytes: uploadResult?.bytesUploaded,
+      }, correlationId)
+    }
 
     this.deps.repositories.updateReplayJob(payload.replayRequestId, {
       status: status as never,
@@ -418,7 +522,7 @@ export class ReplayOrchestrator {
 
   private async reportProgress(
     replayRequestId: string,
-    status: (typeof PROGRESS_SEQUENCE)[number],
+    status: ProgressStatus,
     extras?: { checksumSha256?: string; sizeBytes?: number },
     correlationId?: string,
   ): Promise<void> {

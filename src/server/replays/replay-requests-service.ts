@@ -17,10 +17,7 @@ import { getMediaStore } from "@/server/media/factory"
 import { isPrivateMediaEnabledForTenant } from "@/server/media/feature-policy"
 import { buildMediaObjectKey } from "@/server/media/object-keys"
 import { insertMediaAsset, getMediaAssetById } from "@/server/media/repository"
-import {
-  REPLAY_POST_ROLL_SECONDS,
-  REPLAY_PRE_ROLL_SECONDS,
-} from "@/server/replays/constants"
+import { loadReplayClipSettings } from "@/server/replays/clip-settings"
 import { ReplayServiceError } from "@/server/replays/errors"
 import { isReplayEdgeEnabledForTenant } from "@/server/replays/feature-policy"
 import { buildCaptureReplayCommandPayload } from "@/server/replays/capture-replay-command"
@@ -200,8 +197,13 @@ export async function createReplayRequest(input: {
   playSessionId: string
   clientIdempotencyKey: string
   requestSource?: string
+  /** When the player tapped. Defaults to now; the clip ends just after it. */
+  requestedAt?: Date
 }) {
   authorize(input.context, "booking.read")
+  // Anchor the clip to the tap, not to when the queries below finish: the edge
+  // waits until captureAt + post-roll, so every ms here is a ms the TV waits.
+  const captureAt = input.requestedAt ?? new Date()
 
   const session = await getActivePlaySessionForReplayRequest(input.context, {
     playSessionId: input.playSessionId,
@@ -235,10 +237,10 @@ export async function createReplayRequest(input: {
     )
   }
 
-  const venueEdge = await resolveVenueEdgeForResource(
-    input.context,
-    session.resourceId
-  )
+  const [venueEdge, clipSettings] = await Promise.all([
+    resolveVenueEdgeForResource(input.context, session.resourceId),
+    loadReplayClipSettings(input.context.tenantId),
+  ])
 
   if (!venueEdge) {
     throw new ReplayServiceError(
@@ -248,9 +250,9 @@ export async function createReplayRequest(input: {
     )
   }
 
+  const { clipDurationSeconds, preRollSeconds, postRollSeconds } = clipSettings
   const mediaId = randomUUID()
   const correlationId = input.context.correlationId || createCorrelationId()
-  const captureAt = new Date()
   const objectKey = buildMediaObjectKey({
     tenantId: session.tenantId,
     locationId: session.locationId,
@@ -393,6 +395,7 @@ export async function createReplayRequest(input: {
         metadata: {
           source: input.requestSource ?? "replay_edge",
           replayRequestCorrelationId: correlationId,
+          clipDurationSeconds,
         },
       })
       .returning()
@@ -432,8 +435,8 @@ export async function createReplayRequest(input: {
         configRevisionId,
         sourceType: "edge_buffer",
         captureAt,
-        preRollSeconds: REPLAY_PRE_ROLL_SECONDS,
-        postRollSeconds: REPLAY_POST_ROLL_SECONDS,
+        preRollSeconds,
+        postRollSeconds,
         status: "authorized",
         correlationId,
         clientIdempotencyKey: input.clientIdempotencyKey,
@@ -452,8 +455,8 @@ export async function createReplayRequest(input: {
           mediaAssetId: mediaId,
           objectKey,
           captureAt: captureAt.toISOString(),
-          preRollSeconds: REPLAY_PRE_ROLL_SECONDS,
-          postRollSeconds: REPLAY_POST_ROLL_SECONDS,
+          preRollSeconds,
+          postRollSeconds,
           sourceType: "edge_buffer",
           resourceId: session.resourceId,
           playSessionId: session.id,
@@ -572,6 +575,7 @@ export async function getKioskReplayStatus(resourceId: string) {
 export async function createKioskReplayRequest(input: {
   resourceId: string
   clientIdempotencyKey: string
+  requestedAt?: Date
 }) {
   const snapshot = await getDisplaySnapshotForResource(input.resourceId)
 
@@ -621,6 +625,7 @@ export async function createKioskReplayRequest(input: {
     playSessionId: sessionOwner.playSessionId,
     clientIdempotencyKey: input.clientIdempotencyKey,
     requestSource: "table_kiosk",
+    requestedAt: input.requestedAt,
   })
 }
 

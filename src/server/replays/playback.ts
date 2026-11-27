@@ -7,7 +7,7 @@ import {
   createPlaybackGrantForMediaAsset,
   createPlaybackGrantForReadyMedia,
 } from "@/server/media/service"
-import { REPLAY_CLIP_DURATION_SECONDS } from "@/server/replays/constants"
+import { replayDurationSeconds } from "@/server/replays/constants"
 import { ReplayServiceError } from "@/server/replays/errors"
 import { authorize } from "@/server/tenancy/authorize-context.mjs"
 import type { TenantContext } from "@/server/tenancy/types"
@@ -210,7 +210,7 @@ export async function getReplayDetailForUser(
     title: metadataTitle(replay.metadata as Record<string, unknown> | null),
     status: replay.status,
     recordedAt: (replay.readyAt ?? replay.requestedAt).toISOString(),
-    durationSeconds: REPLAY_CLIP_DURATION_SECONDS,
+    durationSeconds: replayDurationSeconds(replay.metadata),
     bookingId: replay.bookingId,
     mediaId: replay.mediaAssetId,
     playbackUrl: playback.grant.url,
@@ -229,6 +229,7 @@ export async function getDisplayReplayPlaybackGrant(input: {
       id: replays.id,
       mediaAssetId: replays.mediaAssetId,
       status: replays.status,
+      metadata: replays.metadata,
       resourceId: playSessions.resourceId,
       playSessionCorrelationId: playSessions.correlationId,
       replayRequestCorrelationId: replayRequests.correlationId,
@@ -275,6 +276,7 @@ export async function getDisplayReplayPlaybackGrant(input: {
   return {
     replayId: scoped.id,
     mediaId: scoped.mediaAssetId,
+    durationSeconds: replayDurationSeconds(scoped.metadata),
     grant,
   }
 }

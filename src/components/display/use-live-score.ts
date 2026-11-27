@@ -85,11 +85,15 @@ export interface ReplayOverlayPayload {
   playbackUrl: string
 }
 
-// Safety timeout only. The video normally closes itself on `ended`, so a full
-// 15-second replay is never cut short by the display overlay.
-const REPLAY_OVERLAY_MS = 30_000
+// Safety timeout only: the video closes itself on `ended` (or `error`). It is
+// the clip's own length plus slack, so a long clip is never cut short.
+const REPLAY_OVERLAY_SLACK_MS = 20_000
+/** Used when an older server doesn't say how long the clip is. */
+const REPLAY_OVERLAY_FALLBACK_MS = 90_000
 const POLL_MS = 5_000
-const REPLAY_POLL_MS = 2_000
+/** Replay discovery: fast while a capture is running, relaxed otherwise. */
+const REPLAY_POLL_ACTIVE_MS = 1_000
+const REPLAY_POLL_IDLE_MS = 3_000
 const RECENT_REPLAY_WINDOW_MS = 60_000
 const PLAYBACK_RETRY_DELAYS_MS = [0, 250, 500, 1_000] as const
 
@@ -154,7 +158,9 @@ export function useLiveScore(
           }
 
           const body = (await response.json()) as {
-            data?: { playback?: { url?: string; mediaId?: string } }
+            data?: {
+              playback?: { url?: string; mediaId?: string; durationSeconds?: number }
+            }
           }
           const playback = body.data?.playback
 
@@ -172,10 +178,14 @@ export function useLiveScore(
           if (overlayTimerRef.current) {
             clearTimeout(overlayTimerRef.current)
           }
+          const durationMs =
+            typeof playback.durationSeconds === "number" && playback.durationSeconds > 0
+              ? playback.durationSeconds * 1000 + REPLAY_OVERLAY_SLACK_MS
+              : REPLAY_OVERLAY_FALLBACK_MS
           overlayTimerRef.current = setTimeout(() => {
             setReplayOverlay(null)
             overlayTimerRef.current = null
-          }, REPLAY_OVERLAY_MS)
+          }, durationMs)
           return
         }
       } catch {
@@ -308,7 +318,12 @@ export function useLiveScore(
       return
     }
 
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | null = null
+    let nextDelay = REPLAY_POLL_IDLE_MS
+
     async function discoverReadyReplay() {
+      nextDelay = REPLAY_POLL_IDLE_MS
       try {
         const response = await fetch(
           `/api/display/v1/resources/${encodeURIComponent(resourceId)}/replay-requests`,
@@ -320,12 +335,18 @@ export function useLiveScore(
 
         const body = (await response.json()) as {
           data?: {
+            inFlightReplayRequestId?: string | null
             latestReplay?: {
               replayId?: string
               status?: string
               readyAt?: string | null
             } | null
           }
+        }
+        if (body.data?.inFlightReplayRequestId) {
+          // A capture is running: check every second so the TV starts the
+          // moment it's ready (the realtime stream may not reach this server).
+          nextDelay = REPLAY_POLL_ACTIVE_MS
         }
         const latest = body.data?.latestReplay
         const readyAt = latest?.readyAt
@@ -345,9 +366,19 @@ export function useLiveScore(
       }
     }
 
-    void discoverReadyReplay()
-    const interval = setInterval(discoverReadyReplay, REPLAY_POLL_MS)
-    return () => clearInterval(interval)
+    // Chained timeouts, not an interval: a slow response never stacks requests.
+    async function loop() {
+      await discoverReadyReplay()
+      if (!cancelled) {
+        timer = setTimeout(() => void loop(), nextDelay)
+      }
+    }
+
+    void loop()
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+    }
   }, [loadReplayOverlay, resourceId, watchReplays])
 
   useEffect(() => {

@@ -6,6 +6,9 @@ import type { EdgeRepositories } from "../local-storage/repositories"
 import type { ReplayOrchestrator } from "../replay/orchestrator"
 
 export class CommandProcessor {
+  /** The poll already running, so the heartbeat and the timer never overlap. */
+  private inFlightPoll: Promise<number> | null = null
+
   constructor(
     private readonly client: EdgeV1Client,
     private readonly repositories: EdgeRepositories,
@@ -15,7 +18,18 @@ export class CommandProcessor {
     private readonly isProductionCaptureAllowed: () => boolean = () => true,
   ) {}
 
-  async pollAndProcess(): Promise<number> {
+  pollAndProcess(): Promise<number> {
+    if (this.inFlightPoll) {
+      return this.inFlightPoll
+    }
+
+    this.inFlightPoll = this.pollOnce().finally(() => {
+      this.inFlightPoll = null
+    })
+    return this.inFlightPoll
+  }
+
+  private async pollOnce(): Promise<number> {
     const commands = await this.client.listCommands()
     let processed = 0
 

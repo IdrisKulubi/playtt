@@ -15,6 +15,18 @@ import type { LocalStoragePaths } from "../local-storage/paths"
  */
 export const RTSP_SOCKET_TIMEOUT_US = 15_000_000
 
+/**
+ * Segment length. A replay can only be cut once the segment holding its last
+ * second has closed, so shorter segments mean the TV waits less after the
+ * post-roll. (With stream copy, cuts land on keyframes: a camera with a
+ * longer keyframe interval simply produces longer segments.)
+ */
+export const DEFAULT_SEGMENT_SECONDS = 2
+/** How often closed segments are indexed. Also latency on every replay. */
+export const LIVE_INDEX_INTERVAL_MS = 500
+/** Disk budget checks stat every segment, so they run less often. */
+const DISK_BUDGET_INTERVAL_MS = 5_000
+
 export interface RollingBufferOptions {
   segmentSeconds?: number
   retentionSeconds?: number
@@ -30,6 +42,8 @@ export class RollingBufferSupervisor {
   private ffmpegAbortController: AbortController | null = null
   /** Last time this buffer started or saved a segment (ms). */
   private lastProgressAt = 0
+  private lastDiskBudgetAt = 0
+  private indexing = false
 
   constructor(
     private readonly camera: CameraSourceConfig,
@@ -86,7 +100,7 @@ export class RollingBufferSupervisor {
     const outputDir = this.paths.bufferForCamera(this.camera.cameraId)
     await mkdir(outputDir, { recursive: true })
 
-    const segmentSeconds = this.options.segmentSeconds ?? 4
+    const segmentSeconds = this.options.segmentSeconds ?? DEFAULT_SEGMENT_SECONDS
     const existingFiles = await readdir(outputDir)
     const nextSegmentNumber =
       existingFiles.reduce((highest, file) => {
@@ -171,17 +185,28 @@ export class RollingBufferSupervisor {
     const indexed = new Set<string>()
 
     this.segmentTimer = setInterval(() => {
-      if (!this.running) {
+      // Skip a tick rather than overlap a slow directory scan.
+      if (!this.running || this.indexing) {
         return
       }
 
+      this.indexing = true
       void this.indexLiveSegments(
         outputDir,
         segmentSeconds,
         retentionSeconds,
         indexed
       )
-    }, 2_000)
+        .catch((error) => {
+          safeLog("warn", "Live buffer indexing failed", {
+            sourceId: this.camera.cameraId,
+            message: error instanceof Error ? error.message : String(error),
+          })
+        })
+        .finally(() => {
+          this.indexing = false
+        })
+    }, LIVE_INDEX_INTERVAL_MS)
   }
 
   private async indexLiveSegments(
@@ -247,16 +272,18 @@ export class RollingBufferSupervisor {
       }
     }
 
-    await this.enforceDiskBudget(outputDir)
-
-    const cutoff = new Date(Date.now() - retentionSeconds * 1000)
-    const segments = this.repositories.listBufferSegmentsForWindow(
-      this.camera.cameraId,
-      cutoff.toISOString(),
-      new Date().toISOString()
-    )
+    if (Date.now() - this.lastDiskBudgetAt >= DISK_BUDGET_INTERVAL_MS) {
+      this.lastDiskBudgetAt = Date.now()
+      await this.enforceDiskBudget(outputDir)
+    }
 
     if (newlyIndexed > 0) {
+      const cutoff = new Date(Date.now() - retentionSeconds * 1000)
+      const segments = this.repositories.listBufferSegmentsForWindow(
+        this.camera.cameraId,
+        cutoff.toISOString(),
+        new Date().toISOString()
+      )
       this.lastProgressAt = Date.now()
       safeLog("info", "Live buffer segments indexed", {
         sourceId: this.camera.cameraId,
@@ -282,13 +309,20 @@ export class RollingBufferSupervisor {
     }
 
     const segmentFiles = files.filter((file) => file.endsWith(".ts"))
-    const sized = await Promise.all(
-      segmentFiles.map(async (file) => {
-        const path = join(outputDir, file)
-        const fileStat = await stat(path)
-        return { file, path, size: fileStat.size, mtimeMs: fileStat.mtimeMs }
-      })
-    )
+    const sized = (
+      await Promise.all(
+        segmentFiles.map(async (file) => {
+          const path = join(outputDir, file)
+          try {
+            const fileStat = await stat(path)
+            return { file, path, size: fileStat.size, mtimeMs: fileStat.mtimeMs }
+          } catch {
+            // Deleted between readdir and stat: nothing to budget.
+            return null
+          }
+        })
+      )
+    ).filter((entry): entry is NonNullable<typeof entry> => entry !== null)
 
     let totalBytes = sized.reduce((sum, entry) => sum + entry.size, 0)
     if (totalBytes <= maxDiskBytes) {
@@ -312,7 +346,7 @@ export class RollingBufferSupervisor {
   }
 
   private startSimulatedSegments(): void {
-    const segmentSeconds = this.options.segmentSeconds ?? 4
+    const segmentSeconds = this.options.segmentSeconds ?? DEFAULT_SEGMENT_SECONDS
     const retentionSeconds = this.options.retentionSeconds ?? 120
     let sequence = 0
 

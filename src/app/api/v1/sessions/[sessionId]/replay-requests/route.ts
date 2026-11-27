@@ -18,6 +18,7 @@ export async function POST(
   req: NextRequest,
   context: { params: Promise<{ sessionId: string }> },
 ) {
+  const requestedAt = new Date()
   try {
     const session = await getSessionWithBearerFallback(req)
 
@@ -52,6 +53,7 @@ export async function POST(
       userId: session.user.id,
       playSessionId: sessionId,
       clientIdempotencyKey: body.clientIdempotencyKey,
+      requestedAt,
     })
 
     return replayJson(result, 201)

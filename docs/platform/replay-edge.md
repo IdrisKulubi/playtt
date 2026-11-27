@@ -13,7 +13,7 @@ Continuous RTSP/video never enters the cloud application. Only the single reques
 - **One TypeScript VenueEdge service per venue** at `services/venue-edge/` — independent package, not a Next.js process.
 - **One primary replay stream per resource** initially; the NVR continues recording all cameras for security.
 - **Hybrid capture:** 60–120 second edge rolling buffer is the fast path; time-bounded VIGI NVR playback is fallback only after pilot hardware validation.
-- **Default replay window:** configurable `12s` pre-roll + `3s` post-roll (15 seconds total).
+- **Default replay window:** `40s` (`37s` pre-roll + `3s` post-roll). Admins set the length per tenant (10–60 s) in Admin → Replay clips; each request stores its own window, so a change only affects new taps.
 - **FFmpeg:** remux with stream copy when source is browser-compatible H.264 MP4; transcoding is explicit compatibility fallback.
 - **One logical clip** serves scoreboard, web/mobile library, and email-linked playback.
 

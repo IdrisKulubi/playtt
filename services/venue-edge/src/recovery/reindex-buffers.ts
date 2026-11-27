@@ -4,6 +4,7 @@ import { join } from "node:path"
 import type { LocalStoragePaths } from "../local-storage/paths"
 import type { EdgeRepositories } from "../local-storage/repositories"
 import { safeLog } from "../health/metrics"
+import { DEFAULT_SEGMENT_SECONDS } from "../buffers/rolling-buffer"
 
 const SEGMENT_FILE_PATTERN = /\.(ts|mp4)$/i
 
@@ -13,7 +14,7 @@ export async function reindexBufferSegmentsFromDisk(input: {
   sourceIds: string[]
   segmentSeconds?: number
 }): Promise<number> {
-  const segmentSeconds = input.segmentSeconds ?? 4
+  const segmentSeconds = input.segmentSeconds ?? DEFAULT_SEGMENT_SECONDS
   let indexed = 0
 
   for (const sourceId of input.sourceIds) {

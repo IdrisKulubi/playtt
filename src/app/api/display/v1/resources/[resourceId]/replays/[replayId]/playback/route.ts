@@ -19,6 +19,7 @@ export async function GET(_req: NextRequest, routeContext: RouteContext) {
       playback: {
         replayId: playback.replayId,
         mediaId: playback.mediaId,
+        durationSeconds: playback.durationSeconds,
         url: playback.grant.url,
         expiresAt: playback.grant.expiresAt,
       },

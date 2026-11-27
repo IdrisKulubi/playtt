@@ -206,6 +206,8 @@ export class RollingBufferVideoAdapter implements VideoAdapter {
     // path first and let strict media validation decide whether a transcode is
     // actually necessary.
     let extractionMethod = "stream_copy"
+    // Probed once on the fast path; reused below instead of probing twice.
+    let validated: Awaited<ReturnType<typeof assertReplayClip>> | null = null
     let result = await runFfmpeg({
       args: [
         ...concatInput,
@@ -221,7 +223,7 @@ export class RollingBufferVideoAdapter implements VideoAdapter {
 
     if (result.exitCode === 0) {
       try {
-        await assertReplayClip(request.outputPath, targetDuration)
+        validated = await assertReplayClip(request.outputPath, targetDuration)
       } catch {
         result = { ...result, exitCode: 1 }
       }
@@ -256,7 +258,9 @@ export class RollingBufferVideoAdapter implements VideoAdapter {
       throw new Error("extraction_failed")
     }
 
-    const validated = await assertReplayClip(request.outputPath, targetDuration)
+    if (extractionMethod !== "stream_copy" || !validated) {
+      validated = await assertReplayClip(request.outputPath, targetDuration)
+    }
 
     safeLog("info", "Replay clip extracted and validated", {
       replayRequestId: request.replayRequestId,

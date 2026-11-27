@@ -105,7 +105,9 @@ export function loadEnv(overrides: Partial<VenueEdgeEnv> = {}): VenueEdgeEnv {
     commandPollIntervalMs: Number(
       overrides.commandPollIntervalMs ??
         process.env.VENUE_EDGE_COMMAND_POLL_MS ??
-        5_000
+        // A replay can't start until its command is picked up, so this is
+        // pure latency on every tap. 1 s keeps it under a second on average.
+        1_000
     ),
     credentialsPath:
       overrides.credentialsPath ??
