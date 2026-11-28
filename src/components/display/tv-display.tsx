@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { TvScoreboardScene } from "@/components/display/tv-scoreboard"
 import {
   TvIdleScene,
+  TvReplayScene,
   TvSessionScene,
   TvUpNextScene,
   useNow,
@@ -67,22 +68,25 @@ export function VenueTvDisplay({ resourceId }: { resourceId: string }) {
       <TvBoard payload={payload} />
       {/* onError: a clip that can't play must not leave the TV stuck on black. */}
       {replayOverlay ? (
-        <div className="tv-fade fixed inset-0 z-50 flex flex-col items-center justify-center bg-black px-[4vw]">
-          <p className="mb-[2.4vh] self-start font-mono text-[1.7vh] tracking-[0.28em] text-white/70 uppercase">
-            Replay · {payload.resource.name}
-          </p>
-          <video
-            key={replayOverlay.playbackUrl}
-            className="max-h-[82vh] w-full rounded-[1.6vh] bg-black object-contain"
-            autoPlay
-            muted
-            playsInline
-            src={replayOverlay.playbackUrl}
-            onEnded={dismissReplayOverlay}
-            onError={handleReplayError}
-            // Started: cancels the "can't reach the venue PC" timeout.
-            onLoadedData={() => setStartedUrl(replayOverlay.playbackUrl)}
-          />
+        <div className="tv-fade fixed inset-0 z-50">
+          <TvReplayScene
+            tableName={payload.resource.name}
+            venue={payload.schedule?.venueName ?? "PlayTT"}
+            theme={payload.theme ?? defaultTheme()}
+          >
+            <video
+              key={replayOverlay.playbackUrl}
+              className="size-full bg-black object-contain"
+              autoPlay
+              muted
+              playsInline
+              src={replayOverlay.playbackUrl}
+              onEnded={dismissReplayOverlay}
+              onError={handleReplayError}
+              // Started: cancels the "can't reach the venue PC" timeout.
+              onLoadedData={() => setStartedUrl(replayOverlay.playbackUrl)}
+            />
+          </TvReplayScene>
         </div>
       ) : null}
     </>

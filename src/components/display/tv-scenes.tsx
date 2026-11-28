@@ -188,6 +188,50 @@ function Corner({ label, value, accent = false }: { label: string; value: string
   )
 }
 
+/**
+ * Replay on the venue's theme: the same moving background as every other
+ * scene, with the clip as a framed screen in the middle. `children` is the
+ * <video>, so playback handling stays with the caller.
+ */
+export function TvReplayScene({
+  tableName,
+  venue,
+  theme = defaultTheme(),
+  children,
+}: {
+  tableName: string
+  venue: string
+  theme?: DisplayTheme
+  children: ReactNode
+}) {
+  const now = useNow()
+
+  return (
+    <ThemedScene theme={theme} speed={0.5} composition="centre">
+      <Brand now={now} venue={venue} />
+      <div className="absolute top-[7vh] right-[4vw]">
+        <Label live>{`Replay · ${tableName}`}</Label>
+      </div>
+
+      <div className="absolute inset-x-[4vw] top-[17vh] bottom-[6vh] flex items-center justify-center">
+        <div
+          className="tv-rise relative overflow-hidden rounded-[2vh] bg-black"
+          style={{
+            // As large as fits, keeping the camera's 16:9.
+            height: "min(100%, calc(92vw * 9 / 16))",
+            aspectRatio: "16 / 9",
+            boxShadow:
+              "0 0 0 0.15vh rgb(255 255 255 / 0.35), 0 3vh 8vh rgb(0 24 64 / 0.45), 0 1vh 2.4vh rgb(0 24 64 / 0.3)",
+            animationDelay: "150ms",
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    </ThemedScene>
+  )
+}
+
 export function TvIdleScene({
   tableName,
   venue,
